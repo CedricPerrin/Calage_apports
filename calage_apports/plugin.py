@@ -406,7 +406,7 @@ def construire_couche_polygones_depuis_wkt(nom_couche, entites, crs_authid):
 # ---------------------------------------------------------------------------
 # Charte graphique ISL Ingenierie
 #
-# Couleurs RELEVEES sur les visuels de la charte (02- Charte/), pas devinees :
+# Couleurs RELEVEES sur les visuels de la charte (charte/), pas devinees :
 #   - le pictogramme du domaine « Prevention des inondations & ouvrages de
 #     protection » — celui de ce projet — donne le violet d'accent ;
 #   - la frise institutionnelle donne le bleu ardoise.
