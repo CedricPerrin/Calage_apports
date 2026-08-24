@@ -1,0 +1,2070 @@
+# -*- coding: utf-8 -*-
+"""
+Boucle de calage sequentiel : l'assemblage de toute la chaine.
+
+Ce module realise la procedure du § 1.6 de la note methodologique : pour
+chaque apport, de l'amont vers l'aval, estimer, calculer, comparer a la
+cible, corriger, repeter jusqu'a concordance, puis verifier la coherence
+des sections amont avant de passer au suivant.
+
+Il est INDEPENDANT du code de calcul hydraulique. Il ne connait du modele
+qu'une interface a quatre methodes (classe Modele ci-dessous), ce qui a deux
+consequences :
+
+  - la boucle se teste ENTIEREMENT sans HEC-RAS, sur un modele fictif dont on
+    connait la reponse exacte. C'est ce que fait l'auto-test de ce fichier ;
+  - un autre code hydraulique se branche en ecrivant une seule classe.
+
+La declinaison HEC-RAS est dans pilote_hecras.py.
+
+SIMPLIFIE LE 07/08/2026 (methode manuelle validee, hypothese « section de
+controle proche du point d'apport », § 1.2 de la note) : correction
+directe a UN SEUL TERME, decalage temporel Δt mesure une seule fois sur le
+calcul de reference (pic contre pic) puis fige, aucun dephasage de reponse φ
+mesure separement (equivaut a φ = 0), aucun plancher de volume calcule a
+l'avance, aucun gain hydraulique mesure. C'est EXACTEMENT la methode manuelle
+verifiee dans le classeur de reference, SUR TOUTE LA DUREE SIMULEE — l'apport
+injecte n'est jamais force a zero hors d'une fenetre :
+
+    apport(n+1)(t) = max(0, apport(n)(t) + [cible(t - Δt) - section(t)])
+
+Les versions anterieures portaient EN PLUS un second algorithme (« mode par
+defaut » : correction a deux termes volume + pointe, region de confiance
+adaptative, recherche de pas exhaustive) et des raffinements (dephasage de
+reponse φ mesure par correlation croisee, plancher de volume irreductible,
+fenetre d'injection qui forcait en plus l'APPORT a zero hors d'elle) — chacun
+documente, mesure, et utile dans le cas qui l'a motive, mais qui triplaient
+la taille de ce fichier pour un usage que la methode manuelle ne couvre pas.
+Ce choix est assume : sur un troncon qui lamine ou ecrete fortement (gain
+hydraulique loin de 1), cette version simplifiee convergera plus lentement,
+voire pas du tout, la ou l'ancien mode par defaut savait s'adapter. Ce n'est
+plus dans le perimetre de ce module.
+
+LA FENETRE DE L'EVENEMENT PRINCIPAL (fenetre_injection(), reintroduite le
+07/08/2026 dans une version plus etroite) reste, elle : elle restreint le
+JUGEMENT (diagnostiquer(), concordance()) et la PRESENTATION des resultats
+(series comparees dans le rapport final) a la crue calee, exactement comme
+avant — une mini-crue isolee ou une longue traine de debit de base, dans la
+donnee d'entree, ne doit ni gonfler ni degrader le verdict ni la figure
+montree a l'ingenieur. Elle ne force en revanche plus l'apport injecte a
+zero en dehors d'elle : celui-ci reste calcule sur toute la serie, comme
+dans le classeur de reference.
+
+CORRECTIF DE FOND APPORTE PAR CETTE MEME SIMPLIFICATION (pas seulement une
+reduction de code) : ecart_a_la_cible() decale desormais la CIBLE de -Δt
+pour la comparer au calcul, la ou l'ancien calcul_rephase() decalait le
+CALCUL de +Δt pour le comparer a la cible. Les deux ecritures ne sont PAS
+equivalentes point a point (l'une est l'autre translatee de Δt) : verifie
+contre les 4 blocs du classeur de reference, l'ancienne convention s'ecartait
+de 68 % du pic cible des que Δt atteignait 0,7 h (14 pas de temps), quand la
+nouvelle correspond au classeur a la precision numerique pres (< 0,1 % du pic,
+sur les quatre apports). Ce n'etait pas un defaut introduit par la
+simplification : l'ancien calcul_rephase() portait cette meme convention
+depuis avant elle, jamais confronte au classeur avant maintenant.
+
+Usage :  python calage.py        (calage complet sur un modele fictif)
+"""
+
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+
+import numpy as np
+
+from criteres import diagnostiquer
+
+# NOMS DES ETAPES DU CALAGE. Ils ne servent pas qu'a l'affichage : le modele
+# les reprend tels quels pour titrer ce qu'il conserve — sous HEC-RAS, un plan
+# et un unsteady flow par etape. On relit donc plus tard « Apport_A2 » dans le
+# gestionnaire de plans sans avoir a deviner quel numero correspond a quoi.
+ETAPE_SANS_APPORT = "sans apport"
+PREFIXE_ETAPE_APPORT = "Apport_"
+
+
+def etape_apport(nom_apport):
+    """Nom de l'etape de calage d'un apport : « Apport_A1 » pour « A1 »."""
+    return f"{PREFIXE_ETAPE_APPORT}{nom_apport}"
+
+
+# ---------------------------------------------------------------------------
+# Interface avec le modele hydraulique
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ResultatCalcul:
+    """Ce que la boucle a besoin de savoir d'un calcul qui vient de tourner."""
+    reussi: bool
+    duree_s: float = 0.0
+    bilan_masse_pct: float = float("nan")
+    courant_max: float = float("nan")
+    message: str = ""
+
+
+class Modele:
+    """
+    Interface minimale attendue d'un modele hydraulique.
+
+    Quatre methodes seulement. Tout ce qui touche au format des fichiers, au
+    lancement du solveur ou a la lecture des resultats appartient a
+    l'implementation, jamais a la boucle.
+    """
+
+    def preparer(self):
+        """Etat de depart : clonage du plan de travail, activation des sorties."""
+        raise NotImplementedError
+
+    def jalonner(self, etape):
+        """
+        Ouvre une nouvelle etape de calage sous ce nom.
+
+        Facultatif, et sans effet par defaut : la boucle marche sans. Un modele
+        qui sait conserver une trace bascule ici sur un jeu de fichiers neuf
+        portant ce nom, de sorte que l'etape precedente reste relisible telle
+        qu'elle s'est terminee. C'est ce que fait PiloteHecRas, avec un plan et
+        un unsteady flow par etape.
+        """
+        return None
+
+    def forme_apport(self, nom_apport):
+        """Hydrogramme de reference de cet apport : (temps_h, debit)."""
+        raise NotImplementedError
+
+    def appliquer_facteur(self, nom_apport, facteur):
+        """
+        Applique un facteur multiplicatif a l'hydrogramme de reference.
+
+        Toujours a partir de l'hydrogramme D'ORIGINE, jamais du precedent :
+        les formats de fichier quantifient les valeurs, et remettre a l'echelle
+        un resultat deja quantifie accumulerait l'erreur.
+        """
+        raise NotImplementedError
+
+    def definir_forme(self, nom_apport, temps_h, debits):
+        """
+        Remplace l'hydrogramme de reference d'un apport.
+
+        C'est le chemin normal de la correction additive : le nouvel apport
+        n'est pas un multiple de l'ancien, c'est une serie neuve, calculee
+        point par point.
+        """
+        raise NotImplementedError
+
+    def calculer(self):
+        """Lance le solveur. Retourne un ResultatCalcul."""
+        raise NotImplementedError
+
+    def lire_section(self, nom_section):
+        """Hydrogramme calcule a une section : (temps_h, debit)."""
+        raise NotImplementedError
+
+
+@dataclass
+class Configuration:
+    """Reglages de la recherche."""
+    nb_max_essais: int = 6
+    bilan_masse_max_pct: float = 1.0
+    # Tolerance sur le VOLUME. La concordance exige en plus la pointe et la
+    # forme : un volume juste avec une pointe fausse serait non conservatif
+    # pour une etude d'alea.
+    tolerance_beta: float = 0.05
+    # CONCORDANCE DEMANDEE : volume, debit de pointe ET forme.
+    # Le pic a sa propre tolerance : le KGE l'agrege avec le reste et peut
+    # rester bon alors que la pointe est franchement fausse — mesure sur un
+    # cas reel, KGE 0,97 pour un pic a 53 % de la cible.
+    tolerance_pic: float = 0.02
+    # Correlation minimale APRES recalage temporel : c'est la forme, sans la
+    # dynamique, qu'on exige de reproduire.
+    r_min: float = 0.97
+    # CHAMP INERTE depuis le 08/08/2026, conserve pour ne pas casser les
+    # classeurs en circulation qui le portent encore. Il plafonnait des
+    # « reprises » du controle amont qui ne pouvaient rien reprendre : la
+    # verification est une relecture pure du dernier calcul, la rejouer donne
+    # le meme verdict. Voir l'etape 7 de caler().
+    reprises_max: int = 2
+    controle_amont: bool = True
+
+    # ------------------------------------------------------------------
+    # FENETRE DE L'EVENEMENT PRINCIPAL. Restreint le JUGEMENT (diagnostiquer,
+    # concordance) et la PRESENTATION des resultats (series comparees dans le
+    # rapport) a la crue calee — jamais l'apport injecte lui-meme, qui reste
+    # calcule sur toute la serie (voir fenetre_injection() et le docstring du
+    # module). Les bornes se deduisent du volume cumule de l'ecart a l'etat
+    # sans apport, disponible des l'iteration 0, sans aucun calcul
+    # supplementaire.
+    # ------------------------------------------------------------------
+    # None ou True = active (defaut). False = aucune fenetre, le jugement et
+    # les series presentees portent alors sur toute la duree simulee.
+    fenetre_active: bool = None
+    fenetre_seuil_bas: float = 0.005     # t0 : 0,5 % du volume cumule
+    fenetre_seuil_haut: float = 0.99     # tf : 99 % du volume cumule
+    # Bornes imposees a la main, en heures. None = detection automatique.
+    fenetre_t0_h: float = None
+    fenetre_tf_h: float = None
+    # Marge fixe ajoutee de chaque cote de la fenetre detectee (ou imposee),
+    # pour laisser de la place a l'oeil plutot que de couper au plus juste.
+    fenetre_marge_h: float = 1.0
+
+    # Il n'y a PLUS de champ « mode_rapide » ni « lissage_deficit » : depuis
+    # le 07/08/2026 caler() ne connait qu'un seul algorithme de correction, et
+    # le deficit n'est plus lisse. Les cellules correspondantes ont ete
+    # retirees du gabarit ; un classeur ancien qui les porte encore n'est pas
+    # en erreur pour autant — pont_hecras.py ne les lit tout simplement plus.
+
+
+@dataclass
+class ResultatApport:
+    """Ce qui est retenu pour un apport a la fin de sa recherche."""
+    nom_apport: str
+    nom_section: str
+    valide: bool
+    facteur: float
+    diagnostic: object = None
+    essais: int = 0
+    duree_s: float = 0.0
+    motif: str = ""
+    historique: list = field(default_factory=list)
+    # Conserve pour compatibilite (suivi.py, livrables.py) : plus jamais
+    # calcule depuis la simplification du 07/08/2026, toujours None.
+    fenetre_principale: tuple = None
+
+
+@dataclass
+class ResultatCalage:
+    """Resultat d'ensemble."""
+    apports: list = field(default_factory=list)
+    diagnostics_finaux: list = field(default_factory=list)
+    # Series (temps_cible, debit_cible, temps_calcule, debit_calcule) de la
+    # verification globale finale, alignees sur diagnostics_finaux. Necessaires
+    # pour tracer les figures de comparaison du rapport final : un Diagnostic
+    # seul ne contient que des indicateurs agreges (KGE, r, alpha, beta), pas
+    # les courbes elles-memes.
+    series_finales: list = field(default_factory=list)
+    config: object = None
+    duree_s: float = 0.0
+    nb_calculs: int = 0
+    conforme: bool = False
+    motif: str = ""
+
+
+# ---------------------------------------------------------------------------
+# Controle de qualite numerique
+# ---------------------------------------------------------------------------
+
+
+def qualite_acceptable(resultat, config):
+    """
+    Un calcul numeriquement douteux est REJETE, pas compare a la cible.
+
+    Comparer un essai dont la conservation derive reviendrait a corriger un
+    apport pour compenser une erreur du solveur.
+
+    Retourne (acceptable, motif).
+    """
+    if not resultat.reussi:
+        return False, f"le calcul a echoue : {resultat.message}"
+    bilan = resultat.bilan_masse_pct
+    if np.isfinite(bilan) and abs(bilan) > config.bilan_masse_max_pct:
+        return False, (f"bilan de masse {bilan:+.3f} % au-dela de "
+                       f"{config.bilan_masse_max_pct} % admis")
+    return True, ""
+
+
+# ---------------------------------------------------------------------------
+# Correction ADDITIVE de l'hydrogramme d'apport
+#
+# Un coefficient multiplicatif n'agit que sur l'AMPLITUDE : il peut amener le
+# volume a la cible, jamais corriger la forme ni le debit de pointe si la
+# forme differe. La correction point par point n'a pas ce defaut : elle
+# ajoute exactement ce qui manque, la ou cela manque.
+# ---------------------------------------------------------------------------
+
+
+def _volume(temps, debits):
+    """Volume ecoule, en unites coherentes avec les debits fournis."""
+    return float(np.trapezoid(np.asarray(debits, dtype=float),
+                              np.asarray(temps, dtype=float)))
+
+
+def _facteur_retenu(historique, essai_en_place):
+    """
+    Rapport de volume de l'essai EFFECTIVEMENT en place a la fin.
+
+    Quand la recherche revient a un essai anterieur, le dernier enregistrement
+    de l'historique decrit un apport qui n'est plus dans le modele. Rapporter
+    ce chiffre ferait mentir le tableau des apports sur ce qui a ete livre.
+    """
+    if not historique:
+        return 0.0
+    for essai in historique:
+        if essai["essai"] == essai_en_place:
+            return essai["facteur"]
+    return historique[-1]["facteur"]
+
+
+def corriger_apport(apport, manque):
+    """
+    Nouvel hydrogramme d'apport, corrige DIRECTEMENT du manque mesure a la
+    section.
+
+        apport(n+1)(t) = max(0, apport(n)(t) + manque(t))
+
+    C'est la methode manuelle telle que verifiee dans le classeur de
+    reference : aucun coefficient de gain, aucune region de confiance,
+    aucune recherche de pas — l'ecart lui-meme EST la correction. Elle
+    suppose un troncon transparent (gain hydraulique proche de 1, section de
+    controle proche du point d'apport) : voir le docstring du module.
+
+    LE PLANCHER A ZERO EST LA SEULE CONTRAINTE. Un apport negatif serait un
+    prelevement, que la methode ne prevoit pas et que HEC-RAS refuserait ici.
+    Tout le reste est libre : l'apport n'est pas un hydrogramme observe mais
+    la commande d'un asservissement, il peut varier brutalement d'un pas au
+    suivant, seul le debit obtenu A LA SECTION est juge.
+
+    Ce plancher rend la correction UNIDIRECTIONNELLE la ou l'apport vaut deja
+    zero : la ou la section donne deja plus que la cible, le manque est
+    negatif et n'est pas compense — un apport ne sait qu'ajouter du debit. Le
+    volume final ne peut donc pas descendre sous la cible augmentee de cet
+    exces residuel. C'est une consequence de la physique, pas de ce code.
+    """
+    return np.maximum(np.asarray(apport, dtype=float)
+                      + np.asarray(manque, dtype=float), 0.0)
+
+
+def _temps_du_pic(t, q):
+    """
+    Heure du pic de q(t) : l'instant de la grille ou q est maximal.
+
+    TOUJOURS UN POINT DE LA GRILLE, jamais une position sous-pas. Un
+    raffinement parabolique y a ete essaye puis retire : deux series dont
+    les maxima discrets tombent au MEME pas (decalage nul, au sens de
+    criteres._decalage_pas) pouvaient quand meme rendre un decalage
+    sous-pas des que leurs points voisins etaient asymetriques — un
+    decalage que rien, cote HEC-RAS ou lecture manuelle, ne peut produire
+    ni verifier.
+
+    None si la serie est plate (aucun pic n'y est identifiable) : c'est a
+    l'appelant de le dire, jamais d'en fabriquer un.
+    """
+    t = np.asarray(t, dtype=float)
+    q = np.asarray(q, dtype=float)
+    if q.size < 3 or float(np.ptp(q)) <= 1e-9 * max(1.0, float(np.max(np.abs(q)))):
+        return None
+    return float(t[int(np.argmax(q))])
+
+
+def decalage_minimisant_ecart(temps_cible, debit_cible,
+                              temps_calcule, debit_calcule):
+    """
+    Decalage temporel qui ALIGNE LE PIC du calcul sur celui de la cible.
+
+    MEME CRITERE QUE criteres._decalage_pas, dont se sert diagnostiquer().
+    Les deux doivent rester d'accord : c'est la meme grandeur, mesuree pour
+    deux usages.
+
+    ANCRE SUR LE PIC, ET NON SUR UN MINIMUM D'ECART GLOBAL. Le residuel
+    compare ici (apports amont deja cales, apport courant a zero) n'a
+    generalement pas la meme forme que la cible — il lui manque justement ce
+    que l'apport courant doit fournir. Un ajustement par moindres carres sur
+    la serie entiere peut alors se caler sur la queue de decrue ou le debit
+    de base plutot que sur l'evenement, et rendre un decalage sans rapport
+    avec le temps de transfert reel. Le pic, lui, reste identifiable meme
+    quand tout le reste diverge : c'est le reperage qu'un operateur fait a
+    l'oeil, en lisant l'heure du pic obtenu dans le logiciel de calcul et en
+    la comparant a celle du pic cible (§ 1.4 de la note methodologique).
+
+    MESURE UNE SEULE FOIS PAR APPORT, sur le calcul de reference (apports a
+    zero), puis figee pour tous les essais suivants — voir caler(). C'est
+    exactement le geste manuel : lire l'heure du pic une fois, ne plus y
+    revenir.
+
+    AUCUNE BORNE ARTIFICIELLE SUR L'AMPLITUDE : le decalage retenu est
+    exactement t_pic_calcule - t_pic_cible, quelle que soit sa valeur. Un
+    ecrasement vers une fraction de la duree de la serie fabriquait un
+    decalage qui n'etait ni la mesure brute ni un temps de transfert
+    plausible — et le calage batissait TOUS ses essais dessus, puisque le
+    decalage est mesure une fois puis fige. Mesure sur un cas reel : -2,49 h
+    rendus au lieu de -3,3 h, et l'essai 1 partait a 3 469 738 % du volume
+    cible.
+
+    CE DECALAGE N'EST PLUS JUGE NULLE PART (08/08/2026). Il est mesure,
+    rapporte, et sert a la soustraction ; aucun seuil ne s'y applique. Voir
+    criteres.Diagnostic.converge pour ce qui a ete retire et pourquoi.
+
+    Retourne le decalage en heures. Positif = le calcul est EN RETARD.
+    Rend 0.0 si l'une des deux series est plate — meme garde-fou qu'avant
+    (section muette, debit constant) : decaler une serie plate ne change
+    rien, et un decalage imaginaire ne ferait que brouiller le journal.
+    """
+    t_c = np.asarray(temps_cible, dtype=float)
+    q_c = np.asarray(debit_cible, dtype=float)
+    t_s = np.asarray(temps_calcule, dtype=float)
+    q_s = np.asarray(debit_calcule, dtype=float)
+
+    t_pic_c = _temps_du_pic(t_c, q_c)
+    t_pic_s = _temps_du_pic(t_s, q_s)
+    if t_pic_c is None or t_pic_s is None:
+        return 0.0
+    return t_pic_s - t_pic_c
+
+
+def ecart_a_la_cible(temps_cible, debit_cible, temps_calcule, debit_calcule,
+                     decalage_h):
+    """
+    Ce qui MANQUE a la section : cible(t - Δt) - section(t).
+
+    C'est la formule verifiee dans le classeur de reference
+    (Example_manuel_methodo.xlsx), au sens pres : on decale la CIBLE de
+    -Δt, PAS le calcul. Les deux ne sont pas interchangeables des que Δt
+    n'est plus negligeable devant la vitesse de variation de l'hydrogramme.
+    Verifie sur le classeur : decaler le calcul plutot que la cible reste
+    proche de rien quand Δt vaut un seul pas de temps (0,05 h), mais s'ecarte
+    de 68 % du pic cible des que Δt atteint 0,7 h (14 pas) — ce n'est pas
+    une seconde ecriture equivalente d'un meme decalage, ce sont deux courbes
+    differentes, l'une etant l'autre translatee de Δt.
+
+    Le point decisif, commun aux deux ecritures : on ne soustrait pas les
+    deux hydrogrammes tels quels. Entre l'apport et la section il y a un
+    temps de propagation ; la difference brute contient alors un lobe
+    positif ET un lobe negatif qui ne traduisent qu'un DEPHASAGE, pas un
+    defaut de volume ni de forme. Reinjecter cela dans l'apport revient a
+    lutter contre le temps de propagation.
+
+    C'est la MEME fonction qui sert a l'estimation initiale (apport a zero)
+    et a la correction de chaque essai suivant : c'est la meme grandeur,
+    mesuree au meme endroit, et il n'y a aucune raison d'avoir deux chemins
+    de calcul pour elle.
+
+    HORS DE LA PLAGE OU LES DEUX SERIES SONT CONNUES, L'ECART EST NUL — pas
+    « egal a la cible ». np.interp() ne refuse pas une abscisse hors domaine :
+    il PLAFONNE a la premiere (ou derniere) valeur de la serie, ce qui
+    fabriquerait un ecart la ou rien n'a ete mesure.
+    """
+    t_cible = np.asarray(temps_cible, dtype=float)
+    q_cible = np.asarray(debit_cible, dtype=float)
+    t_calc = np.asarray(temps_calcule, dtype=float)
+    q_calc = np.asarray(debit_calcule, dtype=float)
+
+    lu_cible = t_cible - float(decalage_h)
+    cible_decalee = np.interp(lu_cible, t_cible, q_cible)
+    dans_cible = (lu_cible >= t_cible[0]) & (lu_cible <= t_cible[-1])
+
+    calc_aligne = np.interp(t_cible, t_calc, q_calc)
+    dans_calc = ((t_cible >= t_calc[0]) & (t_cible <= t_calc[-1])
+                if t_calc.size else np.zeros(t_cible.shape, dtype=bool))
+
+    return np.where(dans_cible & dans_calc, cible_decalee - calc_aligne, 0.0)
+
+
+def fenetre_injection(temps, ecart, seuil_bas=0.005, seuil_haut=0.99,
+                      t0_impose=None, tf_impose=None,
+                      volume_reference=None, perte_max=None):
+    """
+    Bornes (t0, tf) de l'evenement PRINCIPAL, en heures.
+
+    REINTRODUITE LE 07/08/2026, pour un usage plus etroit qu'avant la
+    simplification : elle restreint desormais le JUGEMENT (diagnostiquer(),
+    et la PRESENTATION des resultats — series comparees dans le rapport) a
+    la crue calee, mais ne force plus l'apport a zero en dehors (voir le
+    docstring du module). Une mini-crue anterieure ou un residu de fin de
+    serie, dans la donnee d'entree, ne doit ni gonfler ni degrader le
+    verdict de volume / pointe / forme qui juge chaque essai, ni la figure
+    de comparaison montree a l'ingenieur — mais l'apport, lui, reste
+    calcule sur toute la serie, exactement comme la methode manuelle.
+
+    `ecart` est le manque a la section pour l'etat SANS APPORT
+    (cible - residuel), disponible des l'iteration 0 : la fenetre ne coute
+    donc aucun calcul.
+
+    LE CUMUL PORTE SUR LA PART POSITIVE de l'ecart, pas sur l'ecart brut. Un
+    ecart brut change de signe des que la section depasse la cible quelque
+    part ; son cumul n'est alors plus croissant, et « le pas de temps ou l'on
+    atteint 99 % du volume » n'y designe plus rien d'unique. La part positive,
+    elle, est exactement ce qu'un apport peut combler — et c'est la grandeur
+    dont on cherche les bornes.
+
+    ASYMETRIE ASSUMEE : t0 capte large, tf coupe franc. Trop large ne coute
+    rien — hors evenement, l'ecart y est quasi nul ; trop etroit exclurait a
+    tort une partie du jugement sur la crue elle-meme.
+
+    t0_impose / tf_impose : bornes fixees a la main, en heures. Elles
+    REMPLACENT la detection, qui n'est qu'une proposition.
+
+    `volume_reference` (le volume de la cible) et `perte_max` (la part de ce
+    volume qu'on accepte de laisser hors fenetre) bordent les deux seuils :
+    ils ne peuvent qu'ELARGIR la fenetre, jamais la retrecir.
+
+    Retourne (t0, tf) en heures. Sur un ecart vide, nul ou entierement
+    negatif, rend la fenetre COMPLETE : mieux vaut ne rien restreindre que
+    restreindre au hasard.
+    """
+    t = np.asarray(temps, dtype=float)
+    if t.size == 0:
+        return (0.0, 0.0)
+    t0_defaut, tf_defaut = float(t[0]), float(t[-1])
+
+    positif = np.clip(np.asarray(ecart, dtype=float), 0.0, None)
+    pas = np.diff(t) * 3600.0
+    increments = 0.5 * (positif[:-1] + positif[1:]) * pas
+    cumul = np.concatenate(([0.0], np.cumsum(increments)))
+    total = float(cumul[-1])
+    if total <= 1e-9:
+        t0, tf = t0_defaut, tf_defaut
+    else:
+        if volume_reference and perte_max:
+            perte_bout = 0.5 * float(perte_max) * float(volume_reference)
+            exclu_bas = min(seuil_bas * total, perte_bout)
+            exclu_haut = min((1.0 - seuil_haut) * total, perte_bout)
+        else:
+            exclu_bas = seuil_bas * total
+            exclu_haut = (1.0 - seuil_haut) * total
+
+        t0 = (float(t[int(np.searchsorted(cumul, exclu_bas, side="left"))])
+              if exclu_bas > 0 else t0_defaut)
+        indice_haut = int(np.searchsorted(cumul, total - exclu_haut,
+                                          side="left"))
+        tf = float(t[min(indice_haut, t.size - 1)])
+
+    if t0_impose is not None:
+        t0 = float(t0_impose)
+    if tf_impose is not None:
+        tf = float(tf_impose)
+    if not (tf > t0):
+        return (t0_defaut, tf_defaut)
+    return (t0, tf)
+
+
+def masque_fenetre(temps, bornes):
+    """Masque des instants DANS la fenetre (t0, tf), bornes comprises."""
+    if bornes is None:
+        return np.ones(np.asarray(temps).shape, dtype=bool)
+    t = np.asarray(temps, dtype=float)
+    return (t >= bornes[0] - 1e-9) & (t <= bornes[1] + 1e-9)
+
+
+def ecarts_normalises(diag, config):
+    """
+    Les TROIS violations, chacune ramenee a sa propre tolerance.
+
+    Retourne (volume, pointe, forme). Une composante <= 1 signifie « dans les
+    clous » pour cette exigence-la ; les trois <= 1, c'est la concordance.
+    Normaliser est ce qui rend comparables un demi-pour-cent de volume, deux
+    pour-cent de pointe et trois centiemes de correlation.
+    """
+    return (
+        abs(diag.rapport_volume - 1.0) / max(config.tolerance_beta, 1e-9),
+        abs(diag.rapport_pic - 1.0) / max(config.tolerance_pic, 1e-9),
+        max(0.0, config.r_min - diag.r) / max(1.0 - config.r_min, 1e-9),
+    )
+
+
+def admissible(diag, config):
+    """Un essai respecte-t-il les TROIS seuils a la fois ?"""
+    return max(ecarts_normalises(diag, config)) <= 1.0
+
+
+def ecart_combine(diag, config):
+    """
+    Erreur combinee volume + pointe + forme, pour departager deux essais.
+
+    NORME EUCLIDIENNE des trois violations normalisees, la ou le critere
+    d'arret, lui, reste le MAXIMUM (concordance() : les trois seuils doivent
+    etre tenus simultanement, un seul depassement suffit a refuser).
+
+    Les deux ne jouent pas le meme role et ne peuvent pas etre le meme
+    calcul. Le maximum dit « es-tu recevable ? » — il ne voit que la pire
+    exigence, et se moque de ce que valent les deux autres. Il classait donc
+    a egalite un essai a (1,0 ; 0,1 ; 0,1) et un essai a (1,0 ; 0,99 ; 0,99),
+    qui ne se valent pourtant pas du tout. La norme euclidienne dit « et de
+    combien, au total ? » : elle recompense l'essai qui rapproche des trois
+    cibles a la fois, ce qui est exactement l'objectif de l'etude.
+    """
+    v, q, f = ecarts_normalises(diag, config)
+    return float(np.sqrt(v * v + q * q + f * f))
+
+
+def rang_essai(diag, config):
+    """
+    Cle de tri d'un essai : (non admissible, erreur combinee).
+
+    L'ADMISSIBILITE PRIME, TOUJOURS. Un essai qui tient les trois seuils
+    passe devant tout essai qui n'en tient qu'un, meme si ce dernier affiche
+    une erreur combinee plus faible — un volume parfait avec une pointe hors
+    seuil n'est pas un resultat d'etude d'alea. A admissibilite egale, c'est
+    l'erreur combinee qui departage.
+    """
+    return (not admissible(diag, config), ecart_combine(diag, config))
+
+
+def _progression_pic(historique):
+    """
+    De combien le debit de pointe a gagne au DERNIER essai, en fraction.
+
+    Sert a distinguer, quand les essais sont epuises, une recherche qui
+    plafonne d'une recherche qui avancait encore. Le second cas se regle en
+    autorisant plus d'essais ; le premier, non.
+    """
+    if not historique or len(historique) < 2:
+        return None
+    dernier, precedent = historique[-1].get("pic"), historique[-2].get("pic")
+    if dernier is None or precedent is None:
+        return None
+    if np.isnan(dernier) or np.isnan(precedent):
+        return None
+    return float(dernier) - float(precedent)
+
+
+def concordance(diag, config):
+    """
+    L'OBJECTIF : que l'hydrogramme mesure a la section soit le plus proche
+    possible de celui vise. Concretement, concordance simultanee du VOLUME,
+    du DEBIT DE POINTE et de la FORME.
+
+    La DYNAMIQUE est volontairement exclue — un decalage temporel n'a pas a
+    etre reproduit, il est seulement surveille comme garde-fou. D'ou un
+    critere sur r, qui mesure la forme APRES recalage temporel, et non sur
+    le KGE brut.
+
+    LE KGE N'EST PAS UNE CONDITION D'ARRET. Il agrege r, alpha et beta en un
+    seul nombre : des trois, seul alpha — le rapport des ecarts-types —
+    n'est pas deja contraint ici. Le maintenir revenait donc a ajouter une
+    contrainte sur la VARIABILITE, qui ne fait pas partie de l'objectif. Le
+    KGE reste calcule et rapporte, comme critere d'ACCEPTATION a posteriori.
+
+    LE VOLUME SE LIT SUR « rapport_volume », JAMAIS SUR « beta ». Les deux
+    sont proches quand les deux series partagent leur base de temps, et
+    seulement dans ce cas : beta est le terme de biais du KGE, calcule sur la
+    grille qui ENGLOBE les deux series, tandis que rapport_volume integre sur
+    la seule fenetre ou elles existent TOUTES DEUX, apres neutralisation du
+    decalage. Sur un cas reel dont la simulation depasse largement la cible,
+    l'ecart n'a rien d'academique : beta = 2,613 quand le volume vaut 1,040.
+    """
+    return (abs(diag.rapport_volume - 1.0) <= config.tolerance_beta
+            and abs(diag.rapport_pic - 1.0) <= config.tolerance_pic
+            and diag.r >= config.r_min)
+
+
+# ---------------------------------------------------------------------------
+# Boucle principale
+# ---------------------------------------------------------------------------
+
+
+def caler(modele, apports, sections, cibles, config=None, suivi=None,
+          journal=None, etape_reference=ETAPE_SANS_APPORT):
+    """
+    Cale sequentiellement les apports de l'amont vers l'aval.
+
+    apports  : noms des conditions limites d'injection, dans l'ordre.
+    sections : noms des sections de controle associees, meme ordre.
+    cibles   : liste de (temps_h, debit) — l'hydrogramme vise a chaque section.
+    suivi    : objet Suivi facultatif. Le rapport et les figures sont alors
+               reecrits a chaque apport valide, sans jamais interrompre le
+               calage en cas de defaillance.
+    journal  : fonction d'affichage, print par defaut.
+    etape_reference : nom donne a l'etape du calcul de reference. Le defaut
+               « sans apport » est exact quand la liste couvre TOUS les apports
+               du modele. En reprise — les apports amont deja cales ne sont pas
+               dans la liste, donc pas remis a zero — l'appelant doit fournir un
+               nom qui le dise, sinon la trace conservee ment sur son contenu.
+
+    Retourne un ResultatCalage.
+    """
+    config = config or Configuration()
+    dire = journal if journal is not None else print
+    debut = time.time()
+    resultat = ResultatCalage(config=config)
+
+    modele.preparer()
+
+    # --- etape 0 : etat de reference, TOUS LES APPORTS A CALER MIS A ZERO --
+    #
+    # Sans cette passe, l'estimation initiale etait fausse deux fois :
+    #   - pour le PREMIER apport, aucun residuel n'etait connu, et le facteur
+    #     valait cible / forme. Or la section recoit deja le debit de tout ce
+    #     qui n'est pas cale — conditions limites permanentes, affluents
+    #     amont. Mesure sur un cas reel : 275 m3/s deja presents pour une
+    #     cible a 551, soit plus de la moitie ignoree ;
+    #   - pour les SUIVANTS, le residuel etait lu sur le dernier calcul, ou
+    #     l'apport en cours valait encore 1. On retranchait donc a la cible
+    #     un debit qui contenait deja une part de l'apport cherche.
+    #
+    # Mettre TOUS les apports a zero des le depart resout les deux : chaque
+    # apport est active a son tour, si bien que le dernier calcul de l'apport
+    # N est exactement l'etat « sans apport N+1 ». Le surcout est donc d'UN
+    # SEUL calcul pour tout le calage, et non d'un par apport.
+    # Un debit injecte nul est parfaitement admis par HEC-RAS.
+    for nom in apports:
+        modele.appliquer_facteur(nom, 0.0)
+    _jalonner(modele, etape_reference, dire)
+    dire("Calcul de reference : tous les apports a caler sont mis a zero, "
+         "pour mesurer ce que les sections recoivent sans eux.")
+    calcul = modele.calculer()
+    resultat.nb_calculs += 1
+    acceptable, motif_qualite = qualite_acceptable(calcul, config)
+    if not acceptable:
+        resultat.motif = (
+            f"le calcul de reference (apports a zero) n'est pas exploitable : "
+            f"{motif_qualite}. Rien ne peut etre cale sur cette base.")
+        dire(f"    ARRET : {resultat.motif}")
+        resultat.duree_s = time.time() - debut
+        return resultat
+
+    # TOUTES LES SECTIONS SONT LUES MAINTENANT, pas quand leur tour vient.
+    #
+    # Le calcul de reference est le SEUL etat ou les sections sont toutes
+    # lisibles ensemble, et il vient d'avoir lieu : les eprouver ici ne coute
+    # rien. Une section illisible — nom absent du modele, faute de frappe —
+    # ne se manifestait qu'au moment ou son apport arrivait, c'est-a-dire
+    # apres le calage complet des apports amont.
+    illisibles = []
+    for section in sections:
+        try:
+            _, residuel_zero = modele.lire_section(section)
+        except Exception as e:                              # noqa: BLE001
+            illisibles.append(f"{section} ({type(e).__name__}: {e})")
+        else:
+            dire(f"    {section:24s} recoit {float(np.max(residuel_zero)):7.1f} "
+                 f"m3/s sans les apports a caler")
+    if illisibles:
+        resultat.motif = (
+            f"section(s) de controle illisible(s) dans le calcul de "
+            f"reference : {' ; '.join(illisibles)}. Verifier que ces noms "
+            f"sont bien ceux des lignes de reference du modele.")
+        dire(f"    ARRET : {resultat.motif}")
+        resultat.duree_s = time.time() - debut
+        return resultat
+
+    for i, (apport, section) in enumerate(zip(apports, sections)):
+        temps_cible, debit_cible = cibles[i]
+        if suivi is not None:
+            _sans_interrompre(suivi.commencer_apport, i)
+        dire(f"\n=== Apport {i + 1}/{len(apports)} : {apport} -> {section} ===")
+
+        # --- etape 1 : estimation initiale --------------------------------
+        # L'hydrogramme de depart de l'apport n'a AUCUNE importance : la
+        # correction additive le remplace entierement des le premier essai
+        # par ce qui manque a la section.
+        #
+        # LIRE LE RESIDUEL AVANT D'OUVRIR L'ETAPE. Il se lit dans les
+        # RESULTATS du dernier calcul — l'etat de reference pour le premier
+        # apport, l'apport precedent valide pour les suivants. Or jalonner()
+        # CLONE le plan et fait pointer le modele sur un plan NEUF, qui n'a
+        # pas encore de fichier de resultats. Lire apres le jalon revenait
+        # donc a chercher l'etat de reference dans un .hdf qui n'existe pas.
+        try:
+            temps_residuel, residuel = modele.lire_section(section)
+            echec_lecture = ""
+        except Exception as e:                              # noqa: BLE001
+            temps_residuel, residuel = None, None
+            echec_lecture = f"{type(e).__name__}: {e}"
+
+        # NOUVELLE ETAPE AVANT LA PREMIERE ECRITURE de cet apport : ce qui
+        # precede — etat de reference ou apport precedent valide — reste ainsi
+        # fige dans ses propres fichiers, relisible tel quel.
+        _jalonner(modele, etape_apport(apport), dire)
+
+        # --- premiere estimation : CE QUI MANQUE, apport a zero -----------
+        #
+        # Pas un facteur applique a une forme supposee, mais l'ecart mesure
+        # lui-meme. C'est deja la bonne forme au premier ordre : le deficit
+        # porte l'information de volume, de pointe ET d'allure.
+        if residuel is None:
+            # LA CAUSE EST DITE. Le message ne portait que le symptome, et
+            # une lecture qui echoue a dix raisons possibles — section absente
+            # du modele, nom mal orthographie, resultats non ecrits. Sans la
+            # phrase de l'exception, chaque diagnostic repartait de zero.
+            etat_apport, motif = "arret", (
+                f"impossible de lire le debit a la section « {section} » avec "
+                f"l'apport a zero : sans cet etat de reference, aucune "
+                f"estimation n'est possible."
+                + (f" Cause : {echec_lecture}" if echec_lecture else ""))
+            manquant = None
+            decalage_zero = 0.0
+            bornes_fenetre = None
+        else:
+            # Meme raisonnement que pour les corrections suivantes : le
+            # residuel arrive decale, et le soustraire tel quel melerait un
+            # dephasage au deficit reel.
+            #
+            # MESURE UNE SEULE FOIS, ICI, PUIS FIGEE pour tous les essais
+            # suivants (voir decalage_minimisant_ecart). C'est exactement le
+            # geste manuel : lire l'heure du pic dans le calcul a apport nul,
+            # la comparer a celle du pic cible, une fois pour toutes.
+            decalage_zero = decalage_minimisant_ecart(
+                temps_cible, debit_cible, temps_residuel, residuel)
+            manquant = ecart_a_la_cible(temps_cible, debit_cible,
+                                        temps_residuel, residuel,
+                                        decalage_zero)
+            dire(f"    la section recoit deja "
+                 f"{float(np.max(residuel)):.1f} m3/s sans cet apport, "
+                 f"pour une cible a {float(np.max(debit_cible)):.1f} "
+                 f"(decalage retenu {decalage_zero:+.2f} h)")
+
+            # L'APPORT EST-IL SEULEMENT IDENTIFIABLE A CETTE TOLERANCE ?
+            #
+            # La chaine cale la SECTION sur sa cible ; l'apport retenu en est
+            # deduit. Quand l'apport ne pese presque rien devant le debit qui
+            # transite deja, la bande de tolerance admise a la section est
+            # AUSSI LARGE QUE L'APPORT LUI-MEME : une infinite d'apports tres
+            # differents y satisfont, et celui qui sort n'est plus une mesure.
+            # La section restera juste — c'est ce qu'on demande a la chaine —
+            # mais l'hydrogramme d'apport ne doit pas etre relu comme une
+            # estimation hydrologique.
+            #
+            # MESURE SUR UN CALAGE REEL (7 apports, 08/08/2026), face a un
+            # calcul manuel independant : six apports pesant 6 a 62 % du debit
+            # a leur section tombent a moins de 10 % du calcul manuel ; le
+            # septieme, qui n'en pese que 2 %, s'en ecarte de 200 % sur la
+            # pointe — alors que sa section est a 100,5 % de la cible. Le
+            # facteur d'amplification ci-dessous valait 2,6 pour celui-la.
+            pic_cible = float(np.max(debit_cible))
+            pic_residuel = float(np.max(residuel))
+            part = (pic_cible - pic_residuel) / pic_cible if pic_cible else 0.0
+            if 0.0 < part:
+                amplification = config.tolerance_beta / part
+                if amplification > 1.0:
+                    dire(f"    ATTENTION — APPORT PEU IDENTIFIABLE : il ne "
+                         f"pese que {100 * part:.1f} % du debit a la section, "
+                         f"pour une tolerance de "
+                         f"{100 * config.tolerance_beta:.1f} % sur le volume. "
+                         f"L'apport retenu peut donc s'ecarter de l'ordre de "
+                         f"{100 * amplification:.0f} % du veritable apport "
+                         f"SANS que la section cesse d'etre conforme. La "
+                         f"section sera calee ; l'hydrogramme d'apport sorti "
+                         f"n'est pas une estimation hydrologique et ne doit "
+                         f"pas etre exploite comme telle. Pour l'identifier, "
+                         f"il faudrait une section ou cet apport pese "
+                         f"davantage, ou une tolerance plus serree.")
+
+            # FENETRE DE L'EVENEMENT PRINCIPAL — voir fenetre_injection() et
+            # Configuration. Restreint le jugement et la presentation des
+            # resultats, pas l'apport injecte.
+            fenetre_demandee = (True if config.fenetre_active is None
+                                else bool(config.fenetre_active))
+            if fenetre_demandee:
+                bornes_fenetre = fenetre_injection(
+                    temps_cible, manquant,
+                    seuil_bas=config.fenetre_seuil_bas,
+                    seuil_haut=config.fenetre_seuil_haut,
+                    t0_impose=config.fenetre_t0_h,
+                    tf_impose=config.fenetre_tf_h,
+                    volume_reference=_volume(temps_cible, debit_cible),
+                    perte_max=config.tolerance_beta)
+                if config.fenetre_marge_h:
+                    t_min, t_max = float(temps_cible[0]), float(temps_cible[-1])
+                    bornes_fenetre = (
+                        max(bornes_fenetre[0] - config.fenetre_marge_h, t_min),
+                        min(bornes_fenetre[1] + config.fenetre_marge_h, t_max))
+                dire(f"    hydrogramme principal {bornes_fenetre[0]:.2f} h -> "
+                     f"{bornes_fenetre[1]:.2f} h — seule cette fenetre est "
+                     f"jugee et presentee ; l'apport reste calcule sur toute "
+                     f"la serie")
+            else:
+                bornes_fenetre = None
+
+        historique_rapport, essais = [], 0
+        debut_apport = time.time()
+        etat_apport = locals().get("etat_apport", "poursuivre")
+        motif = locals().get("motif", "")
+        diag = None
+        courant = None
+        volume_initial = 0.0
+        meilleur, degradations = None, 0
+
+        # La section recoit-elle DEJA plus que la cible ? On ne peut pas
+        # RETIRER du debit avec un apport : le dire tout de suite vaut mieux
+        # que d'iterer vers un apport nul en degradant le diagnostic.
+        if manquant is not None and float(np.max(manquant)) <= 0.0:
+            modele.appliquer_facteur(apport, 0.0)
+            etat_apport, motif = "arret", (
+                f"la section recoit deja au moins autant que la cible sans "
+                f"cet apport (pointe residuelle "
+                f"{float(np.max(residuel)):.1f} m3/s pour une cible a "
+                f"{float(np.max(debit_cible)):.1f}). Un apport ne peut "
+                f"qu'ajouter du debit : la cible est hors d'atteinte par ce "
+                f"levier. Verifier les apports amont deja cales, ou la cible "
+                f"elle-meme.")
+        elif manquant is not None:
+            courant = np.maximum(manquant, 0.0)
+            volume_initial = max(_volume(temps_cible, courant), 1e-9)
+
+        while courant is not None:
+            # --- calcul, puis qualite numerique --------------------------
+            modele.definir_forme(apport, temps_cible, courant)
+            modele.appliquer_facteur(apport, 1.0)
+            calcul = modele.calculer()
+            resultat.nb_calculs += 1
+            acceptable, motif_qualite = qualite_acceptable(calcul, config)
+
+            if not acceptable:
+                # Un essai rejete n'entre PAS dans l'historique : il n'apprend
+                # rien sur la relation apport -> reponse.
+                dire(f"    essai {essais + 1} REJETE — {motif_qualite}")
+                etat_apport, motif = "arret", (
+                    f"calcul rejete pour qualite numerique : {motif_qualite}")
+                break
+
+            # --- diagnostic ----------------------------------------------
+            temps_calcule, debit_calcule = modele.lire_section(section)
+            diag = diagnostiquer(temps_cible, debit_cible,
+                                 temps_calcule, debit_calcule,
+                                 tolerance_volume=config.tolerance_beta,
+                                 tolerance_pic=config.tolerance_pic,
+                                 r_min=config.r_min,
+                                 fenetre=bornes_fenetre)
+            essais += 1
+
+            historique_rapport.append({
+                "essai": essais,
+                "facteur": _volume(temps_cible, courant) / volume_initial,
+                "beta": diag.beta, "kge": diag.kge,
+                "pic": diag.rapport_pic, "r": diag.r})
+
+            # MEMORISER LE MEILLEUR. La reponse du modele n'est pas lineaire :
+            # la recherche peut passer pres de la concordance puis s'en
+            # eloigner. Rendre le DERNIER essai serait alors absurde.
+            #
+            # LE CLASSEMENT EST (admissibilite, erreur combinee) : un essai
+            # qui tient les trois seuils passe devant tous les autres, et
+            # entre deux essais de meme admissibilite c'est celui qui est le
+            # plus proche des trois cibles A LA FOIS qui est retenu.
+            if meilleur is None or rang_essai(diag, config) < meilleur["rang"]:
+                meilleur = {"rang": rang_essai(diag, config),
+                            "apport": courant.copy(),
+                            "diag": diag, "essai": essais,
+                            "series": (temps_cible, debit_cible,
+                                       temps_calcule, debit_calcule)}
+                degradations = 0
+            else:
+                degradations += 1
+
+            atteint = concordance(diag, config)
+            dire(f"    essai {essais} : "
+                 f"volume {100 * diag.rapport_volume:5.1f} %  "
+                 f"pointe {100 * diag.rapport_pic:5.1f} %  "
+                 f"forme {100 * diag.r:5.1f} %"
+                 + ("  -> concordance atteinte" if atteint else ""))
+            if suivi is not None:
+                if essais == 1:
+                    _sans_interrompre(suivi.enregistrer_residuel, i,
+                                      (temps_cible, debit_cible),
+                                      (temps_residuel, residuel),
+                                      decalage_zero)
+                # rapport_volume, PAS beta : c'est la grandeur que la boucle
+                # teste et que le journal affiche.
+                _sans_interrompre(suivi.enregistrer_essai, i,
+                                  _volume(temps_cible, courant) / volume_initial,
+                                  diag.rapport_volume, diag.kge,
+                                  diag.rapport_pic, diag.r, diag.decalage_h,
+                                  (temps_cible, debit_cible,
+                                   temps_calcule, debit_calcule),
+                                  (temps_cible, courant),
+                                  decalage_zero)
+
+            if atteint:
+                etat_apport = "converge"
+                break
+
+            # VOLUME EXCEDENTAIRE ET POINTE DEFICITAIRE : les deux exigences
+            # se contredisent, car un apport ne sait qu'AJOUTER du debit — il
+            # remplit un hydrogramme trop maigre, il n'affute pas un
+            # hydrogramme trop plat. On le DIT, sans arreter.
+            if (diag.rapport_volume > 1.0 + config.tolerance_beta
+                    and diag.rapport_pic < 1.0 - config.tolerance_pic):
+                dire(f"      volume DEJA excedentaire alors que la pointe "
+                     f"manque : l'hydrogramme calcule est trop ETALE, pas "
+                     f"trop faible. Rehausser la pointe aggravera le volume. "
+                     f"Pistes : resserrer les apports amont deja cales, "
+                     f"rapprocher l'injection de la section, ou revoir la "
+                     f"cible.")
+
+            # Deux essais consecutifs qui s'eloignent : insister ne fera
+            # qu'empirer. On s'arrete et on retient le meilleur.
+            if degradations >= 2:
+                etat_apport, motif = "arret", (
+                    f"la recherche s'eloigne de la concordance depuis "
+                    f"l'essai {meilleur['essai']} : le modele repond de "
+                    f"facon trop non lineaire a cet apport pour aller plus "
+                    f"loin.")
+                break
+
+            if essais >= config.nb_max_essais:
+                etat_apport = "arret"
+                motif = (
+                    f"{essais} essais sans concordance simultanee : volume "
+                    f"{100 * diag.rapport_volume:.1f} %, pointe "
+                    f"{100 * diag.rapport_pic:.1f} %, forme "
+                    f"{100 * diag.r:.1f} % de la cible.")
+                # PROGRESSAIT-ON ENCORE ? Une recherche qui plafonne ne
+                # gagnera rien a plus d'essais ; une recherche qui avance
+                # encore, si.
+                pas = _progression_pic(historique_rapport)
+                if pas is not None and pas > 1e-5:
+                    reste = (1.0 - config.tolerance_pic) - diag.rapport_pic
+                    if reste > 0:
+                        motif += (
+                            f" La pointe PROGRESSAIT ENCORE de "
+                            f"{100 * pas:+.2f} point au dernier essai ; il lui "
+                            f"manquait {100 * reste:.1f} point(s), soit "
+                            f"environ {reste / pas:.0f} essai(s) de plus. "
+                            f"Augmenter Nb_max_iterations_par_apport avant de "
+                            f"mettre en cause la methode.")
+                if diag.alertes:
+                    motif += " Alertes : " + " ; ".join(diag.alertes)
+                break
+
+            # --- correction ------------------------------------------------
+            # L'ecart est calcule APRES recalage temporel, avec le decalage
+            # FIGE a l'itération 0 (jamais remesure) : sans cela, la
+            # correction combat le temps de propagation au lieu du defaut
+            # d'apport, et le debit de pointe s'emballe.
+            manque = ecart_a_la_cible(temps_cible, debit_cible,
+                                      temps_calcule, debit_calcule,
+                                      decalage_zero)
+            precedent = courant
+            courant = corriger_apport(courant, manque)
+            dire(f"      correction au pic "
+                 f"{float(np.max(courant - precedent)):+.1f} m3/s")
+            if float(np.max(np.abs(courant - precedent))) <= 1e-6:
+                etat_apport, motif = "arret", (
+                    f"la correction n'a plus d'effet alors que la "
+                    f"concordance n'est pas atteinte (volume "
+                    f"{100 * diag.rapport_volume:.1f} %, pointe "
+                    f"{100 * diag.rapport_pic:.1f} %) : le modele ne repond "
+                    f"plus a cet apport.")
+                break
+
+        # RESTITUER LE MEILLEUR ETAT, pas le dernier. Le modele conserve
+        # l'hydrogramme du dernier essai : si un essai anterieur etait plus
+        # proche de la concordance, c'est lui qu'il faut remettre en place,
+        # sans quoi le calage laisserait derriere lui un apport moins bon que
+        # celui qu'il a su trouver.
+        essai_en_place = essais
+        if (meilleur is not None and etat_apport != "converge"
+                and meilleur["essai"] != essais):
+            modele.definir_forme(apport, temps_cible, meilleur["apport"])
+            modele.appliquer_facteur(apport, 1.0)
+            essai_en_place = meilleur["essai"]
+            diag = meilleur["diag"]
+            temps_cible, debit_cible, temps_calcule, debit_calcule = \
+                meilleur["series"]
+            dire(f"    retour a l'essai {meilleur['essai']}, le plus proche "
+                 f"de la concordance (volume "
+                 f"{100 * diag.rapport_volume:.1f} %, pointe "
+                 f"{100 * diag.rapport_pic:.1f} %)")
+            # UN APPORT REMIS EN PLACE N'EST JAMAIS VALIDE : tout essai
+            # concordant fait deja sortir la boucle sur « converge » — les
+            # essais encore candidats au titre de meilleur ont donc TOUS
+            # echoue au meme test, sur le meme diagnostic. Rejouer ce test
+            # ici ne pourrait jamais rattraper un essai qui a deja echoue.
+
+        duree_apport = time.time() - debut_apport
+        valide = etat_apport == "converge"
+        if not valide and not motif:
+            motif = "concordance volume / pointe / forme non atteinte"
+
+        resultat.apports.append(ResultatApport(
+            nom_apport=apport, nom_section=section, valide=valide,
+            # Le facteur decrit l'essai RETENU. Apres un retour au meilleur
+            # essai, prendre le dernier de l'historique decrirait un apport
+            # qui n'est plus en place.
+            facteur=_facteur_retenu(historique_rapport, essai_en_place),
+            diagnostic=diag, essais=essais,
+            duree_s=duree_apport, motif="" if valide else motif,
+            historique=historique_rapport,
+            fenetre_principale=bornes_fenetre))
+
+        if suivi is not None:
+            series = ((temps_cible, debit_cible, temps_calcule, debit_calcule)
+                      if valide and diag is not None else None)
+            if valide:
+                _sans_interrompre(suivi.valider_apport, i, diag,
+                                  duree_apport, series)
+            else:
+                _sans_interrompre(suivi.echouer_apport, i, motif, diag,
+                                  duree_apport)
+
+        if not valide:
+            dire(f"    ARRET sur cet apport : {motif}")
+            resultat.motif = (f"apport {apport} non cale : {motif}. "
+                              f"Les apports suivants ne sont pas traites : la "
+                              f"resolution sequentielle suppose l'amont fige.")
+            break
+
+        # --- etape 7 : coherence des sections amont -----------------------
+        if config.controle_amont and i > 0:
+            fenetres_amont = [a.fenetre_principale for a in resultat.apports[:i]]
+            # UNE SEULE EVALUATION, ET C'EST TOUT CE QU'ON PEUT EN TIRER.
+            #
+            # Ce controle etait ecrit comme une boucle de « reprises », qui
+            # rappelait _sections_derivees jusqu'a reprises_max. Or cette
+            # fonction est une RELECTURE PURE du dernier calcul : aucun calcul
+            # HEC-RAS n'intervient entre deux tours, les entrees sont
+            # identiques, le verdict aussi. La boucle ne pouvait donc rien
+            # changer — elle imprimait « reprise 1/2 » puis « reprise 2/2 »
+            # avant le meme resultat, ce qui donnait a lire une chaine en
+            # train de corriger quelque chose alors qu'elle relisait deux fois
+            # la meme chose. Constate sur le calage du 07-08/08/2026, ou les
+            # deux lignes sont apparues a chacun des sept apports.
+            #
+            # Rattraper reellement une derive amont demanderait de reprendre
+            # l'apport concerne, donc un calcul de plusieurs heures, et de
+            # relancer toute la sequence aval derriere lui. C'est une decision
+            # d'ingenieur, pas un automatisme : la chaine SIGNALE, et laisse
+            # decider.
+            derives = _sections_derivees(modele, sections[:i], cibles[:i],
+                                         config, fenetres_amont)
+            if derives:
+                dire(f"    AVERTISSEMENT : en aval de « {apport} », les "
+                     f"sections deja calees {[s for s, _ in derives]} sont "
+                     f"sorties de tolerance. Le remous du nouvel apport les a "
+                     f"deplacees. Les reprendre suppose de relancer la "
+                     f"sequence a partir de la premiere d'entre elles ; rien "
+                     f"n'est repris automatiquement.")
+
+    # --- etape finale : verification globale -------------------------------
+    if all(a.valide for a in resultat.apports) and \
+            len(resultat.apports) == len(apports):
+        # AUCUN CALCUL SUPPLEMENTAIRE ICI, et c'est licite : on n'arrive dans
+        # cette passe que si TOUS les apports sont valides, ce qui exclut
+        # qu'un seul ait ete remis a un essai anterieur. Le dernier calcul
+        # porte donc le jeu d'apports definitif, et le relire suffit.
+        dire("\n=== Verification globale finale ===")
+        for section, (t_c, q_c), a in zip(sections, cibles, resultat.apports):
+            t_s, q_s = modele.lire_section(section)
+            d = diagnostiquer(t_c, q_c, t_s, q_s,
+                              tolerance_volume=config.tolerance_beta,
+                              tolerance_pic=config.tolerance_pic,
+                              r_min=config.r_min,
+                              fenetre=a.fenetre_principale)
+            resultat.diagnostics_finaux.append(d)
+            # SERIES PRESENTEES DANS LE RAPPORT : restreintes a la fenetre de
+            # l'evenement principal quand elle existe, pour la meme raison
+            # que le diagnostic ci-dessus — une figure qui montre toute la
+            # duree simulee, debit de base compris, noie la crue qu'on cale.
+            if a.fenetre_principale is not None:
+                t0, tf = a.fenetre_principale
+                m_c = (np.asarray(t_c, dtype=float) >= t0) & (np.asarray(t_c, dtype=float) <= tf)
+                m_s = (np.asarray(t_s, dtype=float) >= t0) & (np.asarray(t_s, dtype=float) <= tf)
+                resultat.series_finales.append(
+                    (np.asarray(t_c)[m_c], np.asarray(q_c)[m_c],
+                     np.asarray(t_s)[m_s], np.asarray(q_s)[m_s]))
+            else:
+                resultat.series_finales.append((t_c, q_c, t_s, q_s))
+            dire(f"    {section:24s} volume {100 * d.rapport_volume:5.1f} %  "
+                 f"pointe {100 * d.rapport_pic:5.1f} %  "
+                 f"{'conforme' if d.converge else 'NON CONFORME'}")
+        resultat.conforme = all(d.converge for d in resultat.diagnostics_finaux)
+        if not resultat.conforme:
+            # LE MOTIF DIT CE QUI A ECHOUE, ET OU. Il annoncait autrefois une
+            # « derive » quelle que soit la cause : sur un calage dont tous
+            # les apports avaient ete valides un par un, cela envoyait
+            # chercher un remous inexistant alors que la cause etait ailleurs.
+            bloquees = [(s, d) for s, d in zip(sections,
+                                               resultat.diagnostics_finaux)
+                        if d.alertes_bloquantes]
+            derivees = [s for s, d in zip(sections, resultat.diagnostics_finaux)
+                        if not d.converge and not d.alertes_bloquantes]
+            causes = []
+            if derivees:
+                causes.append(
+                    f"derive a la verification globale sur {derivees} : "
+                    f"relancer une passe sequentielle amont -> aval, jamais "
+                    f"une optimisation globale simultanee")
+            for section, d in bloquees:
+                causes.append(f"« {section} » : "
+                              + " ; ".join(d.alertes_bloquantes))
+            resultat.motif = ". ".join(causes) + "."
+
+    resultat.duree_s = time.time() - debut
+    if suivi is not None:
+        _sans_interrompre(suivi.terminer)
+    return resultat
+
+
+def _sections_derivees(modele, sections, cibles, config, fenetres=None):
+    """
+    Sections deja validees qui sont sorties de tolerance. Simple relecture du
+    dernier calcul : aucun calcul supplementaire.
+
+    fenetres : une (t0, tf) par section, dans le meme ordre — celle de
+    l'evenement principal detectee pour cette section lors de son propre
+    calage (ResultatApport.fenetre_principale). Sans elle (None), chaque
+    section est jugee sur sa fenetre commune entiere.
+    """
+    if fenetres is None:
+        fenetres = [None] * len(sections)
+    derives = []
+    for section, (t_c, q_c), fenetre in zip(sections, cibles, fenetres):
+        try:
+            t_s, q_s = modele.lire_section(section)
+        except Exception:
+            continue
+        d = diagnostiquer(t_c, q_c, t_s, q_s,
+                          tolerance_volume=config.tolerance_beta,
+                          tolerance_pic=config.tolerance_pic,
+                          r_min=config.r_min,
+                          fenetre=fenetre)
+        if not d.converge:
+            derives.append((section, d))
+    return derives
+
+
+def _sans_interrompre(fonction, *arguments):
+    """
+    Le suivi ne doit jamais interrompre le calage. Meme regle que dans
+    suivi.py, appliquee ici aussi : un calage de six heures ne se perd pas
+    parce qu'une figure n'a pas pu s'ecrire.
+    """
+    try:
+        return fonction(*arguments)
+    except Exception:
+        return None
+
+
+def _jalonner(modele, etape, dire):
+    """
+    Ouvre une etape, et le DIT — qu'elle s'ouvre ou non.
+
+    L'echec n'arrete pas le calage : la trace est un confort, le calage est le
+    travail. Il est en revanche annonce, parce qu'un plan attendu qui n'existe
+    pas se cherche longtemps si personne n'a dit qu'il n'avait pas ete cree.
+    Le modele garantit de son cote qu'un echec le laisse coherent sur l'etape
+    precedente — voir PiloteHecRas.jalonner.
+    """
+    try:
+        rendu = modele.jalonner(etape)
+    except Exception as e:                                  # noqa: BLE001
+        dire(f"    AVERTISSEMENT : étape « {etape} » non ouverte "
+             f"({type(e).__name__}: {e}). Le calage continue sur les fichiers "
+             f"en place, sans trace séparée de cette étape.")
+        return None
+    if rendu:
+        dire(f"    étape « {etape} » : {rendu}")
+    return rendu
+
+
+# ---------------------------------------------------------------------------
+# Assemblage du rapport final
+# ---------------------------------------------------------------------------
+
+def produire_livrables_finaux(resultat, modele, dossier_sortie,
+                              profil=None, pk_sections=None, pk_apports=None):
+    """
+    Assemble le rapport final — graphiques, tableaux, export Excel, note de
+    synthese — a partir d'un ResultatCalage produit par caler().
+
+    Ne reimplemente AUCUNE regle : livrables.py est appele tel quel, exactement
+    comme le fait son propre auto-test. Seule la donnee de resultat.py est mise
+    en forme pour ses fonctions. C'est la meme discipline que caler() lui-meme :
+    l'assemblage est une couche fine, la logique reste dans les modules qui la
+    possedent deja.
+
+    modele : necessaire pour relire l'hydrogramme RETENU de chaque apport. La
+    correction etant additive, il n'est pas reconstructible depuis
+    resultat.apports — le modele en est la seule source.
+
+    profil, pk_sections, pk_apports : facultatifs. Fournis, ils ajoutent le
+    PROFIL EN LONG DE SYNTHESE, seule figure a montrer une derive avec son
+    contexte physique. Ils demandent l'axe hydraulique, que la boucle
+    n'exige pas — le rapport reste donc complet sans eux.
+
+    Retourne {"fichiers": [...], "conforme": bool}. Peut etre appele meme si
+    resultat.conforme est faux, pour produire un rapport de non-conformite
+    exploitable plutot que rien — mais exige que la verification globale ait
+    bien tourne (resultat.diagnostics_finaux non vide) : sans elle, il n'y a
+    rien a rapporter.
+    """
+    import livrables as liv
+    from suivi import assainir_nom_fichier
+
+    if not resultat.diagnostics_finaux:
+        raise ValueError(
+            "aucun diagnostic final disponible : la verification globale ne "
+            "s'est pas executee (calage interrompu avant son terme sur un "
+            "apport non valide).")
+
+    # La verification globale ne tourne que si TOUS les apports sont valides :
+    # les trois listes ont donc la meme longueur des qu'elle a eu lieu. On le
+    # verifie plutot que de s'y fier — un decalage d'indice ferait porter a un
+    # apport les series d'un autre, sans rien lever.
+    if not (len(resultat.apports) == len(resultat.diagnostics_finaux)
+            == len(resultat.series_finales)):
+        raise ValueError(
+            f"resultat incoherent : {len(resultat.apports)} apport(s), "
+            f"{len(resultat.diagnostics_finaux)} diagnostic(s), "
+            f"{len(resultat.series_finales)} serie(s) — les trois doivent "
+            f"correspondre un a un.")
+
+    sections = [a.nom_section for a in resultat.apports]
+    apports = [a.nom_apport for a in resultat.apports]
+
+    dossier = Path(dossier_sortie)
+    dossier.mkdir(parents=True, exist_ok=True)
+    fichiers = []
+
+    for i, (section, diag) in enumerate(zip(sections, resultat.diagnostics_finaux)):
+        t_c, q_c, t_s, q_s = resultat.series_finales[i]
+        fichiers.append(liv.figure_comparaison(
+            section, t_c, q_c, t_s, q_s, diag,
+            dossier / f"comparaison_{i + 1:02d}_{assainir_nom_fichier(section)}.png"))
+
+    fichiers.append(liv.figure_atteinte(
+        sections, resultat.diagnostics_finaux, dossier / "atteinte_cible.png"))
+
+    for i, a in enumerate(resultat.apports):
+        if len(a.historique) >= 2:
+            fichiers.append(liv.figure_convergence(
+                a.nom_section, a.historique,
+                dossier / f"convergence_{i + 1:02d}_{assainir_nom_fichier(a.nom_apport)}.png"))
+
+    # L'hydrogramme retenu se lit TEL QUEL dans le modele : la correction etant
+    # additive, definir_forme() y a deja ecrit la serie finale et le facteur
+    # applique vaut 1. La remultiplier par le rapport de volumes — ce que
+    # faisait la version multiplicative — l'echelonnerait une seconde fois.
+    # L'hydrogramme d'apport vit sur la base de temps du FICHIER UNSTEADY, qui
+    # couvre souvent bien plus que la fenetre reellement simulee : au-dela,
+    # definir_forme() prolonge par la derniere valeur connue. Rapporter le
+    # volume sur toute cette etendue annoncerait un apport que le calcul n'a
+    # jamais recu.
+    #
+    # Les livrables se limitent donc a la FENETRE DE CALAGE, celle de la cible.
+    temps_apport = None
+    hydrogrammes, dans_fenetre = [], []
+    for i, a in enumerate(resultat.apports):
+        t_forme, forme = modele.forme_apport(a.nom_apport)
+        forme = np.asarray(forme, dtype=float)
+        hydrogrammes.append(forme)
+        temps_apport = np.asarray(t_forme, dtype=float)
+        fin = float(np.max(resultat.series_finales[i][0]))
+        dans_fenetre.append(temps_apport <= fin + 1e-9)
+    if temps_apport is not None:
+        garde = dans_fenetre[0]
+        fichiers.append(liv.figure_apports_retenus(
+            apports, temps_apport[garde], [h[garde] for h in hydrogrammes],
+            dossier / "apports_retenus.png"))
+
+        # Une queue constante au-dela de la fenetre n'a aucun effet ICI, mais
+        # l'apport injecterait ce debit des que la simulation serait allongee.
+        # Le dire vaut mieux que le laisser decouvrir.
+        for nom, h, g in zip(apports, hydrogrammes, dans_fenetre):
+            queue = h[~g]
+            if len(queue) > 2 and float(np.max(queue)) > 0.01 * float(np.max(h)):
+                fichiers.append(
+                    f"AVERTISSEMENT — l'apport « {nom} » est prolonge a "
+                    f"{float(queue[0]):.1f} m3/s sur "
+                    f"{len(queue) * float(temps_apport[1] - temps_apport[0]):.0f} h "
+                    f"au-dela de la fenetre simulee. Sans effet sur ce calcul, "
+                    f"mais ce debit serait injecte si la fenetre etait "
+                    f"allongee.")
+
+    # --- profil en long de synthese, si l'axe hydraulique est disponible ---
+    if profil is not None and len(profil):
+        try:
+            fichiers.append(liv.figure_profil_en_long(
+                profil, pk_sections, dossier / "profil_en_long.png",
+                noms_sections=sections, apports_pk=pk_apports,
+                noms_apports=apports,
+                pics_cible=[float(np.max(s[1])) for s in resultat.series_finales],
+                pics_calcule=[float(np.max(s[3])) for s in resultat.series_finales]))
+        except Exception as e:
+            fichiers.append(f"profil en long non produit : "
+                            f"{type(e).__name__}: {e}")
+
+    tb = liv.tableau_de_bord(sections, resultat.diagnostics_finaux,
+                             nb_essais=[a.essais for a in resultat.apports])
+    # Pic et volume sur la FENETRE DE CALAGE seulement (cf. plus haut).
+    ta = liv.tableau_apports(
+        apports, [a.facteur for a in resultat.apports],
+        [float(np.max(h[g])) for h, g in zip(hydrogrammes, dans_fenetre)],
+        [float(np.trapezoid(h[g], temps_apport[g])) * 3.6
+         for h, g in zip(hydrogrammes, dans_fenetre)])
+    je = liv.journal_essais([
+        dict(apport=a.nom_apport, **essai)
+        for a in resultat.apports for essai in a.historique])
+
+    xlsx = liv.exporter_excel(dossier / "tableaux_calage.xlsx",
+                             Tableau_de_bord=tb, Apports=ta, Journal=je)
+    liv.synthese("Calage des apports — note de synthèse", sections,
+                resultat.diagnostics_finaux, dossier / "synthese.md")
+
+    return {"fichiers": fichiers + [xlsx, str(dossier / "synthese.md")],
+            "conforme": resultat.conforme}
+
+
+# ---------------------------------------------------------------------------
+# Modele fictif, pour eprouver la boucle sans HEC-RAS
+# ---------------------------------------------------------------------------
+
+
+class ModeleFictif(Modele):
+    """
+    Modele-jouet : chaque section recoit la somme des apports amont, laminee
+    d'autant plus fortement que le debit est eleve, et retardee.
+
+    Le laminage NON LINEAIRE reste un parametre du constructeur, mais son
+    defaut est desormais NUL (voir laminage) : la correction directe a un
+    seul terme suppose un troncon transparent (gain hydraulique EXACTEMENT
+    1) et n'est plus, depuis la simplification du 07/08/2026, censee
+    converger sur un troncon qui lamine, meme faiblement — a fortiori sur
+    plusieurs sections en chaine, ou une legere non-linearite a chaque
+    section se cumule d'un apport au suivant. C'est desormais hors du
+    perimetre de cette version (voir le docstring du module) : mesurer la
+    tenue face au laminage etait le role du mode par defaut, retire.
+    """
+
+    def __init__(self, apports, sections, temps, formes, laminage=0.0,
+                 retard_h=0.4, bilan_masse_pct=0.002, duree_calcul_s=0.0,
+                 seuil_instabilite=None, bilan_masse_instable=5.0,
+                 debit_base=None):
+        """
+        seuil_instabilite : au-dela de cette somme de facteurs, le modele
+            rend un bilan de masse degrade. Permet d'eprouver le rejet d'un
+            essai EN COURS de recherche, distinct d'un modele douteux des le
+            depart — que caler() arrete maintenant au calcul de reference.
+
+        debit_base : debit arrivant aux sections independamment des apports a
+            caler — entrees amont non calees, affluents. TOUS LES MODELES
+            N'EN ONT PAS : un modele dont toutes les entrees sont calees
+            presente un debit nul une fois les apports mis a zero, et c'est
+            un cas parfaitement normal que la boucle traite (l'ecart a
+            combler vaut alors la cible entiere).
+            Le parametre sert a eprouver le cas INVERSE, celui ou la section
+            recoit deja plus que la cible : il ne peut se produire que s'il
+            existe un debit non cale, puisqu'un apport ne sait qu'ajouter.
+        """
+        self.apports, self.sections = list(apports), list(sections)
+        self.temps = np.asarray(temps, dtype=float)
+        self.formes = {a: np.asarray(f, dtype=float)
+                       for a, f in zip(apports, formes)}
+        self.facteurs = {a: 0.0 for a in apports}
+        self.laminage = laminage
+        self.retard_h = retard_h
+        self.bilan_masse_pct = bilan_masse_pct
+        self.duree_calcul_s = duree_calcul_s
+        self.seuil_instabilite = seuil_instabilite
+        self.bilan_masse_instable = bilan_masse_instable
+        self.debit_base = (np.zeros_like(self.temps) if debit_base is None
+                           else np.asarray(debit_base, dtype=float))
+        self.nb_calculs = 0
+        # Etapes traversees, dans l'ordre. Le modele fictif ne conserve rien —
+        # il n'a pas de fichiers — mais il note ce qu'on lui demande de jalonner
+        # pour que l'auto-test verifie les noms sans HEC-RAS.
+        self.etapes = []
+
+    def preparer(self):
+        self.facteurs = {a: 0.0 for a in self.apports}
+
+    def jalonner(self, etape):
+        self.etapes.append(etape)
+        return None
+
+    def forme_apport(self, nom_apport):
+        return self.temps, self.formes[nom_apport]
+
+    def appliquer_facteur(self, nom_apport, facteur):
+        self.facteurs[nom_apport] = float(facteur)
+
+    def definir_forme(self, nom_apport, temps_h, debits):
+        self.formes[nom_apport] = np.interp(
+            self.temps, np.asarray(temps_h, dtype=float),
+            np.asarray(debits, dtype=float))
+
+    def calculer(self):
+        self.nb_calculs += 1
+        if self.duree_calcul_s:
+            time.sleep(self.duree_calcul_s)
+        bilan = self.bilan_masse_pct
+        # Un modele qui ne devient instable qu'AU-DELA d'un certain apport :
+        # indispensable pour eprouver le rejet d'un essai EN COURS de
+        # recherche. Un modele mauvais des le depart, lui, est desormais
+        # arrete au calcul de reference, donc n'atteint jamais cette branche.
+        if self.seuil_instabilite is not None:
+            total = sum(self.facteurs.values())
+            if total > self.seuil_instabilite:
+                bilan = self.bilan_masse_instable
+        return ResultatCalcul(reussi=True, duree_s=self.duree_calcul_s,
+                              bilan_masse_pct=bilan)
+
+    def lire_section(self, nom_section):
+        rang = self.sections.index(nom_section)
+        total = self.debit_base.copy()
+        for a in self.apports[:rang + 1]:
+            total = total + self.facteurs[a] * self.formes[a]
+        # Laminage non lineaire, puis retard.
+        lamine = total / (1.0 + self.laminage * total / max(total.max(), 1e-9))
+        pas = self.temps[1] - self.temps[0]
+        decalage = int(round((rang + 1) * self.retard_h / pas))
+        if decalage:
+            lamine = np.concatenate([np.full(decalage, lamine[0]),
+                                     lamine[:-decalage]])
+        return self.temps, lamine
+
+
+# ---------------------------------------------------------------------------
+# Auto-test
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    # SORTIE EN UTF-8, MEME LANCE A LA MAIN. Les auto-tests de ce module
+    # impriment des caracteres hors ASCII (« → », « Δ », les guillemets
+    # francais). Dans une console ou une redirection Windows, la sortie prend
+    # l'encodage local — cp1252 sur un poste francais — et le premier de ces
+    # caracteres leve UnicodeEncodeError : l'auto-test s'interrompt sur ce qui
+    # ressemble a un defaut du module, alors que rien n'est casse. Le pont
+    # impose PYTHONIOENCODING=utf-8 a la chaine lancee par le plugin ; ceci
+    # couvre l'appel direct, que la documentation recommande pourtant.
+    import sys
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    import tempfile
+    from pathlib import Path
+
+    from suivi import Suivi, nom_onglet
+
+    def _onglets(chemin):
+        """Noms des onglets d'un classeur, ou [] s'il n'est pas lisible."""
+        import openpyxl
+        try:
+            return openpyxl.load_workbook(chemin, read_only=True).sheetnames
+        except Exception:                                   # noqa: BLE001
+            return []
+
+    print("=" * 74)
+    print("AUTO-TEST DE LA BOUCLE DE CALAGE — modele fictif, reponse connue")
+    print("=" * 74)
+
+    def hydrogramme(t, pic, t_pic=6.0, forme=2.5):
+        t = np.maximum(np.asarray(t, dtype=float), 1e-3)
+        return pic * (t / t_pic) ** forme * np.exp(forme * (1 - t / t_pic))
+
+    temps = np.linspace(0.01, 36, 400)
+    # Nommes comme les conditions limites d'un vrai modele — « A1 » et non
+    # « Apport_1 » : les etapes du calage s'appellent « Apport_<nom> », et un
+    # nom deja prefixe rendrait « Apport_Apport_1 » illisible dans le controle.
+    apports = ["A1", "A2", "A3", "A4"]
+    sections = ["S1_Amont", "S2_Pont", "S3_Confluence", "S4_Aval"]
+    formes = [hydrogramme(temps, 10.0) for _ in apports]
+
+    # Laminage faible (2 %) : le domaine de validite de la correction directe
+    # (§ methodologie V1.3, hypothese « troncon transparent »). Ce test n'a
+    # plus a demontrer la precision face a un fort laminage — c'etait le role
+    # du mode par defaut, retire lors de la simplification du 07/08/2026.
+    modele = ModeleFictif(apports, sections, temps, formes)
+
+    # Cibles obtenues EN FAISANT TOURNER le modele avec des facteurs connus :
+    # la bonne reponse est donc connue exactement, et un echec de la boucle
+    # designe le code, jamais les donnees.
+    facteurs_vrais = [4.5, 3.4, 3.6, 3.5]
+    for a, f in zip(apports, facteurs_vrais):
+        modele.appliquer_facteur(a, f)
+    cibles = [modele.lire_section(s) for s in sections]
+    for i, (s, (_, q)) in enumerate(zip(sections, cibles)):
+        print(f"   cible {s:16s} pic {float(np.max(q)):7.2f} m3/s "
+              f"(facteur vrai {facteurs_vrais[i]})")
+
+    sortie = Path(tempfile.gettempdir()) / "calage_boucle_test"
+    suivi = Suivi(sortie, apports, sections, titre="Test a blanc")
+
+    modele.preparer()
+    resultat = caler(modele, apports, sections, cibles,
+                     Configuration(nb_max_essais=8),
+                     suivi=suivi)
+
+    print(f"\n--- BILAN ---")
+    print(f"   {resultat.nb_calculs} calculs, "
+          f"{sum(a.essais for a in resultat.apports)} essais retenus")
+    # La correction etant ADDITIVE, il n'y a plus de facteur scalaire a
+    # comparer : c'est l'HYDROGRAMME INJECTE qui doit retrouver celui ayant
+    # servi a fabriquer la cible. Controle plus exigeant qu'un scalaire — il
+    # porte sur le volume, la pointe ET la forme, c'est-a-dire exactement ce
+    # que la methode promet.
+    vrais_hydrogrammes = {a: formes[k] * facteurs_vrais[k]
+                          for k, a in enumerate(apports)}
+    ecarts_volume, ecarts_pic = [], []
+    for a in resultat.apports:
+        obtenu = modele.formes[a.nom_apport] * modele.facteurs[a.nom_apport]
+        attendu = vrais_hydrogrammes[a.nom_apport]
+        e_v = abs(_volume(temps, obtenu) / _volume(temps, attendu) - 1)
+        e_p = abs(float(np.max(obtenu)) / float(np.max(attendu)) - 1)
+        ecarts_volume.append(e_v)
+        ecarts_pic.append(e_p)
+        print(f"   {a.nom_apport:10s} volume {100 * e_v:+5.1f} %  "
+              f"pointe {100 * e_p:+5.1f} %  "
+              f"volume {100 * a.diagnostic.rapport_volume:5.1f} %  "
+              f"pointe {100 * a.diagnostic.rapport_pic:5.1f} %  "
+              f"{a.essais} essai(s)")
+    print(f"   conforme : {resultat.conforme}")
+
+    # --- controles ---------------------------------------------------------
+    print("\n--- CONTROLES ---")
+    echecs = []
+
+    def controler(libelle, condition, detail=""):
+        print(f"   [{'OK' if condition else 'ECHEC'}] {libelle}"
+              + (f"  ->  {detail}" if detail else ""))
+        if not condition:
+            echecs.append(libelle)
+
+    controler("tous les apports valides",
+              all(a.valide for a in resultat.apports),
+              f"{sum(a.valide for a in resultat.apports)}/{len(apports)}")
+    controler("calage conforme a la verification finale", resultat.conforme)
+    controler("hydrogrammes retrouves en VOLUME a mieux que 5 %",
+              max(ecarts_volume) < 0.05,
+              f"ecart max {100 * max(ecarts_volume):.2f} %")
+    controler("hydrogrammes retrouves en POINTE a mieux que 5 %",
+              max(ecarts_pic) < 0.05,
+              f"ecart max {100 * max(ecarts_pic):.2f} %")
+    # LE KGE N'ARRETE PAS LA RECHERCHE.
+    _c = Configuration()
+    _faux = type("D", (), {"beta": 1.0, "rapport_volume": 1.0,
+                           "rapport_pic": 1.0, "r": 0.99, "kge": 0.80})()
+    controler("le KGE n'est pas une condition d'arret",
+              concordance(_faux, _c),
+              f"KGE {_faux.kge}, volume/pointe/forme conformes")
+    _faux_pic = type("D", (), {"beta": 1.0, "rapport_volume": 1.0,
+                               "rapport_pic": 1.5, "r": 0.99, "kge": 0.99})()
+    controler("une pointe fausse arrete la concordance malgre un bon KGE",
+              not concordance(_faux_pic, _c),
+              f"pic {_faux_pic.rapport_pic}, KGE {_faux_pic.kge}")
+
+    controler("concordance simultanee volume / pointe / forme a chaque section",
+              all(d.converge for d in resultat.diagnostics_finaux),
+              "  ".join(f"{d.rapport_volume:.3f}/{d.rapport_pic:.3f}/{d.r:.3f}"
+                        for d in resultat.diagnostics_finaux))
+    controler("convergence econome (<= 6 essais par apport)",
+              max(a.essais for a in resultat.apports) <= 6,
+              f"max {max(a.essais for a in resultat.apports)}")
+    controler("suivi produit", (sortie / "avancement.md").exists()
+              and (sortie / "avancement.png").exists())
+    controler("un onglet d'iterations par apport",
+              (sortie / "iterations.xlsx").exists()
+              and _onglets(sortie / "iterations.xlsx")
+              == [nom_onglet(a) for a in apports],
+              f"{_onglets(sortie / 'iterations.xlsx')}")
+
+    # ETAPES JALONNEES : une pour l'etat de reference, une par apport, dans
+    # l'ordre. C'est ce qui donne leurs noms aux plans conserves sous HEC-RAS.
+    controler("etapes jalonnees dans l'ordre",
+              modele.etapes == [ETAPE_SANS_APPORT]
+              + [etape_apport(a) for a in apports],
+              " | ".join(modele.etapes))
+
+    # --- rapport final ------------------------------------------------------
+    print("\n--- ASSEMBLAGE DU RAPPORT FINAL ---")
+    dossier_rapport = sortie / "rapport_final"
+    rapport = produire_livrables_finaux(resultat, modele, dossier_rapport)
+    controler("rapport conforme", rapport["conforme"])
+    # 4 comparaisons + 1 atteinte + 1 apports_retenus + xlsx + synthese = 8.
+    # PAS de figure de convergence attendue ICI : sur un troncon transparent
+    # (le defaut du modele fictif depuis la simplification du 07/08/2026),
+    # chaque apport converge en un seul essai, et figure_convergence exige
+    # au moins deux essais pour avoir quelque chose a tracer.
+    controler("fichiers produits", len(rapport["fichiers"]) >= 8,
+              f"{len(rapport['fichiers'])} fichier(s)")
+    controler("4 figures de comparaison",
+              len(list(dossier_rapport.glob("comparaison_*.png"))) == 4)
+    import pandas as pd
+    journal = pd.read_excel(dossier_rapport / "tableaux_calage.xlsx",
+                            sheet_name="Journal")
+    controler("le diagnostic par essai n'est plus NaN dans le journal",
+              journal["pic"].notna().all() and journal["beta"].notna().all(),
+              f"{journal['pic'].notna().sum()}/{len(journal)} valeurs")
+    tb_final = pd.read_excel(dossier_rapport / "tableaux_calage.xlsx",
+                             sheet_name="Tableau_de_bord")
+    controler("tableau de bord final a 4 sections", len(tb_final) == 4)
+    controler("le tableau de bord est fidele aux diagnostics",
+              all(abs(tb_final.loc[i, "Volume (% cible)"]
+                      - round(100 * d.rapport_volume, 1)) < 1e-9
+                  and abs(tb_final.loc[i, "Débit de pointe (% cible)"]
+                          - round(100 * d.rapport_pic, 1)) < 1e-9
+                  for i, d in enumerate(resultat.diagnostics_finaux)))
+    controler("aucune colonne KGE dans le livrable",
+              not any(c in tb_final.columns
+                      for c in ("KGE", "r", "alpha", "beta")),
+              " | ".join(tb_final.columns))
+
+    # L'APPORT EXPORTE EST-IL CELUI QUI EST DANS LE MODELE ?
+    ap_final = pd.read_excel(dossier_rapport / "tableaux_calage.xlsx",
+                             sheet_name="Apports")
+    pics_modele = [float(np.max(modele.forme_apport(a.nom_apport)[1]))
+                   for a in resultat.apports]
+    controler("le pic injecte exporte est celui du modele",
+              all(abs(ap_final.loc[i, "Pic injecte (m3/s)"] - p) < 0.02
+                  for i, p in enumerate(pics_modele)),
+              "  ".join(f"{ap_final.loc[i, 'Pic injecte (m3/s)']:.1f}"
+                        f"/{p:.1f}" for i, p in enumerate(pics_modele)))
+
+    # Depart volontairement faux, comme dans un vrai test a blanc.
+    print("\n--- DEPART FAUSSE (x0,6), comme au test a blanc T4 ---")
+    modele2 = ModeleFictif(apports, sections, temps, formes)
+    modele2.preparer()
+    for a, f in zip(apports, facteurs_vrais):
+        modele2.appliquer_facteur(a, 0.6 * f)
+    r2 = caler(modele2, apports, sections, cibles,
+              Configuration(nb_max_essais=8),
+              journal=lambda *a, **k: None)
+    ecarts2 = [
+        abs(_volume(temps, modele2.formes[a.nom_apport]
+                    * modele2.facteurs[a.nom_apport])
+            / _volume(temps, vrais_hydrogrammes[a.nom_apport]) - 1)
+        for a in r2.apports]
+    print(f"   {r2.nb_calculs} calculs, ecart de volume max "
+          f"{100 * max(ecarts2):.2f} %, conforme : {r2.conforme}")
+    # Le depart n'a plus d'influence : la correction additive remplace
+    # l'hydrogramme des le premier essai.
+    controler("le depart fausse n'influe pas sur le resultat",
+              r2.conforme and max(ecarts2) < 0.05,
+              f"ecart de volume max {100 * max(ecarts2):.2f} %")
+
+    # -----------------------------------------------------------------------
+    # LA FORMULE MANUELLE EST CELLE DU CODE — verification directe contre le
+    # classeur de reference (Example_manuel_methodo.xlsx) : decalage mesure
+    # UNE FOIS (pic contre pic), puis cible(t - Δt) - section(t), plancher a
+    # zero, sans aucun autre terme.
+    # -----------------------------------------------------------------------
+    print("\n--- LA FORMULE MANUELLE EST CELLE DU CODE ---")
+    _mt = np.linspace(0.0, 20.0, 201)
+    _mp = lambda t0: 50.0 * np.exp(-((_mt - t0) ** 2) / 2.0)  # noqa: E731
+    _m_cible, _m_section = _mp(9.0), _mp(6.0)   # section en avance de 3 h
+    _m_dt = decalage_minimisant_ecart(_mt, _m_cible, _mt, _m_section)
+    _m_manuel = np.maximum(
+        np.interp(_mt - _m_dt, _mt, _m_cible) - _m_section, 0.0)
+    _m_code = corriger_apport(
+        np.zeros_like(_mt),
+        ecart_a_la_cible(_mt, _m_cible, _mt, _m_section, _m_dt))
+    controler("la formule manuelle (cible(t-Δt) - section(t)) coincide avec "
+              "corriger_apport(0, ecart_a_la_cible(...))",
+              float(np.max(np.abs(_m_manuel - _m_code))) < 1e-9,
+              f"ecart max {float(np.max(np.abs(_m_manuel - _m_code))):.2e}")
+
+    print("\n--- FENETRE DE L'EVENEMENT PRINCIPAL (jugement et presentation) ---")
+    _tf_t = np.linspace(0.0, 48.0, 481)          # 48 h au pas de 6 min
+    _tf_ecart = 30.0 * np.exp(-((_tf_t - 12.0) ** 2) / 4.0)
+    _t0, _tfin = fenetre_injection(_tf_t, _tf_ecart)
+    controler("la fenetre enserre l'evenement, pas toute la simulation",
+              0.0 < _t0 < 12.0 < _tfin < 48.0, f"{_t0:.2f} h -> {_tfin:.2f} h")
+    controler("t0 capte plus large que tf ne coupe (asymetrie voulue)",
+              (12.0 - _t0) > (_tfin - 12.0),
+              f"montee {12.0 - _t0:.2f} h contre descente {_tfin - 12.0:.2f} h")
+    controler("un ecart nul rend la fenetre complete",
+              fenetre_injection(_tf_t, np.zeros_like(_tf_t)) == (0.0, 48.0))
+    controler("les bornes imposees remplacent la detection",
+              fenetre_injection(_tf_t, _tf_ecart, t0_impose=5.0,
+                                tf_impose=20.0) == (5.0, 20.0))
+    controler("le masque de fenetre est vrai bornes comprises",
+              bool(masque_fenetre(np.array([0.0, 5.0, 10.0]),
+                                  (5.0, 10.0)).tolist() == [False, True, True]))
+    controler("Fenetre_active=non desactive la fenetre (jugement sur tout)",
+              caler(ModeleFictif(["A"], ["S"], temps,
+                                 [hydrogramme(temps, 10.0)]),
+                    ["A"], ["S"], [cibles[0]],
+                    Configuration(fenetre_active=False, nb_max_essais=4),
+                    journal=lambda *a, **k: None
+                    ).apports[0].fenetre_principale is None)
+
+    print("\n--- Δt MESURE AU RESIDUEL, PAS FORCE A ZERO ---")
+    # Le residuel, avant tout apport, porte deja un temps de transfert propre
+    # depuis l'amont non cale, independant de l'apport qu'on cale. Modele
+    # minimal qui le reproduit : le residuel est un signal FIXE, deja decale
+    # de la cible, et l'apport s'y ajoute SANS retard propre.
+    class ModeleResiduelDecale(Modele):
+        def __init__(self, temps, residuel, forme_initiale):
+            self.temps = np.asarray(temps, dtype=float)
+            self.residuel = np.asarray(residuel, dtype=float)
+            self.forme = np.asarray(forme_initiale, dtype=float)
+            self.facteur = 0.0
+
+        def preparer(self):
+            self.facteur = 0.0
+
+        def forme_apport(self, nom_apport):
+            return self.temps, self.forme
+
+        def appliquer_facteur(self, nom_apport, facteur):
+            self.facteur = float(facteur)
+
+        def definir_forme(self, nom_apport, temps_h, debits):
+            self.forme = np.interp(self.temps, np.asarray(temps_h, dtype=float),
+                                   np.asarray(debits, dtype=float))
+
+        def calculer(self):
+            return ResultatCalcul(reussi=True)
+
+        def lire_section(self, nom_section):
+            return self.temps, self.residuel + self.facteur * self.forme
+
+    _t3 = np.linspace(0.0, 20.0, 201)
+    _pic3 = lambda t0, a: a * np.exp(-((_t3 - t0) ** 2) / 2.0)  # noqa: E731
+    _cible3 = _pic3(9.0, 50.0)
+    # Amplitude MODESTE par rapport a la cible : le residuel reste un signal
+    # fixe (l'apport ne peut pas le retirer), et une amplitude trop proche de
+    # la cible laisserait une bosse residuelle qui degraderait la FORME sans
+    # qu'aucune correction additive ne puisse jamais l'effacer — ce ne serait
+    # alors plus Δt que ce test eprouve, mais une cible mal choisie.
+    _residuel3 = _pic3(5.0, 5.0)   # decale de la cible, SANS aucun apport
+    _decalage_ref3 = decalage_minimisant_ecart(_t3, _cible3, _t3, _residuel3)
+    controler("le residuel, avant tout apport, porte deja un retard mesurable",
+              abs(_decalage_ref3) > 1.0, f"{_decalage_ref3:+.2f} h")
+
+    # LA CONVERGENCE N'EST PAS DEMANDEE ICI, deliberement. Le residuel reste
+    # un signal FIXE qu'aucun apport ne peut retirer : sa bosse propre, a
+    # t = 5 h, degrade la FORME de la section quel que soit ce qu'on injecte
+    # a t = 9 h — un defaut de la CIBLE de ce fixture, pas de la correction.
+    # Ce test ne verifie qu'une chose : que la premiere estimation est batie
+    # sur CE decalage-la, jamais sur zero.
+    _manquant3 = ecart_a_la_cible(_t3, _cible3, _t3, _residuel3, _decalage_ref3)
+    _manquant3_a_zero = ecart_a_la_cible(_t3, _cible3, _t3, _residuel3, 0.0)
+    controler("la premiere estimation est construite sur le decalage mesure, "
+              "pas sur zero",
+              float(np.max(np.abs(_manquant3 - _manquant3_a_zero))) > 1.0,
+              "les deux estimations different bien")
+
+    # Deux situations DISTINCTES, qu'il ne faut pas confondre.
+    print("\n--- MODELE DOUTEUX DES LE CALCUL DE REFERENCE ---")
+    modele3 = ModeleFictif(apports[:1], sections[:1], temps, formes[:1],
+                           bilan_masse_pct=5.0)
+    r3 = caler(modele3, apports[:1], sections[:1], cibles[:1],
+               Configuration(), journal=lambda *a, **k: None)
+    # Un modele deja instable APPORTS A ZERO ne peut rien caler du tout : le
+    # dire tout de suite vaut mieux que de consommer des essais.
+    controler("un modele douteux est arrete des le calcul de reference",
+              not r3.apports and "bilan de masse" in r3.motif, r3.motif)
+    controler("l'arret de reference ne coute qu'un seul calcul",
+              r3.nb_calculs == 1, f"{r3.nb_calculs} calcul(s)")
+
+    print("\n--- ESSAI REJETE EN COURS DE RECHERCHE ---")
+    # Modele sain a l'etat de reference, mais qui devient instable des que
+    # l'apport depasse un seuil : c'est le cas que le garde-fou de qualite
+    # doit intercepter PENDANT la recherche.
+    modele3b = ModeleFictif(apports[:1], sections[:1], temps, formes[:1],
+                            seuil_instabilite=0.5)
+    r3b = caler(modele3b, apports[:1], sections[:1], cibles[:1],
+                Configuration(), journal=lambda *a, **k: None)
+    controler("le calcul de reference d'un modele sain passe",
+              r3b.nb_calculs > 1, f"{r3b.nb_calculs} calculs")
+    controler("un essai devenu instable est rejete, et la recherche s'arrete",
+              bool(r3b.apports) and not r3b.apports[0].valide
+              and "bilan de masse" in r3b.apports[0].motif,
+              r3b.apports[0].motif if r3b.apports else "aucun apport")
+    controler("tout apport non converge reste non valide",
+              all(a.valide == (not a.motif) for a in r3b.apports),
+              f"{len(r3b.apports)} apport(s) examine(s)")
+
+    print("\n--- UNE ETAPE OUVERTE N'A PAS ENCORE DE RESULTATS ---")
+    # LE MODELE FICTIF EST TROP COMPLAISANT POUR CE CAS : il repond a
+    # lire_section() en tout temps, alors qu'un plan HEC-RAS fraichement clone
+    # n'a pas de fichier de resultats tant qu'il n'a pas ete calcule. La boucle
+    # lisait le residuel APRES avoir ouvert l'etape de l'apport : elle le
+    # cherchait donc dans un plan vide, et TOUT calage s'arretait sur le
+    # premier apport — apres avoir depense le calcul de reference pour rien
+    # (cas reel, 20 min perdues). Le modele ci-dessous reproduit cette regle.
+    class ModeleEtapeStricte(ModeleFictif):
+        """Comme HEC-RAS : pas de resultats entre un jalon et son calcul."""
+
+        _calcule = False
+
+        def jalonner(self, etape):
+            self._calcule = False
+            return super().jalonner(etape)
+
+        def calculer(self):
+            self._calcule = True
+            return super().calculer()
+
+        def lire_section(self, nom_section):
+            if not self._calcule:
+                raise RuntimeError(
+                    "plan sans resultats : le .hdf n'existe pas encore")
+            return super().lire_section(nom_section)
+
+    modele3c = ModeleEtapeStricte(apports, sections, temps, formes)
+    r3c = caler(modele3c, apports, sections, cibles,
+                Configuration(), journal=lambda *a, **k: None)
+    controler("le residuel est lu AVANT l'ouverture de l'etape de l'apport",
+              all(a.valide for a in r3c.apports)
+              and len(r3c.apports) == len(apports),
+              r3c.motif or f"{sum(a.valide for a in r3c.apports)}/"
+                           f"{len(apports)} apport(s) cale(s)")
+
+    print("\n--- SECTION DE CONTROLE ILLISIBLE ---")
+    # Une section mal nommee ne se manifestait qu'au tour de SON apport, donc
+    # apres le calage complet de tout l'amont. Elle est desormais detectee au
+    # calcul de reference, ou toutes les sections sont lisibles ensemble.
+    modele3d = ModeleFictif(apports[:1], sections[:1], temps, formes[:1])
+    r3d = caler(modele3d, apports[:1], ["Section_absente"], cibles[:1],
+                Configuration(), journal=lambda *a, **k: None)
+    controler("une section illisible arrete le calage des la reference",
+              not r3d.apports and "illisible" in r3d.motif, r3d.motif)
+    controler("elle est NOMMEE, et l'arret ne coute qu'un calcul",
+              "Section_absente" in r3d.motif and r3d.nb_calculs == 1,
+              f"{r3d.nb_calculs} calcul(s)")
+
+    print("\n--- DECALAGE NON IDENTIFIABLE ---")
+    # Aucun decalage ne se lit sur une serie qui ne bouge pas. Le balayage
+    # rendait pourtant le BORD de son domaine — -12,12 h sur une section
+    # muette — parce qu'a cout egal il gardait le premier candidat essaye. Le
+    # deficit n'en etait pas fausse, mais le journal envoyait chercher dans le
+    # modele un dephasage qui n'existe pas.
+    cible_temoin = hydrogramme(temps, 40.0)
+    for libelle, serie in (("muette", np.zeros_like(temps)),
+                           ("constante", np.full_like(temps, 12.0))):
+        d = decalage_minimisant_ecart(temps, cible_temoin, temps, serie)
+        controler(f"une section {libelle} ne fabrique pas de dephasage",
+                  abs(d) < 1e-9, f"{d:+.2f} h")
+    # Meme exigence sur le jumeau de criteres, dont se sert diagnostiquer() :
+    # les deux mesurent la meme grandeur et doivent repondre pareil.
+    from criteres import recaler as _recaler
+    _, _, d_criteres = _recaler(temps, np.full_like(temps, 12.0),
+                                temps, np.full_like(temps, 12.0))
+    controler("le recalage du diagnostic non plus",
+              abs(d_criteres) < 1e-9, f"{d_criteres:+.2f} h")
+    # ET IL RETROUVE UN VRAI DECALAGE, sans quoi le controle precedent serait
+    # satisfait par une fonction qui rendrait toujours zero.
+    retarde = np.interp(temps - 1.5, temps, cible_temoin)
+    d_vrai = decalage_minimisant_ecart(temps, cible_temoin, temps, retarde)
+    controler("un decalage reel est toujours mesure",
+              abs(d_vrai - 1.5) < 0.1, f"{d_vrai:+.2f} h pour +1,50 h injecte")
+
+    # -----------------------------------------------------------------------
+    # INVARIANT : UN APPORT REMIS A UN ESSAI ANTERIEUR N'EST JAMAIS VALIDE.
+    #
+    # Tout repose la-dessus. C'est ce qui autorise la verification globale a
+    # RELIRE le dernier calcul au lieu d'en lancer un : si un apport remis en
+    # place pouvait etre valide, le modele porterait l'essai retenu pendant
+    # que le fichier de resultats porterait le dernier, et le tableau de bord
+    # decrirait autre chose que ce que le modele contient.
+    # -----------------------------------------------------------------------
+    import ast
+    import inspect
+    import textwrap
+    _arbre = ast.parse(textwrap.dedent(inspect.getsource(caler)))
+    _appels = sum(1 for n in ast.walk(_arbre)
+                  if isinstance(n, ast.Call)
+                  and isinstance(n.func, ast.Name)
+                  and n.func.id == "concordance")
+    controler("aucune seconde chance d'acceptation apres le retour au meilleur",
+              _appels == 1,
+              f"{_appels} appel(s) reel(s) a concordance() dans caler() — "
+              f"un seul, dans la boucle d'essais")
+
+    # -----------------------------------------------------------------------
+    # L'ARRET PORTE SUR « rapport_volume », JAMAIS SUR « beta ».
+    # -----------------------------------------------------------------------
+    _c = Configuration()
+    _bon = type("D", (), {"kge": 0.9, "r": 0.99, "alpha": 1.0, "beta": 2.613,
+                          "decalage_h": 0.0, "rapport_pic": 1.005,
+                          "rapport_volume": 1.002})()
+    controler("la concordance se prononce sur le volume, pas sur beta",
+              concordance(_bon, _c),
+              f"volume {_bon.rapport_volume} conforme malgre beta "
+              f"{_bon.beta}")
+    _mauvais = type("D", (), {"kge": 0.99, "r": 0.99, "alpha": 1.0,
+                              "beta": 1.0, "decalage_h": 0.0,
+                              "rapport_pic": 1.005,
+                              "rapport_volume": 1.30})()
+    controler("un volume faux est refuse meme si beta vaut 1",
+              not concordance(_mauvais, _c),
+              f"volume {_mauvais.rapport_volume} refuse malgre beta 1,0")
+    controler("le meilleur essai se choisit lui aussi sur le volume",
+              ecart_combine(_bon, _c) < ecart_combine(_mauvais, _c),
+              f"{ecart_combine(_bon, _c):.2f} < "
+              f"{ecart_combine(_mauvais, _c):.2f}")
+
+    # --- selection : admissibilite d'abord, erreur combinee ensuite --------
+    def _diag(volume, pic, forme):
+        return type("D", (), {"kge": 0.99, "alpha": 1.0, "beta": volume,
+                              "decalage_h": 0.0, "rapport_volume": volume,
+                              "rapport_pic": pic, "r": forme})()
+
+    _juste = _diag(1.0005, 1.0002, 0.999)      # les trois dans les clous
+    _limite = _diag(1.0049, 1.0199, 0.9701)    # les trois tout juste tenus
+    _hors = _diag(1.0000, 1.0500, 1.000)       # pointe hors seuil
+    controler("les trois seuils tenus : l'essai est admissible",
+              admissible(_juste, _c) and admissible(_limite, _c))
+    controler("un seul seuil depasse suffit a rendre inadmissible",
+              not admissible(_hors, _c),
+              f"pointe {100 * _hors.rapport_pic:.1f} %")
+    controler("l'erreur combinee prefere l'essai proche des TROIS cibles",
+              ecart_combine(_juste, _c) < ecart_combine(_limite, _c),
+              f"{ecart_combine(_juste, _c):.2f} < "
+              f"{ecart_combine(_limite, _c):.2f}")
+    controler("l'admissibilite prime sur une erreur combinee plus faible",
+              rang_essai(_limite, _c) < rang_essai(_hors, _c),
+              f"admissible {ecart_combine(_limite, _c):.2f} avant "
+              f"inadmissible {ecart_combine(_hors, _c):.2f}")
+
+    # Progression du pic : distingue une recherche qui plafonne d'une
+    # recherche qui avancait encore quand les essais ont ete epuises.
+    controler("une pointe qui progresse encore est detectee",
+              abs(_progression_pic([{"pic": 0.937}, {"pic": 0.941}])
+                  - 0.004) < 1e-9,
+              f"{_progression_pic([{'pic': 0.937}, {'pic': 0.941}]):.4f}")
+    controler("une pointe qui plafonne ne l'est pas",
+              _progression_pic([{"pic": 0.945}, {"pic": 0.945}]) == 0.0)
+    controler("un historique trop court ne fabrique pas de progression",
+              _progression_pic([{"pic": 0.94}]) is None)
+
+    # CIBLE HORS D'ATTEINTE — la correction additive injecte simplement ce
+    # qui manque. Ce qui reste hors d'atteinte, c'est une cible INFERIEURE a
+    # ce que la section recoit deja : un apport ne peut qu'ajouter du debit.
+    print("\n--- CIBLE HORS D'ATTEINTE : PLUS BASSE QUE LE RESIDUEL ---")
+    t_c, q_c = cibles[0]
+    # Debit permanent important : la section est deja bien au-dessus de la
+    # cible demandee, apports a zero.
+    base = hydrogramme(temps, 60.0)
+    modele4 = ModeleFictif(apports[:1], sections[:1], temps, formes[:1],
+                           debit_base=base)
+    r4 = caler(modele4, apports[:1], sections[:1], [(t_c, q_c * 0.05)],
+               Configuration(nb_max_essais=5), journal=lambda *a, **k: None)
+    controler("une cible sous le residuel est refusee, avec la raison",
+              not r4.apports[0].valide
+              and "recoit deja" in r4.apports[0].motif,
+              r4.apports[0].motif[:90])
+
+    # APPORT PEU IDENTIFIABLE. Meme montage, mais la cible passe JUSTE
+    # au-dessus du residuel : l'apport ne pese plus que quelques pour-cent du
+    # debit a la section, et la bande de tolerance admise vaut alors plusieurs
+    # fois l'apport lui-meme. La section se calera ; l'apport sorti n'aura
+    # aucune valeur d'estimation, et la chaine doit le DIRE avant de calculer.
+    print("\n--- APPORT TROP PETIT DEVANT LE DEBIT DE SA SECTION ---")
+    _dits = []
+    # 2 % : la part mesuree sur le cas reel qui a motive ce garde-fou.
+    modele4bis = ModeleFictif(apports[:1], sections[:1], temps, formes[:1],
+                              debit_base=base)
+    caler(modele4bis, apports[:1], sections[:1], [(temps, base / 0.98)],
+          Configuration(nb_max_essais=2), journal=_dits.append)
+    _alerte = [l for l in _dits if "PEU IDENTIFIABLE" in l]
+    controler("un apport pesant 2 % du debit est annonce peu identifiable",
+              bool(_alerte), (_alerte[0][:110] if _alerte else "aucune alerte"))
+    controler("l'alerte chiffre la part et l'amplification",
+              bool(_alerte) and "2.0 %" in _alerte[0] and "250 %" in _alerte[0],
+              _alerte[0][60:170] if _alerte else "")
+
+    # ET LE CAS SYMETRIQUE : un apport qui pese lourd ne doit RIEN declencher,
+    # sans quoi l'alerte deviendrait un bruit de fond qu'on cesse de lire.
+    _dits_gros = []
+    modele4ter = ModeleFictif(apports[:1], sections[:1], temps, formes[:1])
+    caler(modele4ter, apports[:1], sections[:1], [cibles[0]],
+          Configuration(nb_max_essais=3), journal=_dits_gros.append)
+    controler("un apport qui pese lourd ne declenche pas l'alerte",
+              not [l for l in _dits_gros if "PEU IDENTIFIABLE" in l])
+
+    # La resolution sequentielle suppose l'amont fige : un apport non cale
+    # rend tout ce qui suit sans objet.
+    modele5 = ModeleFictif(apports[:2], sections[:2], temps, formes[:2],
+                           debit_base=base)
+    r5 = caler(modele5, apports[:2], sections[:2],
+               [(t_c, q_c * 0.05), cibles[1]],
+               Configuration(nb_max_essais=4), journal=lambda *a, **k: None)
+    controler("les apports suivants ne sont pas traites apres un echec",
+              len(r5.apports) == 1 and not r5.apports[0].valide,
+              f"{len(r5.apports)} apport(s) traite(s) sur 2")
+
+    print()
+    if echecs:
+        print(f"   {len(echecs)} CONTROLE(S) EN ECHEC : {echecs}")
+        raise SystemExit(1)
+    print("   Tous les controles passent.")
+    print("=" * 74)

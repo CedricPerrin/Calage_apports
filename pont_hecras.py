@@ -1,0 +1,1627 @@
+# -*- coding: utf-8 -*-
+"""
+Pont en ligne de commande vers HEC-RAS, appelable depuis QGIS.
+
+POURQUOI CE FICHIER EXISTE
+--------------------------
+Le Python de QGIS embarque sa propre bibliotheque HDF5, utilisee par GDAL.
+Des que qgis.core est charge, h5py ne peut plus s'initialiser — et
+ras-commander, qui en depend, devient inimportable dans le processus QGIS :
+
+    ImportError: DLL load failed while importing _errors
+
+Ce n'est pas contournable par un ordre d'import : dans un plugin, QGIS est
+deja charge. Toute operation touchant a HEC-RAS doit donc s'executer dans un
+AUTRE interpreteur. Ce module est cet autre interpreteur : il expose en ligne
+de commande les operations courtes dont le plugin a besoin, et repond en JSON
+sur la sortie standard.
+
+Les calculs longs ne passent pas par ici non plus : un calage represente des
+heures et n'a pas sa place derriere une interface graphique.
+
+Usage :
+    python pont_hecras.py lister       --plan <plan.hdf>
+    python pont_hecras.py hydrogramme  --plan <plan.hdf> --section <nom>
+                                       [--zone <zone2D>] [--sortie <csv>]
+    python pont_hecras.py sections     --geometrie <modele.g01> --shp <fic.shp>
+                                       --zone <zone2D>
+    python pont_hecras.py injections   --geometrie <modele.g01> --shp <fic.shp>
+    python pont_hecras.py caler        --template <classeur.xlsx>
+                                       (operation LONGUE : lancer via
+                                        noyau.lancer_calage(), jamais via
+                                        appeler_pont())
+    python pont_hecras.py verifier
+"""
+
+import argparse
+import json
+import shutil
+import sys
+from datetime import datetime
+from pathlib import Path
+
+DOSSIER = Path(__file__).resolve().parent
+if str(DOSSIER) not in sys.path:
+    sys.path.insert(0, str(DOSSIER))
+
+# SORTIE EN UTF-8, IMPOSEE ICI. Les messages du journal portent des accents et
+# une fleche (« → »), et repondre() serialise en ensure_ascii=False. Redirigee
+# vers un fichier sous Windows, la sortie standard prend l'encodage local
+# (cp1252) : la fleche y leverait UnicodeEncodeError, en plein calage. Le
+# plugin impose deja PYTHONIOENCODING=utf-8 ; ceci couvre l'appel direct en
+# ligne de commande, ou rien ne le fait.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+
+def repondre(**donnees):
+    """Reponse JSON sur la sortie standard, seul canal lu par l'appelant."""
+    print(json.dumps(donnees, ensure_ascii=False, default=str))
+    return 0 if donnees.get("ok") else 1
+
+
+def _sauvegarder(fichier):
+    """Copie horodatee avant toute ecriture dans un fichier du modele."""
+    fichier = Path(fichier)
+    copie = fichier.with_suffix(
+        fichier.suffix + datetime.now().strftime(".sauvegarde_%Y%m%d_%H%M%S"))
+    shutil.copy2(fichier, copie)
+    return copie
+
+
+# ---------------------------------------------------------------------------
+# COMMANDES
+# ---------------------------------------------------------------------------
+
+def commande_verifier(_):
+    """Confirme que cet interpreteur peut piloter HEC-RAS."""
+    import ras_commander as rc
+
+    return repondre(
+        ok=True,
+        interpreteur=sys.executable,
+        python=".".join(str(n) for n in sys.version_info[:3]),
+        ras_commander=getattr(rc, "__version__", "?"),
+        h5py=__import__("h5py").__version__)
+
+
+def commande_lister(args):
+    """Sections de controle et lignes d'injection presentes dans le modele."""
+    import geometrie as geo
+
+    sections, apports = geo.lignes_depuis_modele(args.plan)
+    return repondre(ok=True,
+                    sections=list(sections["nom"]),
+                    apports=list(apports["nom"]))
+
+
+# Emplacement des series temporelles dans le fichier de resultats.
+#
+# MEME VALEUR ET MEME NOM que pilote_hecras.CHEMIN_SERIES_HDF, volontairement
+# redefini ici : importer pilote_hecras au chargement du pont y entrainerait
+# calage, numpy et pandas pour toutes les commandes, y compris « verifier »
+# qui doit repondre vite et sans dependance. Les deux doivent rester
+# identiques — le nom commun est ce qui permet de les retrouver ensemble.
+CHEMIN_SERIES_HDF = ("Results/Unsteady/Output/Output Blocks/Base Output/"
+                     "Unsteady Time Series")
+
+
+def _texte(valeur):
+    return valeur.decode() if isinstance(valeur, bytes) else str(valeur)
+
+
+def _orienter(debit):
+    """
+    Ramene une serie de debit a une convention POSITIVE vers l'aval.
+
+    Le signe d'une reference line depend du SENS DANS LEQUEL ELLE A ETE
+    TRACEE, pas de l'hydraulique : une ligne dessinee du sud vers le nord
+    alors que l'eau va vers l'est donne un debit entierement negatif. Mesure
+    sur le modele reel : min -275 m3/s, max 0. Compare telle quelle a une
+    cible positive, une telle serie donne un KGE denue de sens et un beta
+    negatif — le calage divergerait sans que rien n'explique pourquoi.
+
+    Retourne (debit_oriente, inversee, reversible). « reversible » signale
+    un ecoulement qui change reellement de sens au cours du temps : la
+    methode suppose au contraire un sens STABLE (hypothese du § 1.3), et le
+    signalement vaut donc avertissement, pas correction.
+    """
+    import numpy as np
+
+    positif = float(np.sum(debit[debit > 0]))
+    negatif = float(-np.sum(debit[debit < 0]))
+    if positif == 0.0 and negatif == 0.0:
+        return debit, False, False
+    faible, fort = min(positif, negatif), max(positif, negatif)
+    reversible = faible > 0.05 * fort
+    if negatif > positif:
+        return -debit, True, reversible
+    return debit, False, reversible
+
+
+def lire_serie_hdf(plan, nom, groupe="Reference Lines"):
+    """
+    Lit une serie de debit DIRECTEMENT dans le fichier de resultats.
+
+    DEUX DISPOSITIONS COEXISTENT dans un meme fichier, et c'est le piege
+    principal de cette lecture :
+
+      - PAR OBJET (« Boundary Conditions ») : un jeu de donnees par
+        condition limite, portant son nom, avec un attribut « Columns »
+        donnant l'ordre des grandeurs — typiquement [Stage, Flow]. La
+        colonne de debit est donc identifiee, jamais devinee ;
+
+      - MATRICIELLE (« Reference Lines ») : les jeux ne portent PAS les noms
+        des objets mais ceux des GRANDEURS (Flow, Velocity, Water
+        Surface...), chacune etant une matrice (temps x objets). L'ordre des
+        objets est donne par un jeu « Name », ou chaque entree s'ecrit
+        « <nom de la ligne>|<zone 2D> ».
+
+    Un lecteur ecrit pour la premiere disposition echoue sur la seconde en
+    annoncant que la section est absente, alors qu'elle est bien la — defaut
+    reste invisible tant que le modele ne comportait aucune reference line.
+
+    Le temps est stocke en JOURS (l'attribut du jeu « Time » le precise) et
+    converti en heures, unite de travail de toute la chaine.
+
+    Retourne un DataFrame (temps, debit_m3s), avec dans .attrs le nom
+    reellement apparie, l'inversion d'orientation eventuelle (voir
+    _orienter) et un indicateur d'ecoulement reversible.
+    """
+    import h5py
+    import numpy as np
+    import pandas as pd
+
+    with h5py.File(plan, "r") as h:
+        chemin = f"{CHEMIN_SERIES_HDF}/{groupe}"
+        if chemin not in h:
+            disponibles = list(h[CHEMIN_SERIES_HDF]) if CHEMIN_SERIES_HDF in h else []
+            raise KeyError(
+                f"aucun resultat de type « {groupe} » dans ce fichier. "
+                f"Presents : {disponibles}. Si la section vient d'etre creee, "
+                f"le plan doit etre RECALCULE pour produire ses resultats.")
+
+        objets = list(h[chemin])
+        vise = str(nom).strip().lower()
+
+        if "Name" in objets:
+            # --- disposition matricielle ---------------------------------
+            noms = [_texte(v) for v in np.asarray(h[f"{chemin}/Name"][:])]
+            # Chaque entree vaut « <nom>|<zone 2D> » : on apparie sur la
+            # partie qui precede la barre, en tolerant qu'elle soit absente.
+            courts = [n.split("|")[0].strip() for n in noms]
+            indice = next((i for i, n in enumerate(courts) if n == str(nom)),
+                          None)
+            if indice is None:
+                indice = next((i for i, n in enumerate(courts)
+                               if n.lower() == vise), None)
+            if indice is None:
+                raise KeyError(
+                    f"« {nom} » absent des resultats de type « {groupe} ». "
+                    f"Presents : {courts}")
+            if "Flow" not in objets:
+                raise KeyError(
+                    f"les resultats « {groupe} » ne comportent pas de jeu "
+                    f"« Flow ». Presents : {objets}")
+            matrice = np.asarray(h[f"{chemin}/Flow"][:], dtype=float)
+            if matrice.ndim != 2 or indice >= matrice.shape[1]:
+                raise ValueError(
+                    f"le jeu « Flow » a la forme {matrice.shape}, "
+                    f"incompatible avec {len(courts)} objet(s) nommes.")
+            debit = matrice[:, indice]
+            correspondance = noms[indice]
+        else:
+            # --- disposition par objet -----------------------------------
+            correspondance = next(
+                (o for o in objets if o == nom), None) or next(
+                (o for o in objets if o.strip().lower() == vise), None)
+            if correspondance is None:
+                raise KeyError(
+                    f"« {nom} » absent des resultats. Presents : {objets}")
+
+            jeu = h[f"{chemin}/{correspondance}"]
+            donnees = np.asarray(jeu[:], dtype=float)
+            colonnes = [_texte(c) for c in jeu.attrs.get("Columns", [])]
+
+            if donnees.ndim == 1:
+                debit = donnees
+            elif colonnes and "Flow" in colonnes:
+                debit = donnees[:, colonnes.index("Flow")]
+            elif donnees.shape[1] == 1:
+                debit = donnees[:, 0]
+            else:
+                raise ValueError(
+                    f"« {correspondance} » : {donnees.shape[1]} colonnes "
+                    f"{colonnes or 'sans attribut Columns'} — impossible "
+                    f"d'identifier le debit sans deviner.")
+
+        temps_jours = np.asarray(h[f"{CHEMIN_SERIES_HDF}/Time"][:], dtype=float)
+        unite = h[f"{CHEMIN_SERIES_HDF}/Time"].attrs.get("Time", b"days")
+        facteur = 24.0 if _texte(unite).lower().startswith("day") else 1.0
+        temps_h = (temps_jours - temps_jours[0]) * facteur
+
+    debit, inversee, reversible = _orienter(debit)
+    cadre = pd.DataFrame({"temps": temps_h[:len(debit)], "debit_m3s": debit})
+    cadre.attrs["objet"] = correspondance
+    cadre.attrs["orientation_inversee"] = inversee
+    cadre.attrs["ecoulement_reversible"] = reversible
+    return cadre
+
+
+def commande_hydrogramme(args):
+    """
+    Serie temporelle du debit a travers une section de controle.
+
+    Deux voies, LA LECTURE DIRECTE D'ABORD car c'est la seule verifiee.
+
+    La fonction de synthese de ras-commander construit son tableau en
+    supposant une seule colonne par jeu de donnees ; au-dela, elle echoue et
+    retourne un tableau VIDE sans rien signaler. Quant a l'autre fonction de
+    ras-commander, elle passe par RASMapperLib via pythonnet, absent de cet
+    environnement. La lecture directe, elle, ne depend que de h5py, gere les
+    DEUX dispositions de stockage du fichier (un jeu par objet pour les
+    conditions limites, des matrices indexees par un jeu « Name » pour les
+    sections de controle) et normalise l'orientation du debit.
+
+    L'essayer en second reviendrait a preferer une voie dont on a mesure
+    qu'elle peut se tromper en silence : l'ordre suit donc le raisonnement.
+    """
+    import pandas as pd
+    from ras_commander import HdfResultsPlan
+
+    def voie_ras_commander():
+        brut = HdfResultsPlan.get_reference_timeseries(args.plan, reftype="lines")
+        return _normaliser(brut, args.section)
+
+    def voie_directe():
+        return lire_serie_hdf(args.plan, args.section, groupe=args.groupe)
+
+    erreurs = []
+    for nom_voie, lecture in (("lecture directe du HDF", voie_directe),
+                              ("ras-commander", voie_ras_commander)):
+        try:
+            serie = lecture()
+        except Exception as e:
+            erreurs.append(f"{nom_voie} : {type(e).__name__} {e}")
+            continue
+        if serie is None or len(serie) == 0:
+            erreurs.append(f"{nom_voie} : aucune serie exploitable")
+            continue
+
+        sortie = Path(args.sortie) if args.sortie else (
+            Path(args.plan).parent / f"hydrogramme_{args.section}.csv")
+        # Unite dans l'en-tete, comme debit_m3s : « temps » seul ne dit pas
+        # l'heure. Le renommage n'a lieu qu'a l'export ; le reste de la chaine
+        # continue de lire la colonne "temps" du DataFrame interne.
+        serie.rename(columns={"temps": "temps_h"}).to_csv(
+            sortie, index=False, sep=";", decimal=",")
+        return repondre(
+            ok=True, voie=nom_voie, section=args.section,
+            pas_de_temps=len(serie),
+            duree_h=round(float(serie["temps"].iloc[-1]
+                                - serie["temps"].iloc[0]), 2),
+            pointe_m3s=round(float(serie["debit_m3s"].max()), 3),
+            volume_1000m3=round(float(_volume(serie)), 1),
+            # Le sens d'une section depend de la facon dont elle a ete
+            # tracee : le signaler evite de faire chercher longtemps pourquoi
+            # un debit « part a l'envers ».
+            orientation_inversee=bool(
+                serie.attrs.get("orientation_inversee", False)),
+            ecoulement_reversible=bool(
+                serie.attrs.get("ecoulement_reversible", False)),
+            fichier=str(sortie))
+
+    return repondre(
+        ok=False,
+        erreur=f"debit introuvable a la section '{args.section}'.",
+        details=erreurs)
+
+
+def _volume(serie):
+    """Volume ecoule en milliers de m3, temps suppose en heures."""
+    import numpy as np
+    import pandas as pd
+
+    temps = serie["temps"]
+    if pd.api.types.is_datetime64_any_dtype(temps):
+        heures = (pd.to_datetime(temps) - pd.to_datetime(temps).iloc[0]
+                  ).dt.total_seconds().to_numpy() / 3600.0
+    else:
+        heures = np.asarray(temps, dtype=float)
+    return np.trapezoid(serie["debit_m3s"].to_numpy(dtype=float), heures) * 3.6
+
+
+def _normaliser(brut, nom_section):
+    """Ramene une sortie ras-commander de forme variable a (temps, debit_m3s)."""
+    import pandas as pd
+
+    if brut is None:
+        return None
+
+    if isinstance(brut, pd.DataFrame):
+        cadre = brut
+        if nom_section in cadre.columns:
+            return pd.DataFrame({"temps": cadre.index,
+                                 "debit_m3s": cadre[nom_section].to_numpy()})
+        numeriques = [c for c in cadre.columns
+                      if pd.api.types.is_numeric_dtype(cadre[c])]
+        if len(numeriques) == 1:
+            return pd.DataFrame({"temps": cadre.index,
+                                 "debit_m3s": cadre[numeriques[0]].to_numpy()})
+        return None
+
+    if hasattr(brut, "to_dataframe"):          # xarray
+        try:
+            cadre = brut.to_dataframe().reset_index()
+        except Exception:
+            return None
+        if nom_section in cadre.columns:
+            temps = cadre["time"] if "time" in cadre.columns else cadre.index
+            return pd.DataFrame({"temps": temps,
+                                 "debit_m3s": cadre[nom_section].to_numpy()})
+    return None
+
+
+def commande_modele(args):
+    """
+    Couches geometriques EXISTANTES dans une geometrie HEC-RAS : perimetre(s)
+    de zone 2D, sections de controle (reference lines) et lignes d'injection
+    (BC lines) — en WKT, pour que le plugin en fasse des couches QGIS
+    editables AVANT tout calcul.
+
+    Le maillage (HdfMesh) et les objets DEJA pretraites (HdfBndry) exigent le
+    fichier .hdf de la geometrie, produit par un pretraitement HEC-RAS. Une
+    geometrie qui n'a JAMAIS ete pretraitee — le cas d'une zone 2D toute
+    neuve, sans la moindre section de controle ni ligne d'injection — n'a
+    pas ce .hdf : on se rabat alors entierement sur le fichier texte
+    (geometrie.perimetres_depuis_texte, geometrie.objets_depuis_texte), qui
+    porte deja le contour de la zone des sa creation dans l'editeur de
+    geometrie. Seule l'absence du fichier .gXX lui-meme reste une erreur :
+    sans lui, il n'y a rien a lire, pretraite ou non.
+    """
+    import geometrie as geo
+
+    chemin = Path(args.geometrie)
+    texte = chemin.with_suffix("")           # <modele>.g11.hdf -> <modele>.g11
+    if not texte.exists():
+        return repondre(ok=False, erreur=(
+            f"geometrie introuvable : {texte.name}. Verifier le numero de "
+            f"geometrie choisi."))
+
+    pretraitee = chemin.exists()
+
+    def lignes(gdf, prefixe):
+        if gdf is None or len(gdf) == 0:
+            return []
+        colonne = next((c for c in gdf.columns
+                        if c in ("Name", "name", "Nom", "NOM")), None)
+        return [{"nom": (str(gdf.iloc[i][colonne]) if colonne
+                        else f"{prefixe}_{i + 1:02d}"),
+                 "wkt": gdf.geometry.iloc[i].wkt}
+                for i in range(len(gdf))]
+
+    crs, perimetres, sections, injections = None, [], [], []
+    if pretraitee:
+        from ras_commander import HdfBndry, HdfMesh
+
+        bc = HdfBndry.get_bc_lines(chemin)
+        ref = HdfBndry.get_reference_lines(chemin)
+        zones = HdfMesh.get_mesh_areas(chemin)
+
+        for gdf in (ref, bc, zones):
+            if gdf is not None and len(gdf) and gdf.crs is not None:
+                crs = gdf.crs.to_string()
+                break
+
+        perimetres = ([{"zone": str(r["mesh_name"]), "wkt": r.geometry.wkt}
+                      for _, r in zones.iterrows()]
+                     if zones is not None and len(zones) else [])
+        sections, injections = lignes(ref, "Section"), lignes(bc, "Apport")
+
+    # LE FICHIER TEXTE FAIT FOI POUR LES OBJETS. Le .gXX.hdf lu ci-dessus est
+    # le produit d'un PRETRAITEMENT : un objet qu'on vient d'ecrire dans le
+    # .gXX n'y figure pas tant que HEC-RAS n'a pas repretraite la geometrie.
+    # S'en tenir au HDF donnait a croire que l'ecriture avait echoue, alors
+    # qu'elle avait reussi — l'utilisateur rechargeait les couches et ne
+    # voyait rien de nouveau. Sans .hdf du tout, sections et injections
+    # viennent ENTIEREMENT du texte, et rien n'est « en attente » : il n'y a
+    # pas de pretraitement dont elles pourraient etre absentes.
+    du_texte = geo.objets_depuis_texte(texte)
+    en_attente = []
+    for cle, depuis_hdf in (("sections", sections), ("apports", injections)):
+        connus = {o["nom"] for o in depuis_hdf}
+        for objet in du_texte[cle]:
+            if objet["nom"] not in connus:
+                depuis_hdf.append({"nom": objet["nom"], "wkt": objet["wkt"]})
+                if pretraitee:
+                    en_attente.append(objet["nom"])
+
+    # PERIMETRE DEPUIS LE TEXTE en repli : le maillage HDF n'existe qu'apres
+    # un pretraitement, mais le contour de la zone 2D est deja ecrit des sa
+    # creation dans l'editeur de geometrie.
+    if not perimetres:
+        perimetres = geo.perimetres_depuis_texte(texte)
+
+    return repondre(ok=True, crs=crs, sections=sections,
+                    injections=injections, perimetres=perimetres,
+                    en_attente_pretraitement=en_attente,
+                    geometrie_pretraitee=pretraitee)
+
+
+def _appliquer_pentes(pilote, chemin_template, apports):
+    """
+    Donne a chaque apport sa pente de ligne d'energie.
+
+    Ordre de priorite : la colonne « Pente_m_par_m » du classeur, puis la
+    pente locale du fond (profil en long, +/- 200 m, majoree de 20 %), puis
+    rien — la valeur deja presente dans le fichier reste alors en place.
+
+    Elle vaut par apport, pas par lot : deux injections sur des troncons
+    differents n'ont aucune raison de partager la meme pente.
+    """
+    import pandas as pd
+
+    try:
+        corr = pd.read_excel(chemin_template, sheet_name="Correspondance")
+    except Exception:
+        return
+    col_apport = next((c for c in corr.columns if c.startswith("Nom_Apport")),
+                      None)
+    if col_apport is None or "Pente_m_par_m" not in corr.columns:
+        return
+
+    saisies = {}
+    for _, ligne in corr.iterrows():
+        brut = ligne.get("Pente_m_par_m")
+        if brut is None or (isinstance(brut, float) and pd.isna(brut)):
+            continue
+        try:
+            valeur = float(str(brut).replace(",", "."))
+        except (TypeError, ValueError):
+            continue
+        if 1e-6 < valeur <= 1.0:
+            saisies[str(ligne[col_apport]).strip()] = valeur
+
+    # Repli : la pente locale du fond, pour les apports non renseignes. Calcule
+    # une seule fois — le profil en long coute une lecture du maillage.
+    deduites = ({} if all(nom in saisies for nom in apports)
+                else _pentes_deduites(pilote, chemin_template, apports))
+
+    for nom in apports:
+        pente, origine = saisies.get(nom), "classeur"
+        if pente is None:
+            pente, origine = deduites.get(nom), "profil en long, +/- 200 m +20 %"
+        if pente is None:
+            print(f"   pente de « {nom} » : inchangee — ni saisie, ni "
+                  f"deductible du profil", flush=True)
+            continue
+        # DEPOSEE, PAS ECRITE. Le fichier unsteady de travail n'existe pas
+        # encore : il est clone par pilote.preparer(), qui applique alors ces
+        # pentes. Les ecrire ici echouait sur « condition limite absente,
+        # Presentes : [] » — la carte des blocs etait vide, faute d'unsteady
+        # clone — et toutes les pentes saisies au classeur etaient perdues
+        # derriere un simple avertissement.
+        pilote.pentes[nom] = pente
+        print(f"   pente de « {nom} » : {pente:.5g} m/m ({origine})",
+              flush=True)
+
+
+def _pentes_deduites(pilote, chemin_template, apports):
+    """
+    Pente locale du fond au droit de chaque apport, depuis le profil en long.
+
+    Repli quand le classeur ne la renseigne pas. Demande l'axe hydraulique :
+    sans lui il n'y a pas de PK, donc pas de « au droit de ». Son absence
+    n'est pas une erreur — la pente ecrite a la creation reste alors en place.
+
+    Retourne {nom_apport: pente}, vide si le calcul n'a pas pu se faire.
+    """
+    import pandas as pd
+
+    import controle_donnees as cd
+    import geometrie as geo
+
+    try:
+        par = pd.read_excel(chemin_template, sheet_name="Parametres")
+        valeurs = dict(zip(par["Parametre"], par["Valeur"]))
+        axe = valeurs.get(cd.PARAMETRE_AXE)
+        if not axe or pd.isna(axe) or not Path(str(axe)).is_file():
+            print("   pente : axe hydraulique absent, pente locale non "
+                  "calculable", flush=True)
+            return {}
+
+        _, tableau = cd.controler_geometrie(chemin_template)
+        if tableau is None or "PK apport (m)" not in tableau.columns:
+            return {}
+
+        # La GEOMETRIE, et non le plan : au moment ou les pentes s'appliquent,
+        # aucun calcul n'a encore tourne et le HDF du plan n'existe pas.
+        plan = pilote.dossier / f"{pilote.nom_projet}.p{pilote.plan_travail}"
+        trouve = re.search(r"^Geom File=g(\w+)",
+                           plan.read_text(encoding="utf-8", errors="replace"),
+                           re.M)
+        if not trouve:
+            return {}
+        hdf = pilote.dossier / f"{pilote.nom_projet}.g{trouve.group(1)}.hdf"
+        if not hdf.is_file():
+            print("   pente : geometrie non pretraitee, pente locale non "
+                  "calculable", flush=True)
+            return {}
+        # profil_depuis_modele attend la GEOMETRIE de l'axe, pas son chemin.
+        geometrie_axe, _ = geo.lire_axe(Path(str(axe)))
+        profil = geo.profil_depuis_modele(
+            str(hdf), geometrie_axe, nom_zone_2d=pilote.nom_zone_2d,
+            avec_ligne_eau=False)
+
+        pk = dict(zip(tableau["Apport"].astype(str),
+                      tableau["PK apport (m)"].astype(float)))
+        return {nom: p for nom in apports
+                if (p := geo.pente_locale(profil, pk.get(nom))) is not None}
+    except Exception as e:
+        print(f"   pente : deduction impossible ({type(e).__name__}: {e}) — "
+              f"les valeurs en place sont conservees", flush=True)
+        return {}
+
+
+def _profil_pour_livrables(pilote, chemin_template, resultat):
+    """
+    PROFIL EN LONG DE SYNTHESE et PK des objets, pour la figure d'ensemble des
+    livrables (livrables.figure_profil_en_long).
+
+    C'est la seule figure a montrer une derive AVEC son contexte physique.
+    produire_livrables_finaux() la produit des qu'on lui passe ces trois
+    valeurs, et la SAUTE EN SILENCE sinon — ce qui l'a rendue absente de tous
+    les livrables jusqu'ici, alors qu'elle etait codee, testee, et reprise
+    dans la note methodologique. Le defaut n'etait pas dans la figure : cet
+    appelant ne lui donnait pas de quoi la tracer.
+
+    Le profil est tire du HDF DE RESULTATS, et non de la geometrie : c'est lui
+    seul qui porte la ligne d'eau maximale calculee. Il n'est donc pas
+    partageable avec _pentes_deduites(), qui travaille sur la geometrie avant
+    tout calcul.
+
+    Les PK viennent de controler_geometrie() — la MEME source que les
+    controles, donc la meme convention (PK_origine_m, Sens_axe). Le profil est
+    retourne en consequence quand l'axe est dessine de l'aval vers l'amont :
+    sans cela, les sections tomberaient a l'envers du fond.
+
+    Retourne (profil, pk_sections, pk_apports), les deux listes alignees sur
+    resultat.apports — exactement l'ordre que produire_livrables_finaux()
+    reconstruit de son cote. (None, None, None) des qu'une piece manque, AVEC
+    LA RAISON AU JOURNAL : la figure est un complement, son absence ne doit
+    rien faire perdre du reste du rapport, mais elle ne doit pas etre muette.
+    """
+    import pandas as pd
+
+    import controle_donnees as cd
+    import geometrie as geo
+
+    rien = (None, None, None)
+    try:
+        par = pd.read_excel(chemin_template, sheet_name="Parametres")
+        valeurs = dict(zip(par["Parametre"], par["Valeur"]))
+
+        fichier_axe = valeurs.get(cd.PARAMETRE_AXE)
+        if (not fichier_axe or pd.isna(fichier_axe)
+                or not Path(str(fichier_axe)).is_file()):
+            print("   profil en long de synthese : axe hydraulique absent, "
+                  "figure non produite", flush=True)
+            return rien
+
+        # Le HDF du plan de travail : apres la boucle, c'est celui du dernier
+        # apport cale, donc l'etat que le rapport decrit.
+        hdf = pilote.hdf_resultats
+        if hdf is None or not Path(hdf).is_file():
+            print("   profil en long de synthese : aucun HDF de resultats, "
+                  "figure non produite", flush=True)
+            return rien
+
+        _, tableau = cd.controler_geometrie(chemin_template)
+        if tableau is None or "PK section (m)" not in tableau.columns:
+            print("   profil en long de synthese : PK indisponibles, figure "
+                  "non produite", flush=True)
+            return rien
+        pk_sec = dict(zip(tableau["Section"].astype(str),
+                          tableau["PK section (m)"].astype(float)))
+        pk_app = dict(zip(tableau["Apport"].astype(str),
+                          tableau["PK apport (m)"].astype(float)))
+
+        noms_sections = [a.nom_section for a in resultat.apports]
+        noms_apports = [a.nom_apport for a in resultat.apports]
+        inconnus = ([n for n in noms_sections if n not in pk_sec]
+                    + [n for n in noms_apports if n not in pk_app])
+        if inconnus:
+            print(f"   profil en long de synthese : PK inconnu pour "
+                  f"{inconnus}, figure non produite", flush=True)
+            return rien
+
+        def _nombre(cle, defaut):
+            brut = valeurs.get(cle)
+            try:
+                return defaut if brut is None or pd.isna(brut) else float(brut)
+            except (TypeError, ValueError):
+                return defaut
+
+        # Les trois reglages du classeur qui commandent le profil restaient
+        # lettre morte, faute d'appel : le pas d'echantillonnage, l'origine des
+        # PK, et la distance au-dela de laquelle l'axe est tenu pour sorti du
+        # maillage.
+        pk_origine = _nombre("PK_origine_m", 0.0)
+        axe, _ = geo.lire_axe(Path(str(fichier_axe)))
+        profil = geo.profil_depuis_modele(
+            str(hdf), axe, nom_zone_2d=pilote.nom_zone_2d,
+            pas=_nombre("Pas_profil_m", 25.0), pk_origine=pk_origine,
+            distance_max_m=_nombre("Distance_max_axe_maillage_m", None))
+
+        # MEME CONVENTION DE PK que controler_geometrie, qui applique Sens_axe
+        # (calculer_pk : « longueur - s » quand l'axe est dessine de l'aval
+        # vers l'amont). Le profil, lui, suit toujours le sens du trace.
+        if str(valeurs.get("Sens_axe", "amont_aval")).strip() == "aval_amont":
+            profil = profil.assign(
+                pk_m=axe.length - (profil["pk_m"] - pk_origine) + pk_origine)
+
+        print(f"   profil en long de synthese : {len(profil)} points, "
+              f"PK {float(profil['pk_m'].min()):.0f} → "
+              f"{float(profil['pk_m'].max()):.0f} m", flush=True)
+        return (profil,
+                [pk_sec[n] for n in noms_sections],
+                [pk_app[n] for n in noms_apports])
+    except Exception as e:
+        print(f"   profil en long de synthese : non calculable "
+              f"({type(e).__name__}: {e}) — figure non produite", flush=True)
+        return rien
+
+
+def _oui_non_ou_defaut(brut):
+    """
+    Un parametre a TROIS etats : oui, non, ou « laisse la chaine decider ».
+
+    Une case vide n'est pas un « non ». Pour la fenetre d'injection, vide
+    signifie « suit le mode rapide » — la lire comme un refus desactiverait
+    en silence une piece de la methodologie V1.3 chez tous ceux qui n'ont
+    pas rempli la case.
+    """
+    valeur = str(brut or "").strip().lower()
+    if valeur in ("oui", "true", "1", "vrai"):
+        return True
+    if valeur in ("non", "false", "0", "faux"):
+        return False
+    return None
+
+
+def _unsteady_effectif(dossier, nom_projet, valeurs):
+    """
+    Fichier Unsteady Flow que le calage utilisera REELLEMENT.
+
+    Ce n'est pas forcement celui qu'on croit : en mode « plan », c'est celui
+    que le plan de reference designe, quelle que soit la valeur du parametre
+    Unsteady_reference du classeur.
+    """
+    surcharge = (str(valeurs.get("Mode_selection_modele", "plan")).lower()
+                 == "override")
+    if surcharge and str(valeurs.get("Unsteady_reference", "")).strip():
+        numero = str(valeurs["Unsteady_reference"]).strip().lstrip("uU")
+        return dossier / f"{nom_projet}.u{numero.zfill(2)}", "le classeur"
+
+    plan = str(valeurs.get("Plan_reference", "p01")).strip().lstrip("pP")
+    fichier_plan = dossier / f"{nom_projet}.p{plan.zfill(2)}"
+    if not fichier_plan.exists():
+        return None, f"plan {fichier_plan.name} introuvable"
+    for ligne in fichier_plan.read_text(encoding="utf-8",
+                                        errors="replace").splitlines():
+        if ligne.startswith("Flow File="):
+            return (dossier / f"{nom_projet}.{ligne.split('=', 1)[1].strip()}",
+                    f"le plan {fichier_plan.name}")
+    return None, f"aucun « Flow File= » dans {fichier_plan.name}"
+
+
+def _controler_apports_dans_unsteady(chemin_template):
+    """
+    Chaque apport a caler a-t-il son bloc de condition limite dans le fichier
+    Unsteady Flow que le PLAN DE REFERENCE utilise ?
+
+    Piege observe sur un projet reel : deux plans partageaient la meme
+    geometrie mais pas le meme Unsteady Flow. L'injection avait ete ecrite en
+    visant le premier plan, le calage lance sur le second. La geometrie
+    contenait bien la ligne — donc tous les controles geometriques passaient —
+    mais l'hydrogramme etait dans l'autre fichier. L'echec ne survenait qu'au
+    premier calcul, apres clonage, avec un message qui ne disait ni quel
+    fichier avait ete inspecte ni pourquoi.
+    """
+    import pandas as pd
+    import controle_donnees as cd
+    from pilote_hecras import cartographier_hydrogrammes
+
+    try:
+        par = pd.read_excel(chemin_template, sheet_name="Parametres")
+        valeurs = dict(zip(par["Parametre"], par["Valeur"]))
+        corr = pd.read_excel(chemin_template, sheet_name="Correspondance")
+    except Exception as e:
+        return [(cd.AVERTISSEMENT,
+                 f"apports non confrontes au fichier Unsteady : {e}")]
+
+    colonne = next((c for c in corr.columns if c.startswith("Nom_Apport")), None)
+    if colonne is None:
+        return []
+    apports = [str(n).strip() for n in corr[colonne].dropna()
+               if str(n).strip()]
+    if not apports:
+        return []
+
+    dossier = Path(str(valeurs.get("Dossier_projet_HECRAS", "")).strip())
+    nom_projet = str(valeurs.get("Nom_projet", "")).strip()
+    if not dossier.is_dir() or not nom_projet:
+        return []
+
+    fichier, origine = _unsteady_effectif(dossier, nom_projet, valeurs)
+    if fichier is None:
+        return [(cd.ERREUR, f"fichier Unsteady Flow indeterminable : {origine}")]
+    if not fichier.exists():
+        return [(cd.ERREUR,
+                 f"fichier Unsteady Flow « {fichier.name} », designe par "
+                 f"{origine}, introuvable")]
+
+    zone = str(valeurs.get("Nom_zone_2D", "")).strip() or None
+    try:
+        presentes = set(cartographier_hydrogrammes(fichier, zone))
+    except Exception as e:
+        return [(cd.AVERTISSEMENT,
+                 f"lecture de {fichier.name} impossible : {e}")]
+
+    absents = [a for a in apports if a not in presentes]
+    if not absents:
+        return []
+    return [(cd.ERREUR,
+             f"apport(s) sans hydrogramme dans « {fichier.name} » (designe "
+             f"par {origine}) : {', '.join(absents)}. Presents : "
+             f"{sorted(presentes) or 'aucun'}. Une ligne d'injection presente "
+             f"dans la geometrie mais absente de CE fichier n'apporte aucun "
+             f"debit. Verifier que l'injection a bien ete ecrite en visant ce "
+             f"plan : deux plans peuvent partager la geometrie sans partager "
+             f"l'Unsteady Flow.")]
+
+
+def commande_pentes(args):
+    """
+    Pente du fond au droit de chaque apport, pour PRE-REMPLIR la colonne
+    Pente_m_par_m du classeur (noyau.pentes_locales_apports).
+
+    POURQUOI CETTE COMMANDE EXISTE. Le calcul lui-meme tient en trois lignes
+    (geometrie.profil_depuis_modele puis pente_locale) et le plugin les
+    appelait DIRECTEMENT — mais profil_depuis_modele lit le maillage de la
+    geometrie, donc importe h5py, donc ne peut pas tourner dans le processus
+    QGIS (voir l'en-tete de ce fichier). L'echec, avale par un except, laissait
+    la colonne vide a chaque composition sans jamais rien dire.
+
+    --pk-apports : JSON {nom_apport: PK en m}, dans la MEME convention de PK
+    que celle qui a servi a apparier les objets (Sens_axe). Le pont ne les
+    recalcule pas : il ne connait ni l'axe normalise du plugin ni le sens
+    retenu, et deux conventions differentes placeraient les apports a l'envers
+    du profil.
+
+    Repond {"ok": true, "pentes": {...}, "motif": ""}. Une pente non
+    calculable n'est PAS une erreur : la case reste vide et le calage la
+    deduira lui-meme au moment d'ecrire l'apport (_pentes_deduites).
+    """
+    import geometrie as geo
+
+    hdf = Path(args.geometrie)
+    if not hdf.is_file():
+        return repondre(ok=True, pentes={},
+                        motif=(f"geometrie non pretraitee par HEC-RAS "
+                               f"({hdf.name} absent) : pente locale non "
+                               f"calculable, les cases resteront vides."))
+    axe = Path(args.axe)
+    if not axe.is_file():
+        return repondre(ok=True, pentes={},
+                        motif=f"axe hydraulique introuvable : {axe}")
+    try:
+        pk = json.loads(args.pk_apports)
+    except ValueError as e:
+        return repondre(ok=False, erreur=f"--pk-apports illisible : {e}")
+    if not pk:
+        return repondre(ok=True, pentes={}, motif="aucun apport a traiter")
+
+    # profil_depuis_modele attend la GEOMETRIE de l'axe, pas son chemin.
+    geometrie_axe, _ = geo.lire_axe(axe)
+    profil = geo.profil_depuis_modele(
+        str(hdf), geometrie_axe, nom_zone_2d=args.zone or None,
+        avec_ligne_eau=False)
+
+    pentes = {str(nom): p for nom, valeur in pk.items()
+              if valeur is not None
+              and (p := geo.pente_locale(profil, float(valeur))) is not None}
+    manquants = [str(n) for n in pk if str(n) not in pentes]
+    return repondre(
+        ok=True, pentes=pentes,
+        motif=("" if not manquants else
+               f"pente non calculable pour : {', '.join(manquants)} "
+               f"(hors profil, ou fond trop plat)"))
+
+
+def commande_controler_modele(args):
+    """
+    Confronte la saisie a la geometrie reelle : existence des noms declares,
+    et implantation vis-a-vis du maillage 2D. Ce controle ne peut pas
+    s'executer dans QGIS, d'ou son passage par le pont.
+    """
+    import controle_donnees as cd
+
+    anomalies = cd.controler_contre_modele(args.template, args.geometrie)
+    anomalies += _controler_apports_dans_unsteady(args.template)
+    erreurs = [m for n, m in anomalies if n == cd.ERREUR]
+    return repondre(ok=True,
+                    erreurs=erreurs,
+                    avertissements=[m for n, m in anomalies if n != cd.ERREUR],
+                    conforme=not erreurs)
+
+
+def commande_sections(args):
+    """
+    Cree des reference lines dans la geometrie, depuis un shapefile.
+
+    Sans --remplacer, les sections DEJA presentes sont ignorees, jamais
+    recreees : une geometrie contenant deux objets de meme nom rend
+    l'appariement indecidable, et l'ecriture n'en avertirait pas. Avec
+    --remplacer, elles sont RETRACEES (bloc retire puis reinsere) — c'est le
+    mode utilise par le plugin a chaque « Composer et controler », depuis
+    que le trace QGIS fait foi sur la geometrie HEC-RAS. Meme convention que
+    commande_injections.
+    """
+    import geometrie as geo
+
+    lignes = geo.lire_lignes(args.shp)
+    deja = geo.noms_objets_geometrie(args.geometrie)["sections"]
+    a_ecrire = [n for n in lignes["nom"] if args.remplacer or n not in deja]
+    ignorees = [n for n in lignes["nom"] if n not in a_ecrire]
+    if not a_ecrire:
+        return repondre(
+            ok=True, creees=0, noms=[], remplacees=[], ignorees=ignorees,
+            avertissements=[f"rien a creer : {', '.join(ignorees)} "
+                            f"deja dans {Path(args.geometrie).name}."])
+
+    remplacees = [n for n in a_ecrire if n in deja]
+    lignes = lignes[lignes["nom"].isin(a_ecrire)].copy()
+    copie = _sauvegarder(args.geometrie)
+    bilan = geo.ecrire_dans_geometrie(args.geometrie, gdf_sections=lignes,
+                                      nom_zone_2d=args.zone,
+                                      remplacer=args.remplacer)
+    return repondre(ok=True, creees=len(lignes), noms=list(lignes["nom"]),
+                    remplacees=remplacees, ignorees=ignorees, bilan=bilan,
+                    sauvegarde=str(copie),
+                    avertissements=([f"deja presentes, laissees intactes : "
+                                     f"{', '.join(ignorees)}"]
+                                    if ignorees else []))
+
+
+def commande_injections(args):
+    """
+    Cree des BC lines dans la geometrie ET, si un fichier unsteady est
+    fourni, le bloc de condition limite qui leur donne un hydrogramme.
+
+    LES DEUX ECRITURES SONT NECESSAIRES. Une BC line presente dans la seule
+    geometrie existe pour HEC-RAS mais n'apporte AUCUN debit : elle n'a pas
+    d'hydrogramme. Le calage la mettrait a l'echelle sans effet, et
+    conclurait a une stagnation apres avoir consomme tous ses essais.
+
+    La zone 2D est obligatoire : HEC-RAS rattache chaque BC line a un bloc
+    « Storage Area= » du fichier geometrie.
+
+    La FORME de l'hydrogramme initial n'a pas besoin d'etre juste — le calage
+    la met a l'echelle — mais elle doit couvrir la fenetre du modele. D'ou
+    --forme-depuis, qui reprend a une condition limite existante la DUREE
+    qu'elle couvre. Le pas, lui, ne se reprend pas : il vaut toujours 6 min
+    (--intervalle pour en imposer un autre).
+    """
+    import geometrie as geo
+    from pilote_hecras import (INTERVALLE_APPORT, _intervalle_en_heures,
+                               ajouter_condition_limite_debit,
+                               cartographier_hydrogrammes, intervalle_hecras,
+                               lire_hydrogramme_unsteady,
+                               noms_conditions_limites)
+
+    lignes = geo.lire_lignes(args.shp)
+
+    # TOUT VERIFIER AVANT D'ECRIRE QUOI QUE CE SOIT. La geometrie etait
+    # ecrite d'abord, puis l'unsteady : quand ce second echouait, la
+    # geometrie avait deja recu des objets en double, et il fallait la
+    # restaurer a la main. Les deux fichiers ne sont desormais touches que
+    # si l'operation entiere peut aboutir.
+    deja_geom = geo.noms_objets_geometrie(args.geometrie)["apports"]
+    a_ecrire = [n for n in lignes["nom"]
+                if args.remplacer or n not in deja_geom]
+    deja_presents = [n for n in lignes["nom"] if n not in a_ecrire]
+    if not a_ecrire:
+        return repondre(
+            ok=True, creees=0, noms=[], raccordes=[],
+            avertissements=[
+                f"rien a creer : {', '.join(deja_presents)} "
+                f"{'existe' if len(deja_presents) == 1 else 'existent'} deja "
+                f"dans {Path(args.geometrie).name}. Cocher « remplacer » pour "
+                f"en redefinir le trace."])
+
+    lignes = lignes[lignes["nom"].isin(a_ecrire)].copy()
+    copie = _sauvegarder(args.geometrie)
+    bilan = geo.ecrire_dans_geometrie(args.geometrie, gdf_apports=lignes,
+                                      nom_zone_2d=args.zone,
+                                      remplacer=args.remplacer)
+
+    raccordes, avertissements = [], []
+    if deja_presents:
+        avertissements.append(
+            f"deja dans la geometrie, laisse intact : "
+            f"{', '.join(deja_presents)}")
+    if not args.unsteady:
+        avertissements.append(
+            "aucun fichier unsteady fourni (--unsteady) : les lignes creees "
+            "n'ont PAS d'hydrogramme et n'apporteront aucun debit tant qu'une "
+            "condition limite ne leur aura pas ete associee.")
+    else:
+        copie_u = _sauvegarder(args.unsteady)
+        carte = cartographier_hydrogrammes(args.unsteady, args.zone)
+
+        # UN APPORT CREE NAIT A ZERO. Sa forme n'est pas a deviner ici : la
+        # boucle de calage commence par un calcul SANS les apports, mesure ce
+        # que la section recoit deja, puis donne a l'apport la forme de la
+        # CIBLE avant d'en ajuster l'amplitude (§ 1.6). Recopier la forme
+        # d'une autre condition limite ne servait qu'a fournir une base de
+        # temps — c'est tout ce qu'on reprend ici, sans les valeurs.
+        modele_temps = carte.get(args.forme_depuis) if args.forme_depuis else None
+        if modele_temps is None and carte:
+            modele_temps = carte[sorted(carte)[0]]
+        # INTERVALLE DE 6 MIN, quel que soit celui du modele : c'est le pas
+        # au-dela duquel une cible est densifiee a la lecture du classeur
+        # (criteres.PAS_ENTREE_H) — une cible deja plus fine garde son pas
+        # natif, et definir_forme() la reprojette de toute facon sur la
+        # grille reelle de l'apport au moment de l'ecriture. Ce qui est
+        # repris d'une condition limite existante n'est donc pas son pas,
+        # mais sa DUREE — sans quoi un apport cree a 6 min a partir d'un
+        # modele au quart d'heure couvrirait 2 h 24 la ou le modele en
+        # simule 24, et n'injecterait rien au-dela.
+        intervalle = (intervalle_hecras(args.intervalle) if args.intervalle
+                      else INTERVALLE_APPORT)
+        pas_h = _intervalle_en_heures(intervalle)
+        if not pas_h:
+            raise ValueError(
+                f"intervalle « {intervalle} » non convertible en heures : le "
+                f"nombre de valeurs de l'hydrogramme ne peut pas en etre "
+                f"deduit. Utiliser une notation entiere (6MIN, 15MIN, 1HOUR).")
+        if modele_temps is not None:
+            # « nb » compte les LIGNES du tableau, pas les valeurs : le format
+            # en aligne dix par ligne. C'est le tableau relu qui donne le
+            # nombre exact de pas de temps.
+            reference, _ = lire_hydrogramme_unsteady(
+                args.unsteady, modele_temps["debut"], modele_temps["fin"])
+            forme = [0.0] * _nb_valeurs_meme_duree(
+                len(reference), modele_temps["intervalle_h"] or pas_h, pas_h)
+        else:
+            forme = [0.0] * int(args.nb_valeurs)
+
+        # On interroge TOUTES les conditions limites, et pas seulement celles
+        # qui portent un hydrogramme : une condition de SORTIE n'en a pas, et
+        # se fier a la seule carte des hydrogrammes revenait a la croire
+        # absente, donc a vouloir la creer alors qu'elle existe.
+        existantes = noms_conditions_limites(args.unsteady, args.zone)
+        avec_hydrogramme = cartographier_hydrogrammes(args.unsteady, args.zone)
+        for nom in lignes["nom"]:
+            if nom in avec_hydrogramme:
+                avertissements.append(
+                    f"« {nom} » avait deja un hydrogramme : conserve tel quel, "
+                    f"il n'a pas ete remplace.")
+                continue
+            if nom in existantes:
+                avertissements.append(
+                    f"« {nom} » existe deja comme condition limite sans "
+                    f"hydrogramme de debit — une sortie, typiquement. Elle est "
+                    f"laissee intacte : lui en ajouter un la transformerait en "
+                    f"entree.")
+                continue
+            ajouter_condition_limite_debit(args.unsteady, nom, args.zone,
+                                           forme, intervalle=intervalle,
+                                           pente=args.pente)
+            raccordes.append(nom)
+        avertissements.append(f"sauvegarde unsteady : {copie_u}")
+
+    return repondre(ok=True, creees=len(lignes), noms=list(lignes["nom"]),
+                    bilan=bilan, sauvegarde=str(copie),
+                    raccordes=raccordes, avertissements=avertissements)
+
+
+def _nb_valeurs_meme_duree(nb_reference, pas_reference_h, pas_h):
+    """
+    Nombre de valeurs couvrant la MEME duree qu'un hydrogramme de reference,
+    mais au pas pas_h.
+
+    Ce qu'on reprend d'une condition limite existante est sa DUREE, jamais son
+    pas : l'apport cree est toujours a 6 min. Reprendre le NOMBRE de valeurs,
+    comme la chaine le faisait, revenait a changer la duree avec le pas — un
+    apport cree a 6 min a partir d'un modele au quart d'heure ne couvrait plus
+    que 2 h 24 sur les 24 h simulees, et n'injectait plus rien au-dela sans
+    qu'aucun message ne le signale.
+
+    N valeurs decrivent N-1 intervalles : c'est sur eux que porte le calcul.
+    """
+    duree_h = (int(nb_reference) - 1) * float(pas_reference_h)
+    return int(round(duree_h / float(pas_h))) + 1
+
+
+def _texte_parametre(valeurs, cle, defaut=""):
+    """Valeur textuelle d'un parametre du classeur, jamais NaN ni None."""
+    import pandas as pd
+
+    v = valeurs.get(cle)
+    return defaut if v is None or pd.isna(v) else str(v).strip()
+
+
+def _cibles_depuis_classeur(chemin_template, journal=None):
+    """
+    Lit les hydrogrammes cibles de la feuille Cibles, dans l'ordre de la
+    feuille Correspondance.
+
+    Retourne (apports, sections, cibles, manquantes) : cibles est une liste
+    de (temps_h, debit), alignee sur apports/sections ; manquantes est la
+    liste des sections dont la cible n'est pas exploitable — le calage ne
+    doit jamais demarrer avec un trou dans les cibles, mieux vaut le dire
+    tout de suite qu'echouer des heures plus tard sur le premier apport
+    concerne.
+
+    CHAQUE CIBLE PLUS GROSSIERE QUE 6 MIN EST RAMENEE A CE PAS
+    (criteres.PAS_ENTREE_H), celui de l'apport ecrit dans l'unsteady : un HSMF
+    colle a la main arrive au pas de sa source, horaire le plus souvent, et le
+    recalage temporel comme la forme injectee dans le modele en heritent telle
+    quelle — calage.py les reprend directement sur la base de temps de la
+    cible. Une cible DEJA a 6 min ou plus fine est conservee a son pas natif,
+    sans degradation. Toute conversion (densification d'une cible grossiere)
+    est consignee par « journal », qui recoit une ligne par cible convertie :
+    la donnee lue n'est pas celle qui a ete saisie, cela doit se lire.
+    """
+    import numpy as np
+    import pandas as pd
+
+    from criteres import PAS_ENTREE_H, normaliser_entree
+
+    corr = pd.read_excel(chemin_template, sheet_name="Correspondance")
+    cib = pd.read_excel(chemin_template, sheet_name="Cibles")
+    col_ordre = "Ordre"
+    col_apport = next(c for c in corr.columns if c.startswith("Nom_Apport"))
+    col_section = next(c for c in corr.columns if c.startswith("Nom_Section"))
+    col_cible = next(c for c in corr.columns if c.startswith("Nom_Cible"))
+    corr = corr.dropna(subset=[col_ordre, col_apport, col_section, col_cible]
+                       ).sort_values(col_ordre)
+
+    temps = pd.to_numeric(cib.get("Temps_h"), errors="coerce").to_numpy(dtype=float)
+
+    apports, sections, cibles, manquantes = [], [], [], []
+    for _, ligne in corr.iterrows():
+        section = str(ligne[col_section])
+        nom_cible = str(ligne[col_cible])
+        if nom_cible not in cib.columns or cib[nom_cible].isna().all():
+            manquantes.append(section)
+            continue
+        debit = pd.to_numeric(cib[nom_cible], errors="coerce").to_numpy(dtype=float)
+        masque = ~(np.isnan(temps) | np.isnan(debit))
+        if masque.sum() < 2:
+            manquantes.append(section)
+            continue
+        t_cible, q_cible, pas_initial = normaliser_entree(temps[masque],
+                                                          debit[masque])
+        if pas_initial is not None and journal is not None:
+            # « X min » et non « X h » : les pas saisis vont de la minute a
+            # l'heure, la minute les couvre tous sans decimale inutile.
+            journal(f"Cible « {nom_cible} » : pas de temps "
+                    f"{60 * pas_initial:g} min → converti en "
+                    f"{60 * PAS_ENTREE_H:g} min")
+        apports.append(str(ligne[col_apport]))
+        sections.append(section)
+        cibles.append((t_cible, q_cible))
+    return apports, sections, cibles, manquantes
+
+
+def commande_caler(args):
+    """
+    Lance la boucle de calage sequentielle COMPLETE, a partir d'un classeur
+    deja compose et controle.
+
+    C'est une operation LONGUE (potentiellement plusieurs heures) : cette
+    commande n'est JAMAIS appelee via appeler_pont() (qui attend la reponse
+    avec un delai court), mais via noyau.lancer_calage(), en sous-processus
+    DETACHE. Le plugin repart aussitot ; le suivi (§ 4.3, dossier
+    Sous_dossier_suivi) est le seul moyen de savoir ou en est le calcul
+    pendant qu'il tourne.
+    """
+    import pandas as pd
+
+    from calage import (ETAPE_SANS_APPORT, Configuration, caler,
+                        etape_apport, produire_livrables_finaux)
+    from criteres import pas_serie_h
+    from pilote_hecras import PiloteHecRas, plan_par_titre
+    from suivi import Suivi
+
+    chemin_template = Path(args.template)
+    par = pd.read_excel(chemin_template, sheet_name="Parametres")
+    valeurs = dict(zip(par["Parametre"], par["Valeur"]))
+
+    def texte(cle, defaut=""):
+        return _texte_parametre(valeurs, cle, defaut)
+
+    def nombre(cle, defaut):
+        v = valeurs.get(cle)
+        try:
+            return float(v) if v is not None and not pd.isna(v) else defaut
+        except (TypeError, ValueError):
+            return defaut
+
+    apports, sections, cibles, manquantes = _cibles_depuis_classeur(
+        chemin_template, journal=lambda m: print(m, flush=True))
+    if manquantes:
+        return repondre(ok=False, erreur=(
+            f"hydrogrammes cibles manquants ou inexploitables pour : "
+            f"{manquantes}. Completer la feuille Cibles avant de lancer le "
+            f"calage."))
+    if not apports:
+        return repondre(ok=False,
+                        erreur="aucun apport a caler (feuille Correspondance vide "
+                               "ou toutes les cibles manquantes).")
+
+    apports_a_caler = list(apports)
+    # PAS DE TRAVAIL DE CE CALAGE : le plus fin des pas natifs des cibles
+    # (criteres.pas_serie_h), jamais le plancher fige criteres.PAS_ENTREE_H —
+    # normaliser_entree() (appelee par _cibles_depuis_classeur) preserve deja
+    # une cible plus fine que ce plancher, mais rien en aval n'exploitait
+    # cette finesse : les apports du modele, deja au bon pas, se faisaient
+    # degrader vers 6 min par PiloteHecRas._recadencer_apports(), qui
+    # imposait jusqu'ici un libelle fige au lieu de suivre la cible. Voir le
+    # calage reel du 2026-08-05 : cible et apports natifs a
+    # 3 min, plancher fige a 6 min, une condition limite hors calage restee a
+    # 6 min passait alors pour conforme.
+    pas_travail_h = min(
+        (pas_serie_h(t) for t, _ in cibles if len(t) > 1), default=None)
+
+    # REPRISE A UN APPORT DONNE. Les apports situes en amont de celui-ci sont
+    # tenus pour cales : ils ne sont ni remis a zero, ni retouches. On repart
+    # du plan de l'etape precedente, qui les porte deja — repartir du plan de
+    # reference les perdrait tous, en silence.
+    depart, etape_reference, reprise = 0, ETAPE_SANS_APPORT, ""
+    premier = texte("Premier_apport")
+    if premier:
+        # Le nom de la condition limite d'abord, celui de la section de
+        # controle ensuite : les deux designent la meme ligne du tableau de
+        # correspondance, et l'utilisateur emploie couramment l'un pour l'autre.
+        for liste in (apports, sections):
+            if premier in liste:
+                depart = liste.index(premier)
+                break
+        else:
+            return repondre(ok=False, erreur=(
+                f"« Premier_apport » vaut « {premier} », qui ne figure ni "
+                f"parmi les apports {apports} ni parmi les sections "
+                f"{sections} de la feuille Correspondance."))
+
+    plan_reference = texte("Plan_reference", "p01")
+    if depart > 0:
+        deja = apports[:depart]
+        etape_precedente = etape_apport(apports[depart - 1])
+        etape_reference = f"sans apport {apports[depart]} et aval"
+        trouve = plan_par_titre(texte("Dossier_projet_HECRAS"),
+                                texte("Nom_projet"), etape_precedente)
+        if trouve:
+            plan_reference = f"p{trouve}"
+            reprise = (f"Reprise a l'apport {apports[depart]} : {len(deja)} "
+                       f"apport(s) amont {deja} tenus pour cales, depart du "
+                       f"plan p{trouve} « {etape_precedente} ».")
+        else:
+            reprise = (
+                f"AVERTISSEMENT : reprise demandee a l'apport "
+                f"{apports[depart]}, mais aucun plan « {etape_precedente} » "
+                f"dans le projet. Le calage part du plan de reference "
+                f"{plan_reference} : les apports amont {deja} y valent ce "
+                f"qu'ils y valent, et ne seront pas verifies. Si ce plan ne "
+                f"les porte pas deja cales, le resultat sera faux.")
+        print(reprise, flush=True)
+        apports, sections, cibles = (apports[depart:], sections[depart:],
+                                     cibles[depart:])
+
+    surcharge = texte("Mode_selection_modele", "plan").lower() == "override"
+
+    # La fenetre de simulation n'est imposee que si elle a ete saisie. Sans
+    # cela, celle du plan de reference s'applique — ce qui est le bon defaut
+    # tant qu'on ne substitue pas un unsteady flow d'une autre periode.
+    fenetre = {cle: texte(param)
+               for cle, param in (("debut", "Simulation_debut"),
+                                  ("fin", "Simulation_fin"),
+                                  ("intervalle_calcul", "Intervalle_calcul"),
+                                  ("intervalle_sortie", "Intervalle_sortie"),
+                                  ("intervalle_instantane",
+                                   "Intervalle_instantane"),
+                                  ("intervalle_mapping", "Intervalle_mapping"))
+               if texte(param)}
+
+    pilote = PiloteHecRas(
+        dossier_projet=texte("Dossier_projet_HECRAS"),
+        nom_projet=texte("Nom_projet"),
+        plan_reference=plan_reference,
+        version=texte("Version_HECRAS", "7.0.1"),
+        nom_zone_2d=texte("Nom_zone_2D") or None,
+        geometrie_override=texte("Geometrie_reference") if surcharge else None,
+        unsteady_override=texte("Unsteady_reference") if surcharge else None,
+        nom_clone_geometrie=texte("Nom_clone_geometrie") or None,
+        fenetre_simulation=fenetre or None,
+        pas_travail_h=pas_travail_h,
+        apports_a_caler=apports_a_caler,
+    )
+
+    # La precision est saisie en POURCENTAGE, la chaine raisonne en rapports.
+    config = Configuration(
+        nb_max_essais=int(nombre("Nb_max_iterations_par_apport", 6)),
+        tolerance_beta=nombre("Tolerance_volume_pct", 5.0) / 100.0,
+        tolerance_pic=nombre("Tolerance_pic_pct", 2.0) / 100.0,
+        # FENETRE DE JUGEMENT. Les deux seuils sont donnes en POURCENTAGE du
+        # volume cumule du deficit. La methodologie les declare explicitement
+        # « a confirmer sur les premiers cas d'application » : ils doivent
+        # donc rester saisissables, et non figes dans le code.
+        fenetre_seuil_bas=nombre("Fenetre_seuil_bas_pct", 0.5) / 100.0,
+        fenetre_seuil_haut=nombre("Fenetre_seuil_haut_pct", 99.0) / 100.0,
+        # Bornes imposees a la main, en heures depuis le debut de la cible.
+        # Vides = detection automatique, qui n'est qu'une proposition.
+        fenetre_t0_h=nombre("Fenetre_t0_h", None),
+        fenetre_tf_h=nombre("Fenetre_tf_h", None),
+        # Vide = active, le defaut. « non » juge sur toute la duree simulee.
+        fenetre_active=_oui_non_ou_defaut(texte("Fenetre_active", "")))
+
+    dossier_sortie = Path(texte("Dossier_sortie") or chemin_template.parent)
+    sous_suivi = texte("Sous_dossier_suivi", "suivi")
+    sous_resultats = texte("Sous_dossier_resultats", "resultats_finaux")
+    suivi = Suivi(dossier_sortie / sous_suivi, apports, sections,
+                  titre=(f"Calage des apports — {texte('Nom_projet')}"
+                         + (f" (reprise à {apports[0]})" if depart else "")),
+                  # Les MEMES tolerances que la boucle : l'affichage doit
+                  # juger « conforme » sur les seuils de l'etude, pas sur des
+                  # seuils par defaut.
+                  tolerances={"volume": config.tolerance_beta,
+                              "pic": config.tolerance_pic,
+                              "forme": 1.0 - config.r_min})
+
+    # PENTE DE CHAQUE APPORT. Saisie par apport dans le classeur, ou deduite
+    # du profil en long — moyenne du fond sur +/- 200 m autour de l'injection,
+    # majoree de 20 %. Elle est appliquee ICI et non a la creation de
+    # l'injection : le classeur n'existait pas encore a ce moment-la.
+    _appliquer_pentes(pilote, chemin_template, apports)
+
+    print(f"Calage : {len(apports)} apport(s), plan de reference "
+         f"{plan_reference}", flush=True)
+    resultat = caler(pilote, apports, sections, cibles, config, suivi=suivi,
+                     journal=lambda *a: print(*a, flush=True),
+                     etape_reference=etape_reference)
+
+    # VERDICT DANS LE SUIVI, avant meme les livrables. Sans lui, celui qui
+    # regarde l'avancement voit les fichiers cesser d'etre reecrits sans
+    # savoir si le calage a abouti, echoue, ou s'il est mort en chemin.
+    # Consigne aussi si l'assemblage du rapport echoue ensuite : le calage,
+    # lui, est bien termine.
+    try:
+        suivi.conclure(resultat.conforme, resultat.motif, resultat.nb_calculs)
+    except Exception as e:                                  # noqa: BLE001
+        print(f"AVERTISSEMENT : verdict non consigne au suivi : {e}",
+              flush=True)
+
+    rapport = None
+    if resultat.diagnostics_finaux:
+        # PROFIL EN LONG DE SYNTHESE. Ces trois valeurs sont FACULTATIVES pour
+        # produire_livrables_finaux(), qui saute la figure d'ensemble sans rien
+        # dire quand elles manquent. Ne pas les passer suffisait donc a rendre
+        # la figure introuvable dans les livrables de n'importe quel calage —
+        # celle-la meme que reprend la note methodologique.
+        profil, pk_sections, pk_apports = _profil_pour_livrables(
+            pilote, chemin_template, resultat)
+        try:
+            rapport = produire_livrables_finaux(
+                resultat, pilote, dossier_sortie / sous_resultats,
+                profil=profil, pk_sections=pk_sections,
+                pk_apports=pk_apports)
+        except Exception as e:
+            print(f"AVERTISSEMENT : rapport final non produit : {e}", flush=True)
+
+    # MENAGE. LES PLANS D'ETAPE SONT CONSERVES — « sans apport », puis un par
+    # apport : ils documentent le calage et permettent de le reprendre sans
+    # repartir du premier apport. Ne partent que les traces de preparation, et
+    # seulement si le calage a abouti : tant qu'il n'a pas abouti, les
+    # sauvegardes horodatees sont le seul retour en arriere sur le modele.
+    menage = None
+    if resultat.conforme:
+        try:
+            menage = pilote.nettoyer_reliquats()
+            if menage["reliquats"]:
+                print(f"Menage : {len(menage['reliquats'])} reliquat(s) de "
+                      f"preparation retire(s) — "
+                      f"{', '.join(menage['reliquats'])}", flush=True)
+            print(f"Plans conserves : {', '.join(menage['etapes'])}",
+                  flush=True)
+        except Exception as e:
+            # Le menage est un confort : son echec ne doit pas faire perdre un
+            # calage qui a abouti.
+            print(f"AVERTISSEMENT : menage non effectue : {e}", flush=True)
+
+    return repondre(
+        ok=True, conforme=resultat.conforme, motif=resultat.motif,
+        duree_s=round(resultat.duree_s, 1), nb_calculs=resultat.nb_calculs,
+        apports_valides=sum(a.valide for a in resultat.apports),
+        apports_total=len(apports),
+        dossier_suivi=str(dossier_sortie / sous_suivi),
+        plan_conserve=(menage or {}).get("conserve"),
+        objets_retires=(menage or {}).get("supprimes") or [],
+        dossier_resultats=(str(dossier_sortie / sous_resultats)
+                          if rapport else None))
+
+
+# ---------------------------------------------------------------------------
+
+def construire_analyseur():
+    analyseur = argparse.ArgumentParser(
+        description="Pont vers HEC-RAS, appelable depuis QGIS. Repond en JSON.")
+    sous = analyseur.add_subparsers(dest="commande", required=True)
+
+    sous.add_parser("verifier", help="confirme que ras-commander est utilisable"
+                    ).set_defaults(fonction=commande_verifier)
+
+    a = sous.add_parser("lister", help="objets presents dans le modele")
+    a.add_argument("--plan", required=True)
+    a.set_defaults(fonction=commande_lister)
+
+    a = sous.add_parser("hydrogramme", help="debit a une section de controle")
+    a.add_argument("--plan", required=True)
+    a.add_argument("--section", required=True)
+    a.add_argument("--zone", default=None)
+    a.add_argument("--sortie", default=None)
+    a.add_argument("--groupe", default="Reference Lines",
+                   choices=["Reference Lines", "Boundary Conditions"],
+                   help="famille d'objets : sections de controle (defaut) ou "
+                        "conditions limites, pour relire un apport injecte")
+    a.set_defaults(fonction=commande_hydrogramme)
+
+    a = sous.add_parser("modele",
+                        help="couches geometriques existantes (perimetre, "
+                             "sections, injections), en WKT")
+    a.add_argument("--geometrie", required=True, help="fichier .gXX.hdf")
+    a.set_defaults(fonction=commande_modele)
+
+    a = sous.add_parser("pentes",
+                        help="pente du fond au droit de chaque apport, pour "
+                             "pre-remplir Pente_m_par_m")
+    a.add_argument("--geometrie", required=True, help="fichier .gXX.hdf")
+    a.add_argument("--axe", required=True, help="shapefile de l'axe")
+    a.add_argument("--zone", default=None, help="zone d'ecoulement 2D")
+    a.add_argument("--pk-apports", dest="pk_apports", required=True,
+                   help="JSON {nom_apport: PK en m}, dans la convention de PK "
+                        "de l'appelant (Sens_axe)")
+    a.set_defaults(fonction=commande_pentes)
+
+    a = sous.add_parser("controler-modele",
+                        help="confronte la saisie a la geometrie reelle")
+    a.add_argument("--template", required=True)
+    a.add_argument("--geometrie", default=None,
+                   help="geometrie HDF ; deduite du template si omise")
+    a.set_defaults(fonction=commande_controler_modele)
+
+    a = sous.add_parser("sections", help="cree des reference lines")
+    a.add_argument("--geometrie", required=True)
+    a.add_argument("--shp", required=True)
+    a.add_argument("--zone", required=True)
+    a.add_argument("--remplacer", action="store_true")
+    a.set_defaults(fonction=commande_sections)
+
+    a = sous.add_parser("injections",
+                        help="cree des BC lines ET leur condition limite")
+    a.add_argument("--geometrie", required=True)
+    a.add_argument("--shp", required=True)
+    a.add_argument("--zone", required=True,
+                   help="zone d'ecoulement 2D de rattachement")
+    a.add_argument("--remplacer", action="store_true")
+    a.add_argument("--unsteady", default=None,
+                   help="fichier .uXX ou creer l'hydrogramme. SANS LUI, les "
+                        "lignes creees n'apportent aucun debit.")
+    a.add_argument("--forme-depuis", dest="forme_depuis", default=None,
+                   help="reprendre la DUREE d'une condition limite existante "
+                        "(le pas, lui, reste celui de --intervalle)")
+    a.add_argument("--debit-initial", dest="debit_initial", type=float,
+                   default=1.0,
+                   help="a defaut de --forme-depuis : debit constant initial")
+    a.add_argument("--nb-valeurs", dest="nb_valeurs", type=int, default=241,
+                   help="a defaut de --forme-depuis : nombre de pas "
+                        "(241 = 24 h au pas de 6 min)")
+    a.add_argument("--intervalle", default=None,
+                   help="pas de l'apport cree. Defaut : 6MIN, celui auquel les "
+                        "cibles sont ramenees.")
+    a.add_argument("--pente", type=float, default=0.01,
+                   help="pente de la ligne d'energie (0,01 = 1 %%)")
+    a.set_defaults(fonction=commande_injections)
+
+    a = sous.add_parser("caler", help="lance la boucle de calage complete "
+                                      "(operation LONGUE — a lancer en arriere-plan)")
+    a.add_argument("--template", required=True)
+    a.set_defaults(fonction=commande_caler)
+
+    a = sous.add_parser("autotest",
+                        help="verifie le lecteur de resultats sur un fichier "
+                             "fabrique (aucun modele HEC-RAS necessaire)")
+    a.set_defaults(fonction=commande_autotest)
+
+    return analyseur
+
+
+def commande_autotest(args):
+    """
+    Eprouve lire_serie_hdf sur un fichier de resultats FABRIQUE reproduisant
+    les deux dispositions reellement rencontrees, et l'inversion de signe.
+
+    Ces cas ne pouvaient pas etre couverts avant le premier calage reel : le
+    modele d'essai ne comportait aucune reference line, si bien que la
+    disposition matricielle n'avait jamais ete lue une seule fois.
+    """
+    import tempfile
+    import h5py
+    import numpy as np
+
+    echecs = []
+
+    def verifier(libelle, condition, detail=""):
+        print(f"   [{'OK' if condition else 'ECHEC'}] {libelle}"
+              + (f"  ->  {detail}" if detail else ""))
+        if not condition:
+            echecs.append(libelle)
+
+    chemin = Path(tempfile.gettempdir()) / "_essai_calage_resultats.hdf"
+    temps_jours = np.linspace(0, 0.5, 25)          # 12 h, en JOURS
+    debit = np.concatenate([np.linspace(10, 100, 13),
+                            np.linspace(100, 20, 12)])
+
+    with h5py.File(chemin, "w") as h:
+        g = h.create_group(f"{CHEMIN_SERIES_HDF}/Reference Lines")
+        # Deux lignes, pour verifier que c'est bien LA BONNE colonne qui est
+        # retenue — une erreur d'indice passerait inapercue avec une seule.
+        g.create_dataset("Name", data=np.array(
+            [b"SECTION_A|Perimeter 1", b"SECTION_B|Perimeter 1"]))
+        g.create_dataset("Flow", data=np.column_stack([-debit, 3.0 * debit]))
+        g.create_dataset("Velocity", data=np.column_stack([debit, debit]))
+
+        b = h.create_group(f"{CHEMIN_SERIES_HDF}/Boundary Conditions")
+        jeu = b.create_dataset("APPORT_X",
+                               data=np.column_stack([debit * 0 + 440.0, debit]))
+        jeu.attrs["Columns"] = np.array([b"Stage", b"Flow"], dtype="|S16")
+
+        t = h.create_dataset(f"{CHEMIN_SERIES_HDF}/Time", data=temps_jours)
+        t.attrs["Time"] = b"days"
+
+    print("=" * 74)
+    print("AUTO-TEST DU LECTEUR DE RESULTATS  (fichier fabrique)")
+    print("=" * 74)
+
+    print("\n1. DISPOSITION MATRICIELLE (« Reference Lines »)")
+    s = lire_serie_hdf(chemin, "SECTION_A", groupe="Reference Lines")
+    verifier("la section est trouvee malgre le suffixe « |zone »",
+             s.attrs["objet"] == "SECTION_A|Perimeter 1")
+    verifier("orientation inversee detectee et corrigee",
+             s.attrs["orientation_inversee"]
+             and abs(s["debit_m3s"].max() - 100.0) < 1e-6,
+             f"pointe {s['debit_m3s'].max():.2f}")
+    verifier("ecoulement non reversible", not s.attrs["ecoulement_reversible"])
+    verifier("temps converti de jours en heures",
+             abs(s["temps"].max() - 12.0) < 1e-6,
+             f"{s['temps'].max():.2f} h")
+
+    s2 = lire_serie_hdf(chemin, "SECTION_B", groupe="Reference Lines")
+    verifier("c'est bien la COLONNE de la section demandee qui est lue",
+             abs(s2["debit_m3s"].max() - 300.0) < 1e-6,
+             f"pointe {s2['debit_m3s'].max():.2f}")
+    verifier("une section deja orientee dans le bon sens n'est pas retournee",
+             not s2.attrs["orientation_inversee"])
+
+    print("\n2. DISPOSITION PAR OBJET (« Boundary Conditions »)")
+    a = lire_serie_hdf(chemin, "APPORT_X", groupe="Boundary Conditions")
+    verifier("la colonne Flow est identifiee par l'attribut « Columns »",
+             abs(a["debit_m3s"].max() - 100.0) < 1e-6,
+             f"pointe {a['debit_m3s'].max():.2f}")
+    verifier("la colonne Stage n'est pas confondue avec le debit",
+             abs(a["debit_m3s"].min() - 10.0) < 1e-6)
+
+    print("\n3. ERREURS EXPLICITES")
+    try:
+        lire_serie_hdf(chemin, "INCONNUE", groupe="Reference Lines")
+        verifier("une section absente leve une erreur nommant les presentes",
+                 False)
+    except KeyError as e:
+        verifier("une section absente leve une erreur nommant les presentes",
+                 "SECTION_A" in str(e), str(e)[:60])
+    try:
+        lire_serie_hdf(chemin, "X", groupe="Groupe Inexistant")
+        verifier("un groupe absent leve une erreur", False)
+    except KeyError:
+        verifier("un groupe absent leve une erreur", True)
+
+    chemin.unlink(missing_ok=True)
+
+    print("\n4. CIBLES : LECTURE DU CLASSEUR AU PAS DE 6 MINUTES")
+    import pandas as pd
+
+    def _lire_cibles(temps_h, debits):
+        """Ecrit un classeur minimal et le relit ; retourne (cible, journal)."""
+        classeur = Path(tempfile.gettempdir()) / "_essai_cibles_classeur.xlsx"
+        with pd.ExcelWriter(classeur) as w:
+            pd.DataFrame({
+                "Ordre": [1], "Nom_Apport (BC line)": ["A1"],
+                "Nom_Section (reference line)": ["SC1"], "Nom_Cible": ["C1"],
+            }).to_excel(w, sheet_name="Correspondance", index=False)
+            pd.DataFrame({"Temps_h": temps_h, "C1": debits}
+                        ).to_excel(w, sheet_name="Cibles", index=False)
+        lignes = []
+        _, _, lues, _ = _cibles_depuis_classeur(classeur, journal=lignes.append)
+        classeur.unlink(missing_ok=True)
+        return lues[0], lignes
+
+    # Pas horaire, comme un HSMF colle tel quel : c'est le cas courant que la
+    # normalisation doit corriger avant tout calage.
+    (t_c, q_c), journal_lu = _lire_cibles([0, 1, 2, 3, 4], [0, 50, 100, 40, 0])
+    verifier("une cible horaire est ramenee au pas de 6 minutes",
+             abs(np.max(np.diff(t_c)) - 0.1) < 1e-9,
+             f"pas max {3600 * np.max(np.diff(t_c)):.0f} s sur {len(t_c)} pas")
+    verifier("les bornes de temps et le pic sont conserves",
+             t_c[0] == 0.0 and abs(t_c[-1] - 4.0) < 1e-9
+             and abs(np.max(q_c) - 100.0) < 1e-6,
+             f"{t_c[0]:.2f} -> {t_c[-1]:.2f} h, pic {np.max(q_c):.1f}")
+    # La conversion DOIT se lire dans le journal : la serie calee n'est plus
+    # celle qui a ete saisie, et rien d'autre ne le dirait.
+    verifier("la conversion est consignee, avec le pas d'origine",
+             len(journal_lu) == 1
+             and "60 min → converti en 6 min" in journal_lu[0],
+             journal_lu[0] if journal_lu else "aucune ligne de journal")
+
+    # Une cible DEJA au pas de 6 min ne doit etre ni touchee ni annoncee.
+    _, journal_muet = _lire_cibles([round(0.1 * i, 1) for i in range(11)],
+                                   list(range(11)))
+    verifier("une cible deja au bon pas ne declenche aucune conversion",
+             journal_muet == [], str(journal_muet))
+
+    # UN PAS PLUS FIN EST PRESERVE (regle du 05/08/2026) : seule une cible plus
+    # GROSSIERE est densifiee. Ce controle exigeait l'inverse — la degradation
+    # au pas commun de 6 min — et echouait depuis, sans que rien d'autre ne
+    # l'exerce : c'est le pas de travail qui suit desormais la cible, pas la
+    # cible qui suit un plancher fige (PiloteHecRas.pas_travail_h).
+    (t_f, _), journal_fin = _lire_cibles([0.02 * i for i in range(51)],
+                                         [0.0] * 51)
+    verifier("une cible plus fine que 6 min n'est PAS degradee",
+             abs(np.max(np.diff(t_f)) - 0.02) < 1e-9 and journal_fin == [],
+             f"pas {np.max(np.diff(t_f)):.3f} h, journal {journal_fin}")
+
+    print("\n5. APPORT CREE : LE PAS CHANGE, LA DUREE NON")
+    # 97 valeurs au quart d'heure = 24 h. Au pas de 6 min, la meme duree en
+    # demande 241 — et non 97, qui ne couvriraient que 9 h 36.
+    verifier("24 h au quart d'heure font 24 h au pas de 6 min",
+             _nb_valeurs_meme_duree(97, 0.25, 0.1) == 241,
+             f"{_nb_valeurs_meme_duree(97, 0.25, 0.1)} valeurs")
+    verifier("un modele deja au pas de 6 min garde son compte",
+             _nb_valeurs_meme_duree(241, 0.1, 0.1) == 241,
+             f"{_nb_valeurs_meme_duree(241, 0.1, 0.1)} valeurs")
+    verifier("un modele au pas horaire est densifie sans changer de duree",
+             _nb_valeurs_meme_duree(25, 1.0, 0.1) == 241,
+             f"{_nb_valeurs_meme_duree(25, 1.0, 0.1)} valeurs")
+
+    print("\n" + "=" * 74)
+    if echecs:
+        print(f"{len(echecs)} ECHEC(S) : {echecs}")
+    else:
+        print("Le lecteur gere les deux dispositions et l'orientation.")
+    print("=" * 74)
+    return 1 if echecs else 0
+
+
+def main(argv=None):
+    args = construire_analyseur().parse_args(argv)
+    try:
+        return args.fonction(args)
+    except Exception as e:
+        import traceback
+        return repondre(ok=False, erreur=f"{type(e).__name__}: {e}",
+                        trace=traceback.format_exc())
+
+
+if __name__ == "__main__":
+    sys.exit(main())

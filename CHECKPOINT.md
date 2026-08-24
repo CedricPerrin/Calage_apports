@@ -1,0 +1,1284 @@
+# CHECKPOINT — Calage des apports (ISL Ingénierie)
+
+Point de reprise pour ouvrir une nouvelle conversation avec un contexte
+minimal. L'état courant et les règles en vigueur restent dans `STATUT.txt` ;
+ce fichier ne dit que **où on en est** et **par quoi reprendre**.
+
+Dernière mise à jour : **4 août 2026 (suite 3) — en Mode_rapide, Δt n'est
+plus forcé à zéro au calcul de référence, et φ n'est plus mesuré par
+corrélation : les deux sont remplacés par la méthode manuelle vérifiée par
+l'utilisateur** (Δt mesuré une fois sur le résiduel, pic contre pic, gardé
+fixe ; φ = −Δt, analytique). Corrige un défaut réel du Mode_rapide devenu
+défaut la veille : correct sur la section 1 (proche de l'injection, par
+chance), faux sur les suivantes. Voir la session ci-dessous. **Non encore
+rejoué sur un vrai calcul HEC-RAS.**
+
+### Session du 4 août 2026 (suite 3) — Δt mesuré au résiduel, φ = −Δt en Mode_rapide
+
+**Demande utilisateur**, après avoir observé un calage réel : l'hydrogramme
+d'apport n'est pas inséré au bon instant — correct pour la section 1, faux
+pour les suivantes. Décrit lui-même, et vérifié à la main, la méthode
+attendue : mesurer Δt **une seule fois**, sur le calcul de référence
+(apports à zéro), entre le pic obtenu à la section et le pic de la cible ;
+garder cette valeur **fixe** pour tous les essais suivants ; écrire la
+correction `apport(t) = cible(t − Δt) − section(t)`, plancher à zéro. Pas de
+moindres carrés, pas de remesure.
+
+**Cause exacte.** `caler()` forçait `decalage_zero` à 0.0 en Mode_rapide
+([calage.py:1421](calage.py#L1421) avant correctif), sous l'hypothèse
+« section proche de l'injection » — vraie par chance pour la section 1 du
+modèle de l'utilisateur, fausse pour les suivantes, dont le résiduel porte
+déjà un temps de transfert réel (amont non calé + apports déjà validés).
+φ, de son côté, était mesuré par corrélation croisée à chaque essai jusqu'à
+verrouillage — une « stratégie lourde » que le Mode_rapide est censé éviter.
+
+**Vérification mathématique, faite avant de coder** :
+`ecart_en_temps_apport` implémente `manque(u) = ecart(u + φ)` où
+`ecart(t) = cible(t) − section(t + Δt)`. En posant `φ = −Δt` :
+`manque(u) = cible(u − Δt) − section(u)` — exactement la formule de
+l'utilisateur. Et `dephasage_reponse` documente elle-même `φ = L − Δt` où
+`L` est le temps de transfert de l'apport à la section : poser `φ = −Δt`
+revient à dire **L = 0**, la même hypothèse que le gain figé à 1. La
+méthode demandée n'est donc pas une approximation : c'est l'hypothèse 1 du
+Mode_rapide, appliquée sans la mesurer une seconde fois.
+
+**Modifications, `calage.py` uniquement :**
+- `decalage_zero` toujours mesuré (`decalage_minimisant_ecart` sur le
+  résiduel), dans les deux modes — plus de forçage à zéro.
+- En Mode_rapide, `dephasage_apport` est fixé une fois à `-decalage_zero`
+  avant le premier essai, et le bloc de mesure de φ par corrélation
+  (`dephasage_reponse`) est entièrement sauté. Hors Mode_rapide : inchangé.
+- Boucle des essais : `decalage = decalage_zero` en Mode_rapide (plus de
+  variable `decalage_verrouille`, plus de remesure au premier essai).
+- Nouveau `Configuration.fenetre_marge_h` (défaut 1,0 h) : marge fixe
+  ajoutée de chaque côté de la fenêtre du hydrogramme principal après sa
+  détection (ou ses bornes imposées), bornée à l'étendue des données —
+  appliquée telle quelle, sans logique particulière pour les bornes
+  imposées à la main (demande explicite de simplicité). Pas exposée au
+  classeur/plugin.
+
+**Vérifié** : `calage.py` (14 contrôles neufs — égalité exacte formule
+manuelle / code à 2,84e-14 près ; Δt mesuré non nul sur un modèle minimal
+dédié, `ModeleResiduelDecale`, car le modèle fictif standard ne peut pas
+reproduire un résiduel décalé indépendamment de l'apport ; marge de fenêtre
+bornée aux données), `criteres.py`, `suivi.py`, `pont_hecras.py autotest` :
+0 échec.
+
+**Ce qui reste ouvert** : rien de tout cela n'a tourné sur un vrai calcul
+HEC-RAS dans cette session. À confirmer par l'utilisateur sur son modèle
+réel, sections 2 et suivantes : que `decalage_zero` mesuré au résiduel se
+rapproche de ce qu'il a mesuré à la main, et que l'apport retenu tombe au
+bon instant.
+
+### Session du 4 août 2026 (suite 2) — mode rapide et masquage de l'injection par défaut
+
+**Demande utilisateur**, juste après la mise à jour précédente : que le
+défaut soit le mode rapide ET le masquage de l'injection (§ 5). Avant
+d'appliquer, l'utilisateur a été prévenu que le cas de recette du projet a
+un tronçon qui lamine fortement (gain hydraulique mesuré **0,076** — la
+section ne rend que 7,6 % de ce qu'on lui injecte), et que la note
+méthodologique marque explicitement le mode rapide comme réservé aux
+sections proches du point d'apport, pas comme un remplacement de
+l'algorithme par défaut. **Confirmé malgré cela** : le défaut global change
+quand même, charge à chaque étude qui a besoin de l'algorithme à deux termes
+de poser `Mode_rapide=non` dans son classeur.
+
+**Ce qui a changé** :
+- `Configuration.mode_rapide` (`calage.py`) : `False` → **`True`**.
+- `Mode_rapide` dans le classeur (`creer_template.py`,
+  `calage_apports/noyau.py`) et dans le fallback de lecture
+  (`pont_hecras.py`) : `"non"` → **`"oui"`**.
+- `Fenetre_active` reste vide par défaut (suit `Mode_rapide`) : le masquage
+  de l'injection (§ 5) devient donc actif par défaut lui aussi, sans réglage
+  séparé — c'est la logique déjà en place depuis le 03/08 (« la fenêtre suit
+  le mode rapide, dont elle fait partie ») qui produit ce résultat sans
+  aucun code neuf pour la fenêtre elle-même.
+- Les deux démonstrations de précision de l'auto-test (§0 « test à blanc »)
+  fixent maintenant `mode_rapide=False` explicitement (en plus de
+  `tolerance_beta=0.005` déjà fixé la veille) : elles continuent de prouver
+  la précision de l'algorithme à deux termes sur le modèle fictif qui lamine
+  (11 %), une question indépendante des deux défauts de production.
+
+**Vérifié** : `calage.py`, `suivi.py`, `livrables.py`, `pont_hecras.py
+autotest` passent tous (0 échec) sous l'interpréteur `python` disponible
+dans cette session. Archive du plugin régénérée (`faire_zip.py`, « archive
+conforme »), **puis testée et confirmée par l'utilisateur en conditions
+réelles avant cette mise à jour de la documentation**.
+
+**Ce qui reste ouvert** : surveiller `gain_observe()` dans le journal des
+prochains calages réels — c'est désormais le premier indice pour repérer
+une section où `Mode_rapide=non` doit être reposé à la main.
+`methodologie_calage_apport.docx` n'a pas été mis à jour (ni pour la
+tolérance à 5 %, ni pour ce nouveau défaut) — à faire à la prochaine
+occasion d'ouvrir Word.
+
+### Session du 4 août 2026 (suite) — tolérance à 5 % et fenêtre du hydrogramme principal
+
+**Demande utilisateur** : porter la tolérance par défaut sur l'écart de
+volume à 5 % (au lieu de 0,5 %), et ne plus la juger que sur la fenêtre du
+hydrogramme PRINCIPAL — un excédent dans une mini-crue qui commence et finit
+avant (ou après) l'événement calé ne doit pas être vu comme un problème, et
+la « fenêtre de résultats » doit couvrir l'événement, pas la durée totale de
+la donnée d'entrée fournie.
+
+**Clarifié avec l'utilisateur avant d'écrire du code** — deux points
+laissés ouverts par la demande initiale :
+1. Comment déterminer les bornes du hydrogramme principal ? Réponse :
+   depuis le premier calcul complet (résiduel, apports à zéro) — donc
+   l'infrastructure déjà posée le 03/08 pour la fenêtre d'injection du § 5
+   (`calage.fenetre_injection`, sur l'écart au résiduel) est réutilisée
+   telle quelle, mais désormais pour le JUGEMENT et non plus seulement pour
+   l'injection.
+2. La restriction porte-t-elle sur le volume seul, ou aussi la pointe et la
+   couverture ? Réponse : les trois ensemble.
+
+**Ce qui a changé, dans l'ordre :**
+
+- `criteres.diagnostiquer()` gagne un paramètre `fenetre=(t0, tf)` : volume,
+  pointe (le max n'est plus cherché que dans la fenêtre) et l'alerte de
+  couverture (dont la référence redevient la durée de l'ÉVÉNEMENT, pas celle
+  de toute la série d'entrée) y sont tous les trois restreints. `None`
+  (défaut) = comportement inchangé. Le `Diagnostic` retourné porte
+  désormais `fenetre`, et `resume()` l'affiche quand elle est fournie.
+- `calage.py`, boucle par apport : la fenêtre du hydrogramme principal
+  (`fenetre_injection` sur l'écart au résiduel) est désormais **toujours**
+  calculée — plus seulement en mode rapide / `Fenetre_active` — et elle sert
+  à DEUX choses distinctes qu'il ne fallait pas confondre :
+  - le **plancher de volume irréductible** et les deux refus « avant tout
+    calcul » ne portent plus que sur l'écart DANS la fenêtre (hors fenêtre,
+    l'écart est mis à zéro, même règle que pour le rephasage) ;
+  - les trois `diagnostiquer()` de la boucle (par essai, vérification
+    globale finale, sections amont dérivées) reçoivent cette fenêtre —
+    `ResultatApport` porte un nouveau champ `fenetre_principale` pour la
+    transmettre jusqu'à la vérification finale.
+  - Le masquage de l'INJECTION elle-même (forcer l'apport à zéro hors
+    fenêtre, § 5) reste, lui, optionnel et gouverné par `Mode_rapide` /
+    `Fenetre_active` comme avant : la fenêtre restreint désormais le
+    JUGEMENT dans tous les modes, sans changer par défaut où l'apport
+    est écrit.
+- `Configuration.tolerance_beta` : 0,005 → **0,05**. Même changement sur les
+  defaults lus/écrits dans le classeur (`creer_template.py`,
+  `calage_apports/noyau.py`, `style_classeur.py`, `pont_hecras.py`) et dans
+  le plugin QGIS (`calage_apports/plugin.py`,
+  `TOLERANCE_VOLUME_DEFAUT` et l'infobulle du champ).
+
+**Un test existant du projet documentait exactement l'ancien problème, et sa
+prémisse est devenue obsolète par construction.** `calage.py` avait un
+scénario « PLANCHER AU-DELA DE LA BANDE » : un débit de base constant de
+12 m³/s sous une cible qui se tarit, refusé avant tout calcul. C'est
+précisément le cas visé par le correctif (TODO de `STATUT.txt`, « les
+tolérances par défaut sont-elles tenables ? ») : avec la fenêtre, cet excès
+— qui ne se manifeste qu'APRÈS que la cible soit retombée — ne bloque plus
+rien. Remplacé par deux scénarios : **« PLANCHER HORS FENETRE »** (le même
+débit de base constant, ne bloque plus) et **« PLANCHER DANS LA FENETRE »**
+(un débit de base constant sous une vallée ENTRE deux crues bimodales — donc
+à l'intérieur de la fenêtre — continue de bloquer avant tout calcul). Les
+deux vérifiés : la fenêtre restreint le jugement, elle ne désactive pas le
+garde-fou pour un excès qui appartient réellement à l'événement.
+
+**Le test à blanc de précision (§0, `Configuration(nb_max_essais=8)`) a
+aussi dû être ajusté** — sans rapport avec un bug : il démontrait la
+précision maximale atteignable par l'algorithme sur un modèle transparent
+(gain connu), à l'ancienne tolérance resserrée de 0,5 %. Il pointe
+maintenant `tolerance_beta=0.005` explicitement, pour continuer à démontrer
+cette précision indépendamment du nouveau défaut de production (5 %), qui
+répond à une question différente (la tenue des modèles à débit de base
+marqué).
+
+**Vérifié** : les 4 suites d'auto-tests touchées (`criteres.py`, `calage.py`,
+`suivi.py`, `livrables.py`) passent intégralement sous l'interpréteur
+disponible dans cette session (`python`, hors du venv habituel du projet,
+indisponible sur ce poste — voir « L'interpréteur » plus bas, à revérifier
+sur `D:\1-Python\.venv\Scripts\python.exe` à la prochaine occasion). 8
+contrôles neufs dans `criteres.py` (§7 fenêtre, §8 défauts de tolérance), 4
+contrôles neufs dans `calage.py` (les deux scénarios plancher).
+
+**Non touché, et pourquoi** : `calage.cibles_pas()` (le volume/pic utilisés
+par la CORRECTION, pas par le diagnostic) garde sa propre fenêtre — celle où
+les deux séries existent après rephasage — le commentaire du code le disait
+déjà explicitement (« Le DIAGNOSTIC, lui, n'est pas touché : il a sa propre
+restriction de fenêtre »), et c'est exactement la séparation que ce
+correctif complète. Les seuils `Fenetre_seuil_bas_pct`/`Fenetre_seuil_haut_pct`
+(0,5 %/99 %, § 5) sont inchangés — c'est la PORTÉE de la fenêtre qu'ils
+détectent qui s'élargit, pas leur valeur. `methodologie_calage_apport.docx`
+n'a pas été mis à jour : il documente encore la tolérance de volume à 0,5 %
+et ne mentionne pas la fenêtre appliquée au jugement — à faire à la
+prochaine occasion d'ouvrir Word.
+
+**Ce qui reste ouvert** : aucun calage réel n'a encore tourné avec ce
+correctif — seuls les modèles fictifs des auto-tests l'ont exercé. À
+vérifier au prochain calage HEC-RAS : que la fenêtre détectée et le
+plancher restreint apparaissent bien dans le journal (`hydrogramme
+principal ... h -> ... h`), et que la tolérance à 5 % ne masque pas un écart
+que l'ingénieur voudrait voir malgré tout — la bande de POINTE, elle, reste
+à ±2 %.
+
+### Session du 4 août 2026 — la figure de la note n'était jamais livrée
+
+**Le constat.** `01-cas_test/2-Resultats/resultats_finaux/` ne contient pas
+`profil_en_long.png` — le profil en long de synthèse, celle des trois panneaux
+(fond + ligne d'eau, débits de pointe, écart sur le pic) que reprend la note
+méthodologique. Le seul exemplaire du projet est dans `livrables_exemple/`,
+produit par l'auto-test de `livrables.py`. La note renvoyait donc à une figure
+que l'étude ne livrait pas.
+
+**La cause n'était pas dans la figure.** `produire_livrables_finaux` la trace
+bien, mais sous `if profil is not None and len(profil)`, et ses trois arguments
+`profil` / `pk_sections` / `pk_apports` valent `None` par défaut. L'unique
+appelant réel, `pont_hecras.py`, ne les passait pas. La figure était donc
+**impossible à produire par un calage réel**, sur n'importe quel modèle — et
+**en silence** : la branche était sautée, pas en échec, donc pas même la ligne
+« profil en long non produit » du `except`. Rien dans le log du cas test.
+
+**Le correctif.** `_profil_pour_livrables()` dans
+[pont_hecras.py:566](pont_hecras.py#L566) : il lit l'axe du classeur, construit
+le profil par `geo.profil_depuis_modele` sur le **HDF de résultats** (le seul à
+porter la ligne d'eau maximale — la géométrie ne l'a pas, d'où l'impossibilité
+de partager le profil avec `_pentes_deduites`), et prend les PK dans
+`cd.controler_geometrie` — **la même source que les contrôles**, donc la même
+convention `PK_origine_m` / `Sens_axe` ; un axe déclaré `aval_amont` voit le
+profil retourné, sans quoi les sections tomberaient à l'envers du fond. Trois
+réglages du classeur restés lettre morte sont enfin lus : `Pas_profil_m`,
+`PK_origine_m`, `Distance_max_axe_maillage_m`. **Chaque échec est désormais dit
+au journal** au lieu de laisser la figure disparaître sans motif.
+
+**Vérifié**, sur les données réelles du run du 3 août (`CETTE.p04.hdf`,
+classeur `donnees_calage_tol_serrees.xlsx`) : profil de **77 points, PK
+0 → 1 897 m**, sections à 350 / 562 / 880 m, injections à 297 / 539 / 795 m —
+chaque apport bien en amont de sa section — et la figure sort avec ses trois
+panneaux (pics 350 / 400 / 450 m³/s, écarts −1,2 / −1,2 / 0,0 %).
+`pont_hecras.py autotest` passe. **Ce qui reste** : le `.png` du cas test n'a
+pas été régénéré par la chaîne corrigée — cela demande un calage complet
+(≈ 1 h 06). Tant qu'il n'a pas tourné, `resultats_finaux/` reste sans la
+figure.
+
+### À lire avant toute reprise — 3 août 2026, nuit
+
+**0. LE JALON QUI MANQUAIT DEPUIS TROIS SESSIONS EST FRANCHI.** Calage complet
+sur `01-cas_test/1-HECRAS/CETTE_TEST`, **conforme**, en **6 calculs et
+49 min** :
+
+| | essais | volume | pointe | forme | Δt |
+|---|---|---|---|---|---|
+| A1 → SC1 | 1 | 100,0 % | 95,4 % | 99,9 % | −0,90 h |
+| A2 → SC2 | 2 | 100,9 % | **97,8 %** | 100,0 % | −1,70 h |
+| A3 → SC4 | 2 | 100,1 % | 95,5 % | 99,6 % | −2,50 h |
+
+**0 bis. REJOUÉ AUX TOLÉRANCES RESSERRÉES — ±3 % en volume, ±2 % en pointe.
+Conforme, 8 calculs, 1 h 06.** C'est le run qui dit ce que valait le
+précédent.
+
+| | essais | volume | pointe | forme | plancher | φ |
+|---|---|---|---|---|---|---|
+| A1 → SC1 | 2 | 101,9 % | **98,8 %** | 99,9 % | 2,12 % | +0,87 h |
+| A2 → SC2 | 2 | 100,8 % | **98,8 %** | 100,0 % | 0,96 % | +1,71 h |
+| A3 → SC4 | 3 | 100,2 % | **100,0 %** | 100,0 % | 0,29 % | +2,53 h |
+
+**Réponse à la question posée : A1 et A3 n'avaient PAS convergé, ils s'étaient
+arrêtés dans une bande large.** A1 gagne 3,4 points de pointe (95,4 → 98,8 %),
+A3 en gagne 4,4 (95,5 → 100,0 %). A1 s'arrêtait **dès l'essai 1**, donc sans
+avoir jamais utilisé φ ; à ±2 % il en fait un second, et c'est là que φ agit.
+La méthode allait plus loin que la bande ne le lui demandait.
+
+**Et les apports retenus deviennent physiquement lisibles.** Leurs pointes
+tombent à **5,2 / 5,3 / 5,5 h**, soit exactement `t_cible − φ`
+(6,0−0,87 ; 7,0−1,71 ; 8,0−2,53), donc **en concomitance avec la pointe amont
+à t = 5 h** — ce qu'exige un tronçon transparent. Avant le correctif, elles
+tombaient à 6,0 / 7,0 / 8,0 h, c'est-à-dire dans la décrue de la section.
+
+| apport retenu | pic | à t = | volume |
+|---|---|---|---|
+| A1 | 56,5 m³/s | 5,2 h | 218,6 |
+| A2 | 63,2 m³/s | 5,3 h | 237,6 |
+| A3 | 74,9 m³/s | 5,5 h | 256,0 |
+
+**±0,5 % EN VOLUME EST IMPOSSIBLE SUR CE MODÈLE, ET CELA SE DÉMONTRE SANS
+CALCUL.** Le plancher de volume irréductible vaut **2,12 %** sur SC1 et
+0,96 % sur SC2 : la section dépasse déjà la cible sur une partie de
+l'événement, un apport ne sait qu'ajouter du débit, donc le volume final ne
+peut pas descendre sous 102,1 % sur A1. À ±0,5 %, la boucle refuse A1 avant
+tout calcul et s'arrête là. **±3 % est la valeur la plus serrée qui laisse une
+marge au-dessus du plancher** ; seul A3 (plancher 0,29 %) tiendrait à ±0,5 %.
+La bande de POINTE, elle, est tenue à ±2 % partout — c'est elle qui juge la
+méthode, le volume étant borné par l'état du modèle et non par l'algorithme.
+
+Quatre plans conservés — `p01` « sans apport », `p02` `Apport_A1`, `p03`
+`Apport_A2`, `p04` `Apport_A3` — livrables et classeur d'itérations complets,
+**aucun incident de production**. Journal :
+`01-cas_test/2-Resultats/calage_20260803_210300_reussi.log`.
+
+Le run précédent, au même endroit, s'arrêtait sur A2 à **89,3 % de pointe**.
+
+**Où est quoi.** `CETTE_TEST` porte le calage **resserré** (celui du 0 bis),
+plans `p01`–`p04`, livrables dans `2-Resultats/`. Les deux états antérieurs
+sont archivés et rien n'a été écrasé :
+
+| dossier | contenu |
+|---|---|
+| `1-HECRAS/CETTE_TEST_cale_tol10_20260803/` | le calage à ±10 %/±5 %, plans et résultats |
+| `2-Resultats/_run_20260803_reussi_tol10/` | ses livrables, son classeur, son journal, son classeur de paramètres |
+| `1-HECRAS/CETTE_TEST_avant_calage_20260804/` | l'état d'avant tout calage (run échoué du 03/08 au soir) |
+| `2-Resultats/_run_20260803_echec/` | le suivi et les journaux de ce run échoué |
+
+Les tolérances resserrées sont dans un classeur **distinct**,
+`2-Resultats/donnees_calage_tol_serrees.xlsx` — `donnees_calage.xlsx` était
+ouvert dans Excel (fichier de verrou `~$donnees_calage.xlsx`) et n'a pas été
+modifié : il reste le témoin du run à ±10 %.
+
+**Point de départ et ce que le calage a touché.** Le modèle est remis à
+l'état de `CETTE_BASE_PAS_TOUCHE` avant chaque run. **La géométrie
+n'a pas bougé** — `CETTE.g02`, 720 230 octets, horodatage inchangé : les six
+objets (`A1`/`A2`/`A3` en BC lines, `SC1`/`SC2`/`SC4` en reference lines)
+préexistaient dans la géométrie de base. `pont_hecras.py caler` ne compose pas
+la géométrie ; `Source_geometrie=SHP` ne concerne que l'étape « Composer et
+contrôler » du plugin. **Le calage n'a écrit que dans l'Unsteady Flow et les
+plans**, ce qui est exactement ce qu'on attend de lui.
+
+**HEC-RAS était ouvert sur ce modèle et a été fermé avant le run** — le
+projet documente qu'un plan calculé s'est déjà retrouvé vidé par l'interface.
+
+**1. CE QUI BLOQUAIT : LA CORRECTION ÉTAIT ÉCRITE AU MAUVAIS INSTANT.**
+Le classeur d'itérations montrait l'incohérence en clair — l'apport de pointe
+passait de 68 à 118 m³/s entre deux essais et la pointe de la section
+**baissait** (357 → 350). Le gain de pointe ressortait négatif, et la boucle
+concluait « l'hydrogramme est trop ÉTALÉ ». Conclusion juste au vu de ce
+qu'elle observait, et fausse : la correction tombait à côté.
+
+Mesuré sur les séries du classeur : **la réponse du tronçon vaut exactement
+l'apport injecté** — gain 1,000, retard nul, corrélation 1,000. Le tronçon
+n'écrête rien du tout.
+
+**Deux déphasages étaient confondus, et ils n'ont rien à voir.**
+
+- **Δt**, le déphasage du **rephasage**, aligne la section sur la cible. Il
+  mesure l'écart de calendrier entre le modèle et la cible — ici les entrées
+  amont non calées font culminer toutes les sections à t = 5 h quand les
+  cibles culminent à 6, 7 et 8 h. **L'apport n'a aucune prise dessus.**
+- **φ**, le déphasage de la **réponse**, dit de combien la section rephasée
+  suit l'apport qui l'a produite. Il vaut `L − Δt`, où `L` est le temps de
+  transfert de l'injection à la section.
+
+Sur SC2 : Δt = −1,86 h (le modèle est en avance), tronçon transparent donc
+L = 0, donc **φ = +1,86 h**. Écrire la correction au temps où l'écart se lit
+revenait à l'injecter **1,86 h trop tard**, dans la décrue au lieu de la
+pointe. C'est tout ce qu'il y avait.
+
+**Vérifié sur le vrai modèle, aux trois sections** : φ mesuré à +0,87 /
++1,67 / +2,49 h pour des Δt de −0,87 / −1,67 / −2,48 h. **φ = −Δt à 0,01 h
+près**, ce qui est la signature d'un tronçon transparent, et ce qu'aucun
+chiffre du projet ne disait avant.
+
+**2. LE CORRECTIF** — `calage.py`, deux fonctions neuves.
+
+- `calage.dephasage_reponse` mesure φ par **corrélation croisée des
+  incréments** (variation d'apport contre variation de section rephasée). La
+  corrélation, et non un minimum d'écart quadratique : un tronçon qui lamine
+  rend une réponse d'amplitude différente, et un critère quadratique mêlerait
+  le gain au déphasage. **Gratuit et disponible dès l'essai 1**, l'état sans
+  apport servant de référence — donc φ est connu pour la première correction.
+- `calage.ecart_en_temps_apport` ramène l'écart sur la base de temps de
+  l'apport : `manque(u) = écart(u + φ)`. Hors du domaine calculé, **zéro** —
+  jamais la dernière valeur connue (invariant 8).
+- `fenetre_en_temps_apport` reçoit désormais **φ et non Δt**. Sa formule était
+  juste, son argument faux : la fenêtre était ramenée **dans le mauvais sens**
+  dès que le modèle est en avance sur la cible.
+
+Le premier apport, lui, reste construit sur l'écart au résiduel avec φ = 0 —
+aucune réponse n'a encore été observée. C'est pourquoi l'essai 1 de A2 rend
+exactement les mêmes 89,3 % qu'avant le correctif : **le correctif ne se voit
+qu'à partir de l'essai 2**, et c'est vérifié.
+
+**3. LA COHÉRENCE DES APPORTS SE REFAIT À LA MAIN.** Contrôlé sur le nouveau
+classeur : la correction posée entre deux essais est bien l'écart de l'essai
+précédent **décalé de −φ**, à 0,03 h près sur A2 (r = 0,98) et 0,01 h près sur
+A3. Sur A2, le pic de l'apport passe de t = 7,0 h (essai 1) à **t = 5,4 h**
+(essai 2), et la pointe rephasée de 357 à 390 m³/s pour une cible à 400.
+
+**4. Les tolérances de ce cas sont larges** — ±10 % en volume, ±5 % en
+pointe, telles qu'elles étaient dans le classeur. A1 et A3 passent à 95,4 % et
+95,5 % de pointe, donc **à 0,4 point du bord de la bande**. Le calage est
+conforme, mais il n'est pas confortable sur ces deux sections : voir « Ce qui
+reste ouvert ».
+
+**1. Le bug qui détruisait des blocs de géométrie est CORRIGÉ.** Cause exacte :
+`geometrie.supprimer_lignes_reference` délimitait un bloc « Reference Line »
+en cherchant la **prochaine** ligne `BC Line Name=` ou `Reference Line Name=`.
+La **dernière** reference line du fichier n'en a aucune après elle : la
+recherche courait alors jusqu'à la fin du fichier et emportait tout ce qui
+suit — `LCMann Region` et leurs tables, `Chan Stop Cuts`, `Composite Channel
+Slope`, `GIS Limit At Bridges`, `GIS Ratio Cuts To Invert`, `Use User
+Specified Reach Order`. Les compteurs de sections et de BC lines, eux, ne
+bougeaient pas : le fichier semblait correct avec 629 lignes en moins.
+
+Un bloc va désormais de sa ligne `Reference Line Name=` jusqu'à la dernière
+ligne qui **lui appartient** — ses attributs (`Reference Line ...`) et les
+lignes de coordonnées de son tracé. Toute autre ligne ouvre autre chose et
+arrête le bloc. **Vérifié sur la vraie géométrie de CETTE_TEST2** (sur copie) :
+retirer chacune des trois sections ôte 8 ou 9 lignes, et les huit blocs
+voisins survivent tous.
+
+**Le test qui aurait dû l'attraper l'avait manqué**, et pour une raison qui
+méritait d'être corrigée : il vérifiait que le fichier **grossissait**. Le bug
+le faisait rétrécir, mais le test ne posait des sections que si la couche
+était vide — sur un modèle qui porte déjà les siennes, le remplacement est
+sans perte et la taille ne bouge pas d'un octet. Trois assertions ont été
+réécrites pour juger le **contenu** : aucun doublon, aucun bloc voisin perdu,
+et le projet client comparé à **son propre état d'avant** plutôt qu'à la copie.
+
+**2. La suite de tests écrivait dans un modèle de production.** Son chemin
+était la valeur par défaut de `--geometrie`/`--plan`. **Corrigé** : plus
+aucun modèle par défaut, il faut `--modele` ou `CALAGE_MODELE_ESSAI`, et à
+défaut tous les essais qui écrivent sont ignorés.
+
+**3. Le plugin exécutait une chaîne périmée.** `CHAINE_PAR_DEFAUT` était un
+chemin unique écrit en dur qui gagnait quel que soit son âge ; le projet
+ayant déménagé, le plugin tournait sur des sources vieilles de deux jours et
+refusait des options que lui-même envoyait (`unrecognized arguments:
+--remplacer`). **Corrigé** : entre plusieurs chaînes valides, c'est la
+**date** qui tranche, jamais le rang. Voir `STATUT.txt`, « QUELLE CHAINE LE
+PLUGIN EXECUTE ».
+
+**4. Plus aucun modèle nommé dans le code.** Les mentions des cas de travail
+ont été retirées de tous les modules : le plugin ne vaut que pour le modèle
+désigné dans QGIS.
+
+**5. Interface** : le groupe « Copies de travail et plans conservés » a
+quitté l'onglet 1 pour l'onglet 4, sous « Calage » ; l'onglet 4 s'appelle
+désormais « **4. Lancer le calcul des apports** ».
+
+### Session du 3 août 2026, soirée — ce qui a changé
+
+**A. La méthodologie V1.3 était intégrée aux trois quarts.** Vérification
+faite point par point contre `methodologie_calage_apport.docx`. Étaient déjà
+en place : la correction directe `A(n+1) = A(n) + [cible − rephasé]`, le
+plancher à zéro, le déphasage figé (Δt = 0 à l'itération 0, mesuré au premier
+essai à apport non nul, puis verrouillé). **Manquaient** : le § 5 (fenêtre
+temporelle d'injection) et l'indicateur de gain hydraulique observé. Les deux
+sont ajoutés.
+
+> **Une réserve sur le document, à trancher.** Le § « Convention de signe »
+> écrit `Q_sim(t − Δt)` alors que le code lit `Q_sim(t + Δt)`. **Le code est
+> physiquement juste** : un simulé en retard de Δt vérifie
+> `Q_sim(t) = Q_cible(t − Δt)`, donc c'est bien `Q_sim(t + Δt)` qui se compare
+> à `Q_cible(t)`. La *prose* du document dit d'ailleurs la bonne chose
+> (« qu'un simulé en retard soit avancé ») — c'est sa **formule** qui est
+> inversée. Comme le § exige que la convention « soit respectée
+> strictement », il vaut mieux corriger le document que le code.
+
+**B. Fenêtre d'injection (§ 5)** — `calage.fenetre_injection`,
+`masque_fenetre`, `fenetre_en_temps_apport`. Hors fenêtre, l'apport est forcé
+à zéro, **à chaque essai** et pas seulement au premier. Trois écarts assumés
+avec la lettre du document, chacun mesuré :
+
+1. **Le cumul porte sur la part positive de l'écart**, pas sur l'écart brut.
+   Un écart brut change de signe dès que la section dépasse la cible quelque
+   part ; son cumul n'est plus croissant et « 99 % du volume » n'y désigne
+   plus rien d'unique.
+2. **La fenêtre ne peut pas coûter plus que la bande de tolérance.** Les
+   seuils 0,5 %/99 % laissent dehors du volume que l'apport ne fournira
+   jamais ; au-delà de la bande, la concordance devient impossible **par
+   construction**. Mesuré : sur le modèle fictif, `tf` à 99 % bloquait le
+   volume à 98,8 % de la cible pour une bande de ±0,5 %, huit essais sans
+   concordance. Les seuils ne peuvent donc qu'**élargir** la fenêtre.
+3. **La fenêtre est ramenée en temps d'apport.** Détectée sur l'écart à la
+   section, elle est en temps de *section* ; l'apport injecté à `t` ne se
+   manifeste qu'à `t + Δt`. Sans ce recalage, la montée de l'apport était
+   tronquée d'un temps de transfert entier.
+
+**Par défaut, la fenêtre suit `mode_rapide`** — elle est une pièce de la V1.3,
+et la V1.3 reste un mode optionnel, pas un remplacement. Activée dans le mode
+par défaut, elle faisait passer le modèle fictif de 2 essais à 8 sans
+concordance. `Fenetre_active` (oui/non/vide) force dans un sens ou l'autre.
+
+**C. Gain hydraulique observé** — `calage.gain_observe`. Calculé a posteriori,
+à coût nul, entre deux essais successifs, sur les seuls pas où l'apport a
+varié, sections **rephasées** (sinon le temps de transfert se mêlerait au
+gain). **Calculé dans les deux modes** : c'est en mode rapide qu'il est le
+plus utile, puisque c'est là que le gain est *supposé* valoir 1 sans être
+mesuré. Il ne pilote rien — il dit si l'hypothèse tient. Mesuré à 0,93–0,94
+sur le modèle fictif, annoncé dans le journal, et signalé en clair quand il
+sort de [0,8 ; 1,25].
+
+**D ter. LA NOTE MÉTHODOLOGIQUE ET L'AIDE DU PLUGIN SONT REMISES EN
+COHÉRENCE** avec la méthode réellement exécutée. Sauvegarde du document avant
+reprise : `methodologie_calage_apport_avant_maj_20260804.docx`.
+
+Dans `methodologie_calage_apport.docx` — **le numéro de version n'est pas
+incrémenté**, la V1.3 désignant le mode `Mode_rapide` qui n'a pas changé ;
+une ligne de révision l'annonce en tête :
+- **la formule de correction était fausse sur deux points** :
+  `A(n+1)(t) = A(n)(t) + [Q_cible(t) − Q_sim(t − Δt)]` devient
+  `A(n+1)(t − φ) = A(n)(t − φ) + [Q_cible(t) − Q_sim(t + Δt)]` — le signe du
+  rephasage **et** l'instant d'écriture ;
+- le § « Convention de signe » disait la bonne chose en prose et l'inverse en
+  formule. Corrigé, avec la démonstration (`Q_sim(t) = Q_cible(t − Δt)` donc
+  c'est `Q_sim(t + Δt)` qui se compare à `Q_cible(t)`) ;
+- **§ neuf « Déphasage de la réponse (φ) — où écrire la correction »** :
+  φ = L − Δt, sa mesure par corrélation croisée des incréments, le cas réel
+  qui l'a révélé, et **la limite de mesure à un quart de la durée de
+  l'événement, au-delà de laquelle Δt et φ saturent en silence** ;
+- **§ 5 Fenêtre** : cumul sur la **part positive** de l'écart, seuils qui ne
+  peuvent qu'**élargir**, et fenêtre ramenée **par φ et non par Δt** ;
+- **plancher de volume irréductible** : ajouté sous la contrainte physique,
+  avec le refus avant tout calcul et les valeurs mesurées ;
+- **périmètre** : la note décrit le mode rapide (`Mode_rapide = oui`) ; le
+  mode par défaut et sa correction à deux termes sont désormais nommés ;
+- **tableau de déroulement** : étapes 3 à 7 réécrites (Δt selon le mode,
+  écart nul hors fenêtre calculée, mesure de φ, φ = 0 à l'itération 1).
+
+Dans l'aide du plugin (`AIDE_HTML`), qui décrivait encore l'algorithme
+d'avant le 1er août :
+- « la cible est recalée sur la mesure » — **c'était l'inverse** ;
+- « l'écart est lissé et corrigé à 90 % » — **le lissage vaut 1 (aucun) et la
+  relaxation a été remplacée par un pas réglé sur la bande** ;
+- ajout de Δt/φ, du plancher de volume, du fait que les tolérances se règlent
+  dans le classeur, et de l'avertissement qu'une pointe qui stagne à volume
+  juste **ne prouve pas** que la cible soit hors d'atteinte.
+
+Aide passée de 6 390 à 8 666 caractères ; **99 contrôles QGIS, 0 échec**
+(balises équilibrées, aucune liste vide).
+
+**D bis. φ EST ÉCRIT EN TÊTE DE CHAQUE ONGLET D'APPORT** du classeur
+d'itérations — celui qui porte les hydrogrammes et les graphes. Une phrase,
+à la suite de la ligne A3, qui dit ce que φ représente, sa valeur, et qu'il
+n'entre dans aucun calcul :
+
+> *Déphasage de la réponse φ = +1,71 h — délai entre l'apport injecté et son
+> effet sur la section rephasée. La correction est donc écrite 1,71 h plus tôt
+> que l'écart qui la réclame. À ne pas confondre avec le décalage Δt des deux
+> colonnes ci-dessous, qui aligne la section sur la cible. Informatif :
+> n'entre dans aucun calcul.*
+
+**Pourquoi il y figure** : les deux colonnes de décalage du récapitulatif
+disent Δt, et **rien ne donnait à lire où la correction avait été écrite**.
+C'est exactement la confusion qui a coûté deux sessions (invariant 12).
+
+Écrit **à la suite de A3, jamais sur une ligne à lui** : la ligne 4 porte
+l'en-tête du récapitulatif, et décaler le tableau déplacerait tout ce qui se
+repère par son numéro de ligne — séries, graphiques, blocs par essai. Même
+raison que pour la fenêtre d'injection. Transmis par un argument **facultatif**
+de `suivi.enregistrer_essai` ; sans mesure de φ, rien n'est écrit. Quatre
+contrôles le couvrent dans l'auto-test de `suivi.py`.
+
+**D. Affichage** : la fenêtre et ses deux seuils sont consignés en tête de
+chaque onglet du classeur d'itérations. **Reste à faire** : leur
+matérialisation graphique et leur ajustement à la souris dans l'onglet 3, que
+le § « Affichage » prévoit.
+
+**E. Interface** : le groupe de l'onglet 4 s'appelle « **Apports à
+déterminer** » et ne porte plus que le premier apport à caler. Le champ « Nom
+du clone de géométrie » a disparu — le clonage ne se pilote pas, il n'a lieu
+que si la géométrie est surchargée à l'onglet 1. Le paramètre
+`Nom_clone_geometrie` continue d'être écrit dans le classeur, depuis la
+constante `plugin.NOM_CLONE_GEOMETRIE_DEFAUT`.
+
+**F. La pente des apports est PRÉ-REMPLIE** dans la feuille Correspondance à
+la composition (`noyau.pentes_locales_apports`), avec la valeur que le calage
+aurait déduite d'une case vide : moyenne du fond sur ±200 m autour de
+l'injection, majorée de 20 %. **Aucun résultat ne change** — l'hypothèse
+devient simplement visible et corrigeable. Ordre de priorité : saisie
+précédente > pente déduite > case vide. Une saisie n'est jamais écrasée par
+une recomposition. L'explication a quitté l'onglet 2 pour l'onglet 4, dans le
+groupe « Classeur » — à côté du bouton qui ouvre le fichier où elle se corrige.
+
+### Session du 3 août 2026, mode rapide — en bref
+
+Demande utilisateur : prendre en compte, pour accélérer le calcul, les deux
+hypothèses de `methodologie_calage_apport.docx` (v1.3) — gain hydraulique
+figé à 1 (section de contrôle proche du point d'apport) et priorité à la
+rapidité de convergence. Cette méthodo décrit un algorithme **plus simple**
+que celui en place (correction à un seul terme, déphasage verrouillé après
+la première injection, aucune stratégie lourde), à l'opposé de la correction
+à deux termes construite le 1er août. Clarifié avec l'utilisateur : **mode
+optionnel, pas de remplacement** — l'algorithme par défaut reste nécessaire
+dès qu'un tronçon écrête ou lamine fortement (gain 0,076 mesuré sur le cas de recette).
+
+Ajouté : `Configuration.mode_rapide` (calage.py), `False` par défaut, **zéro
+changement de comportement sur l'existant**. Actif, il force le gain à 1,
+verrouille le déphasage après le premier essai à apport non nul (au lieu de
+le remesurer à chaque essai), et remplace la correction à deux termes par
+`A(n+1) = max(A(n) + [cible − calculé rephasé], 0)` — sans relaxation, sans
+recherche de pas, sans terme de pointe. Exposé dans le classeur comme
+paramètre `Mode_rapide` (oui/non, défaut non) : `creer_template.py`,
+`style_classeur.COMMENTAIRES`, `calage_apports/noyau.py`, `pont_hecras.py`.
+
+Vérifié par auto-test sur le modèle fictif (laminage 11 %, gain réel proche
+de 1 mais pas égal) : converge en 2 essais, écart de volume 0,45 %. Détail
+complet dans `STATUT.txt`, section « MODE RAPIDE — HYPOTHESES DE LA
+METHODOLOGIE V1.3 ». **Non éprouvé sur un calcul HEC-RAS réel** : seul le
+modèle fictif l'a exercé.
+
+### Session du 3 août 2026, en bref
+
+Demande utilisateur : que la géométrie chargée/modifiée dans QGIS s'écrive
+sur la géométrie HEC-RAS d'origine (jamais un clone à part), et que les
+couches « Sections de contrôle » / « Lignes d'injection » se créent dans
+QGIS même quand la géométrie n'a encore ni BC ni section — pour pouvoir les
+dessiner. Le premier point était déjà acquis (écriture en place, vérifié en
+lisant le code). Le second était bloqué par un cas non couvert :
+`pont_hecras.commande_modele` refusait tout net une géométrie **jamais
+prétraitée par HEC-RAS** (pas de `.gXX.hdf`), avant même de regarder le
+texte — aucune couche n'apparaissait, pas même vide.
+
+Corrigé par un repli sur le fichier texte `.gXX`, qui porte déjà le contour
+de la zone 2D dès sa création dans l'éditeur de géométrie (avant tout
+maillage) : `geometrie.perimetres_depuis_texte` (nouveau), `pont_hecras.
+commande_modele` assoupli, `plugin.py._charger_couches_modele` message mis à
+jour. Détail complet, auto-test et limites dans `STATUT.txt`, section
+« GEOMETRIE VIDE — LES COUCHES QGIS SE CREENT MEME SANS PRETRAITEMENT ».
+**Non vérifié sous QGIS réel** (indisponible dans cette session) : à
+confronter à une vraie zone 2D neuve au prochain accès à un poste QGIS.
+
+**Deuxième demande, même journée** : la case « Remplacer les objets de même
+nom déjà présents » (onglet 1) devait disparaître, et l'écriture des couches
+QGIS dans la géométrie devenir automatique au clic sur « Composer et
+contrôler ». Fait, plus loin que demandé après clarification avec
+l'utilisateur : remplacement désormais **systématique** (plus de case),
+étendu aux **sections** en plus des injections (nouveau —
+`geometrie.supprimer_lignes_reference`, car `ras-commander` n'a pas de
+`replace_existing` pour les reference lines), et les deux combos séparés
+« Couche des sections »/« Couche des injections » ont disparu : source
+unique désormais, `self.couche_sections`/`self.couche_injections` (celles
+chargées par « Charger les couches du modèle »). **Garantie vérifiée et
+documentée** : ce remplacement ne touche jamais le fichier Unsteady Flow
+(l'hydrogramme d'un apport déjà raccordé survit à toute recomposition) ni
+une BC de sortie qui ne serait pas explicitement redessinée sous le même nom
+dans QGIS. Détail dans `STATUT.txt`, section « LE REMPLACEMENT DEVIENT
+SYSTEMATIQUE, ET AUTOMATIQUE A LA COMPOSITION ». **Non vérifié sous QGIS
+réel** non plus.
+
+## En une phrase
+
+La chaîne cale des apports amont sur des hydrogrammes cibles aval dans un
+modèle HEC-RAS 2D, pilotée depuis un plugin QGIS. Elle **conserve un plan par
+étape**, sait **reprendre à un apport donné**, écrit un **classeur
+d'itérations rephasé, complet de son état de départ et vérifiable à la main**,
+et l'extension QGIS est **autoportante** (elle embarque la chaîne dans son
+archive).
+
+---
+
+## Session du 1er août 2026 — les six correctifs d'injection
+
+Session déclenchée par une question de l'utilisateur : *« pourquoi l'apport
+injecté n'est pas l'écart à la cible, au moins pour la première itération ?
+L'injection de tous les essais est systématiquement trop forte. »*
+
+**Verdict : l'apport injecté ÉTAIT bien l'écart écrêté — mais l'écart à
+l'état de départ, que le classeur ne montrait nulle part. Et la
+sur-injection était réelle, structurelle, et jamais mesurée.** Six correctifs.
+
+### Le diagnostic, en trois points
+
+**1. Un décalage d'un rang dans la lecture du classeur.** `calage.py` construit
+le premier apport par `max(écart au RÉSIDUEL, 0)` — apports à zéro. Le
+classeur, lui, commençait à l'essai 1 : on y comparait l'écart *restant après*
+l'essai 1 à l'apport qui l'avait *précédé*. Deux colonnes décalées d'un rang,
+donc impossibles à faire coïncider. Vérifié : sur `D:\SUPP\3`, pic de l'apport
+injecté = **53,8 m³/s**, exactement la marge à combler de 53,2 m³/s.
+
+**2. L'écrêtage à zéro est un CLIQUET, et il se démontre.** Si l'on injecte
+`max(cible − résiduel, 0)` et que le tronçon conserve le volume, la section
+rend `∫cible + ∫max(résiduel − cible, 0)`. Le volume final **ne peut donc pas
+descendre sous la cible** : il la dépasse exactement de l'aire où la section
+était déjà au-dessus. Mesuré sur `D:\SUPP\3` :
+
+| | plancher `∫max(résiduel−cible,0)` | sur-cote observée à l'essai 1 |
+|---|---|---|
+| A1 | **2,33 %** du volume cible | 2,2 % |
+| A2 | **1,40 %** | 1,2 % |
+
+Accord à 0,1 point : ce plancher n'est pas *une* contribution à la
+sur-injection, c'est **toute** la sur-injection du premier essai. Cause
+physique visible en queue de série : la section garde **9,00 m³/s constants**
+jusqu'à t = 16 h quand la cible redescend à 0,51 — elle dépasse déjà la cible
+sur **29 % des pas de temps**. Le garde-fou existant ne pouvait pas le voir :
+il ne teste que la **pointe** (`max(manquant) <= 0`), et la pointe manquait
+encore de 53 m³/s.
+
+**3. La bande de tolérance n'était pas utilisée comme une bande.** Le pas de
+correction valait `0,9 × déficit`, quelle que soit la situation. Sur A2, le
+volume valait 101,5 % dès l'essai 1 — **déjà dans la bande ±5 %** — et la
+boucle a continué d'ajouter du volume pendant deux essais pendant que la
+pointe **baissait** :
+
+| A2 | essai 1 | essai 2 | essai 3 |
+|---|---|---|---|
+| volume apport (% cible) | 16,0 | 17,1 | **19,0** |
+| volume section | 102,2 % | 103,3 % | **105,2 %** |
+| pic brut section | 360,9 | 357,7 | **347,0** |
+
+Deux calculs HEC-RAS dépensés à dégrader le seul essai qui tenait.
+
+### Les six correctifs
+
+| # | Fichier | Correctif |
+|---|---|---|
+| 1 | `calage.calcul_rephase` *(nouveau)* | rephasage **+ masque de fenêtre**. `np.interp` ne refuse pas une abscisse hors domaine : il **plafonne**. Rephaser de −0,86 h une cible qui commence à t = 0 faisait lire le calcul avant son début, où np.interp rendait 0 → l'écart y valait la **cible entière**. Hors fenêtre, l'écart vaut désormais **zéro** : on ne réclame pas de débit là où l'on n'a rien mesuré. |
+| 2 | `calage.volume_irreductible` *(nouveau)* | mesure le plancher. Comparé à la **bande** de volume **avant tout calcul** : au-delà, la concordance est impossible, l'apport est refusé avec sa cause, et cela ne coûte aucun calcul. |
+| 3 | `calage.injection_initiale` *(nouveau)* | le premier apport garde la **forme** du déficit positif mais porte le **volume du déficit NET** : `max(e,0) × ∫e / ∫max(e,0)`. Facteur **1,000 quand il n'y a pas d'excédent** — cas nominal, aucun changement. 0,869 sur A1 de `D:\SUPP\3`. |
+| 4 | `calage.pas_volume` *(nouveau)* + `corriger_apport` | le pas à un terme se règle sur la **bande** au lieu d'une relaxation aveugle. Sous la bande : il ferme l'écart exactement. Dans la bande : **plus rien à corriger**, on passe à une **sonde de pointe à volume constant** (on retire sur les flancs du manque, on ajoute au sommet, intégrale nulle) — le seul moyen de mesurer le gain de pointe sans dériver en volume. |
+| 5 | `calage.caler` | `cibles_pas` mesure volume et pointe **sur la même fenêtre** (celle du rephasage). `volume_mesure` intégrait *tout* le calcul quand `volume_cible` n'intégrait que la cible : 72 h contre 18 h donnait un rapport de 4, et le domaine admissible de `pas_admissible()` était bâti sur une comparaison sans objet. **Le diagnostic n'est pas touché** — il a sa propre restriction de fenêtre. |
+| 6 | `calage.caler` | l'**arrêt démontré** se déclenche au **bas** de la bande (`volume >= 1 − tol`), plus seulement au-dessus. Rejoué sur A2 : gain de pointe **−0,116** mesuré à l'essai 2 → arrêt à l'essai 2, l'essai 3 (104,5 % / 86,8 %) n'aurait pas été calculé. |
+
+### Et une consigne de méthode, donnée en cours de session
+
+> *« L'apport n'a pas à être physique ou lissé : on peut avoir d'énormes
+> variations, seul le débit final compte. »*
+
+`Configuration.lissage_deficit` passe de **9 à 1** (aucun lissage). L'apport
+n'est pas un hydrogramme observé, c'est **la commande d'un asservissement** :
+seul compte le débit obtenu **à la section**. Lisser sur 9 pas (0,9 h à 6 min)
+étalait la correction de part et d'autre de chaque instant, donc **ratait la
+pointe** qu'elle devait combler et **déversait du volume** là où il n'en
+manquait pas — précisément les deux griefs constatés.
+
+Le paramètre reste, pour un seul usage : `lisser()` documente une mesure — au-delà
+de **1 % de bruit numérique** sur la section lue, la correction additive
+**diverge** sans lissage. Sur un modèle qui rend une section bruitée, remonter
+ce paramètre est le remède. Mais c'est alors le bruit qu'on traite, pas
+l'apport qu'on rend présentable.
+
+**Le plancher à zéro reste la seule contrainte de forme**, et il n'est pas
+cosmétique : un apport négatif serait un prélèvement, que la méthode ne prévoit
+pas. C'est lui qui crée le cliquet — les correctifs 2 et 3 en traitent la
+conséquence, ils ne le suppriment pas.
+
+### Le classeur d'itérations porte désormais l'état de départ
+
+`suivi.enregistrer_residuel()` *(nouvelle méthode)* + `EtatApport.residuel_detail`
+*(nouveau champ)*. L'onglet s'ouvre sur un **bloc « Résiduel (apports à
+zéro) »**, aux mêmes quatre colonnes qu'un essai, suivi des essais. La lecture
+se fait **en escalier** : l'écart d'un bloc donne l'apport du bloc suivant.
+Une ligne en A3 annonce en clair le plancher de volume et le facteur du premier
+apport. L'onglet s'ouvre **dès le bloc résiduel**, sans attendre le premier
+calcul — soit une vingtaine de minutes gagnées sur un vrai modèle.
+
+---
+
+## État
+
+- **UN CALAGE COMPLET EST ALLÉ AU BOUT SUR HEC-RAS**, 3 apports sur 3,
+  conforme, 6 calculs, 49 min. Voir en tête de ce fichier. Ce n'est plus le
+  jalon manquant.
+- **Les 13 suites d'auto-tests passent** sous l'interpréteur du projet, et la
+  suite QGIS rend **99 contrôles, 0 échec** sous `python-qgis-ltr.bat`,
+  exécutée sur une **copie** de `CETTE_TEST` (supprimée après coup, l'original
+  vérifié intact).
+  **Attention au modèle d'essai qu'on lui donne** : sur `CETTE_TEST2` la même
+  suite rend **8 échecs**, tous en cascade d'un seul fait — ce modèle n'a
+  **aucun plan calculé** (`.pXX.hdf`), donc le plugin ne peut pas s'y
+  pré-remplir (« choisir un plan de référence »). Ce n'est pas une régression :
+  la suite a besoin d'un modèle portant des résultats.
+- **Contrôles neufs de cette session** : 12 dans `calage.py` sur le déphasage
+  de la réponse — mesure de φ (en phase, en retard, en avance, sous
+  laminage), refus de conclure quand rien n'est mesurable, écart ramené en
+  temps d'apport, bord du domaine à zéro, et **le cas qui a motivé le
+  correctif rejoué en miniature** (modèle en avance : 66,8 % de pointe sans
+  φ, 100,0 % avec).
+- **Le modèle fictif converge toujours en 2 essais par apport**, 9 calculs
+  pour 4 apports, volumes finaux 99,5 à 100,0 % — **inchangé**, le correctif
+  n'y touche pas (φ y vaut zéro, la cible étant sur la base de temps de
+  l'apport).
+- **Revue de code avant mise en production, faite en fin de session.** Relevé
+  outillé (AST) sur les 15 modules du projet : **aucun import inutilisé,
+  aucune fonction de module morte**. Une seule suppression sûre appliquée —
+  le littéral `0.05` était dupliqué entre `PAS_PHI_H` et le défaut `pas_h` de
+  `dephasage_reponse`, alors que le commentaire de la constante annonçait
+  être ce pas ; le défaut lit désormais la constante. **Valeur identique,
+  signature inchangée** (`inspect.signature` rend toujours `0.05`).
+  Deux éléments **délibérément conservés**, et il faut savoir pourquoi avant
+  d'y toucher :
+  - `classFactory` est la seule fonction du projet sans aucune référence :
+    c'est QGIS qui l'appelle par son nom (invariant 1).
+  - `apport_essai_precedent` et `apport_pour_phi` portent la même valeur mais
+    **pas la même sémantique** — le premier démarre à `None` (donc
+    `gain_observe` ne conclut rien au premier essai), le second à zéro (donc
+    φ est mesurable dès le premier essai). Les fusionner changerait le
+    journal du premier essai. Même remarque pour `section_rephasee_precedente`
+    (déjà rephasée) et `section_brute_pour_phi` (brute, re-rephasée avec le Δt
+    courant).
+- **Archive du plugin régénérée** : `calage_apports.zip`, **258,5 ko**,
+  20 entrées, « archive conforme », **et installée sous le profil QGIS `ISL`**
+  (empreintes SHA-256 des 9 modules embarqués vérifiées identiques aux
+  sources). **QGIS était ouvert pendant la mise à jour : l'extension doit
+  être rechargée, ou QGIS redémarré, pour exécuter la chaîne corrigée.**
+- **Pas de dépôt git.** Toute suppression est irréversible ; les écritures
+  dans un modèle HEC-RAS passent par une sauvegarde horodatée.
+- **`STATUT.txt` est à jour** des six correctifs, de la consigne « l'apport
+  n'a pas à être physique ni lissé », et des règles qu'ils changent
+  (correction, arrêt démontré, classeur d'itérations, tolérances lues comme
+  des bandes, plancher de volume). Sa liste « À faire » y a été refondue en
+  priorités.
+
+## L'interpréteur
+
+Le bon interpréteur est celui du projet :
+
+```
+D:\1-Python\.venv\Scripts\python.exe     (Python 3.13.11)
+```
+
+Il porte tout : `matplotlib`, `openpyxl`, `h5py 3.16.0`, `geopandas`,
+`pyproj`, **`ras-commander 0.99.1`**. C'est aussi celui que le plugin
+sélectionne tout seul (`noyau.interpreteur_hecras()` cherche
+`<parent de la chaîne>/.venv/Scripts/python.exe`).
+
+Sous les interpréteurs QGIS, deux suites échouent **pour des raisons
+d'environnement, pas de code** :
+
+| Interpréteur | Symptôme |
+|---|---|
+| `apps\Python312\python.exe` | `geometrie.py` : `AttributeError` sur `crs.to_string()` — **`pyproj` absent** |
+| `apps\Python312\python.exe` et `bin\python-qgis-ltr.bat` | `pilote_hecras.py` : 2 échecs — **`ras-commander 0.98.2`**, voir « Bugs connus » |
+
+`bin\python-qgis-ltr.bat` fait passer `geometrie.py` (il fournit `pyproj`),
+mais pas `pilote_hecras.py`. **`bin\python.exe` ne fonctionne pour aucun
+test** (« Could not find platform independent libraries »).
+
+## Bugs connus
+
+**1. `ras-commander 0.98.2` borne mal les tableaux d'hydrogramme.** *(cause
+externe au projet, non corrigé)*
+
+`RasUnsteady.identify_tables()` attribue à une condition limite les valeurs de
+la **suivante** quand deux blocs `Boundary Location=` se suivent. Reproduit
+sur un `.u01` minimal, même fichier et même module, seul l'interpréteur
+change :
+
+```
+3.12.13 / ras-commander 0.98.2 -> AMONT lignes 4→7  (FAUX : avale les 3 valeurs de DEJA_FIN)
+3.13.11 / ras-commander 0.99.1 -> AMONT lignes 4→5  (correct)
+```
+
+Conséquence si elle se produisait en production : `_recadencer_apports()`
+réécrirait un apport avec 7 valeurs au lieu de 4 et perdrait la condition
+limite voisine — **corruption silencieuse du fichier unsteady**.
+
+**Pourquoi ce n'est pas critique aujourd'hui** : le plugin délègue ce travail
+en sous-processus à `interpreteur_hecras()`, qui résout vers le venv du projet
+(0.99.1). Le défaut ne se manifeste que si cet interpréteur pointe vers un
+environnement à `ras-commander < 0.99`.
+
+**À faire à la reprise** : `noyau.verifier_interpreteur()` contrôle que
+`ras_commander` **s'importe**, pas sa **version**. Un minimum `>= 0.99` y
+refuserait franchement un environnement dangereux. Même remarque pour
+`verification_environnement.py`, qui affiche la version sans la juger.
+
+**2. Auto-test de `suivi.py` en console cp1252.** Plante en
+`UnicodeEncodeError` sur « → ». Passe avec `PYTHONIOENCODING=utf-8`.
+`pont_hecras.py` force déjà sa sortie en UTF-8 ; `suivi.py` non.
+
+**3. Essai p16 arrêté après 4 secondes** sans produire de résultats, cause non
+établie (voir `STATUT.txt`).
+
+**4. ~~A2 du cas de recette n'est calable par aucun apport additif.~~ FAUX —
+c'était le bug du déphasage.** Ce diagnostic a été porté deux sessions
+durant : volume atteint dès le premier essai, pointe 10 points trop bas, gain
+de pointe négatif, donc « hydrogramme trop étalé, le levier est ailleurs ».
+**A2 cale en 2 essais à 97,8 % de pointe** une fois la correction écrite au
+bon instant. Rien n'était étalé : la correction arrivait 1,86 h trop tard.
+
+**La leçon vaut au-delà de ce cas.** Un gain de pointe négatif ne prouve pas
+que le tronçon lamine — il prouve seulement que **ce qu'on a ajouté n'est pas
+arrivé où on l'attendait**. Avant de conclure qu'une cible est hors
+d'atteinte, vérifier φ : si la réponse mesurée vaut l'apport (gain 1, retard
+nul) et que la pointe recule quand même, le déphasage est en cause, pas
+l'hydraulique. `gain_observe` et `dephasage_reponse` le disent tous les deux,
+gratuitement, dans le journal.
+
+## Vérifié sur le cas réel le cas de recette
+
+Contrôlé sur les fichiers du calage du 1er août (plan de référence `p03`,
+38 Mo, calcul réussi en ~19 min) :
+
+| Contrôle | Résultat |
+|---|---|
+| Lecture des sections | `SC1`, `SC2`, `SC3` — 181 pas de temps chacune |
+| Apports dans l'unsteady | `A1`, `A2`, `A3` présents |
+| Résiduels (apports à zéro) | 296,8 / 295,9 / 295,3 m³/s |
+| Cibles | 350 / 400 / 450 m³/s |
+| Marge à combler | +53,2 (15 %) / +104,1 (26 %) / +154,7 (34 %) |
+
+**Point de vigilance SC1** : l'amont non calé fournit déjà **85 %** de la
+cible. Il ne reste que 53 m³/s à trouver avec A1, et une petite erreur sur
+l'amont y pèse lourd en proportion. Si le calage bute sur SC1, regarder
+l'amont avant de mettre en cause A1.
+
+## Le cas D:\SUPP\3 — LE DOSSIER N'EXISTE PLUS
+
+**Vérifié le 03/08/2026 au soir : `D:\SUPP\3` est absent du disque.** Tout ce
+que la section ci-dessous rapporte a été mesuré sur des séries qui ne sont
+plus consultables. C'est conservé comme raisonnement, pas comme référence
+vérifiable — et le cas de recette `01-cas_test` le remplace désormais, avec
+un calage complet à l'appui.
+
+## Le cas D:\SUPP\3 — ce qu'il donnait
+
+C'est le cas qui a déclenché les deux dernières sessions. Apport A1 → section
+SC1, cible 350 m³/s, discrétisation 6 min (161 pas, 0 à 16 h), **tolérances de
+5 %**. Dernier run (1er août, 16 h 26) : **A1 validé en 1 essai** (volume
+102,3 %, pointe 96,8 %), **A2 échoué en 3 essais** pour éloignement.
+
+Ce que les correctifs y changent, **rejoué sur les séries du classeur** :
+
+| | plancher | ancien apport essai 1 | nouvel apport essai 1 |
+|---|---|---|---|
+| A1 | 2,33 % | pic 53,78 m³/s, volume 17,72 % | pic **46,72**, volume **15,39 %** (facteur 0,869) |
+| A2 | 1,40 % | pic 68,50 m³/s, volume 15,99 % | pic **62,52**, volume **14,60 %** (facteur 0,913) |
+
+Le volume de l'essai 1 devrait donc revenir de 102,3 % à ~100,0 % sur A1. **La
+pointe n'est pas prévisible hors calcul** : injecter moins au pic peut la faire
+baisser. C'est le compromis assumé, et la bande ±5 % le couvre sur ce cas.
+Sur A2, l'arrêt démontré tombe à l'essai 2 (gain de pointe −0,116) : **un
+calcul HEC-RAS économisé et le meilleur essai conservé**.
+
+`D:\SUPP\3\suivi\` contient encore `iterations.xlsx` (run du 16 h 26, **sans**
+les correctifs) et `iterations_rephase.xlsx` (démonstration du rephasage,
+session précédente). **Les deux sont antérieurs aux correctifs.**
+
+## Ce que la méthode ne fait pas — à savoir avant de lire un résultat
+
+**Elle ne cherche pas à annuler le temps de propagation.** Le déficit est
+injecté sur la base de temps de la **cible**, donc la réponse de la section
+arrive en retard du temps de transfert. Un calage conforme peut présenter un
+hydrogramme décalé : volume, pointe et forme concordent, la dynamique non.
+C'est le choix du § 1.5. Le diagnostic rapporte ce décalage (`decalage_h`) et
+alerte au-delà de `Decalage_max_h`.
+
+Mesuré sur modèle fictif à 2,5 h de retard par bief : A1 converge avec
+volume 100,0 % et pointe 100,0 %, pour un décalage de +2,50 h.
+
+**Ce qu'elle fait en revanche, depuis le 03/08/2026 : elle écrit la
+correction là où celle-ci agira.** Ne pas confondre les deux. Le décalage
+final reste affiché et non corrigé (−0,90 / −1,70 / −2,50 h sur le cas de
+recette) ; ce que φ corrige, c'est **l'instant d'injection**, sans lequel la
+correction ne rejoint jamais la pointe qu'elle vise. Renoncer à reproduire la
+dynamique n'obligeait pas à injecter à contretemps.
+
+**Corollaire** : c'est le débit **rephasé** qu'il faut comparer à la cible. Le
+débit brut porte en plus le temps de transfert, que la méthode ne prétend pas
+corriger.
+
+**Et elle ne peut qu'ajouter du débit.** Deux refus en découlent, tous deux
+prononcés **avant** le moindre calcul : la cible sous la pointe résiduelle, et
+le **plancher de volume au-delà de la bande** (correctif 2).
+
+## Essais de méthode du 1er août 2026
+
+**La correction à deux termes est démontrée meilleure sur le banc synthétique,
+pas sur le modèle réel.** Voir `synthese_test.docx` pour le détail chiffré.
+
+- **Banc** : −43 % de calculs en régime d'écrêtement fort (23 → 13), pointe
+  98,4 % → 100,0 %.
+- **le cas de recette, trois campagnes sur clone** : A1 convergé, **A2 en échec**, A3
+  jamais traité. Non conforme dans les trois cas.
+- **Réglage le plus utile mesuré** : à 5 % de tolérance, plafonner à 1 essai
+  donne un état final identique à 6 essais, pour 3 calculs au lieu de 5
+  (16,7 min contre 28,7).
+
+## Méthodologie de traçabilité — un plan par étape
+
+| Étape | Contenu |
+|---|---|
+| `sans apport` | état de référence, tous les apports à caler à zéro |
+| `Apport_A1` | recherche puis résultat de A1 |
+| `Apport_A2` | cloné du précédent, qui garde A1 calé |
+
+La première étape ne clone rien — `preparer()` vient de créer un plan neuf,
+`jalonner()` le titre. Les suivantes clonent le jeu courant, si bien que
+l'étape précédente reste figée **avec ses résultats**.
+
+**Le ménage ne supprime plus les plans.** Seules partent les traces de
+préparation. La seule suppression autorisée est le remplacement d'un
+**homonyme** issu d'un calage précédent. Contrepartie assumée : un modèle à
+trente apports garde trente et un jeux de résultats.
+
+**Reprise** : le paramètre `Premier_apport` (vide = tous) fait repartir le
+calage du plan `Apport_<précédent>`. Si le plan d'étape est absent, le calage
+part du plan de référence avec un avertissement explicite.
+
+**Classeur d'itérations** : `<suivi>/iterations.xlsx`, un onglet par apport,
+réécrit à chaque essai. **Un bloc « Résiduel (apports à zéro) »** puis un bloc
+par essai, quatre colonnes chacun : section, section **rephasée**, écart
+`cible − rephasée`, apport injecté. **Lecture en escalier : l'écart d'un bloc
+donne l'apport du bloc suivant.**
+
+## Extension autoportante — comment ça marche
+
+L'archive porte une copie complète de la chaîne dans `calage_apports/chaine/`
+(9 modules). Sur un poste neuf, installer l'extension suffit.
+
+Deux règles protègent de la divergence entre les deux copies :
+
+1. **La copie n'existe que dans le zip**, jamais sur le disque. `faire_zip.py`
+   lit les modules à la racine et les écrit directement dans l'archive.
+   Personne ne peut éditer la copie en croyant toucher la source.
+2. **Elle sert en dernier recours.** Ordre de recherche : dossier déclaré à
+   l'exécution → `CALAGE_CHAINE` → parent du plugin → `d:\1-Python\calage_des_apports`
+   → copie embarquée. Sur le poste de développement, les sources vives gardent
+   la priorité, et une archive ancienne ne les masque jamais.
+
+La liste des modules embarqués est **calculée** par fermeture des imports
+(`faire_zip.modules_chaine`), jamais écrite à la main. `faire_zip.py` refuse de
+livrer une copie qui diffère de sa source.
+
+`chaine_disponible()` affiche la provenance retenue : `(embarquee dans le
+plugin)` ou `(externe au plugin)`. **C'est la première chose à regarder devant
+un correctif qui semble sans effet.**
+
+## Par quoi reprendre — par ordre de priorité
+
+0. **~~Resserrer les tolérances et relancer.~~ FAIT — voir 0 bis en tête.**
+   Conforme à ±3 %/±2 %, et A1 comme A3 avaient bien de la marge. Ce qu'il
+   en reste à trancher : **faut-il changer les tolérances par défaut de
+   `Configuration` ?** Elles valent 0,5 % en volume, et ce cas montre qu'un
+   modèle au débit de base marqué peut être **hors d'atteinte par
+   construction** à cette valeur (plancher 2,12 %). Deux voies : relever le
+   défaut de volume, ou restreindre la fenêtre d'analyse à la crue pour faire
+   tomber le plancher — c'est la piste que le motif de refus suggère déjà, et
+   elle n'a jamais été essayée.
+1. **Le déphasage croît vers l'aval — et DEUX seuils l'attendent, dont un
+   silencieux.** Mesuré à 0,87 / 1,71 / 2,53 h, soit **+0,83 h par section**.
+   Une 4ᵉ section tomberait vers 3,4 h, une 5ᵉ vers 4,2 h.
+
+   **Ce que `Decalage_max_h` fait vraiment — vérifié dans le code, ce n'est
+   pas un simple avertissement.** Il vaut 3,0 h, **n'est pas exposé dans le
+   classeur** (aucun paramètre correspondant : il ne se règle que dans
+   `Configuration`), et le franchir ajoute une chaîne dans `diag.alertes`
+   (`criteres.py`, `diagnostiquer`). Or :
+   - **la boucle de recherche ignore `alertes`** — `concordance()`,
+     `admissible()` et `rang_essai()` ne testent que volume, pointe et forme.
+     Chaque apport est donc validé normalement ;
+   - **la vérification globale finale ne l'ignore pas** — `Diagnostic.converge`
+     exige `not self.alertes` en plus des trois tolérances, et
+     `resultat.conforme = all(d.converge ...)`.
+
+   Conséquence : tous les apports seraient annoncés validés, puis le calage
+   ressortirait **NON CONFORME après coup**, avec le motif *« dérive détectée
+   à la vérification globale : relancer une passe séquentielle amont →
+   aval »* — **qui désigne une dérive inexistante**. La vraie cause n'est que
+   dans `diag.alertes` (colonne « Alertes » de `tableaux_calage.xlsx`). On
+   chercherait longtemps.
+
+   **Le second seuil est plus bas en pratique, et totalement muet.** La
+   MESURE du déphasage est bornée à `0,25 × durée` de l'événement, soit
+   **±4,0 h** sur la fenêtre de 16 h — pour `decalage_minimisant_ecart` (Δt)
+   comme pour `dephasage_reponse` (φ). Au-delà, les deux **saturent au bord
+   du domaine de recherche sans que rien ne le dise**, et la correction se
+   place au mauvais endroit avec des pourcentages qui restent plausibles.
+   Le diagnostic, lui, cherche plus loin (`_decalage_pas`, n/3 pas ≈ ±5,3 h).
+
+   À trancher avant d'enchaîner plus de trois sections : relever
+   `Decalage_max_h`, ou recaler l'origine des temps des cibles sur celle du
+   modèle. Et, indépendamment, **faire dire au motif final quelle alerte l'a
+   provoqué** — c'est un correctif de traçabilité, pas de méthode.
+2. **Rendre CETTE_TEST2 calculable, si l'on veut caler CE modèle-là.** La
+   fenêtre de simulation du plan `p15` couvre **18 h** (06SEP2024 01:00 →
+   19:00), alors que l'événement des cibles de
+   `Hydrogrammes_Apports_CETTE.xlsx` se situe entre **23 h et 32 h** sur une
+   base de 0 à 256 h : le calcul s'arrêterait avant le début de la crue.
+   Étendre la fenêtre du plan, ou recaler l'origine des temps des cibles.
+   Puis trancher le sort de `SC3` (cible sans section dans la géométrie de
+   CETTE_TEST2, qui porte `SC4`, `SC1`, `SC2`).
+   **Sans objet pour le calage qui vient d'aboutir** : celui-ci tourne sur
+   `CETTE_TEST` avec le classeur `2-Resultats/donnees_calage.xlsx`, dont les
+   cibles sont sur une base de 0 à 16 h, cohérente avec le plan.
+2. **Verrouiller la version de `ras-commander`** (voir « Bugs connus », 1).
+   Petit correctif, gros risque évité : un minimum `>= 0.99` dans
+   `noyau.verifier_interpreteur()` et dans `verification_environnement.py`.
+3. **Recréer le script de pré-vol.** Un script jetable a servi à contrôler,
+   **sans lancer de calcul**, que les sections sont lisibles, que les apports
+   existent dans l'unsteady et que les cibles sont atteignables. Il n'a jamais
+   été versé au projet. Il devrait désormais afficher aussi **le plancher de
+   volume** de chaque section : c'est le refus le moins cher du projet.
+   Entrées : un `.pXX.hdf` de référence, le `.uXX`, le classeur.
+4. **Borner l'analyse à la fenêtre de la cible.** Le correctif 5 l'a fait pour
+   le **domaine du pas** ; `criteres.diagnostiquer` restreint déjà le volume à
+   la fenêtre commune, mais le **KGE**, `r` et le recalage travaillent encore
+   sur la grille qui **englobe** les deux séries. À borner, avec une marge
+   paramétrable.
+5. **Réserve non tranchée sur le déphasage cumulé.** Sur un modèle fictif
+   volontairement brutal (2,5 h/bief **et** laminage cumulé), seuls 2 apports
+   sur 4 calent : A3 s'arrête à 90,6 % de pointe. Impossible de dire si la
+   méthode plafonne quand le déphasage s'accumule vers l'aval, ou si le
+   modèle-jouet est hors domaine. À surveiller sur SC2 et SC3.
+6. **Suppression restée en suspens dans le projet de recette** — soit
+   `01-cas_test/1-HECRAS/<modèle>/`. Les clones `<modèle>.u01`/`u02`
+   (+ `.hdf`) et les vestiges du calcul p01 interrompu
+   (`<modèle>.p01.tmp.hdf`, `_compute_p01.log`, `<modèle>.bco01`,
+   `<modèle>.ic.o01`) sont toujours en place. Sauvegarde déjà prise dans
+   `_avant_suppression_20260731_194314/`. **Après suppression, éditer
+   `<modèle>.prj`** : retirer les lignes `Unsteady File=u01` et
+   `Unsteady File=u02`, et remplacer `Current Unsteady=u02` par
+   `Current Unsteady=u06`.
+7. **Renseigner la pente dans le classeur avec la valeur par défaut mesurée
+   sur le profil en long.** La colonne `Pente_m_par_m` (feuille
+   *Correspondance*) l'est déjà : `noyau.pentes_locales_apports()` la
+   pré-remplit depuis le PL (`geometrie.pente_locale` — moyenne du fond sur
+   ±200 m, majorée de 20 %), et une saisie n'est jamais écrasée. Le paramètre
+   `Pente_apport_creee_m_par_m` (feuille *Configuration*), lui, est écrit
+   **vide**, et un apport **créé** par le plugin reçoit
+   `PENTE_APPORT_DEFAUT = 0.01` **en dur**
+   (`calage_apports/plugin.py:403`, employée à la création). Un 1 % arbitraire
+   alors que la pente du tronçon est mesurable au même endroit : y porter la
+   pente locale au PK de l'injection, et l'écrire dans le classeur pour que
+   l'hypothèse soit visible et modifiable — même règle que pour
+   `Pente_m_par_m`. Repli sur 0,01 si le PL n'est pas calculable (géométrie
+   non prétraitée par HEC-RAS).
+8. **~~La figure de la note méthodologique n'est jamais livrée.~~ CORRIGÉ le
+   4 août — voir la session en tête.** `_profil_pour_livrables()` est en place
+   dans [pont_hecras.py:566](pont_hecras.py#L566) et ses trois valeurs sont
+   passées à `produire_livrables_finaux`
+   ([pont_hecras.py:1241](pont_hecras.py#L1241)). **Ce qu'il en reste** : la
+   vérification sur un calage réel. `01-cas_test/2-Resultats/resultats_finaux/`
+   **n'a toujours pas** `profil_en_long.png` — le run du 3 août est antérieur au
+   correctif, et le régénérer demande un calage complet (≈ 1 h 06). Au prochain
+   run, contrôler que le `.png` y est, qu'il porte ses 3 panneaux, et qu'il
+   figure dans la liste des livrables. Si la figure manque encore, la raison
+   est désormais **écrite au journal** — la chercher là.
+9. **Trois clones d'essai à supprimer** dans `01-cas_test/1-HECRAS/` :
+   les dossiers suffixés `_ESSAI`, `_REJEU6`, `_REJEU1`, et leurs dossiers
+   de résultats `2-Resultats_ESSAI`, `2-Resultats_REJEU6`,
+   `2-Resultats_REJEU1`.
+
+## Repères de code
+
+| Besoin | Où |
+|---|---|
+| Règles en vigueur, pièges mesurés | `STATUT.txt` |
+| Boucle de calage, indépendante du solveur | `calage.py` |
+| Lecture du résiduel, ordre lecture/jalon | `calage.caler`, début de la boucle par apport |
+| Étapes conservées, reprise | `pilote_hecras.jalonner`, `plan_par_titre` |
+| Mesure du décalage (correction) | `calage.decalage_minimisant_ecart` — continue, sur la grille native |
+| Mesure du décalage (diagnostic) | `criteres._decalage_pas`, `criteres.recaler` — au pas de `PAS_RECALAGE_H` |
+| **Déphasage de la RÉPONSE (φ) — où placer la correction** | `calage.dephasage_reponse` |
+| **φ consigné en tête de l'onglet d'itérations** | `suivi.enregistrer_essai(dephasage_apport=...)`, `suivi._onglet_iterations` |
+| **Écart ramené en temps d'apport** | `calage.ecart_en_temps_apport` |
+| **Rephasage + masque de fenêtre** | `calage.calcul_rephase` |
+| **Différence rephasée réinjectée** | `calage.ecart_a_la_cible` — nulle hors fenêtre |
+| **Plancher de volume irréductible** | `calage.volume_irreductible` |
+| **Premier apport (déficit net)** | `calage.injection_initiale` |
+| **Pas réglé sur la bande, bande morte** | `calage.pas_volume` |
+| **Sonde de pointe à volume constant** | `calage.corriger_apport`, repli sans gain de pointe |
+| **Mode rapide (méthodologie V1.3, gain=1)** | `Configuration.mode_rapide`, branches dans `calage.caler` |
+| **Fenêtre d'injection (§ 5 V1.3)** | `calage.fenetre_injection`, `masque_fenetre`, `fenetre_en_temps_apport` |
+| **Gain hydraulique observé (diagnostic)** | `calage.gain_observe`, colonne `gain_observe` de l'historique |
+| **Pré-remplissage de la pente par apport** | `noyau.pentes_locales_apports`, argument `pentes` de `preparer_classeur` |
+| **Profil en long de synthèse dans les livrables** | `pont_hecras._profil_pour_livrables` → arguments `profil`/`pk_*` de `produire_livrables_finaux` |
+| **Délimitation d'un bloc « Reference Line »** | `geometrie.supprimer_lignes_reference` — attributs + coordonnées, RIEN d'autre |
+| **Domaine du pas, sur fenêtre commune** | `calage.caler`, construction de `cibles_pas` |
+| Recherche exhaustive du pas (a, b) | `calage.pas_admissible` |
+| **État de départ dans le classeur** | `suivi.Suivi.enregistrer_residuel`, `EtatApport.residuel_detail` |
+| **Classeur d'itérations, blocs et graphes** | `suivi._onglet_iterations` |
+| Analyse pure (recalage, KGE, volume) | `criteres.py` |
+| Formats de fichier HEC-RAS | `pilote_hecras.py` |
+| Cartographie des hydrogrammes de l'unsteady | `pilote_hecras.cartographier_hydrogrammes` |
+| Pont ligne de commande QGIS → HEC-RAS | `pont_hecras.py` |
+| Logique du plugin, testable hors QGIS | `calage_apports/noyau.py` |
+| Choix de l'interpréteur HEC-RAS | `calage_apports/noyau.interpreteur_hecras` |
+| Recherche et embarquement de la chaîne | `calage_apports/noyau.trouver_chaine`, `faire_zip.modules_chaine` |
+| Enveloppe Qt | `calage_apports/plugin.py` |
+| Idées non implémentées | `idees_V2_plugin.md` |
+
+## Commandes utiles
+
+**Interpréteur du projet** — celui qui fait passer les 13 suites :
+
+```bash
+PY="D:/1-Python/.venv/Scripts/python.exe"
+
+# Chaîne : les 11 modules auto-testables + le pont + le noyau du plugin
+for m in calage criteres suivi livrables controle_donnees geometrie \
+         style_classeur elaguer_projet creer_template \
+         verification_environnement pilote_hecras; do "$PY" $m.py; done
+"$PY" pont_hecras.py autotest
+"$PY" calage_apports/noyau.py
+"$PY" faire_zip.py
+
+# Plugin, sous l'interpréteur QGIS (99 contrôles) — celui-là seulement.
+# --modele est OBLIGATOIRE (plus aucun modèle par défaut) et doit désigner une
+# COPIE : la suite MODIFIE la géométrie du modèle désigné. Le modèle doit
+# porter au moins un plan CALCULÉ, sinon 8 contrôles échouent en cascade.
+M="...\01-cas_test\1-HECRAS\CETTE_ESSAI"
+"C:\Program Files\QGIS\LTR\bin\python-qgis-ltr.bat" test_plugin_qgis.py \
+    --modele "$M" --plan "$M\CETTE.p04.hdf"
+```
+
+**Lancer un calage en ligne de commande** — sans QGIS, ce qui est le plus sûr
+pour un run long :
+
+```bash
+"$PY" pont_hecras.py caler --template <dossier>/donnees_calage.xlsx
+```
+
+**Fermer HEC-RAS avant tout calage.** L'interface réécrit les fichiers du
+projet depuis sa mémoire et peut effacer ce que le calage y écrit.
+
+Sous console cp1252, préfixer par `PYTHONIOENCODING=utf-8`.
+
+## Douze invariants à ne pas casser
+
+1. **`classFactory` dans `calage_apports/__init__.py`** n'a aucun appelant
+   dans le code : c'est **QGIS** qui l'appelle par son nom.
+2. **`DOSSIER_CHAINE = _raccorder()` dans `noyau.py`** : la valeur n'est lue
+   que par l'auto-test, mais l'appel insère la chaîne dans `sys.path` à
+   l'import. Ligne porteuse déguisée en constante morte.
+3. **La politique d'encodage est dupliquée dans trois modules**
+   (`pilote_hecras._lire_texte`, `elaguer_projet._lire_texte`,
+   `noyau._lire_texte_hecras`) parce qu'ils ne peuvent pas partager de code.
+   Toute correction doit être reportée aux trois.
+4. **`PiloteHecRas.jalonner()` ne modifie l'objet qu'une fois tout vérifié.**
+   Un échec à mi-course laisserait le calage à cheval entre un plan et
+   l'unsteady d'un autre.
+5. **Rien ne doit être lu dans le plan courant entre un jalon et son calcul.**
+   `jalonner()` ouvre un plan **vide de résultats** ; toute lecture de section
+   doit précéder le jalon, ou suivre un `calculer()`. C'est le bug qui a
+   bloqué le calage du 1er août. Deux auto-tests le gardent.
+6. **`PAS_RECALAGE_H` doit SUIVRE `PAS_ENTREE_H`**, jamais être fixé
+   indépendamment. Rééchantillonner plus **grossier** que la donnée quantifie
+   le décalage, dégrade `r` et grignote la tolérance de volume.
+7. **L'écart consigné dans `iterations.xlsx` doit rester celui que la méthode
+   corrige** — `cible − rephasé`, positif quand il faut ajouter du débit —
+   sous peine d'afficher dix fois la bonne valeur, avec le mauvais signe. Et
+   le **bloc résiduel doit rester en tête** : sans lui, la première injection
+   ne se rattache à rien de visible, et c'est exactement ce qui a fait croire
+   que la méthode était fausse.
+8. **Ne jamais lire hors de la fenêtre calculée sans le dire.** `np.interp`
+   plafonne au lieu de refuser : tout rephasage doit passer par
+   `calage.calcul_rephase` et honorer son masque. Un déficit fabriqué là où
+   rien n'a été mesuré est indétectable dans les chiffres finaux.
+9. **Les objectifs de volume et de pointe sont des BANDES, ±X %, pas des
+   points.** Une correction qui vise le centre d'une bande déjà tenue ne
+   corrige rien : elle dérive. Tout nouveau pas doit avoir sa **bande morte**,
+   et tout garde-fou doit se juger au **bord** de la bande, pas au centre.
+   Corollaire mesuré : le volume ne peut jamais descendre sous
+   `cible + volume_irreductible`, et si cette somme sort de la bande, il faut
+   **refuser avant de calculer**.
+10. **Un bloc de géométrie HEC-RAS se délimite par ce qu'il CONTIENT, jamais
+    par ce qui le suit.** Chercher « le prochain bloc de même famille »
+    marche pour tous les blocs sauf le dernier, et le dernier emporte alors
+    la fin du fichier. Un bloc « Reference Line » = sa ligne `Name=`, ses
+    attributs `Reference Line ...`, ses lignes de coordonnées. Rien d'autre.
+    C'est l'incident du 03/08/2026, et il n'était visible dans aucun
+    compteur d'objets.
+11. **Une restriction de fenêtre ne doit jamais coûter plus que la bande de
+    tolérance.** Tout ce qu'on laisse hors de la fenêtre d'injection est du
+    volume que l'apport ne fournira jamais : au-delà de la bande, la
+    concordance est impossible **par construction**, et la boucle épuise ses
+    essais sur un volume bloqué sans que rien ne dise pourquoi. Un seuil de
+    fenêtre ne peut donc qu'**élargir**. Même famille de piège que
+    l'invariant 8 : ne jamais réclamer, ni interdire, du débit en silence.
+12. **Δt ET φ SONT DEUX GRANDEURS DIFFÉRENTES. Ne jamais passer l'une là où
+    l'autre est attendue.** `Δt` (`decalage_minimisant_ecart`) aligne la
+    section **sur la cible** : il mesure l'écart de calendrier entre le
+    modèle et la cible, sur lequel l'apport n'a aucune prise. `φ`
+    (`dephasage_reponse`) mesure de combien la section **rephasée** suit
+    l'apport qui l'a produite, et vaut `L − Δt`. Tout ce qui s'écrit dans
+    l'APPORT — la correction, la fenêtre d'injection — se ramène par **φ**.
+    Tout ce qui se lit sur la SECTION se rephase par **Δt**. Les confondre ne
+    déclenche aucune erreur, ne casse aucun compteur, et se manifeste
+    uniquement par une pointe qui refuse de monter pendant que le volume est
+    juste — que la boucle interprète alors, très raisonnablement, comme un
+    tronçon qui lamine. C'est l'incident du 03/08/2026, et il a coûté deux
+    sessions de mauvais diagnostic.

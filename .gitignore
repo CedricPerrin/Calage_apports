@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Backups / archives
+*.bak
+*.zip
+
+# Cas de test HEC-RAS (donnees volumineuses, non versionnees)
+01-cas_test/
+
+# Resultats HEC-RAS
+*.hdf
+*.vrt
+*.tmp
+
+# Rasters
+*.tif
+*.tiff
+*.img
+
+# Maillages
+*.2dm
+*.slf
+*.mesh
+
+# LiDAR
+*.las
+*.laz
+
+# Logs
+*.log
+logs/
+Results/
+Output/
+Temp/
+
+# Windows
+Thumbs.db

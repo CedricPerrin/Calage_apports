@@ -1,0 +1,58 @@
+[general]
+name=Calage des apports
+qgisMinimumVersion=3.34
+supportsQt6=True
+description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
+about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
+version=0.4.0
+author=ISL Ingénierie
+email=cedric.perrin@gmail.com
+
+# homepage / tracker / repository : volontairement absents. Ils ne servent
+# qu'a la publication sur le depot public QGIS, ou ils sont obligatoires et
+# doivent pointer vers des adresses REELLES. Cet outil est interne et
+# s'installe depuis une archive : y mettre une adresse inventee afficherait
+# un lien mort dans le gestionnaire d'extensions. A renseigner le jour ou le
+# plugin serait publie.
+
+category=Vector
+icon=icon.png
+experimental=True
+deprecated=False
+hasProcessingProvider=False
+
+tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,KGE,crue
+
+license=GPL-2.0-or-later
+
+changelog=0.4.0 — Portabilité. Plus aucun chemin du poste de développement dans
+    ce qui est distribué : la chaîne se choisit par un ordre FIXE (désignation
+    explicite, copie embarquée, parent du plugin) au lieu de la date de
+    modification, qui faisait masquer les sources vives par la copie embarquée
+    dès son installation. Compatibilité QGIS 3.34 à 3.44 rétablie : les types de
+    champ s'adaptent (QMetaType depuis 3.38, QVariant avant), là où l'écriture
+    directe levait une exception au chargement des couches. supportsQt6=True
+    devient vrai : 61 constantes Qt écrites sous leur forme qualifiée. La
+    version de ras-commander est vérifiée, et non plus seulement son import.
+    Le message d'interpréteur manquant donne les commandes à taper. Les
+    auto-tests des modules de la chaîne ne s'interrompent plus dans une console
+    non-UTF-8. Plus aucun nom d'affaire ni de cas d'essai dans le code
+    distribué, et les garde-fous qui devaient l'empêcher ne portent plus
+    d'exception nominative.
+    0.3.0 — Archive autoportante : la chaîne de calage est embarquée dans
+    calage_apports/chaine/, plus rien à installer à côté sur un poste neuf. Une
+    chaîne externe garde la priorité, et la provenance retenue est affichée dans
+    Vérifier l'environnement. Correction du calage : le débit résiduel à la
+    section était lu APRÈS l'ouverture de l'étape de l'apport, donc dans un plan
+    fraîchement cloné encore dépourvu de résultats — tout calage s'arrêtait sur
+    le premier apport. Toutes les sections de contrôle sont désormais éprouvées
+    dès le calcul de référence, et non au tour de leur apport.
+    0.2.0 — Une seule fenêtre. L'écriture des sections et des apports dans
+    la géométrie rejoint l'onglet 1, où le fichier géométrie, la zone 2D et
+    l'Unsteady Flow sont déjà choisis : elle retrouve ainsi sa place dans
+    l'ordre réel, avant la composition du paquet. Un apport créé reçoit
+    désormais son hydrogramme dans le fichier Unsteady Flow — sans quoi il
+    n'apportait aucun débit. Choix des couches par les widgets natifs QGIS,
+    qui se tiennent à jour tout seuls. Actions rangées dans le menu Vecteur.
+    0.1.0 — Première version : composition du paquet, contrôle de
+    l'implantation reporté sur la carte, lancement du calage en arrière-plan.

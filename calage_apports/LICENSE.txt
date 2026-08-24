@@ -1,0 +1,41 @@
+Calage des apports — extension QGIS
+Copyright (C) 2026 ISL Ingénierie
+
+Ce programme est un logiciel libre : vous pouvez le redistribuer et/ou le
+modifier selon les termes de la Licence Publique Générale GNU telle que
+publiée par la Free Software Foundation, soit la version 2 de la Licence,
+soit (à votre choix) toute version ultérieure.
+
+Ce programme est distribué dans l'espoir qu'il sera utile, mais SANS AUCUNE
+GARANTIE, sans même la garantie implicite de QUALITÉ MARCHANDE ou
+d'ADÉQUATION À UN USAGE PARTICULIER. Voir la Licence Publique Générale GNU
+pour plus de détails.
+
+Vous devriez avoir reçu une copie de la Licence Publique Générale GNU avec
+ce programme. Si ce n'est pas le cas, le texte intégral et faisant foi est
+disponible à l'adresse :
+
+    https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
+
+Identifiant SPDX : GPL-2.0-or-later
+
+Ce choix n'est pas discrétionnaire : une extension QGIS s'exécute dans le
+processus de QGIS et s'appuie sur ses bibliothèques, elles-mêmes sous GPL.
+Elle doit donc être diffusée sous une licence compatible GPL v2 ou
+ultérieure.
+
+--------------------------------------------------------------------------
+BIBLIOTHÈQUES UTILISÉES
+
+L'extension elle-même n'appelle, dans le processus QGIS, que des paquets
+déjà fournis par QGIS (PyQGIS, geopandas, shapely, pandas, openpyxl).
+
+Les opérations HEC-RAS sont confiées à un AUTRE interpréteur Python, hors
+du processus QGIS, où sont requis :
+
+    ras-commander    pilotage de HEC-RAS
+    h5py             lecture des fichiers de résultats HDF5
+
+Cette séparation n'est pas un choix d'architecture parmi d'autres : QGIS
+embarque sa propre bibliothèque HDF5, et h5py devient inimportable une fois
+QGIS chargé.

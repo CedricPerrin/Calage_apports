@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Git
+.git/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+logs/
+
+# Results HEC-RAS
+*.hdf
+*.vrt
+*.tmp
+*.bak
+
+# Rasters
+*.tif
+*.tiff
+*.img
+
+# Big meshes
+*.2dm
+*.slf
+*.mesh
+
+# Results
+Results/
+Output/
+Temp/
+
+# Fichiers trop grands
+*.las
+*.laz
+
+# Fichiers Windows
+Thumbs.db
