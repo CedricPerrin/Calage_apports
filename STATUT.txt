@@ -66,11 +66,11 @@ source, et reconstruit une archive conforme — passe integralement.
 NON REJOUABLE ICI (module manquant a cet interpreteur) : test_plugin_qgis.py,
 qui exige le Python de QGIS.
 
-PRE-EXISTANT, REMARQUE EN PASSANT, NON CORRIGE : la section « QUELLE CHAINE
-LE PLUGIN EXECUTE » plus bas dans ce fichier decrit encore la regle « la
-plus recente gagne » et mentionne RACINE_OUTILS — l'une et l'autre
-supprimees par LOT PORTABILITE (voir plus bas). Cette section etait deja
-perimee avant la presente reorganisation.
+[CORRIGE le 28/08/2026, apres coup] La section « QUELLE CHAINE LE PLUGIN
+EXECUTE » plus bas dans ce fichier decrivait encore la regle « la plus
+recente gagne » et mentionnait RACINE_OUTILS — l'une et l'autre supprimees
+par LOT PORTABILITE (voir plus bas) des le 08/08, jamais mise a jour depuis.
+Remise a l'heure sur place, avec le meme horodatage.
 
 
 UN SEUL DOCUMENT DE METHODE — VERSION 12 (08/08/2026)
@@ -2071,32 +2071,41 @@ _arquivo/            Documents obsoletes ou remplaces par une version
                      courante, conserves hors du chemin de lecture normal.
 
 
-QUELLE CHAINE LE PLUGIN EXECUTE — LA DATE, PAS LE RANG
+QUELLE CHAINE LE PLUGIN EXECUTE — LE RANG, PLUS JAMAIS LA DATE
 -------------------------------------------------------
+[CORRIGE le 28/08/2026 — cette section decrivait encore la regle
+d'avant LOT PORTABILITE (08/08/2026, voir plus haut) et RACINE_OUTILS,
+supprime depuis. Remarque en passant lors de la reorganisation src/, non
+tenue a jour depuis.]
+
 Une designation explicite gagne toujours : noyau.definir_chaine (memorisee
 d'une session a l'autre, et RETABLIE meme quand la detection automatique
-aboutit), puis CALAGE_CHAINE. A defaut, les emplacements connus — parent du
-plugin, CHAINE_PAR_DEFAUT, copie embarquee dans l'archive — sont mis en
-CONCURRENCE, et la chaine dont le module .py le plus recent est le plus
-recent l'emporte.
+aboutit), puis CALAGE_CHAINE. A defaut, deux emplacements SEULEMENT, dans un
+ORDRE FIXE qui NE COMPARE AUCUNE DATE : la copie embarquee dans l'archive
+(calage_apports/chaine/), puis src/ du parent du plugin (installation par
+lien symbolique — voir noyau.chaines_candidates()).
 
-POURQUOI. Le rang fixe qui prevalait faisait gagner un chemin ecrit en dur
-meme perime. Le projet ayant demenage, le plugin a tourne deux jours sur une
-chaine vieille de deux jours : il envoyait au pont des options que celle-ci
-ne connaissait pas (« unrecognized arguments: --remplacer ») sans que rien
-ne dise pourquoi. La date ferme le piege dans les deux sens — une archive
-ancienne ne masque pas les sources vives, une copie oubliee sur un autre
-disque ne masque plus l'archive.
+POURQUOI PAS LA DATE. La regle « la plus recente gagne » qui prevalait avant
+le 08/08 se retournait contre son propre objectif : zipfile.extractall (ce
+qu'emploie le gestionnaire d'extensions QGIS) ne restitue pas la date
+stockee dans l'archive, les fichiers extraits portent l'heure de
+l'INSTALLATION — la copie embarquee se trouvait donc systematiquement plus
+recente que les sources vives d'un poste de developpement, et les masquait
+en silence. Le rang fixe (embarquee d'abord, puis src/) ferme ce piege : les
+deux rangs ne sont jamais en concurrence reelle, en installation par lien
+symbolique la copie embarquee n'existe pas sur le disque.
 
-chaine_disponible() affiche desormais la provenance ET sa date : c'est la
-premiere chose a regarder devant un correctif qui semble sans effet.
+chaine_disponible() affiche la provenance ET sa date de modification : c'est
+la premiere chose a regarder devant un correctif qui semble sans effet.
 
-AUCUN CHEMIN DE DONNEES DANS LE PLUGIN. Seule subsiste RACINE_OUTILS
-(d:\1-Python), un emplacement de LOGICIEL : la chaine par defaut et le .venv
-qui pilote HEC-RAS en derivent. L'interpreteur est cherche aupres de la
-chaine retenue ET de la chaine par defaut — le .venv ne suit pas la chaine
-quand le projet vit sur un disque reseau. Un test de la suite QGIS refuse
-tout autre chemin absolu dans les fichiers du plugin.
+AUCUN CHEMIN DE DONNEES DANS LE PLUGIN, ET PLUS AUCUN EMPLACEMENT LOGICIEL
+ECRIT EN DUR NON PLUS — RACINE_OUTILS (d:\1-Python) est supprime depuis
+LOT PORTABILITE. L'interpreteur HEC-RAS (interpreteur_hecras()) est
+cherche, dans l'ordre : declare a l'execution, variable CALAGE_PYTHON, puis
+un .venv voisin de la chaine RETENUE — au parent de son dossier ou dedans.
+Rien au-dela : un interpreteur devine « quelque part » serait employe sans
+que personne ne sache d'ou il vient. Un test de la suite QGIS refuse tout
+autre chemin absolu dans les fichiers du plugin.
 
 
 PIEGES VERIFIES SUR LE MODELE REEL
