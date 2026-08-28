@@ -66,17 +66,17 @@ mklink /D ^
 n'y a rien à déposer à côté, aucune variable à définir.
 
 Il est malgré tout *cherché*, jamais supposé, parce qu'il diffère selon le mode
-d'installation : par lien symbolique, le parent du plugin **est** la chaîne ;
-depuis une archive, le plugin atterrit dans le profil QGIS et son parent est le
-dossier `plugins/`, qui ne contient rien.
+d'installation : par lien symbolique, `src/` — au côté du parent du plugin —
+**est** la chaîne ; depuis une archive, le plugin atterrit dans le profil QGIS
+et son parent est le dossier `plugins/`, qui ne contient rien.
 
 L'ordre est **fixe**, et ne compare aucune date :
 
 1. le dossier désigné à l'exécution (bouton de *Vérifier l'environnement*) ;
 2. la variable d'environnement `CALAGE_CHAINE` ;
 3. la **copie embarquée** dans l'archive ;
-4. le parent du plugin — ce qui ne vaut que pour l'installation par lien
-   symbolique, où la copie embarquée n'existe pas sur le disque.
+4. `src/` du parent du plugin — ce qui ne vaut que pour l'installation par
+   lien symbolique, où la copie embarquée n'existe pas sur le disque.
 
 Les rangs 3 et 4 ne sont donc jamais en concurrence réelle. Une chaîne externe
 reste utilisable, mais elle se **désigne** : plus rien ne la retient par hasard.
@@ -143,8 +143,9 @@ du `PATH`.
 ## Tests
 
 `%CALAGE_PYTHON%` désigne ci-dessous l'interpréteur HEC-RAS ; `chaine\` est le
-sous-dossier de la copie embarquée, ou le dossier du projet en installation par
-lien symbolique.
+sous-dossier de la copie embarquée (`calage_apports\chaine\`), ou `..\src\`
+(le dossier `src\` du projet, sibling de `calage_apports\`) en installation
+par lien symbolique.
 
 ```bat
 REM noyau du plugin, hors QGIS

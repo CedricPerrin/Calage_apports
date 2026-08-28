@@ -26,8 +26,9 @@ from pathlib import Path
 #
 # Le plugin s'installe de deux manieres, et le chemin de la chaine n'est pas
 # le meme dans les deux cas :
-#   - par lien symbolique depuis le dossier projet : le parent du plugin EST
-#     la chaine ;
+#   - par lien symbolique depuis le dossier projet : src/, au cote du parent
+#     du plugin, EST la chaine (depuis le 28/08/2026 — la chaine vivait
+#     avant cela directement au parent, voir STATUT.txt) ;
 #   - par archive ZIP : le plugin atterrit dans le profil QGIS, et son parent
 #     est le dossier plugins/, qui ne contient rien.
 # Le chemin est donc CHERCHE, et jamais suppose.
@@ -93,14 +94,14 @@ def chaines_candidates():
 
     L'ordre est celui de trouver_chaine() : la copie embarquee d'abord, parce
     qu'elle est celle livree avec CE plugin et la seule dont on reponde ; le
-    parent du plugin ensuite, qui n'est la chaine que pour une installation
-    par lien symbolique — et dans ce cas la copie embarquee n'existe pas sur
-    le disque, faire_zip.py ne la materialisant que dans l'archive. Les deux
-    ne sont donc jamais en concurrence reelle.
+    dossier src/ du parent du plugin ensuite, qui n'est la chaine que pour
+    une installation par lien symbolique — et dans ce cas la copie embarquee
+    n'existe pas sur le disque, faire_zip.py ne la materialisant que dans
+    l'archive. Les deux ne sont donc jamais en concurrence reelle.
     """
-    parent_du_plugin = Path(__file__).resolve().parent.parent
+    dossier_projet = Path(__file__).resolve().parent.parent / "src"
     retenues = {}
-    for candidate in (DOSSIER_EMBARQUE, parent_du_plugin):
+    for candidate in (DOSSIER_EMBARQUE, dossier_projet):
         if est_chaine(candidate):
             retenues.setdefault(Path(candidate).resolve(), Path(candidate))
     return list(retenues.values())
@@ -1509,18 +1510,19 @@ if __name__ == "__main__":
 
     embarque_reel = DOSSIER_EMBARQUE
     choix_reel = _dossier_chaine
-    parent_du_plugin = Path(__file__).resolve().parent.parent
+    dossier_projet = Path(__file__).resolve().parent.parent / "src"
     try:
         DOSSIER_EMBARQUE = embarquee
-        if est_chaine(parent_du_plugin):
+        if est_chaine(dossier_projet):
             retenue = trouver_chaine()
             assert retenue == embarquee, (
-                f"la copie embarquee doit primer sur le parent du plugin meme "
-                f"en etant plus ancienne — retenue : {retenue}")
-            print(f"   embarquee ({embarquee.name}, veille) l'emporte sur le "
-                  f"parent du plugin, pourtant plus recent")
+                f"la copie embarquee doit primer sur src/ du parent du "
+                f"plugin meme en etant plus ancienne — retenue : {retenue}")
+            print(f"   embarquee ({embarquee.name}, veille) l'emporte sur "
+                  f"src/ du parent du plugin, pourtant plus recent")
         else:
-            print("   parent du plugin non-chaine ici : rang non departageable")
+            print("   src/ du parent du plugin non-chaine ici : rang non "
+                  "departageable")
 
         assert definir_chaine(designee), "le temoin doit etre accepte"
         assert trouver_chaine() == designee, "le choix explicite doit primer"

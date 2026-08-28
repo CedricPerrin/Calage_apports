@@ -17,6 +17,9 @@ import sys
 from pathlib import Path
 
 DOSSIER = Path(__file__).parent
+RACINE = DOSSIER.parent  # depot du projet : src/ contient la chaine, RACINE
+                         # porte calage_apports/, la note methodologique, le
+                         # template et STATUT.txt
 OK, ABSENT, INFO = "[ OK ]", "[MANQ]", "[ -- ]"
 resultats = []
 
@@ -309,9 +312,9 @@ except Exception:
               "absent : get_profile_line_flow_timeseries inutilisable. "
               "Sans effet, la lecture directe du HDF prend le relais",
               bloquant=False)
-controler("plugin QGIS", (DOSSIER / "calage_apports" / "metadata.txt").exists(),
-          str(DOSSIER / "calage_apports"), bloquant=False)
-controler("archive d'installation", (DOSSIER / "calage_apports.zip").exists(),
+controler("plugin QGIS", (RACINE / "calage_apports" / "metadata.txt").exists(),
+          str(RACINE / "calage_apports"), bloquant=False)
+controler("archive d'installation", (RACINE / "calage_apports.zip").exists(),
           "a installer par Extensions > Installer depuis un ZIP",
           bloquant=False)
 controler("test des actions du plugin",
@@ -321,7 +324,7 @@ controler("test des actions du plugin",
 # plugin.py depend de qgis.core : verification textuelle plutot qu'un import,
 # qui echouerait systematiquement hors de QGIS.
 try:
-    _source_plugin = (DOSSIER / "calage_apports" / "plugin.py").read_text(
+    _source_plugin = (RACINE / "calage_apports" / "plugin.py").read_text(
         encoding="utf-8")
     _attendus = ["class DialogueParametrage", "_onglet_modele", "_onglet_profil",
                 "_onglet_resultats", "_onglet_validation",
@@ -370,9 +373,15 @@ controler("openTELEMAC installe", tel_env or tel_exe,
 
 # --------------------------------------------------------------------------
 print("\n5. DONNEES ET DOCUMENTS DU PROJET")
-attendus = [
+attendus_racine = [
     ("methodologie_calage_amont_aval.docx", True),
     ("template_donnees_calage.xlsx", True),
+    ("STATUT.txt", True),
+]
+for nom, bloquant in attendus_racine:
+    controler(nom, (RACINE / nom).exists(), bloquant=bloquant)
+
+attendus_chaine = [
     ("criteres.py", True),
     ("controle_donnees.py", True),
     ("geometrie.py", True),
@@ -380,21 +389,20 @@ attendus = [
     ("suivi.py", True),
     ("calage.py", True),
     ("pilote_hecras.py", True),
-    ("STATUT.txt", True),
 ]
-for nom, bloquant in attendus:
+for nom, bloquant in attendus_chaine:
     controler(nom, (DOSSIER / nom).exists(), bloquant=bloquant)
 
 # Structure du template
 try:
     import openpyxl
-    wb = openpyxl.load_workbook(DOSSIER / "template_donnees_calage.xlsx")
+    wb = openpyxl.load_workbook(RACINE / "template_donnees_calage.xlsx")
     attendues = {"Instructions", "Parametres", "Correspondance", "Cibles"}
     controler("feuilles du template", attendues <= set(wb.sheetnames),
               ", ".join(wb.sheetnames))
 
     import pandas as _pd
-    _par = _pd.read_excel(DOSSIER / "template_donnees_calage.xlsx",
+    _par = _pd.read_excel(RACINE / "template_donnees_calage.xlsx",
                           sheet_name="Parametres")
     _cles = set(_par["Parametre"].astype(str))
     _sig = {"Source_geometrie", "Fichier_SHP_Sections", "Fichier_SHP_Apports",
@@ -409,7 +417,7 @@ except Exception as e:
 # Le template livre doit passer son propre controle sans erreur.
 try:
     from controle_donnees import controler_template, ERREUR as _ERR
-    _a = controler_template(DOSSIER / "template_donnees_calage.xlsx")
+    _a = controler_template(RACINE / "template_donnees_calage.xlsx")
     _erreurs = [m for n, m in _a if n == _ERR]
     controler("template livre valide par controle_donnees", not _erreurs,
               f"{len(_a)} avertissement(s), aucune erreur" if not _erreurs

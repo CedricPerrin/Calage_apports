@@ -637,7 +637,7 @@ if __name__ == "__main__":
         sys.exit(0 if ok else 1)
 
     dossier = Path(__file__).parent
-    reference = dossier / "template_donnees_calage.xlsx"
+    reference = dossier.parent / "template_donnees_calage.xlsx"
 
     print("=" * 70)
     print("AUTO-TEST DU CONTROLE DES DONNEES")

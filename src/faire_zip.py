@@ -30,8 +30,10 @@ import zipfile
 from pathlib import Path
 
 DOSSIER = Path(__file__).resolve().parent
-SOURCE = DOSSIER / "calage_apports"
-ARCHIVE = DOSSIER / "calage_apports.zip"
+DEPOT = DOSSIER.parent  # depot du projet : calage_apports/ est un sibling
+                        # de src/, pas de ce fichier
+SOURCE = DEPOT / "calage_apports"
+ARCHIVE = DEPOT / "calage_apports.zip"
 
 EXTENSIONS = {".py", ".txt", ".md", ".png", ".qml", ".svg"}
 # Le nom du dossier racine de l'archive EST le nom du paquet pour QGIS, et le

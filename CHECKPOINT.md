@@ -4,7 +4,16 @@ Point de reprise pour ouvrir une nouvelle conversation avec un contexte
 minimal. L'état courant et les règles en vigueur restent dans `STATUT.txt` ;
 ce fichier ne dit que **où on en est** et **par quoi reprendre**.
 
-Dernière mise à jour : **4 août 2026 (suite 3) — en Mode_rapide, Δt n'est
+**Ajout du 28 août 2026** — réorganisation du dépôt Git pour la visibilité
+GitHub : la chaîne Python (calage.py, criteres.py, etc., 15 modules) a
+déménagé dans `src/` ; `calage_apports/` (plugin QGIS), la note
+méthodologique, le template et `STATUT.txt` restent à la racine.
+`noyau.chaines_candidates()` a été adapté en conséquence et tout a été
+vérifié en exécutant réellement les auto-tests, pas seulement relu. Détail
+complet en tête de `STATUT.txt`. Sans rapport avec le sujet méthodologique
+ci-dessous.
+
+Dernière mise à jour méthodologique : **4 août 2026 (suite 3) — en Mode_rapide, Δt n'est
 plus forcé à zéro au calcul de référence, et φ n'est plus mesuré par
 corrélation : les deux sont remplacés par la méthode manuelle vérifiée par
 l'utilisateur** (Δt mesuré une fois sur le résiduel, pic contre pic, gardé

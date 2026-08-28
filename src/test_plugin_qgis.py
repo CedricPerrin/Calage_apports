@@ -55,6 +55,7 @@ _PREFIXE_QGIS = (os.environ.get("QGIS_PREFIX_PATH")
 QgsApplication.setPrefixPath(_PREFIXE_QGIS, True)
 
 CHAINE = Path(__file__).resolve().parent
+RACINE = CHAINE.parent  # calage_apports/ est un sibling de src/, pas de ce fichier
 SCRATCH = Path(tempfile.gettempdir()) / "calage_test_plugin"
 ESSAI = SCRATCH / "essai_dialogues"
 
@@ -103,8 +104,8 @@ qgs.initQgis()
 import importlib.util  # noqa: E402
 
 _spec = importlib.util.spec_from_file_location(
-    "calage_apports", CHAINE / "calage_apports" / "__init__.py",
-    submodule_search_locations=[str(CHAINE / "calage_apports")])
+    "calage_apports", RACINE / "calage_apports" / "__init__.py",
+    submodule_search_locations=[str(RACINE / "calage_apports")])
 _paquet = importlib.util.module_from_spec(_spec)
 sys.modules["calage_apports"] = _paquet
 _spec.loader.exec_module(_paquet)

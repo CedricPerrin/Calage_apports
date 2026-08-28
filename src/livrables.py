@@ -644,7 +644,7 @@ def synthese(titre, noms_sections, diagnostics, chemin=None):
 if __name__ == "__main__":
     from criteres import diagnostiquer
 
-    sortie = Path(__file__).parent / "livrables_exemple"
+    sortie = Path(__file__).parent.parent / "livrables_exemple"
     print(f"Production d'un jeu de livrables de demonstration dans :\n  {sortie}\n")
 
     def hydrogramme(t, pic, t_pic=6.0, forme=2.5):

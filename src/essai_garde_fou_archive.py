@@ -22,7 +22,7 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 PROJET = Path(__file__).resolve().parent
-CIBLE = PROJET / "calage_apports" / "noyau.py"
+CIBLE = PROJET.parent / "calage_apports" / "noyau.py"
 PYTHON = sys.executable
 
 FAUTES = [

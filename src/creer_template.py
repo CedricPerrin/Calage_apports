@@ -26,7 +26,7 @@ import pandas as pd
 import style_classeur
 
 DOSSIER = Path(__file__).resolve().parent
-CHEMIN = DOSSIER / "template_donnees_calage.xlsx"
+CHEMIN = DOSSIER.parent / "template_donnees_calage.xlsx"
 
 # (parametre, valeur d'exemple). Le COMMENTAIRE vient de style_classeur, qui
 # le partage avec le classeur compose par le plugin : les deux classeurs

@@ -10,6 +10,69 @@ comportement correct est garanti par les tests, pas par le recit de ce qui
 a echoue avant eux.
 
 
+REORGANISATION DU DEPOT — LA CHAINE PASSE DANS src/ (28/08/2026)
+------------------------------------------------------------------------
+DEMANDE UTILISATEUR : reorganiser proprement le depot Git pour la
+visibilite GitHub.
+
+Les 15 modules .py de la chaine (calage.py, criteres.py, controle_donnees.py,
+geometrie.py, livrables.py, suivi.py, pilote_hecras.py, pont_hecras.py,
+elaguer_projet.py, verification_environnement.py, creer_template.py,
+style_classeur.py, faire_zip.py, essai_garde_fou_archive.py,
+test_plugin_qgis.py) DEMENAGENT dans src/, en bloc, par git mv (historique
+conserve). Leurs imports plats entre eux ne changent pas — ils restent
+siblings. calage_apports/, la note methodologique, le template et
+STATUT.txt restent a la racine du depot.
+
+CE QUI A DU ETRE CORRIGE, PARCE QUE CES FICHIERS REGARDAIENT HORS DE LEUR
+PROPRE DOSSIER :
+  - noyau.chaines_candidates() (et son auto-test, section 8) : cherchait le
+    PARENT du plugin ; cherche desormais src/ SOUS le parent du plugin ;
+  - verification_environnement.py : DOSSIER seul designait a la fois les
+    modules (desormais dans src/) et les documents/le template (restes a la
+    racine) — scinde en DOSSIER (src/) et RACINE (le depot) ;
+  - faire_zip.py : SOURCE et ARCHIVE visaient calage_apports/ et
+    calage_apports.zip a cote de faire_zip.py lui-meme — visent desormais
+    DEPOT (le parent de src/). ATTENTION AU NOM : ce fichier porte deja une
+    variable RACINE (le nom du dossier dans l'archive, "calage_apports") —
+    la nouvelle variable s'appelle DEPOT, pas RACINE, pour ne pas
+    l'ecraser ;
+  - essai_garde_fou_archive.py : CIBLE (calage_apports/noyau.py) vise
+    desormais PROJET.parent ;
+  - controle_donnees.py et creer_template.py (auto-tests / CHEMIN) :
+    visaient template_donnees_calage.xlsx a cote d'eux — visent desormais
+    le parent (racine du depot) ;
+  - livrables.py : la sortie d'exemple (livrables_exemple/) est ecrite
+    desormais a Path(__file__).parent.parent, pour rester visible a la
+    racine plutot que d'atterrir dans src/ ;
+  - test_plugin_qgis.py : le chargement du paquet calage_apports (spec
+    manuel, imports relatifs obligent) visait CHAINE/calage_apports ;
+    ajout de RACINE = CHAINE.parent pour cela — CHAINE reste inchangee la
+    ou elle sert de liste blanche de chemin (ligne ~1110), ce qui est
+    desormais exact puisque CHAINE = src/.
+
+VERIFIE REELLEMENT, PAS SEULEMENT RELU : criteres.py, calage.py, livrables.py
+(sortie confirmee a la racine), suivi.py — tous leurs auto-tests passent
+depuis src/. verification_environnement.py tourne integralement (les 9
+manques restants — geopandas, shapely, pyproj, pyogrio, ras-commander — sont
+des paquets absents de CET interpreteur de verification, sans rapport avec
+le deplacement). noyau.chaines_candidates()/trouver_chaine() verifies
+directement : src/ reconnu comme chaine, la racine ne l'est plus.
+faire_zip.py RECONSTRUIT l'archive et son propre controle passe (jumeaux
+binaires, marqueurs, aucun chemin de poste, aucun nom d'affaire).
+essai_garde_fou_archive.py — l'essai d'integration qui injecte trois fautes
+dans noyau.py puis verifie que l'empaquetage les refuse, restaure la
+source, et reconstruit une archive conforme — passe integralement.
+NON REJOUABLE ICI (module manquant a cet interpreteur) : test_plugin_qgis.py,
+qui exige le Python de QGIS.
+
+PRE-EXISTANT, REMARQUE EN PASSANT, NON CORRIGE : la section « QUELLE CHAINE
+LE PLUGIN EXECUTE » plus bas dans ce fichier decrit encore la regle « la
+plus recente gagne » et mentionne RACINE_OUTILS — l'une et l'autre
+supprimees par LOT PORTABILITE (voir plus bas). Cette section etait deja
+perimee avant la presente reorganisation.
+
+
 UN SEUL DOCUMENT DE METHODE — VERSION 12 (08/08/2026)
 ------------------------------------------------------------------------
 DEMANDE UTILISATEUR : « Fusionne, mets a jour et synthetise au maximum les
@@ -1932,6 +1995,15 @@ passe. Reste a confirmer sur un calage complet : voir POINTS OUVERTS.
 
 CONTENU DU DOSSIER
 ------------------
+DEPUIS LE 28/08/2026, LA CHAINE PYTHON VIT DANS src/ : tous les fichiers
+.py ci-dessous (calage.py a faire_zip.py inclus) y sont, et s'importent
+entre eux comme avant (imports plats, inchanges). calage_apports/ reste au
+meme niveau que src/ (sibling), pas dedans : c'est le nom qui compte pour
+QGIS, pas son parent. noyau.chaines_candidates() cherche donc desormais
+« src/ du parent du plugin », plus le parent lui-meme — voir noyau.py et
+calage_apports/LISEZMOI.md. methodologie_calage_amont_aval.docx,
+template_donnees_calage.xlsx et STATUT.txt restent a la racine du depot.
+
 methodologie_calage_amont_aval.docx
     Note methodologique. Mode operatoire en tete, puis methodologie generale
     (partie 1), application HEC-RAS dont l'interface QGIS (partie 2),
