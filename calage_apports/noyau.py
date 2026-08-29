@@ -89,8 +89,7 @@ def fraicheur(dossier):
 
 def chaines_candidates():
     """
-    Emplacements connus portant une chaine valide, DANS L'ORDRE DE PRIORITE,
-    sans doublon.
+    Emplacements connus portant une chaine valide, DANS L'ORDRE DE PRIORITE.
 
     L'ordre est celui de trouver_chaine() : la copie embarquee d'abord, parce
     qu'elle est celle livree avec CE plugin et la seule dont on reponde ; le
@@ -174,7 +173,13 @@ NOMS_FICHIERS = {
 
 def detacher():
     """
-    Retire du chemin d'import les dossiers de chaine que _raccorder() y a mis.
+    Retire du chemin d'import TOUT dossier reconnu comme une chaine.
+
+    Plus large que ce que _raccorder() y a mis, et deliberement : celui-ci
+    n'insere que si le dossier n'y figure pas deja, si bien qu'on ne peut pas
+    savoir apres coup lequel vient de nous. Consequence assumee : un dossier
+    de chaine que l'utilisateur aurait mis dans son PYTHONPATH est retire
+    aussi.
 
     A appeler au DECHARGEMENT du greffon. _raccorder() insere en tete de
     sys.path des l'import du module, et peut recommencer si la chaine change
@@ -662,9 +667,15 @@ def pentes_locales_apports(dossier_projet, nom_projet, geometrie, chemin_axe,
 # qu'a la composition suivante — sur un classeur silencieusement incomplet,
 # ou la valeur manquante retombait sur le defaut de preparer_classeur.
 #
-# Ici, le contrat s'eprouve en console. La fenetre ne fait plus que lire ses
-# widgets et passer des valeurs simples : elle ne connait plus un seul nom de
-# cle, et n'ecrit plus aucun prefixe de fichier HEC-RAS.
+# Ici, le contrat s'eprouve en console : la fenetre passe des valeurs simples,
+# et c'est cette fonction qui NOMME les cles et pose les prefixes p/g/u.
+#
+# LE DEPLACEMENT EST PARTIEL, ET IL FAUT LE DIRE. _composer_et_controler relit
+# ensuite six cles du dict pour son propre usage — Sens_axe, PK_origine_m,
+# Dossier_projet_HECRAS, Nom_projet, Geometrie_reference, Nom_zone_2D. Ce qui
+# a change est l'ECRITURE du contrat, plus sa lecture : renommer une cle ici
+# casse toujours la-bas, mais la liste des cles, elle, s'eprouve desormais
+# sans QGIS.
 # ---------------------------------------------------------------------------
 
 def parametres_calage(dossier_projet, nom_projet, version_hecras, nom_zone_2d,

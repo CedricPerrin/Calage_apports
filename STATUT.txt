@@ -16,11 +16,12 @@ DEMANDE UTILISATEUR : audit complet du plugin QGIS, puis plan de
 simplification par lots ; lots 1 a 7 valides et appliques.
 
 CE QUE L'AUDIT N'A PAS TROUVE, ET QU'IL FAUT SAVOIR AVANT DE « NETTOYER » :
-aucun code mort, aucun import inutilise, aucune regle de controle dupliquee
-depuis la chaine. Les 18 fonctions de niveau module de plugin.py et les 41
-de noyau.py ont toutes un appelant. LA SIMPLIFICATION N'A DONC PAS CONSISTE
-A SUPPRIMER DU CODE : le diff ajoute 211 lignes de code effectif et 157 de
-commentaire, et n'en retire presque aucune. Le gain est du risque retire.
+aucun code mort, aucun import inutilise, et une seule regle partagee avec la
+chaine — la fenetre de crue, traitee au lot 7. AVANT les lots, les 18 fonctions de niveau module de
+plugin.py et les 41 de noyau.py avaient toutes un appelant. LA SIMPLIFICATION
+N'A DONC PAS CONSISTE A SUPPRIMER DU CODE : sur plugin.py et noyau.py, le diff
+ajoute 231 lignes de code effectif et 179 de commentaire, et n'en retire
+presque aucune. Le gain est du risque retire.
 
 LOT 1 — LA PROMESSE Qt6 N'ETAIT PAS TENUE. Quatre constantes non qualifiees
 subsistaient : QFormLayout.AllNonFixedFieldsGrow (lue a la construction du
@@ -30,19 +31,22 @@ leve AttributeError.
   LA CAUSE EST LE GARDE-FOU LUI-MEME. test_plugin_qgis.py verifiait bien
   qu'aucune constante non qualifiee ne rentre — mais sur SIX classes
   seulement (Qt, QMessageBox, QSizePolicy, QPainter, QLayout, QFrame). Les
-  trois classes fautives n'y etaient pas. La liste couvre desormais DIX-NEUF
-  classes, dont QAbstractItemView, nouvellement importe.
+  trois classes fautives n'y etaient pas. La liste couvre desormais VINGT
+  classes, dont QAbstractItemView, nouvellement importe, et QMetaType.
   Les formes qualifiees de remplacement ont ete VERIFIEES presentes sous le
   Qt5 du poste (QGIS 3.44.8 / Qt 5.15.13) avant d'etre ecrites : la
   correction ne casse rien ici tout en valant sous Qt6.
 
 LOT 2 — RIEN N'ETAIT JOURNALISE, NULLE PART. Ni QgsMessageLog, ni traceback,
-pour 21 blocs except. Une exception ecrite POUR l'utilisateur s'affichait
+pour les 20 blocs « except Exception » que comptait alors plugin.py (24
+gestionnaires en tout, dont 4 a type etroit). Une exception ecrite POUR l'utilisateur s'affichait
 bien ; une autre — un KeyError, par exemple — se reduisait a « 'Nom_zone_2D' »
 et ne laissait aucune trace, ce qui rendait un incident survenu sur un autre
 poste non instruisable. journaliser() ecrit desormais la pile d'appels dans
-le panneau Journal, sous l'etiquette du greffon, en 15 points. CE QUI EST
-AFFICHE N'A PAS CHANGE d'un caractere.
+le panneau Journal, sous l'etiquette du greffon, en 15 points. AUCUN TEXTE DE
+BOITE NE CHANGE — mais le niveau Critical allume le temoin du journal dans la
+barre d'etat, et cela, l'utilisateur le voit. C'est la seule difference
+visible du lot.
   AU PASSAGE : appliquer_styles() collectait ses echecs, et l'appelant les
   JETAIT. Un .qml refuse par QGIS ne se voyait nulle part. Il est journalise.
 
@@ -56,8 +60,12 @@ rien ne distinguait un greffon qui travaille d'un greffon plante.
   DECORATEUR, ET NON EN BLOC « with » : la restitution est garantie par un
   finally sans reindenter cent lignes, et l'on ne peut pas l'oublier — un
   sablier non rendu resterait sur TOUT QGIS jusqu'a la fin de la session.
-  rendre_la_main() le retire avant les deux comptes rendus que l'on LIT ; un
-  restoreOverrideCursor() de trop est inoffensif (verifie).
+  rendre_la_main() le retire avant les deux comptes rendus que l'on LIT.
+  ATTENTION A LA PHRASE QUI A AUTORISE UN DEFAUT : « un restoreOverrideCursor()
+  de trop est inoffensif » est FAUX, et l'essai qui l'avait etabli ne portait
+  que sur une pile VIDE. Qt ne sort en avance que dans ce cas ; sinon il depile
+  le curseur courant, fut-il pose par QGIS. Le decorateur porte donc un drapeau
+  (_sablier_pose) qui garantit UN SEUL restore par set.
 
 LOT 4 — LE DIAGNOSTIC ANNONCAIT « UTILISABLE : OUI » A TORT. Le verdict de
 chaine_disponible() ne portait que sur les paquets tiers : un criteres.py en
@@ -90,7 +98,9 @@ l'etaient que par chance.
   que rien ne lisait, et valeur PERIMEE des le premier definir_chaine().
   Seul comptait l'effet de bord de _raccorder(), desormais appele seul.
 
-LOT 6 — LE CONTRAT DE DIX-HUIT CLES QUITTE LE QDialog. La feuille Parametres
+LOT 6 — L'ECRITURE DU CONTRAT DE DIX-HUIT CLES QUITTE LE QDialog. Son
+ECRITURE seulement : _composer_et_controler relit ensuite six de ces cles pour
+son propre usage, et c'est assume. La feuille Parametres
 etait construite dans _composer_et_controler : un renommage cote chaine
 cassait a un endroit qu'aucun essai hors QGIS ne pouvait atteindre, et le
 defaut ne se voyait qu'a la composition suivante, sur un classeur
@@ -115,6 +125,9 @@ regle a le droit d'exister en double, elle n'a plus le droit de diverger.
   ouverture a l'autre, survivait au dechargement : cablee sur un module
   disparu, son premier clic executait du code decharge — le scenario ordinaire
   du developpement avec Plugin Reloader. Elle est fermee.
+  RESERVE CONNUE : iface.addToolBar() place aussi le toggleViewAction() de la
+  barre dans le menu Vue > Barres d'outils, et removeToolBar() ne l'en retire
+  pas. Cette entree de menu survit donc encore au dechargement.
   LA BARRE D'OUTILS : « del self.barre » ne larguait que la reference Python.
   Selon l'annotation SIP de iface.addToolBar(), le QToolBar peut rester
   parente a la fenetre principale de QGIS et survivre au dechargement, un
@@ -125,8 +138,11 @@ regle a le droit d'exister en double, elle n'a plus le droit de diverger.
   liberation. L'ESSAI QUI TRANCHERAIT, a faire un jour dans une vraie session :
   charger, decharger, recharger depuis le gestionnaire d'extensions, et
   compter les barres « Calage des apports ».
-  noyau.detacher() retire enfin la chaine de sys.path, que _raccorder()
-  y avait mise des l'import.
+  noyau.detacher() retire enfin la chaine de sys.path. Il en retire meme un
+  peu plus que _raccorder() n'y avait mis : celui-ci n'insere que si le dossier
+  n'y figure pas deja, si bien qu'on ne peut pas savoir apres coup lequel vient
+  de nous. Un dossier de chaine place la par l'utilisateur (PYTHONPATH) est
+  donc retire aussi.
 
 DEUX CORRECTIONS HORS LOTS, faites parce qu'elles bloquaient la verification :
   - verifier_interpreteur(None) levait TypeError sur Path(None), la ou ses
@@ -136,8 +152,42 @@ DEUX CORRECTIONS HORS LOTS, faites parce qu'elles bloquaient la verification :
   - le mannequin BoiteMessage de test_plugin_qgis.py n'avait pas suivi la
     0.4.0 : il n'offrait que les constantes plates, quand le greffon ecrit
     QMessageBox.StandardButton.Yes. _diagnostic() y levait AttributeError,
-    mais seulement sur un poste OU L'INTERPRETEUR MANQUE — la seule branche
-    qui pose une question. Jamais atteinte ici, toujours atteinte ailleurs.
+    mais seulement sur un poste ou la chaine OU l'interpreteur manque — ses
+    deux seules branches qui posent une question. Jamais atteintes ici,
+    toujours atteintes ailleurs.
+
+UNE REVUE INDEPENDANTE A SUIVI, ET ELLE A TROUVE UN BLOQUANT. Cinq
+relecteurs, chacun suivi d'un contradicteur charge de DETRUIRE ses constats.
+
+  LE LOT 3 FAISAIT TOMBER QGIS. @avec_sablier etait ecrit
+  « def enveloppe(self, *args, **kwargs) ». PyQt decide du nombre d'arguments
+  a transmettre a un slot d'apres la signature de l'appelable : une enveloppe
+  *args passe pour tout accepter, et clicked(bool) lui transmet son
+  « checked ». methode(self, False) levait TypeError DANS un slot Qt, ce que
+  PyQt >= 5.5 traite par abort(). Les CINQ boutons principaux etaient
+  concernes. Mesure sur PyQt 5.15.11 : une enveloppe *args recoit (False,).
+
+  ET LE BANC D'ESSAI ETAIT VERT. Il l'etait parce qu'il appelle les methodes
+  DIRECTEMENT, jamais par le signal — exactement l'angle mort qu'avait le
+  controle Qt6 avant d'etre elargi. « test_plugin_qgis.py passe » ne voulait
+  donc rien dire sur ce point-la. Trois essais eprouvent desormais le
+  decorateur PAR un vrai clicked, et deux autres la suspension du sablier.
+
+  LE MANNEQUIN RENDAIT LA MOITIE DE unload() INATTEIGNABLE : Iface.mainWindow()
+  rendait None, si bien que la branche removeToolBar() — le coeur du lot 7 —
+  n'etait jamais executee, et son unique controle etait « verifier(..., True) ».
+  Le mannequin rend desormais une vraie QMainWindow et une vraie QToolBar, et
+  quatre essais constatent ce que unload() a reellement defait.
+
+  ONZE SURPROMESSES DE DOCUMENTATION corrigees, dont trois qui comptent : « un
+  restoreOverrideCursor() de trop est inoffensif » etait FAUX (Qt ne sort en
+  avance que sur une pile VIDE) et c'est cette phrase qui avait autorise le
+  double restore ; « la fenetre ne connait plus un seul nom de cle » etait faux
+  (elle en relit six) ; « 63 des 271 ko » comparait du decompresse a du
+  compresse (62 ko de texte, 10 ko dans le zip).
+
+  LE SABLIER SE SUSPEND desormais devant les quatre boites qui attendent
+  l'utilisateur — deux selecteurs de fichier, une liste de choix, une question.
 
 ETAT DE LA VERIFICATION (29/08/2026, QGIS 3.44.8-Solothurn, Qt 5.15.13) :
 test_plugin_qgis.py passe, aux 3 echecs pres qui tiennent tous a l'absence
@@ -147,7 +197,7 @@ livrables_exemple/ a ete restaure apres coup : l'auto-test de livrables.py le
 regenere, et ce n'etait pas l'objet de ces lots.
 
 LOT 8 NON FAIT, ET DELIBEREMENT. Le decoupage de DialogueParametrage
-(2 118 lignes, 49 methodes, 63 attributs partages) deplacerait ~2 000 lignes
+(2 185 lignes, 51 methodes, 64 attributs partages) deplacerait ~2 000 lignes
 sans en supprimer une seule ni changer un comportement. Il ne se justifie que
 si le greffon doit continuer a grandir. Si un jour : commencer par
 _onglet_aide, le seul qui ne partage presque aucun etat.

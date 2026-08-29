@@ -138,9 +138,18 @@ class Iface:
     def __init__(self):
         self.barre = BarreMessages()
         self.menus, self.barres = [], []
+        self._fenetre_principale = None
 
+    # UNE VRAIE QMainWindow, ET UNE VRAIE QToolBar. Ce mannequin rendait None
+    # a mainWindow() et un talon a addToolBar() : la branche removeToolBar()
+    # de unload() — le coeur du lot 7 — etait par construction inatteignable,
+    # et son unique controle se resumait a « verifier(..., True) ». Avec les
+    # vrais objets Qt, le retrait s'execute et se constate.
     def mainWindow(self):  # noqa: N802
-        return None
+        from qgis.PyQt.QtWidgets import QMainWindow
+        if self._fenetre_principale is None:
+            self._fenetre_principale = QMainWindow()
+        return self._fenetre_principale
 
     def messageBar(self):  # noqa: N802
         return self.barre
@@ -159,15 +168,16 @@ class Iface:
     def removePluginVectorMenu(self, menu, action):  # noqa: N802
         pass
 
+    # UNE VRAIE QToolBar, PARENTEE A LA VRAIE FENETRE PRINCIPALE, comme le
+    # fait QGIS. Un talon suffisait tant que unload() se contentait d'un
+    # « del » ; il ne suffit plus des lors que le greffon appelle
+    # removeToolBar(), qui exige un QToolBar et rien d'autre.
     def addToolBar(self, nom):  # noqa: N802
-        class Barre:
-            def addAction(self, a):  # noqa: N802
-                pass
-
-            def setObjectName(self, n):  # noqa: N802
-                pass
+        from qgis.PyQt.QtWidgets import QToolBar
         self.barres.append(nom)
-        return Barre()
+        barre = QToolBar(nom, self.mainWindow())
+        self.mainWindow().addToolBar(barre)
+        return barre
 
 
 class DialogueTexte:
@@ -1217,7 +1227,18 @@ _PORTEES_CONNUES = (
 # QTableWidget n'y etaient pas, et quatre constantes non qualifiees y sont
 # restees — dont QFormLayout.AllNonFixedFieldsGrow, lue a la construction du
 # PREMIER formulaire, donc a l'ouverture de la fenetre. La liste couvre
-# desormais toutes les classes du plugin qui portent des enumerations.
+# desormais vingt classes.
+#
+# QMetaType Y FIGURE, et pas seulement parce qu'il est bien ecrit aujourd'hui :
+# constater un usage n'est pas poser une regle. QMetaType.QString leverait
+# AttributeError sous PyQt6 a la construction de tout QgsField, donc des
+# « Charger les couches du modele ».
+#
+# UNE SEULE CLASSE EN EST VOLONTAIREMENT ABSENTE : QVariant, employe sous sa
+# forme PLATE (QVariant.String), et c'est voulu — cette branche ne s'execute
+# que sur QGIS < 3.38, donc sous PyQt5, ou la forme plate est la seule qui
+# existe. L'y interdire casserait le repli qui fait tenir la promesse
+# qgisMinimumVersion=3.34.
 for _classe, _portees in (("Qt", _PORTEES_CONNUES),
                           ("QMessageBox", "StandardButton|Icon|ButtonRole"),
                           ("QSizePolicy", "Policy|ControlType"),
@@ -1231,9 +1252,14 @@ for _classe, _portees in (("Qt", _PORTEES_CONNUES),
                           ("QAbstractItemView",
                            "EditTrigger|SelectionMode|SelectionBehavior|"
                            "ScrollMode|ScrollHint|DragDropMode"),
+                          # MEMES PORTEES QUE QAbstractItemView, dont il
+                          # herite : une portee presente chez le parent et
+                          # absente ici ferait denoncer une ecriture pourtant
+                          # parfaitement qualifiee (QTableWidget.DragDropMode.
+                          # InternalMove) comme une constante nue.
                           ("QTableWidget",
                            "EditTrigger|SelectionMode|SelectionBehavior|"
-                           "ScrollMode|ScrollHint"),
+                           "ScrollMode|ScrollHint|DragDropMode"),
                           ("QHeaderView", "ResizeMode"),
                           ("QDialog", "DialogCode"),
                           ("QLineEdit", "EchoMode|ActionPosition"),
@@ -1244,9 +1270,18 @@ for _classe, _portees in (("Qt", _PORTEES_CONNUES),
                           ("QIcon", "Mode|State"),
                           ("QPalette", "ColorRole|ColorGroup"),
                           ("QFont",
-                           "Weight|Style|Capitalization|StyleHint")):
+                           "Weight|Style|Capitalization|StyleHint"),
+                          ("QMetaType", "Type")):
+    # LE LOOKAHEAD EST ANCRE PAR \b, ET CE N'EST PAS UN DETAIL. Sans lui, il
+    # suffisait qu'une portee connue soit le PREFIXE du membre pour que celui-ci
+    # echappe au controle : « Key » figurant dans _PORTEES_CONNUES, toute la
+    # famille Qt.Key_Return / Qt.Key_Escape — la plus nombreuse des constantes
+    # Qt, et cassante sous PyQt6 — n'etait pas vue. Mesure : sur « Qt.Key_Return »
+    # l'ancienne expression ne rendait rien, la nouvelle rend « Key_Return ».
+    # Le [A-Za-z_0-9] capture en outre les membres a underscore ou a chiffre,
+    # que [A-Za-z] tronquait.
     _nus = sorted(set(re.findall(
-        rf"\b{_classe}\.(?!{_portees})([A-Z][A-Za-z]+)",
+        rf"\b{_classe}\.(?!(?:{_portees})\b)([A-Z][A-Za-z_0-9]+)",
         Path(mod_plugin.__file__).read_text(encoding="utf-8"))))
     verifier(f"aucune constante {_classe} non qualifiee (Qt6)",
              not _nus, ", ".join(_nus[:4]) or "aucune")
@@ -1271,6 +1306,21 @@ verifier("la fenetre de crue est nommee des deux cotes",
 verifier("la fenetre de crue ne diverge pas entre greffon et livrables",
          _CRUE["greffon"] == _CRUE["livrables"],
          f"greffon={_CRUE['greffon']} | livrables={_CRUE['livrables']}")
+
+# ET LES DEUX SIGNATURES DOIVENT LIRE CES CONSTANTES. Comparer les constantes
+# ne suffit pas : ecrire « def _fenetre_crue(paires, seuil=0.05, ...) » en
+# laissant SEUIL_CRUE = 0.02 juste au-dessus laisserait les deux controles
+# ci-dessus au vert pendant que les deux fenetres divergent — exactement ce
+# que ce garde-fou existe pour empecher.
+_SIGN = {}
+for _quel, _fichier in (("greffon", Path(mod_plugin.__file__)),
+                        ("livrables", CHAINE / "livrables.py")):
+    _m = re.search(r"def _fenetre_crue\((.*?)\):",
+                   _fichier.read_text(encoding="utf-8"), re.S)
+    _SIGN[_quel] = _m.group(1) if _m else ""
+verifier("les deux signatures de crue lisent les constantes, pas des litteraux",
+         all("SEUIL_CRUE" in s and "MARGE_CRUE_H" in s for s in _SIGN.values()),
+         " | ".join(f"{q}: {' '.join(s.split())[:60]}" for q, s in _SIGN.items()))
 
 # Le nom du DOSSIER est le nom du paquet pour QGIS, et le repertoire sous
 # lequel l'extension s'installe. « qgis_plugin » l'installait sous un nom
@@ -1355,6 +1405,100 @@ verifier("une seconde ouverture reutilise la meme fenetre",
          (lambda f: (p.composer(), p.fenetre is f)[1])(p.fenetre))
 p.fenetre.close()
 
+
+# LE SABLIER DOIT SURVIVRE A UN VRAI SIGNAL.
+#
+# @avec_sablier a fait TOMBER QGIS. Ecrite « enveloppe(self, *args) », elle
+# passait aupres de PyQt pour accepter n'importe quoi, et clicked(bool) lui
+# transmettait son « checked » : methode(self, False) levait TypeError DANS un
+# slot Qt, ce que PyQt >= 5.5 traite par abort(). Les cinq boutons principaux
+# du greffon etaient concernes.
+#
+# CE BANC NE POUVAIT PAS LE VOIR : il appelle les methodes directement, jamais
+# par le signal. C'est exactement l'angle mort qu'avait le controle Qt6 avant
+# d'etre elargi. On eprouve donc le decorateur PAR LE SIGNAL, sur une methode
+# jetable — les vraies ecrivent sur le disque et ne peuvent pas etre cliquees
+# ici.
+from qgis.PyQt.QtCore import Qt                              # noqa: E402
+from qgis.PyQt.QtWidgets import QApplication, QPushButton, QWidget  # noqa: E402
+
+_temoin_sablier = []
+
+
+class _CobayeSablier(QWidget):
+    @mod_plugin.avec_sablier
+    def action(self):
+        _temoin_sablier.append(QApplication.overrideCursor() is not None)
+
+
+_cobaye = _CobayeSablier()
+_bouton_essai = QPushButton("essai", _cobaye)
+_bouton_essai.clicked.connect(_cobaye.action)
+_incident_sablier = None
+try:
+    _bouton_essai.click()
+except Exception as _e:                                      # noqa: BLE001
+    _incident_sablier = f"{type(_e).__name__}: {_e}"
+verifier("le sablier survit a un vrai clic (aucun argument parasite)",
+         _temoin_sablier == [True] and _incident_sablier is None,
+         f"execute={_temoin_sablier} incident={_incident_sablier or 'aucun'}")
+verifier("le sablier est rendu apres le clic",
+         QApplication.overrideCursor() is None,
+         "aucun curseur residuel" if QApplication.overrideCursor() is None
+         else f"IL EN RESTE UN : {QApplication.overrideCursor().shape()}")
+
+# Et il ne doit pas depiler le curseur de quelqu'un d'autre : rendre_la_main()
+# est appele AVANT une boite, puis le finally du decorateur restaure une
+# seconde fois. Un restore de trop depile le curseur courant des que la pile
+# n'est pas vide — celui de QGIS, par exemple.
+QApplication.setOverrideCursor(Qt.CursorShape.CrossCursor)
+_avant_tiers = QApplication.overrideCursor().shape()
+
+
+class _CobayeRendu(QWidget):
+    @mod_plugin.avec_sablier
+    def action(self):
+        mod_plugin.rendre_la_main(self)
+
+
+_c2 = _CobayeRendu()
+_b2 = QPushButton("essai", _c2)
+_b2.clicked.connect(_c2.action)
+_b2.click()
+_apres_tiers = QApplication.overrideCursor()
+verifier("le sablier ne depile pas le curseur d'un tiers",
+         _apres_tiers is not None and _apres_tiers.shape() == _avant_tiers,
+         f"avant={_avant_tiers} apres="
+         f"{None if _apres_tiers is None else _apres_tiers.shape()}")
+QApplication.restoreOverrideCursor()
+
+
+# LE SABLIER SE SUSPEND DEVANT UNE BOITE QUI ATTEND L'UTILISATEUR. Un
+# selecteur de fichier peut rester ouvert des minutes : le sablier y
+# designerait un calcul qui n'a pas lieu.
+
+
+class _CobayeSuspension(QWidget):
+    @mod_plugin.avec_sablier
+    def action(self):
+        _suspension.append(("avant", QApplication.overrideCursor() is not None))
+        with mod_plugin.sans_sablier(self):
+            _suspension.append(("pendant", QApplication.overrideCursor() is not None))
+        _suspension.append(("apres", QApplication.overrideCursor() is not None))
+
+
+_suspension = []
+_c3 = _CobayeSuspension()
+_b3 = QPushButton("essai", _c3)
+_b3.clicked.connect(_c3.action)
+_b3.click()
+verifier("le sablier se retire devant une boite, puis revient",
+         _suspension == [("avant", True), ("pendant", False), ("apres", True)],
+         str(_suspension))
+verifier("aucun sablier ne subsiste apres la suspension",
+         QApplication.overrideCursor() is None,
+         "aucun" if QApplication.overrideCursor() is None else "IL EN RESTE UN")
+
 verifier("fil conducteur renseigne et coherent",
          "Modèle chargé" in dlg.label_fil.text()
          and "Paquet composé" in dlg.label_fil.text(),
@@ -1369,8 +1513,34 @@ verifier("diagnostic repris dans l'onglet", bool(dlg.label_diagnostic.text()),
 
 # ---------------------------------------------------------------------------
 print("\n7. DECHARGEMENT")
+_barre_avant = p.barre
+_fenetre_avant = p.fenetre
 p.unload()
 verifier("unload sans erreur", True)
+# CE QUE unload() DOIT AVOIR DEFAIT, et qui ne se constatait pas : la barre
+# d'outils retiree de la fenetre principale, la fenetre non modale fermee, la
+# liste d'actions videe, et la chaine sortie de sys.path.
+# CE QUE removeToolBar() GARANTIT, ET RIEN DE PLUS : la barre quitte la
+# disposition et est MASQUEE ; elle n'est pas detruite et reste enfant de la
+# fenetre principale. C'est suffisant — une barre masquee et delistee ne se
+# duplique pas au rechargement — et c'est ce qu'il faut eprouver, pas sa
+# destruction.
+from qgis.PyQt.QtCore import Qt as _Qt                        # noqa: E402
+verifier("unload masque la barre d'outils et la sort de la disposition",
+         not _barre_avant.isVisible()
+         and iface.mainWindow().toolBarArea(_barre_avant)
+         == _Qt.ToolBarArea.NoToolBarArea,
+         f"visible={_barre_avant.isVisible()} "
+         f"zone={iface.mainWindow().toolBarArea(_barre_avant)}")
+verifier("unload ferme la fenetre non modale",
+         p.fenetre is None and (_fenetre_avant is None
+                                or not _fenetre_avant.isVisible()),
+         f"fenetre={p.fenetre}")
+verifier("unload vide la liste des actions", p.actions == [],
+         f"{len(p.actions)} action(s) restantes")
+verifier("unload retire la chaine de sys.path",
+         not any(mod_plugin.noyau.est_chaine(c) for c in sys.path),
+         "aucune chaine sur sys.path")
 
 print("\n" + "=" * 74)
 if echecs:

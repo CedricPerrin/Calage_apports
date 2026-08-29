@@ -1029,29 +1029,83 @@ def journaliser(contexte, exception=None):
 # par un finally sans avoir a reindenter cent lignes, et surtout on ne peut
 # pas l'oublier — un sablier non rendu reste sur TOUT QGIS jusqu'a la fin de
 # la session, ce qui serait pire que pas de sablier du tout.
+#
+# L'ENVELOPPE NE PREND QUE self, ET C'EST VITAL. Ecrite « (self, *args) »,
+# elle faisait tomber QGIS. PyQt decide du nombre d'arguments a transmettre a
+# un slot d'apres la signature de l'appelable : une enveloppe *args passe pour
+# tout accepter, et clicked(bool) lui transmet alors son « checked ». Les cinq
+# methodes decorees ne prennent que self — methode(self, False) levait donc
+# TypeError DANS un slot Qt, ce que PyQt >= 5.5 traite par abort(). Mesure sur
+# PyQt 5.15.11 : une enveloppe *args recoit (False,), une enveloppe (self) ne
+# recoit rien. Le banc d'essai ne pouvait pas le voir — il appelle les
+# methodes directement, jamais par le signal.
+#
+# COROLLAIRE : ce decorateur ne convient qu'aux methodes SANS argument. C'est
+# le cas des cinq, et ce sont toutes des slots.
 # ---------------------------------------------------------------------------
 
 def avec_sablier(methode):
     """Curseur d'attente pendant toute la methode, rendu quoi qu'il arrive."""
     @functools.wraps(methode)
-    def enveloppe(self, *args, **kwargs):
+    def enveloppe(self):
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        self._sablier_pose = True
         try:
-            return methode(self, *args, **kwargs)
+            return methode(self)
         finally:
-            QApplication.restoreOverrideCursor()
+            if getattr(self, "_sablier_pose", False):
+                QApplication.restoreOverrideCursor()
+                self._sablier_pose = False
     return enveloppe
 
 
-def rendre_la_main():
+def rendre_la_main(fenetre):
     """
     Retire le sablier avant une boite que l'utilisateur va LIRE.
 
-    Sans effet s'il n'y en a pas : Qt ignore un restoreOverrideCursor() de
-    trop (verifie). C'est ce qui permet de rendre la main ici tout en laissant
-    le finally du decorateur faire son office sur le chemin d'erreur.
+    UN SEUL restore PAR set, ET C'EST LA RAISON DU DRAPEAU. Un
+    restoreOverrideCursor() de trop n'est inoffensif que si la pile est VIDE ;
+    sinon il depile le curseur courant, fut-il pose par QGIS lui-meme. Rendre
+    la main ici PUIS laisser le finally du decorateur restaurer une seconde
+    fois aurait donc pu retirer le curseur de quelqu'un d'autre.
     """
-    QApplication.restoreOverrideCursor()
+    if getattr(fenetre, "_sablier_pose", False):
+        QApplication.restoreOverrideCursor()
+        fenetre._sablier_pose = False
+
+
+def sans_sablier(fenetre):
+    """
+    Suspend le sablier le temps d'une boite qui ATTEND L'UTILISATEUR.
+
+    Un selecteur de fichier ou une question oui/non peut rester ouvert
+    plusieurs minutes : le sablier y designerait un calcul qui n'a pas lieu,
+    et c'est l'utilisateur qu'on attend. Il est repose a la fermeture de la
+    boite, le travail n'etant pas fini pour autant.
+
+    S'emploie en bloc « with » a l'INTERIEUR d'une methode decoree par
+    @avec_sablier ; hors d'une telle methode, ne fait rien.
+    """
+    return _SablierSuspendu(fenetre)
+
+
+class _SablierSuspendu:
+    def __init__(self, fenetre):
+        self.fenetre = fenetre
+        self.etait_pose = False
+
+    def __enter__(self):
+        self.etait_pose = getattr(self.fenetre, "_sablier_pose", False)
+        if self.etait_pose:
+            QApplication.restoreOverrideCursor()
+            self.fenetre._sablier_pose = False
+        return self
+
+    def __exit__(self, *_):
+        if self.etait_pose:
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+            self.fenetre._sablier_pose = True
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -2265,9 +2319,10 @@ class DialogueParametrage(QDialog):
         """Lit le débit calculé à une section ou à une injection, et l'exporte."""
         try:
             depart = self.edit_dossier_hecras.text().strip()
-            plan, _ = QFileDialog.getOpenFileName(
-                self, "Fichier de résultats HEC-RAS", depart,
-                "Résultats HEC-RAS (*.hdf)")
+            with sans_sablier(self):
+                plan, _ = QFileDialog.getOpenFileName(
+                    self, "Fichier de résultats HEC-RAS", depart,
+                    "Résultats HEC-RAS (*.hdf)")
             if not plan:
                 return
 
@@ -2284,9 +2339,10 @@ class DialogueParametrage(QDialog):
                      + [(f"{n}  (injection)", "Boundary Conditions")
                         for n in objets["apports"]])
             libelles = [c[0] for c in choix]
-            libelle, valide = QInputDialog.getItem(
-                self, "Objet à relire",
-                "Section de contrôle ou injection :", libelles, 0, False)
+            with sans_sablier(self):
+                libelle, valide = QInputDialog.getItem(
+                    self, "Objet à relire",
+                    "Section de contrôle ou injection :", libelles, 0, False)
             if not valide:
                 return
             nom, groupe = choix[libelles.index(libelle)]
@@ -2741,7 +2797,17 @@ class DialogueParametrage(QDialog):
             # laisse desormais un temoin : un onglet Suivi devenu muet le
             # restait jusqu'a la fin de la session, et rien, nulle part,
             # n'en donnait la raison.
-            journaliser("Rafraichissement du suivi", e)
+            #
+            # UNE SEULE FOIS PAR PANNE. Ce code s'execute toutes les deux
+            # secondes tant que l'onglet est a l'ecran, et une panne de
+            # peinture se repete a chaque tour : journaliser sans filtre
+            # ecrivait une pile d'appels complete toutes les deux secondes et
+            # rallumait d'autant le temoin du journal de QGIS. On ne rejournalise
+            # que si la panne CHANGE.
+            signature = f"{type(e).__name__}: {e}"
+            if signature != getattr(self, "_derniere_panne_suivi", None):
+                self._derniere_panne_suivi = signature
+                journaliser("Rafraichissement du suivi", e)
             return
 
     def _peindre_suivi(self):
@@ -3089,8 +3155,10 @@ class DialogueParametrage(QDialog):
             # moyen de savoir a la lecture d'ou vient « classeur ».
             depart = str(self.classeur
                          or self.edit_dossier_sortie.text().strip())
-            classeur, _ = QFileDialog.getOpenFileName(
-                self, "Classeur de calage", depart, "Classeur Excel (*.xlsx)")
+            with sans_sablier(self):
+                classeur, _ = QFileDialog.getOpenFileName(
+                    self, "Classeur de calage", depart,
+                    "Classeur Excel (*.xlsx)")
             if not classeur:
                 return
             self.classeur = classeur
@@ -3107,7 +3175,7 @@ class DialogueParametrage(QDialog):
             boite.setText(f"{len(erreurs)} erreur(s), "
                           f"{len(avertissements)} avertissement(s)")
             boite.setDetailedText(texte_rapport_controle(anomalies, tableau))
-            rendre_la_main()
+            rendre_la_main(self)
             boite.exec()
             self._maj_onglet_validation_depuis_classeur()
         except Exception as e:
@@ -3224,13 +3292,16 @@ class DialogueParametrage(QDialog):
                 f"parti sur un réglage autre que celui affiché.")
             return
         if etat["manquantes"]:
-            reponse = QMessageBox.question(
-                self, "Hydrogrammes cibles incomplets",
-                f"{len(etat['manquantes'])} section(s) sans hydrogramme "
-                f"cible exploitable : {', '.join(etat['manquantes'])}.\n\n"
-                f"Le calage sur ces apports ne peut pas démarrer sans cible. "
-                f"Lancer quand même (les apports concernés seront ignorés) ?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            with sans_sablier(self):
+                reponse = QMessageBox.question(
+                    self, "Hydrogrammes cibles incomplets",
+                    f"{len(etat['manquantes'])} section(s) sans hydrogramme "
+                    f"cible exploitable : {', '.join(etat['manquantes'])}.\n\n"
+                    f"Le calage sur ces apports ne peut pas démarrer sans "
+                    f"cible. Lancer quand même (les apports concernés seront "
+                    f"ignorés) ?",
+                    QMessageBox.StandardButton.Yes
+                    | QMessageBox.StandardButton.No)
             if reponse != QMessageBox.StandardButton.Yes:
                 return
         try:
@@ -3548,7 +3619,7 @@ class DialogueParametrage(QDialog):
             boite.setDetailedText(texte_rapport_controle(anomalies, tableau))
             rendre_redimensionnable(boite)
             # Le travail est fini : le compte rendu se lit sans sablier.
-            rendre_la_main()
+            rendre_la_main(self)
             boite.exec()
             self._maj_resume()
             self._maj_onglet_validation()
@@ -3602,7 +3673,12 @@ class PluginCalage:
 
     def unload(self):
         """
-        Defait ce que initGui a fait — et rien de moins.
+        Defait ce que initGui a fait — l'essentiel, sinon tout.
+
+        RESERVE CONNUE : iface.addToolBar() n'ajoute pas qu'un QToolBar, il
+        place aussi son toggleViewAction() dans le menu Vue > Barres d'outils.
+        removeToolBar() ne l'en retire pas, et cette entree survit donc au
+        dechargement.
 
         LA FENETRE D'ABORD. Elle est NON MODALE et conservee d'une ouverture a
         l'autre : la fermer ne la detruit pas. Elle survivait donc au

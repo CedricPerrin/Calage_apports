@@ -1230,9 +1230,12 @@ Sous console cp1252, préfixer par `PYTHONIOENCODING=utf-8`.
 
 1. **`classFactory` dans `calage_apports/__init__.py`** n'a aucun appelant
    dans le code : c'est **QGIS** qui l'appelle par son nom.
-2. **`DOSSIER_CHAINE = _raccorder()` dans `noyau.py`** : la valeur n'est lue
-   que par l'auto-test, mais l'appel insère la chaîne dans `sys.path` à
-   l'import. Ligne porteuse déguisée en constante morte.
+2. **`_raccorder()` appelé seul au niveau module dans `noyau.py`** : un appel
+   nu, dont on serait tenté de croire qu'il ne sert à rien. C'est lui qui
+   insère la chaîne dans `sys.path` à l'import du module. Il portait
+   auparavant le nom `DOSSIER_CHAINE`, retiré le 29/08/2026 : personne ne
+   lisait cette valeur, et elle devenait fausse dès le premier
+   `definir_chaine()`. Ne pas la réintroduire.
 3. **La politique d'encodage est dupliquée dans trois modules**
    (`pilote_hecras._lire_texte`, `elaguer_projet._lire_texte`,
    `noyau._lire_texte_hecras`) parce qu'ils ne peuvent pas partager de code.

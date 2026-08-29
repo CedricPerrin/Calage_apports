@@ -226,7 +226,8 @@ if __name__ == "__main__":
         # le defaut serait rentre : un fichier de style se regenere d'un clic
         # droit « Enregistrer le style » DANS UN PROJET D'AFFAIRE, et emporte
         # alors volontiers un nom de couche client ou le chemin de sa source
-        # de donnees. 63 des 271 ko de l'archive n'etaient pas regardes.
+        # de donnees. Les trois .qml pesent 62 ko de texte — 10 ko une fois
+        # compresses, sur une archive de 271 ko — et aucun n'etait regarde.
         for nom in noms:
             if not nom.endswith((".py", ".md", ".txt", ".qml")):
                 continue
