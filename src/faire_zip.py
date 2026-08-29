@@ -222,8 +222,13 @@ if __name__ == "__main__":
         affaires = re.compile(
             r"Las[_ ]?Hies|Kondiztegi|Ourse|Ardanavy|CETTE_TEST|CASTEST"
             r"|KON_\d|LH[2-8]\b|OneDrive|1-AFFAIRES", re.IGNORECASE)
+        # LES .qml EN FONT PARTIE. Ils n'y etaient pas, et c'est par la que
+        # le defaut serait rentre : un fichier de style se regenere d'un clic
+        # droit « Enregistrer le style » DANS UN PROJET D'AFFAIRE, et emporte
+        # alors volontiers un nom de couche client ou le chemin de sa source
+        # de donnees. 63 des 271 ko de l'archive n'etaient pas regardes.
         for nom in noms:
-            if not nom.endswith((".py", ".md", ".txt")):
+            if not nom.endswith((".py", ".md", ".txt", ".qml")):
                 continue
             texte = zf.read(nom).decode("utf-8", errors="replace")
             for brut in chemins_absolus.findall(texte):

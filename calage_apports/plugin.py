@@ -17,10 +17,13 @@ Les calculs longs ne passent jamais par ici : un calage represente des heures
 et figerait l'interface.
 """
 
+import functools
 import os
+import traceback
 from pathlib import Path
 
 from qgis.core import (
+    Qgis,
     QgsCoordinateReferenceSystem,
     QgsFeature,
     QgsField,
@@ -28,6 +31,7 @@ from qgis.core import (
     QgsGeometry,
     QgsMapLayerProxyModel,
     QgsMeshLayer,
+    QgsMessageLog,
     QgsProject,
     QgsVectorLayer,
     QgsWkbTypes,
@@ -36,7 +40,9 @@ from qgis.gui import QgsFieldComboBox, QgsMapLayerComboBox
 from qgis.PyQt.QtCore import QMetaType, QSettings, Qt, QTimer
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import (
+    QAbstractItemView,
     QAction,
+    QApplication,
     QComboBox,
     QDialog,
     QDoubleSpinBox,
@@ -408,7 +414,7 @@ def construire_couche_polygones_depuis_wkt(nom_couche, entites, crs_authid):
 #
 # Couleurs RELEVEES sur les visuels de la charte (charte/), pas devinees :
 #   - le pictogramme du domaine « Prevention des inondations & ouvrages de
-#     protection » — celui de ce projet — donne le violet d'accent ;
+#     protection » — celui de ce projet — donne le teal d'accent ;
 #   - la frise institutionnelle donne le bleu ardoise.
 # Typographie de la charte : Helvetica Neue. Elle n'est pas installee de
 # serie sous Windows ; Arial en est le substitut metrique usuel, d'ou la
@@ -422,8 +428,15 @@ def construire_couche_polygones_depuis_wkt(nom_couche, entites, crs_authid):
 NOM_PLUGIN = "Calage des apports"
 EDITEUR = "ISL Ingénierie"
 
-# Pente de la ligne d'energie d'un apport cree (« Flow Hydrograph Slope »).
-# Valeur de depart seulement : elle depend du troncon et se saisit a l'onglet 1.
+# Pente de la ligne d'energie d'un apport CREE (« Flow Hydrograph Slope »).
+#
+# ELLE NE SE SAISIT NULLE PART, contrairement a ce que ce commentaire a
+# longtemps promis : aucun champ ne lui a jamais correspondu a l'onglet 1.
+# Elle ne sert qu'a donner sa pente a une injection au moment ou on l'ecrit
+# dans l'Unsteady Flow, faute de mieux. La pente REELLE de chaque apport est
+# calculee sur le profil en long et pre-remplie par apport dans le classeur
+# (noyau.pentes_locales_apports) : c'est la, et seulement la, qu'elle se lit
+# et se corrige.
 PENTE_APPORT_DEFAUT = 0.01
 
 # Titre de la copie de travail de la geometrie. Ce n'est PLUS un champ de
@@ -443,6 +456,23 @@ NOM_CLONE_GEOMETRIE_DEFAUT = "Geometrie_calage"
 TOLERANCE_VOLUME_DEFAUT = 0.05
 TOLERANCE_PIC_DEFAUT = 0.02
 TOLERANCE_FORME_DEFAUT = 0.03
+
+# Fenetre de crue : bornes hors desquelles il ne se passe rien d'interessant.
+#
+# LA REGLE EXISTE EN DEUX EXEMPLAIRES, ET C'EST ASSUME. Le greffon la traite
+# dans un paintEvent rafraichi toutes les deux secondes ; livrables.py la
+# traite sur des tableaux numpy, pour une figure matplotlib. Fusionner les
+# deux ferait entrer matplotlib — et la chaine entiere — dans le fil
+# graphique de QGIS, pour cadrer un trace de deux courbes.
+#
+# CE QUI EST INTERDIT, C'EST QU'ELLES DIVERGENT. Les deux valeurs sont donc
+# NOMMEES des deux cotes, et test_plugin_qgis.py verifie qu'elles sont
+# egales : le jour ou l'une bouge, le banc le dit, au lieu de laisser la
+# courbe du suivi et la figure du livrable cadrer deux fenetres differentes
+# sans que rien ne le signale.
+SEUIL_CRUE = 0.02      # fraction du debit de pointe sous laquelle on coupe
+MARGE_CRUE_H = 0.5     # heures conservees de part et d'autre
+
 
 ISL_TEAL = "#3A8D94"          # institutionnel (Pantone 5483 C)
 ISL_TEAL_SOMBRE = "#2E7176"
@@ -543,7 +573,7 @@ QPushButton#boutonPrincipal:disabled {{
 }}
 /* Seconde action forte — le lancement du calage. Meme poids que l'action
    principale, sans le fond plein : les deux ne sont jamais a portee de clic
-   au meme moment, et deux aplats violets se disputeraient l'oeil. */
+   au meme moment, et deux aplats teal se disputeraient l'oeil. */
 QPushButton#boutonAccent {{
     color: {ISL_TEAL};
     border: 1px solid {ISL_TEAL};
@@ -791,7 +821,8 @@ class JaugeAtteinte(QWidget):
         peintre.end()
 
 
-def _fenetre_crue(tc, qc, ts, qs, q_max, seuil=0.02, marge_h=0.5):
+def _fenetre_crue(tc, qc, ts, qs, q_max, seuil=SEUIL_CRUE,
+                  marge_h=MARGE_CRUE_H):
     """
     Bornes temporelles ou la crue est effectivement significative.
 
@@ -943,6 +974,87 @@ def duree_lisible(secondes):
 
 
 # ---------------------------------------------------------------------------
+# Journal
+#
+# CE QUI EST AFFICHE NE CHANGE PAS. Les boites continuent de dire str(e) —
+# c'est souvent un message ecrit POUR l'utilisateur, et c'est bien ce qu'il
+# doit lire. Ce qui manquait est ailleurs : quand l'exception n'a PAS ete
+# ecrite pour lui, « 'Nom_zone_2D' » etait tout ce qui restait d'un KeyError,
+# et rien n'en gardait trace. Un incident survenu sur un autre poste n'etait
+# donc pas instruisable.
+#
+# Le projet s'est deja fait prendre : la colonne des pentes est restee vide a
+# CHAQUE composition pendant des semaines, sur un ImportError avale par un
+# except muet — voir noyau.pentes_locales_apports. C'est cette panne-la, celle
+# qui ne dit rien, que le journal rend visible.
+# ---------------------------------------------------------------------------
+
+def journaliser(contexte, exception=None):
+    """
+    Ecrit dans le panneau Journal de QGIS, sous l'etiquette du plugin.
+
+    A appeler DEPUIS un bloc except : format_exc() y lit l'exception courante.
+    Sans exception, journalise le seul contexte — pour un echec qui ne leve
+    pas, comme un style que QGIS refuse de charger.
+
+    NE LEVE JAMAIS : un journal qui echoue n'a pas a emporter son appelant.
+    """
+    try:
+        if exception is not None:
+            contexte = (f"{contexte} — {type(exception).__name__}: {exception}"
+                        f"\n{traceback.format_exc()}")
+        QgsMessageLog.logMessage(contexte, NOM_PLUGIN,
+                                 Qgis.MessageLevel.Critical)
+    except Exception:                                       # noqa: BLE001
+        pass
+
+
+# ---------------------------------------------------------------------------
+# Sablier
+#
+# LES CALCULS LONGS RESTENT OU ILS SONT. « Composer et controler » enchaine
+# trois lancements de sous-processus — chacun demarre un interpreteur qui
+# importe h5py et ras-commander — puis l'ecriture de trois shapefiles et d'un
+# classeur, puis tous les controles. Tout cela sur le fil graphique, et c'est
+# assume : noyau.py n'expose que des operations de quelques secondes, et le
+# calage lui-meme part en processus detache.
+#
+# CE QUI MANQUAIT N'EST PAS LA VITESSE, C'EST LE SIGNAL. Passe quelques
+# secondes sans repeindre, Windows grise la fenetre et ajoute « (Ne repond
+# pas) » a son titre : rien ne distinguait un greffon qui travaille d'un
+# greffon plante, et l'on fermait QGIS au milieu d'une ecriture dans la
+# geometrie.
+#
+# EN DECORATEUR, ET NON EN BLOC « with » : la restitution est ainsi garantie
+# par un finally sans avoir a reindenter cent lignes, et surtout on ne peut
+# pas l'oublier — un sablier non rendu reste sur TOUT QGIS jusqu'a la fin de
+# la session, ce qui serait pire que pas de sablier du tout.
+# ---------------------------------------------------------------------------
+
+def avec_sablier(methode):
+    """Curseur d'attente pendant toute la methode, rendu quoi qu'il arrive."""
+    @functools.wraps(methode)
+    def enveloppe(self, *args, **kwargs):
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            return methode(self, *args, **kwargs)
+        finally:
+            QApplication.restoreOverrideCursor()
+    return enveloppe
+
+
+def rendre_la_main():
+    """
+    Retire le sablier avant une boite que l'utilisateur va LIRE.
+
+    Sans effet s'il n'y en a pas : Qt ignore un restoreOverrideCursor() de
+    trop (verifie). C'est ce qui permet de rendre la main ici tout en laissant
+    le finally du decorateur faire son office sur le chemin d'erreur.
+    """
+    QApplication.restoreOverrideCursor()
+
+
+# ---------------------------------------------------------------------------
 # Fabriques de widgets — un seul endroit ou se decide l'apparence d'un texte
 # d'aide, d'un compte rendu ou d'un formulaire. Ecrite a la main a chaque
 # fois, la mise en forme finissait par differer d'un onglet a l'autre.
@@ -982,7 +1094,7 @@ def dire(label, contenu):
 def formulaire(parent=None):
     """QFormLayout au rythme commun ; les champs occupent toute la largeur."""
     f = QFormLayout(parent) if parent is not None else QFormLayout()
-    f.setFieldGrowthPolicy(QFormLayout.AllNonFixedFieldsGrow)
+    f.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
     f.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
     f.setHorizontalSpacing(12)
     f.setVerticalSpacing(7)
@@ -1227,7 +1339,7 @@ def rendre_redimensionnable(boite, largeur=900, hauteur=420):
         detail.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         # Le tableau des PK est aligne a la colonne : une police proportionnelle
         # en decale les colonnes et le rend illisible.
-        detail.setLineWrapMode(QTextEdit.NoWrap)
+        detail.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
     return boite
 
 
@@ -1451,7 +1563,7 @@ class DialogueParametrage(QDialog):
         v.setContentsMargins(0, 0, 0, 0)
         v.setSpacing(7)
         v.addWidget(cadre)
-        # Filet degrade violet → ardoise : la frise de la charte, ramenee a
+        # Filet degrade teal → ardoise : la frise de la charte, ramenee a
         # une ligne. Un aplat uni tenait la meme place sans rien evoquer.
         filet = QFrame()
         filet.setFixedHeight(3)
@@ -1712,6 +1824,7 @@ class DialogueParametrage(QDialog):
         try:
             self.info_projet = noyau.lister_projet_hecras(dossier)
         except Exception as e:
+            journaliser("Lecture du projet HEC-RAS", e)
             QMessageBox.critical(self, "Projet HEC-RAS", str(e))
             return
 
@@ -1864,6 +1977,7 @@ class DialogueParametrage(QDialog):
         plan = self.combo_plan.currentData()
         return plan["unsteady"] if plan else None
 
+    @avec_sablier
     def _charger_couches_modele(self):
         try:
             if not self.info_projet:
@@ -1876,6 +1990,7 @@ class DialogueParametrage(QDialog):
                          / f"{self.info_projet['nom_projet']}.g{numero_geom}.hdf")
             reponse = noyau.charger_couches_modele(chemin_hdf)
         except Exception as e:
+            journaliser("Chargement des couches du modèle", e)
             QMessageBox.critical(self, "Chargement du modèle", str(e))
             return
 
@@ -1926,8 +2041,16 @@ class DialogueParametrage(QDialog):
         else:
             groupes = 0
 
-        appliquer_styles(self.couche_injections, self.couche_sections,
-                         self.couche_maillage)
+        # Les echecs de style etaient collectes par appliquer_styles, puis
+        # JETES par cet appel : un .qml refuse par QGIS ne se voyait nulle
+        # part. Ils ne justifient pas d'interrompre le chargement — les
+        # couches sont la, seule leur symbologie manque — mais ils meritent
+        # une trace, sans quoi « les sections s'affichent en noir » reste
+        # inexplicable.
+        echecs_style = appliquer_styles(
+            self.couche_injections, self.couche_sections, self.couche_maillage)
+        if echecs_style:
+            journaliser("Styles non appliqués : " + " ; ".join(echecs_style))
         ordonner_couches(projet, [self.couche_injections, self.couche_sections,
                                   self.couche_maillage, self.couche_perimetre])
 
@@ -2137,6 +2260,7 @@ class DialogueParametrage(QDialog):
 
         return page
 
+    @avec_sablier
     def _relire_hydrogramme(self):
         """Lit le débit calculé à une section ou à une injection, et l'exporte."""
         try:
@@ -2185,6 +2309,7 @@ class DialogueParametrage(QDialog):
             dire(self.label_relecture, message)
             QMessageBox.information(self, "Hydrogramme relu", message)
         except Exception as e:
+            journaliser("Relecture d'un hydrogramme", e)
             dire(self.label_relecture,
                  f"<span style='color:{ISL_ROUGE}'>Échec : {e}</span>")
             QMessageBox.critical(self, "Lecture", str(e))
@@ -2479,8 +2604,10 @@ class DialogueParametrage(QDialog):
             ["Apport", "Section", "Statut", "Essais", "Volume (%)",
              "Pointe (%)"])
         self.table_suivi.verticalHeader().setVisible(False)
-        self.table_suivi.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.table_suivi.setSelectionMode(QTableWidget.NoSelection)
+        self.table_suivi.setEditTriggers(
+            QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table_suivi.setSelectionMode(
+            QAbstractItemView.SelectionMode.NoSelection)
         self.table_suivi.setAlternatingRowColors(True)
         self.table_suivi.setMinimumHeight(150)
         self.table_suivi.horizontalHeader().setStretchLastSection(True)
@@ -2530,6 +2657,27 @@ class DialogueParametrage(QDialog):
             self.minuteur_suivi.start()
         else:
             self.minuteur_suivi.stop()
+
+    # LA FENETRE N'EST PAS DETRUITE QUAND ON LA FERME : composer() la conserve
+    # et la re-affiche telle quelle. Le minuteur, lui, ne s'arretait qu'au
+    # changement d'onglet — une fenetre fermee DEPUIS L'ONGLET 5 continuait
+    # donc de relire avancement.json et de repeindre trois widgets toutes les
+    # deux secondes, pour le restant de la session QGIS.
+
+    def hideEvent(self, evenement):                          # noqa: N802
+        """Arrete le suivi des que la fenetre disparait."""
+        minuteur = getattr(self, "minuteur_suivi", None)
+        if minuteur is not None:
+            minuteur.stop()
+        super().hideEvent(evenement)
+
+    def showEvent(self, evenement):                          # noqa: N802
+        """Reprend le suivi si la fenetre revient sur l'onglet du suivi."""
+        super().showEvent(evenement)
+        minuteur = getattr(self, "minuteur_suivi", None)
+        if minuteur is not None and self.onglets.currentIndex() == ONGLET_SUIVI:
+            self._rafraichir_suivi()
+            minuteur.start()
 
     def _dossier_suivi(self):
         racine = self.edit_dossier_sortie.text().strip()
@@ -2588,7 +2736,12 @@ class DialogueParametrage(QDialog):
         """
         try:
             self._peindre_suivi()
-        except Exception:                                   # noqa: BLE001
+        except Exception as e:                              # noqa: BLE001
+            # Le filet reste — il est necessaire. Ce qui change, c'est qu'il
+            # laisse desormais un temoin : un onglet Suivi devenu muet le
+            # restait jusqu'a la fin de la session, et rien, nulle part,
+            # n'en donnait la raison.
+            journaliser("Rafraichissement du suivi", e)
             return
 
     def _peindre_suivi(self):
@@ -2923,6 +3076,7 @@ class DialogueParametrage(QDialog):
         self._maj_parametres_poste()
         QMessageBox.information(self, "Diagnostic", resume)
 
+    @avec_sablier
     def _recontroler_classeur(self):
         """
         Rejoue les controles sur un classeur compose lors d'une autre
@@ -2953,9 +3107,11 @@ class DialogueParametrage(QDialog):
             boite.setText(f"{len(erreurs)} erreur(s), "
                           f"{len(avertissements)} avertissement(s)")
             boite.setDetailedText(texte_rapport_controle(anomalies, tableau))
+            rendre_la_main()
             boite.exec()
             self._maj_onglet_validation_depuis_classeur()
         except Exception as e:
+            journaliser("Contrôle d'un classeur existant", e)
             QMessageBox.critical(self, "Contrôle", str(e))
 
     # --- premier apport a caler ---------------------------------------------
@@ -2979,6 +3135,7 @@ class DialogueParametrage(QDialog):
         try:
             paires = noyau.apports_du_classeur(self.classeur)
         except Exception as e:                              # noqa: BLE001
+            journaliser("Lecture des apports du classeur", e)
             dire(self.label_premier_apport,
                  f"(liste des apports illisible : {e})")
             return
@@ -3007,7 +3164,8 @@ class DialogueParametrage(QDialog):
         try:
             noms = [a for a, _ in noyau.apports_du_classeur(self.classeur)]
             amont = noms[:noms.index(premier)]
-        except Exception:                                   # noqa: BLE001
+        except Exception as e:                              # noqa: BLE001
+            journaliser("Apports en amont du premier apport", e)
             amont = []
         dire(self.label_premier_apport,
              f"Départ du plan « Apport_{amont[-1]} ». "
@@ -3022,7 +3180,8 @@ class DialogueParametrage(QDialog):
         self._remplir_premier_apport()
         try:
             etat = noyau.etat_cibles(self.classeur)
-        except Exception:
+        except Exception as e:
+            journaliser("État des cibles après contrôle", e)
             return
         self.label_validation_classeur.setText(str(self.classeur))
         manquantes = etat.get("manquantes") or []
@@ -3030,6 +3189,7 @@ class DialogueParametrage(QDialog):
             f"{etat['renseignees']}/{etat['total']} renseignée(s)"
             + (f" — manquantes : {', '.join(manquantes)}" if manquantes else ""))
 
+    @avec_sablier
     def _lancer_calage(self):
         """
         Lance la boucle de calage complete en arriere-plan. Ne bloque JAMAIS
@@ -3045,6 +3205,7 @@ class DialogueParametrage(QDialog):
         try:
             etat = noyau.etat_cibles(self.classeur)
         except Exception as e:
+            journaliser("État des cibles avant lancement", e)
             QMessageBox.critical(self, "Calage", str(e))
             return
         # LE PREMIER APPORT EST UN REGLAGE DE LANCEMENT, pas de composition :
@@ -3055,6 +3216,7 @@ class DialogueParametrage(QDialog):
             noyau.ecrire_parametre(self.classeur, "Premier_apport",
                                    self._premier_apport())
         except Exception as e:
+            journaliser("Écriture du paramètre Premier_apport", e)
             QMessageBox.critical(
                 self, "Premier apport",
                 f"Le premier apport à caler n'a pas pu être écrit dans le "
@@ -3074,6 +3236,7 @@ class DialogueParametrage(QDialog):
         try:
             info = noyau.lancer_calage(self.classeur)
         except Exception as e:
+            journaliser("Lancement du calage", e)
             QMessageBox.critical(self, "Lancement du calage", str(e))
             return
         # LIBELLES : « Échec au démarrage : <chemin> » se lisait comme une
@@ -3101,6 +3264,7 @@ class DialogueParametrage(QDialog):
         try:
             os.startfile(self.classeur)  # noqa: S606 (usage Windows assume)
         except Exception as e:
+            journaliser("Ouverture du classeur", e)
             QMessageBox.critical(self, "Ouverture du classeur", str(e))
 
     def _maj_onglet_validation(self):
@@ -3135,6 +3299,7 @@ class DialogueParametrage(QDialog):
         try:
             etat = noyau.etat_cibles(self.classeur)
         except Exception as e:
+            journaliser("État des cibles (onglet Lancer)", e)
             self.label_validation_cibles.setText(f"(illisible : {e})")
             return
 
@@ -3228,6 +3393,7 @@ class DialogueParametrage(QDialog):
 
     # --- composition et controle --------------------------------------------
 
+    @avec_sablier
     def _composer_et_controler(self):
         try:
             if not self.info_projet:
@@ -3285,34 +3451,31 @@ class DialogueParametrage(QDialog):
                               or "resultats_finaux")
             sous_suivi = self.edit_sous_dossier_suivi.text().strip() or "suivi"
 
-            parametres = {
-                "Dossier_projet_HECRAS": self.edit_dossier_hecras.text().strip(),
-                "Nom_projet": self.info_projet["nom_projet"],
-                # Lue dans les fichiers du modele, jamais saisie.
-                "Version_HECRAS": self.version_hecras or "",
-                "Nom_zone_2D": zone,
-                "Plan_reference": f"p{plan['numero']}",
-                "Geometrie_reference": f"g{self._geometrie_effective()}",
-                "Unsteady_reference": f"u{self._unsteady_effective()}",
-                "Mode_selection_modele": ("override" if self.radio_override.isChecked()
-                                          else "plan"),
-                "Nom_clone_geometrie": NOM_CLONE_GEOMETRIE_DEFAUT,
-                "Premier_apport": self._premier_apport(),
-                "Sens_axe": self.combo_sens_axe.currentText(),
-                "PK_origine_m": self.spin_pk_origine.value(),
-                # La fenetre n'est transmise que si elle DIFFERE de celle du
-                # plan de reference. La recopier a l'identique reviendrait a
-                # reecrire dans le plan clone ce qu'il contient deja.
-                **self._parametres_fenetre(),
-                "Nb_max_iterations_par_apport": self.spin_nb_max_essais.value(),
-                # Saisies en %, transmises en fraction : la chaine raisonne en
-                # rapports, l'utilisateur en pourcentages.
-                "Tolerance_volume_pct": self.spin_tol_volume.value(),
-                "Tolerance_pic_pct": self.spin_tol_pic.value(),
-                "Dossier_sortie": dossier_sortie,
-                "Sous_dossier_resultats": sous_resultats,
-                "Sous_dossier_suivi": sous_suivi,
-            }
+            # LES NOMS DE CLE SONT DANS LE NOYAU, pas ici : la fenetre lit
+            # ses widgets, le noyau tient le contrat. Voir
+            # noyau.parametres_calage, qui s'eprouve en console.
+            parametres = noyau.parametres_calage(
+                dossier_projet=self.edit_dossier_hecras.text().strip(),
+                nom_projet=self.info_projet["nom_projet"],
+                version_hecras=self.version_hecras,
+                nom_zone_2d=zone,
+                numero_plan=plan["numero"],
+                numero_geometrie=self._geometrie_effective(),
+                numero_unsteady=self._unsteady_effective(),
+                mode_selection=("override" if self.radio_override.isChecked()
+                                else "plan"),
+                nom_clone_geometrie=NOM_CLONE_GEOMETRIE_DEFAUT,
+                premier_apport=self._premier_apport(),
+                sens_axe=self.combo_sens_axe.currentText(),
+                pk_origine_m=self.spin_pk_origine.value(),
+                nb_max_iterations=self.spin_nb_max_essais.value(),
+                tolerance_volume_pct=self.spin_tol_volume.value(),
+                tolerance_pic_pct=self.spin_tol_pic.value(),
+                dossier_sortie=dossier_sortie,
+                sous_dossier_resultats=sous_resultats,
+                sous_dossier_suivi=sous_suivi,
+                fenetre=self._parametres_fenetre(),
+            )
             # Chaque section prend la PREMIERE injection en amont d'elle.
             # Les lignes d'injection d'un modele ne sont pas toutes des
             # apports a caler : s'y trouvent aussi les debits d'entree
@@ -3338,11 +3501,6 @@ class DialogueParametrage(QDialog):
                     f"{detail}. La méthode cale un apport contre UNE cible : "
                     f"ajouter une injection, ou retirer une section.")
 
-            # str(), PAS Path : Qt refuse un Path la ou il attend une chaine,
-            # et QFileDialog.getOpenFileName leve « argument 3 has unexpected
-            # type 'WindowsPath' » — ce qui rendait « Reprendre un classeur
-            # d'un calcul precedent… » inutilisable des qu'un paquet venait
-            # d'etre compose.
             # Pente de la ligne d'energie, PRE-REMPLIE par apport depuis le
             # profil en long du modele. C'est la valeur que le calage aurait
             # deduite d'une case vide : l'ecrire ne change aucun resultat,
@@ -3359,6 +3517,11 @@ class DialogueParametrage(QDialog):
                 parametres["Nom_zone_2D"],
                 self.appariement.get("pk_apports"))
 
+            # str(), PAS Path : Qt refuse un Path la ou il attend une chaine,
+            # et QFileDialog.getOpenFileName leve « argument 3 has unexpected
+            # type 'WindowsPath' » — ce qui rendait « Reprendre un classeur
+            # d'un calcul precedent… » inutilisable des qu'un paquet venait
+            # d'etre compose.
             self.classeur = str(noyau.preparer_classeur(
                 dossier_sortie, self.appariement["paires"],
                 self.paquet, parametres=parametres, pentes=pentes))
@@ -3384,10 +3547,13 @@ class DialogueParametrage(QDialog):
                              + (f" — {motif_pentes}" if motif_pentes else "")))
             boite.setDetailedText(texte_rapport_controle(anomalies, tableau))
             rendre_redimensionnable(boite)
+            # Le travail est fini : le compte rendu se lit sans sablier.
+            rendre_la_main()
             boite.exec()
             self._maj_resume()
             self._maj_onglet_validation()
         except Exception as e:
+            journaliser("Composition et contrôle du paquet", e)
             QMessageBox.critical(self, "Composition", str(e))
 
 
@@ -3435,10 +3601,49 @@ class PluginCalage:
         self.barre.addAction(self.actions[0])
 
     def unload(self):
+        """
+        Defait ce que initGui a fait — et rien de moins.
+
+        LA FENETRE D'ABORD. Elle est NON MODALE et conservee d'une ouverture a
+        l'autre : la fermer ne la detruit pas. Elle survivait donc au
+        dechargement, cablee sur un module qui n'existe plus, et son premier
+        clic executait du code decharge. C'est le scenario ordinaire du
+        developpement avec Plugin Reloader.
+
+        LA BARRE D'OUTILS ENSUITE. « del self.barre » ne larguait que la
+        reference Python. Selon l'annotation SIP de iface.addToolBar(), le
+        QToolBar peut rester parente a la fenetre principale de QGIS : il
+        survivait alors au dechargement, et chaque rechargement en ajoutait un
+        second. removeToolBar() le retire de la disposition et le masque sans
+        rien detruire — ce qui vaut dans les DEUX cas de figure, et n'expose
+        a aucune double liberation.
+
+        LE CHEMIN D'IMPORT ENFIN : noyau l'a modifie des son import, il n'y a
+        pas de raison de le laisser modifie apres.
+        """
+        fenetre = getattr(self, "fenetre", None)
+        if fenetre is not None:
+            try:
+                fenetre.close()
+            except RuntimeError:
+                pass                     # objet Qt deja detruit cote C++
+            self.fenetre = None
+
         for action in self.actions:
             self.iface.removePluginVectorMenu(self.menu, action)
-        if hasattr(self, "barre"):
+        self.actions = []
+
+        barre = getattr(self, "barre", None)
+        fenetre_principale = self.iface.mainWindow()
+        if barre is not None:
+            if fenetre_principale is not None:
+                try:
+                    fenetre_principale.removeToolBar(barre)
+                except RuntimeError:
+                    pass
             del self.barre
+
+        noyau.detacher()
 
     # --- utilitaires d'interface -------------------------------------------
 
@@ -3495,9 +3700,10 @@ class PluginCalage:
         sessions — que le diagnostic signale de toute façon.
 
         Un dossier de chaîne désigné à la main est rétabli même quand la
-        détection automatique aboutit : c'est le seul moyen de forcer une
-        chaîne que la date ne désignerait pas. definir_chaine() refuse un
-        dossier disparu, et la détection reprend alors la main.
+        détection automatique aboutit : c'est le seul moyen d'imposer une
+        chaîne que le rang fixe ne retiendrait pas — la détection ne compare
+        plus aucune date depuis la 0.4.0. definir_chaine() refuse un dossier
+        disparu, et la détection reprend alors la main.
         """
         memorise = QSettings().value(self.CLE_CHAINE)
         if memorise:

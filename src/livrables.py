@@ -59,7 +59,15 @@ def _finaliser(fig, chemin):
 # GRAPHIQUES
 # ---------------------------------------------------------------------------
 
-def _fenetre_crue(paires, seuil=0.02, marge_h=0.5):
+# Les deux memes valeurs que dans le greffon (calage_apports/plugin.py,
+# SEUIL_CRUE et MARGE_CRUE_H). L'egalite des deux jeux est VERIFIEE par
+# test_plugin_qgis.py : la regle a le droit d'exister en deux exemplaires,
+# elle n'a pas le droit de diverger.
+SEUIL_CRUE = 0.02      # fraction du debit de pointe sous laquelle on coupe
+MARGE_CRUE_H = 0.5     # heures conservees de part et d'autre
+
+
+def _fenetre_crue(paires, seuil=SEUIL_CRUE, marge_h=MARGE_CRUE_H):
     """
     Bornes temporelles ou la crue est effectivement significative.
 

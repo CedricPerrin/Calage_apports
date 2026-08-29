@@ -10,6 +10,149 @@ comportement correct est garanti par les tests, pas par le recit de ce qui
 a echoue avant eux.
 
 
+AUDIT DU GREFFON, ET SEPT LOTS DE SIMPLIFICATION (29/08/2026)
+------------------------------------------------------------------------
+DEMANDE UTILISATEUR : audit complet du plugin QGIS, puis plan de
+simplification par lots ; lots 1 a 7 valides et appliques.
+
+CE QUE L'AUDIT N'A PAS TROUVE, ET QU'IL FAUT SAVOIR AVANT DE « NETTOYER » :
+aucun code mort, aucun import inutilise, aucune regle de controle dupliquee
+depuis la chaine. Les 18 fonctions de niveau module de plugin.py et les 41
+de noyau.py ont toutes un appelant. LA SIMPLIFICATION N'A DONC PAS CONSISTE
+A SUPPRIMER DU CODE : le diff ajoute 211 lignes de code effectif et 157 de
+commentaire, et n'en retire presque aucune. Le gain est du risque retire.
+
+LOT 1 — LA PROMESSE Qt6 N'ETAIT PAS TENUE. Quatre constantes non qualifiees
+subsistaient : QFormLayout.AllNonFixedFieldsGrow (lue a la construction du
+PREMIER formulaire, donc a l'ouverture de la fenetre), QTextEdit.NoWrap,
+QTableWidget.NoEditTriggers et QTableWidget.NoSelection. Sous PyQt6, chacune
+leve AttributeError.
+  LA CAUSE EST LE GARDE-FOU LUI-MEME. test_plugin_qgis.py verifiait bien
+  qu'aucune constante non qualifiee ne rentre — mais sur SIX classes
+  seulement (Qt, QMessageBox, QSizePolicy, QPainter, QLayout, QFrame). Les
+  trois classes fautives n'y etaient pas. La liste couvre desormais DIX-NEUF
+  classes, dont QAbstractItemView, nouvellement importe.
+  Les formes qualifiees de remplacement ont ete VERIFIEES presentes sous le
+  Qt5 du poste (QGIS 3.44.8 / Qt 5.15.13) avant d'etre ecrites : la
+  correction ne casse rien ici tout en valant sous Qt6.
+
+LOT 2 — RIEN N'ETAIT JOURNALISE, NULLE PART. Ni QgsMessageLog, ni traceback,
+pour 21 blocs except. Une exception ecrite POUR l'utilisateur s'affichait
+bien ; une autre — un KeyError, par exemple — se reduisait a « 'Nom_zone_2D' »
+et ne laissait aucune trace, ce qui rendait un incident survenu sur un autre
+poste non instruisable. journaliser() ecrit desormais la pile d'appels dans
+le panneau Journal, sous l'etiquette du greffon, en 15 points. CE QUI EST
+AFFICHE N'A PAS CHANGE d'un caractere.
+  AU PASSAGE : appliquer_styles() collectait ses echecs, et l'appelant les
+  JETAIT. Un .qml refuse par QGIS ne se voyait nulle part. Il est journalise.
+
+LOT 3 — L'INTERFACE SE FIGEAIT SANS RIEN DIRE. « Composer et controler »
+enchaine trois lancements de sous-processus, l'ecriture de trois shapefiles
+et d'un classeur, puis tous les controles, sur le fil graphique. Cela reste
+assume (noyau n'expose que des operations de quelques secondes), mais
+Windows grisait la fenetre et ajoutait « (Ne repond pas) » a son titre :
+rien ne distinguait un greffon qui travaille d'un greffon plante.
+  Le decorateur @avec_sablier couvre les cinq methodes longues. EN
+  DECORATEUR, ET NON EN BLOC « with » : la restitution est garantie par un
+  finally sans reindenter cent lignes, et l'on ne peut pas l'oublier — un
+  sablier non rendu resterait sur TOUT QGIS jusqu'a la fin de la session.
+  rendre_la_main() le retire avant les deux comptes rendus que l'on LIT ; un
+  restoreOverrideCursor() de trop est inoffensif (verifie).
+
+LOT 4 — LE DIAGNOSTIC ANNONCAIT « UTILISABLE : OUI » A TORT. Le verdict de
+chaine_disponible() ne portait que sur les paquets tiers : un criteres.py en
+erreur de syntaxe ajoutait bien son message a la liste, sans changer le
+titre — dans le seul ecran dont le metier est de repondre a cette question.
+Il porte desormais aussi sur les modules de la chaine. L'interpreteur
+HEC-RAS manquant reste un AVERTISSEMENT, pas un refus : sans lui on compose
+et l'on controle le paquet.
+  Le minuteur du suivi ne s'arretait qu'au changement d'onglet. Or « Fermer »
+  ne detruit pas la fenetre : fermee DEPUIS L'ONGLET 5, elle continuait de
+  relire avancement.json toutes les deux secondes pour le restant de la
+  session. hideEvent/showEvent l'arretent et le reprennent.
+
+LOT 5 — LE GARDE-FOU DE PORTABILITE NE LISAIT PAS LES .qml. faire_zip.py
+n'inspectait que .py/.md/.txt : 63 des 271 ko de l'archive echappaient au
+controle des chemins du poste et des noms d'affaire. Or un fichier de style
+se regenere d'un clic droit « Enregistrer le style » DANS UN PROJET
+D'AFFAIRE. Les trois .qml actuels sont propres — c'est verifie — mais ils ne
+l'etaient que par chance.
+  QUATRE COMMENTAIRES DECRIVAIENT CE QUI N'EXISTE PAS : la pente d'apport
+  « se saisit a l'onglet 1 » (aucun champ ne lui a jamais correspondu ; elle
+  se lit et se corrige dans le classeur), trois mentions d'un « violet »
+  d'accent alors que la charte est au teal depuis un renommage, et la
+  docstring de _restaurer_chaine qui parlait encore d'arbitrage par DATE,
+  abandonne en 0.4.0. Un commentaire sur str()/QFileDialog avait par ailleurs
+  glisse au-dessus d'un paragraphe sans rapport ; il est revenu sur sa ligne.
+  chaines_candidates() dedoublonnait deux candidats qui ne peuvent pas
+  coincider (l'un est SOUS le plugin, l'autre a cote) : le dictionnaire cede
+  la place a une liste. DOSSIER_CHAINE disparait — nom de constante publique
+  que rien ne lisait, et valeur PERIMEE des le premier definir_chaine().
+  Seul comptait l'effet de bord de _raccorder(), desormais appele seul.
+
+LOT 6 — LE CONTRAT DE DIX-HUIT CLES QUITTE LE QDialog. La feuille Parametres
+etait construite dans _composer_et_controler : un renommage cote chaine
+cassait a un endroit qu'aucun essai hors QGIS ne pouvait atteindre, et le
+defaut ne se voyait qu'a la composition suivante, sur un classeur
+silencieusement incomplet. noyau.parametres_calage() prend des valeurs
+simples, pose les prefixes p/g/u une seule fois, et s'eprouve en console.
+  VERIFIE PAR COMPARAISON : le dict rendu est identique cle pour cle et
+  valeur pour valeur a l'ancien, avec et sans fenetre de simulation modifiee
+  (18 et 24 cles).
+  AU PASSAGE, un commentaire faux corrige : les tolerances sont transmises EN
+  POURCENTAGES, comme le disent les noms de cle — c'est pont_hecras.py qui
+  les ramene en fractions (« / 100.0 »).
+
+LOT 7 — LA FENETRE DE CRUE RESTE EN DEUX EXEMPLAIRES, ET C'EST VOULU. La
+meme regle (2 % du pic, 0,5 h de marge) vit dans plugin.py, dans un
+paintEvent rafraichi toutes les deux secondes, et dans livrables.py, sur des
+tableaux numpy. Les fusionner ferait entrer matplotlib — donc la chaine
+entiere — dans le fil graphique de QGIS pour cadrer deux courbes. LES DEUX
+VALEURS SONT DONC NOMMEES DES DEUX COTES (SEUIL_CRUE, MARGE_CRUE_H), et
+test_plugin_qgis.py verifie leur egalite sur le TEXTE des deux fichiers : la
+regle a le droit d'exister en double, elle n'a plus le droit de diverger.
+  unload() ne defaisait pas tout. La fenetre non modale, conservee d'une
+  ouverture a l'autre, survivait au dechargement : cablee sur un module
+  disparu, son premier clic executait du code decharge — le scenario ordinaire
+  du developpement avec Plugin Reloader. Elle est fermee.
+  LA BARRE D'OUTILS : « del self.barre » ne larguait que la reference Python.
+  Selon l'annotation SIP de iface.addToolBar(), le QToolBar peut rester
+  parente a la fenetre principale de QGIS et survivre au dechargement, un
+  rechargement en ajoutant alors un second. LA QUESTION N'EST PAS TRANCHEE —
+  le .pyi livre ne porte pas les annotations de propriete. removeToolBar()
+  a ete retenu parce qu'il vaut dans LES DEUX cas : il retire de la
+  disposition et masque sans rien detruire, donc sans risque de double
+  liberation. L'ESSAI QUI TRANCHERAIT, a faire un jour dans une vraie session :
+  charger, decharger, recharger depuis le gestionnaire d'extensions, et
+  compter les barres « Calage des apports ».
+  noyau.detacher() retire enfin la chaine de sys.path, que _raccorder()
+  y avait mise des l'import.
+
+DEUX CORRECTIONS HORS LOTS, faites parce qu'elles bloquaient la verification :
+  - verifier_interpreteur(None) levait TypeError sur Path(None), la ou ses
+    voisines (est_chaine, chaine_embarquee) rendent toutes un refus propre.
+    Le banc d'essai s'interrompait donc AVANT sa section 7 sur toute machine
+    depourvue de CALAGE_PYTHON — c'est-a-dire sur tout poste neuf.
+  - le mannequin BoiteMessage de test_plugin_qgis.py n'avait pas suivi la
+    0.4.0 : il n'offrait que les constantes plates, quand le greffon ecrit
+    QMessageBox.StandardButton.Yes. _diagnostic() y levait AttributeError,
+    mais seulement sur un poste OU L'INTERPRETEUR MANQUE — la seule branche
+    qui pose une question. Jamais atteinte ici, toujours atteinte ailleurs.
+
+ETAT DE LA VERIFICATION (29/08/2026, QGIS 3.44.8-Solothurn, Qt 5.15.13) :
+test_plugin_qgis.py passe, aux 3 echecs pres qui tiennent tous a l'absence
+d'interpreteur HEC-RAS sur ce poste ; noyau.py, criteres.py et livrables.py
+passent leurs auto-tests ; faire_zip.py rend « archive conforme ».
+livrables_exemple/ a ete restaure apres coup : l'auto-test de livrables.py le
+regenere, et ce n'etait pas l'objet de ces lots.
+
+LOT 8 NON FAIT, ET DELIBEREMENT. Le decoupage de DialogueParametrage
+(2 118 lignes, 49 methodes, 63 attributs partages) deplacerait ~2 000 lignes
+sans en supprimer une seule ni changer un comportement. Il ne se justifie que
+si le greffon doit continuer a grandir. Si un jour : commencer par
+_onglet_aide, le seul qui ne partage presque aucun etat.
+
+
 REORGANISATION DU DEPOT — LA CHAINE PASSE DANS src/ (28/08/2026)
 ------------------------------------------------------------------------
 DEMANDE UTILISATEUR : reorganiser proprement le depot Git pour la

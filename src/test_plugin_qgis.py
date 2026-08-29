@@ -201,10 +201,28 @@ class DialogueFichier:
         return self.fichiers.pop(0), filtre
 
 
+class _BoutonsStandard:
+    Yes = 1
+    No = 0
+
+
+class _Icones:
+    Critical = Information = Question = Warning = NoIcon = 0
+
+
 class BoiteMessage:
     Yes = 1
     No = 0
     Critical = Information = Question = 0
+
+    # LE MANNEQUIN N'AVAIT PAS SUIVI LA 0.4.0. Le plugin ecrit desormais ses
+    # constantes sous leur forme QUALIFIEE — QMessageBox.StandardButton.Yes —
+    # et le talon n'offrait que la forme plate. _diagnostic() y levait donc
+    # AttributeError, mais seulement sur un poste OU L'INTERPRETEUR MANQUE :
+    # c'est la seule branche qui pose une question. Le banc ne l'atteignait
+    # jamais sur le poste de developpement, et l'atteignait toujours ailleurs.
+    StandardButton = _BoutonsStandard
+    Icon = _Icones
 
     def __init__(self, parent=None):
         self.detail = ""
@@ -1193,17 +1211,66 @@ _PORTEES_CONNUES = (
     "GlobalColor|LayoutDirection|FocusPolicy|ConnectionType|MatchFlag|"
     "ToolButtonStyle|TimeSpec|DateFormat|TextElideMode|AspectRatioMode|"
     "TransformationMode|ContextMenuPolicy|WidgetAttribute|ArrowType")
+#
+# CE GARDE-FOU AVAIT UN ANGLE MORT, et il a coute exactement ce qu'il devait
+# eviter : il ne portait que sur six classes. QFormLayout, QTextEdit et
+# QTableWidget n'y etaient pas, et quatre constantes non qualifiees y sont
+# restees — dont QFormLayout.AllNonFixedFieldsGrow, lue a la construction du
+# PREMIER formulaire, donc a l'ouverture de la fenetre. La liste couvre
+# desormais toutes les classes du plugin qui portent des enumerations.
 for _classe, _portees in (("Qt", _PORTEES_CONNUES),
                           ("QMessageBox", "StandardButton|Icon|ButtonRole"),
                           ("QSizePolicy", "Policy|ControlType"),
                           ("QPainter", "RenderHint|CompositionMode"),
                           ("QLayout", "SizeConstraint"),
-                          ("QFrame", "Shape|Shadow|StyleMask")):
+                          ("QFrame", "Shape|Shadow|StyleMask"),
+                          ("QFormLayout",
+                           "FieldGrowthPolicy|ItemRole|RowWrapPolicy"),
+                          ("QTextEdit",
+                           "LineWrapMode|AutoFormattingFlag"),
+                          ("QAbstractItemView",
+                           "EditTrigger|SelectionMode|SelectionBehavior|"
+                           "ScrollMode|ScrollHint|DragDropMode"),
+                          ("QTableWidget",
+                           "EditTrigger|SelectionMode|SelectionBehavior|"
+                           "ScrollMode|ScrollHint"),
+                          ("QHeaderView", "ResizeMode"),
+                          ("QDialog", "DialogCode"),
+                          ("QLineEdit", "EchoMode|ActionPosition"),
+                          ("QComboBox", "InsertPolicy|SizeAdjustPolicy"),
+                          ("QTabWidget", "TabPosition|TabShape"),
+                          ("QFileDialog",
+                           "Option|AcceptMode|FileMode|ViewMode"),
+                          ("QIcon", "Mode|State"),
+                          ("QPalette", "ColorRole|ColorGroup"),
+                          ("QFont",
+                           "Weight|Style|Capitalization|StyleHint")):
     _nus = sorted(set(re.findall(
         rf"\b{_classe}\.(?!{_portees})([A-Z][A-Za-z]+)",
         Path(mod_plugin.__file__).read_text(encoding="utf-8"))))
     verifier(f"aucune constante {_classe} non qualifiee (Qt6)",
              not _nus, ", ".join(_nus[:4]) or "aucune")
+
+
+# LA FENETRE DE CRUE EXISTE EN DEUX EXEMPLAIRES — greffon et livrables.py — et
+# c'est un choix : fusionner ferait entrer matplotlib dans un paintEvent. Ce
+# qui est interdit, c'est qu'elles divergent : la courbe du suivi et la figure
+# du livrable cadreraient alors deux fenetres differentes, sans que rien ne le
+# dise. Les deux constantes sont donc comparees ici, sur le TEXTE des deux
+# fichiers — ce qui n'exige d'importer ni matplotlib ni la chaine.
+_CRUE = {}
+for _quel, _fichier in (("greffon", Path(mod_plugin.__file__)),
+                        ("livrables", CHAINE / "livrables.py")):
+    _texte = _fichier.read_text(encoding="utf-8")
+    _CRUE[_quel] = {
+        _c: (re.search(rf"^{_c} = ([0-9.]+)", _texte, re.M) or [None, None])[1]
+        for _c in ("SEUIL_CRUE", "MARGE_CRUE_H")}
+verifier("la fenetre de crue est nommee des deux cotes",
+         all(v is not None for d in _CRUE.values() for v in d.values()),
+         f"greffon={_CRUE['greffon']} livrables={_CRUE['livrables']}")
+verifier("la fenetre de crue ne diverge pas entre greffon et livrables",
+         _CRUE["greffon"] == _CRUE["livrables"],
+         f"greffon={_CRUE['greffon']} | livrables={_CRUE['livrables']}")
 
 # Le nom du DOSSIER est le nom du paquet pour QGIS, et le repertoire sous
 # lequel l'extension s'installe. « qgis_plugin » l'installait sous un nom

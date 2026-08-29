@@ -97,14 +97,13 @@ def chaines_candidates():
     dossier src/ du parent du plugin ensuite, qui n'est la chaine que pour
     une installation par lien symbolique — et dans ce cas la copie embarquee
     n'existe pas sur le disque, faire_zip.py ne la materialisant que dans
-    l'archive. Les deux ne sont donc jamais en concurrence reelle.
+    l'archive. Les deux ne sont donc jamais en concurrence reelle — et ne
+    peuvent pas non plus designer le meme dossier, l'un etant SOUS le plugin
+    et l'autre a cote. Le dedoublonnage qui figurait ici ne dedoublonnait
+    donc rien.
     """
     dossier_projet = Path(__file__).resolve().parent.parent / "src"
-    retenues = {}
-    for candidate in (DOSSIER_EMBARQUE, dossier_projet):
-        if est_chaine(candidate):
-            retenues.setdefault(Path(candidate).resolve(), Path(candidate))
-    return list(retenues.values())
+    return [c for c in (DOSSIER_EMBARQUE, dossier_projet) if est_chaine(c)]
 
 
 def trouver_chaine():
@@ -157,7 +156,13 @@ def _raccorder():
     return dossier
 
 
-DOSSIER_CHAINE = _raccorder()
+# CE QUI COMPTE ICI EST L'EFFET DE BORD : _raccorder() place la chaine sur le
+# chemin d'import des l'import du module, et c'est la seule raison de cette
+# ligne. Son resultat etait garde sous le nom DOSSIER_CHAINE, trompeur a deux
+# titres — rien dans le plugin ne le lisait, et la valeur devenait FAUSSE des
+# le premier definir_chaine(), qui change la chaine retenue sans la mettre a
+# jour. Qui veut la chaine courante appelle trouver_chaine().
+_raccorder()
 
 NOMS_FICHIERS = {
     "sections": "sections_controle.shp",
@@ -167,10 +172,34 @@ NOMS_FICHIERS = {
 }
 
 
+def detacher():
+    """
+    Retire du chemin d'import les dossiers de chaine que _raccorder() y a mis.
+
+    A appeler au DECHARGEMENT du greffon. _raccorder() insere en tete de
+    sys.path des l'import du module, et peut recommencer si la chaine change
+    en cours de session : on retire donc TOUT dossier que est_chaine()
+    reconnait, plutot que de parier sur un seul. Un dossier laisse la
+    continuerait de fournir « import criteres » a tout le processus QGIS,
+    greffon decharge ou non.
+    """
+    sys.path[:] = [p for p in sys.path if not est_chaine(p)]
+
+
 def chaine_disponible():
     """
     Verifie que la chaine de calage est accessible depuis l'interpreteur
     courant. Retourne (disponible, [messages]).
+
+    DISPONIBLE VEUT DIRE : les paquets tiers sont la ET les modules de la
+    chaine s'importent. Le verdict ne portait auparavant que sur les paquets
+    tiers : un criteres.py en erreur de syntaxe ajoutait bien son message a la
+    liste, mais laissait le titre annoncer « Utilisable : oui » — dans le seul
+    ecran dont le metier est de repondre a cette question.
+
+    L'interpreteur HEC-RAS, lui, reste un AVERTISSEMENT et non un refus : sans
+    lui on ne pilote pas le modele, mais on compose et l'on controle le paquet,
+    ce qui est deja la moitie du travail.
 
     Le Python de QGIS embarque deja numpy, scipy, pandas, geopandas, shapely,
     openpyxl et matplotlib : la preparation des donnees et tous les controles
@@ -205,10 +234,12 @@ def chaine_disponible():
         + (" (embarquee dans le plugin)" if chaine_embarquee(chaine)
            else " (externe au plugin)"))
 
+    illisibles = []
     for module in ("criteres", "geometrie", "controle_donnees", "livrables"):
         try:
             __import__(module)
         except Exception as e:
+            illisibles.append(module)
             messages.append(f"{module}.py illisible : {e}")
 
     interpreteur = interpreteur_hecras()
@@ -218,7 +249,7 @@ def chaine_disponible():
     else:
         messages.append(f"interpreteur HEC-RAS : {interpreteur}")
 
-    return not manquants, messages
+    return not (manquants or illisibles), messages
 
 
 # ---------------------------------------------------------------------------
@@ -328,6 +359,13 @@ def verifier_interpreteur(chemin):
     """
     import subprocess
 
+    # AUCUN INTERPRETEUR DESIGNE est un etat NORMAL — c'est celui de tout poste
+    # neuf, et interpreteur_hecras() rend alors None. Path(None) levait ici un
+    # TypeError, la ou les fonctions voisines (est_chaine, chaine_embarquee)
+    # rendent toutes un refus propre. Le banc d'essai s'y interrompait sur
+    # toute machine depourvue de CALAGE_PYTHON.
+    if chemin is None:
+        return False, "aucun interpreteur n'a ete designe."
     chemin = Path(chemin)
     if not chemin.is_file():
         return False, f"« {chemin} » n'est pas un fichier."
@@ -612,6 +650,69 @@ def pentes_locales_apports(dossier_projet, nom_projet, geometrie, chemin_axe,
     except Exception as e:                                   # noqa: BLE001
         return {}, f"{type(e).__name__}: {e}"
     return (reponse.get("pentes") or {}), (reponse.get("motif") or "")
+
+
+# ---------------------------------------------------------------------------
+# LE CONTRAT AVEC LA CHAINE
+#
+# Ces dix-huit cles sont tout ce que la fenetre transmet a la chaine de
+# calage, par la feuille Parametres du classeur. Elles etaient construites
+# DANS le QDialog : un renommage cote chaine cassait donc a un endroit
+# qu'aucun essai hors QGIS ne pouvait atteindre, et le defaut ne se voyait
+# qu'a la composition suivante — sur un classeur silencieusement incomplet,
+# ou la valeur manquante retombait sur le defaut de preparer_classeur.
+#
+# Ici, le contrat s'eprouve en console. La fenetre ne fait plus que lire ses
+# widgets et passer des valeurs simples : elle ne connait plus un seul nom de
+# cle, et n'ecrit plus aucun prefixe de fichier HEC-RAS.
+# ---------------------------------------------------------------------------
+
+def parametres_calage(dossier_projet, nom_projet, version_hecras, nom_zone_2d,
+                      numero_plan, numero_geometrie, numero_unsteady,
+                      mode_selection, nom_clone_geometrie, premier_apport,
+                      sens_axe, pk_origine_m, nb_max_iterations,
+                      tolerance_volume_pct, tolerance_pic_pct, dossier_sortie,
+                      sous_dossier_resultats, sous_dossier_suivi,
+                      fenetre=None):
+    """
+    Feuille Parametres du classeur, a partir de valeurs simples.
+
+    Aucun widget, aucun objet Qt : cette fonction s'appelle et se compare en
+    console. C'est tout son interet.
+
+    numero_plan, numero_geometrie, numero_unsteady : les NUMEROS seuls (« 03 »),
+        tels que lister_projet_hecras les rend. Les prefixes p/g/u sont poses
+        ici, une fois, et ne sont plus ecrits ailleurs.
+    fenetre : les cles de fenetre de simulation, ou un dict vide. Elle n'est
+        transmise QUE si elle differe de celle du plan de reference — la
+        recopier a l'identique reviendrait a reecrire dans le plan clone ce
+        qu'il contient deja.
+    """
+    parametres = {
+        "Dossier_projet_HECRAS": dossier_projet,
+        "Nom_projet": nom_projet,
+        # Lue dans les fichiers du modele, jamais saisie.
+        "Version_HECRAS": version_hecras or "",
+        "Nom_zone_2D": nom_zone_2d,
+        "Plan_reference": f"p{numero_plan}",
+        "Geometrie_reference": f"g{numero_geometrie}",
+        "Unsteady_reference": f"u{numero_unsteady}",
+        "Mode_selection_modele": mode_selection,
+        "Nom_clone_geometrie": nom_clone_geometrie,
+        "Premier_apport": premier_apport,
+        "Sens_axe": sens_axe,
+        "PK_origine_m": pk_origine_m,
+        "Nb_max_iterations_par_apport": nb_max_iterations,
+        # EN POURCENTAGES, comme le disent les noms de cle : c'est la chaine
+        # qui les ramene en fractions a la lecture (pont_hecras, « / 100.0 »).
+        "Tolerance_volume_pct": tolerance_volume_pct,
+        "Tolerance_pic_pct": tolerance_pic_pct,
+        "Dossier_sortie": dossier_sortie,
+        "Sous_dossier_resultats": sous_dossier_resultats,
+        "Sous_dossier_suivi": sous_dossier_suivi,
+    }
+    parametres.update(fenetre or {})
+    return parametres
 
 
 def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
@@ -1373,7 +1474,7 @@ if __name__ == "__main__":
     print("AUTO-TEST DU NOYAU DU PLUGIN  (hors QGIS)")
     print("=" * 72)
 
-    print(f"\nChaine de calage : {DOSSIER_CHAINE}")
+    print(f"\nChaine de calage : {trouver_chaine()}")
     disponible, messages = chaine_disponible()
     print(f"disponible : {disponible}")
     for m in messages:
