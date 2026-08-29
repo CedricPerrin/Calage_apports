@@ -139,6 +139,7 @@ class Iface:
         self.barre = BarreMessages()
         self.menus, self.barres = [], []
         self._fenetre_principale = None
+        self._menu_barres = None
 
     # UNE VRAIE QMainWindow, ET UNE VRAIE QToolBar. Ce mannequin rendait None
     # a mainWindow() et un talon a addToolBar() : la branche removeToolBar()
@@ -173,10 +174,19 @@ class Iface:
     # « del » ; il ne suffit plus des lors que le greffon appelle
     # removeToolBar(), qui exige un QToolBar et rien d'autre.
     def addToolBar(self, nom):  # noqa: N802
-        from qgis.PyQt.QtWidgets import QToolBar
+        from qgis.PyQt.QtWidgets import QMenu, QToolBar
         self.barres.append(nom)
         barre = QToolBar(nom, self.mainWindow())
         self.mainWindow().addToolBar(barre)
+        # CE QUE FAIT QGIS EN PLUS, et qu'il faut imiter sous peine d'un essai
+        # qui ne prouve rien : QgisApp::addToolBar place le toggleViewAction()
+        # de la barre dans son menu « Vue > Barres d'outils ». Un QMainWindow
+        # nu ne le fait pas ; le mannequin doit donc le faire lui-meme, sinon
+        # l'essai de retrait passerait au vert sans avoir rien retire.
+        if self._menu_barres is None:
+            self._menu_barres = QMenu("Barres d'outils", self.mainWindow())
+            self.mainWindow().menuBar().addMenu(self._menu_barres)
+        self._menu_barres.addAction(barre.toggleViewAction())
         return barre
 
 
@@ -981,7 +991,8 @@ verifier("suivi : le minuteur ne tourne que lorsque l'onglet est affiche",
 
 # LA CIBLE TRACEE EST LA CIBLE DECALEE, ET LA LEGENDE LE DIT. Tracee brute,
 # elle apparaissait translatee de Δt sous des jauges annoncant 100 % — 3,8 h
-# sur Las_Hies/LH2 — et l'oeil concluait a un calage faux la ou il etait juste.
+# sur un modele reel — et l'oeil concluait a un calage faux la ou il etait
+# juste.
 _ecrire_etat(courbes={"temps_cible": [0.0, 1.0, 2.0, 3.0],
                       "debit_cible": [0.0, 5.0, 10.0, 2.0],
                       "temps_calcule": [0.0, 1.0, 2.0, 3.0],
@@ -1150,9 +1161,13 @@ for _fichier in sorted(Path(mod_plugin.__file__).parent.glob("*.py")):
 # nom d'affaire cliente dans un commentaire l'accompagne, et un mainteneur
 # d'ailleurs lit une justification adossee a un cas qu'il ne peut pas
 # consulter. La mesure garde toute sa valeur sans le nom : « sept apports d'un
-# modele reel » dit la meme chose que « Las_Hies ».
-_AFFAIRES = re.compile(r"Las[_ ]?Hies|Kondiztegi|Ourse|Ardanavy|CETTE_TEST"
-                       r"|CASTEST|KON_\d|LH[2-8]\b", re.IGNORECASE)
+# modele reel » dit la meme chose que le nom du client.
+# LA MEME LISTE QUE faire_zip.py, ET UNE SEULE FOIS. Elle etait recopiee ici,
+# donc vouee a diverger — et elle nommait les clients dans un fichier suivi.
+import faire_zip                                              # noqa: E402
+_MOTS = faire_zip.mots_d_affaires()
+_AFFAIRES = (re.compile("|".join(re.escape(_m) for _m in _MOTS), re.IGNORECASE)
+             if _MOTS else None)
 for _fichier in sorted(Path(mod_plugin.__file__).parent.glob("*.py")):
     _trouves = sorted(set(_AFFAIRES.findall(
         _fichier.read_text(encoding="utf-8"))))
@@ -1346,14 +1361,27 @@ verifier("les deux emplacements du poste sont affiches",
          and bool(dlg.label_interpreteur.text()),
          f"chaine={dlg.label_chaine.text()[:40]} | "
          f"interp={dlg.label_interpreteur.text()[:40]}")
-verifier("l'interpreteur trouve est celui qui pilote HEC-RAS",
-         "python" in dlg.label_interpreteur.text().lower(),
-         dlg.label_interpreteur.text()[:60])
+# L'INTERPRETEUR HEC-RAS EST UN EQUIPEMENT OPTIONNEL DU POSTE, pas une piece
+# du greffon : il se designe, et le greffon compose et controle tres bien un
+# paquet sans lui. Les trois controles qui l'EXIGENT sont donc IGNORES quand il
+# n'y en a pas, au lieu d'etre comptes en echec.
+#
+# Ils l'etaient, et c'etait nuisible : le banc sortait « 3 ECHEC(S) » sur tout
+# poste depourvu de CALAGE_PYTHON — c'est-a-dire sur tout poste neuf — ce qui
+# apprend a passer sur ses echecs, et masquerait le jour venu un vrai defaut.
+# Pour les exercer :  set CALAGE_PYTHON=<...>\\python.exe
+_interpreteur = mod_plugin.noyau.interpreteur_hecras()
+if _interpreteur is None:
+    print("   ignore : aucun interpreteur HEC-RAS designe sur ce poste "
+          "(CALAGE_PYTHON) — 3 controles non joues")
+else:
+    verifier("l'interpreteur trouve est celui qui pilote HEC-RAS",
+             "python" in dlg.label_interpreteur.text().lower(),
+             dlg.label_interpreteur.text()[:60])
 
-_ok_i, _msg_i = mod_plugin.noyau.verifier_interpreteur(
-    mod_plugin.noyau.interpreteur_hecras())
-verifier("la verification confirme ras-commander et h5py",
-         _ok_i and "ras-commander" in _msg_i, _msg_i[:70])
+    _ok_i, _msg_i = mod_plugin.noyau.verifier_interpreteur(_interpreteur)
+    verifier("la verification confirme ras-commander et h5py",
+             _ok_i and "ras-commander" in _msg_i, _msg_i[:70])
 
 # Un python qui EXISTE mais ne sait pas piloter HEC-RAS doit etre refuse : le
 # python de QGIS en est l'exemple meme, et l'accepter le ferait echouer au
@@ -1370,9 +1398,12 @@ verifier("un interpreteur refuse ne remplace pas celui en place",
          not _ok_r and mod_plugin.noyau.interpreteur_hecras() == _avant,
          str(mod_plugin.noyau.interpreteur_hecras())[:60])
 
-verifier("un interpreteur memorise se retablit sans sous-processus",
-         mod_plugin.noyau.restaurer_interpreteur(str(_avant))
-         and mod_plugin.noyau.interpreteur_hecras() == Path(_avant))
+if _avant is None:
+    print("   ignore : aucun interpreteur a memoriser")
+else:
+    verifier("un interpreteur memorise se retablit sans sous-processus",
+             mod_plugin.noyau.restaurer_interpreteur(str(_avant))
+             and mod_plugin.noyau.interpreteur_hecras() == Path(_avant))
 verifier("un interpreteur memorise puis disparu n'est pas retabli",
          not mod_plugin.noyau.restaurer_interpreteur(r"C:\parti\python.exe"))
 
@@ -1515,6 +1546,18 @@ verifier("diagnostic repris dans l'onglet", bool(dlg.label_diagnostic.text()),
 print("\n7. DECHARGEMENT")
 _barre_avant = p.barre
 _fenetre_avant = p.fenetre
+# CE QUE unload() DOIT TROUVER A DEFAIRE. Sans ce constat prealable, les essais
+# qui suivent passeraient au vert meme si rien n'avait jamais ete accroche —
+# un controle qui ne peut pas echouer ne controle rien.
+from qgis.PyQt.QtWidgets import QMenu as _QMenuA               # noqa: E402
+verifier("avant unload : l'entree de Vue > Barres d'outils est bien la",
+         any(_barre_avant.toggleViewAction() in m.actions()
+             for m in iface.mainWindow().findChildren(_QMenuA)),
+         "l'essai de retrait a donc quelque chose a retirer")
+verifier("avant unload : la barre est dans la disposition",
+         iface.mainWindow().toolBarArea(_barre_avant)
+         != Qt.ToolBarArea.NoToolBarArea,
+         f"zone={iface.mainWindow().toolBarArea(_barre_avant)}")
 p.unload()
 verifier("unload sans erreur", True)
 # CE QUE unload() DOIT AVOIR DEFAIT, et qui ne se constatait pas : la barre
@@ -1526,6 +1569,15 @@ verifier("unload sans erreur", True)
 # duplique pas au rechargement — et c'est ce qu'il faut eprouver, pas sa
 # destruction.
 from qgis.PyQt.QtCore import Qt as _Qt                        # noqa: E402
+# L'ENTREE DE « VUE > BARRES D'OUTILS » DOIT PARTIR AUSSI. C'est la reserve
+# que unload() portait encore : une case a cocher survivante s'y serait
+# dupliquee a chaque rechargement.
+from qgis.PyQt.QtWidgets import QMenu as _QMenu                # noqa: E402
+_bascule = _barre_avant.toggleViewAction()
+verifier("unload retire l'entree de Vue > Barres d'outils",
+         not any(_bascule in m.actions()
+                 for m in iface.mainWindow().findChildren(_QMenu)),
+         f"action « {_bascule.text()} » absente des menus")
 verifier("unload masque la barre d'outils et la sort de la disposition",
          not _barre_avant.isVisible()
          and iface.mainWindow().toolBarArea(_barre_avant)

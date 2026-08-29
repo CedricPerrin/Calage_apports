@@ -35,6 +35,31 @@ DEPOT = DOSSIER.parent  # depot du projet : calage_apports/ est un sibling
 SOURCE = DEPOT / "calage_apports"
 ARCHIVE = DEPOT / "calage_apports.zip"
 
+# Mots interdits dans ce qui est distribue : noms d'affaires, identifiants de
+# cas d'essai, dossiers de synchronisation.
+#
+# ILS NE SONT PAS ECRITS ICI. Ce fichier est suivi par git et le depot est
+# pousse : y lister les clients de la maison reviendrait a publier ce que le
+# garde-fou existe precisement pour retenir. La liste vit dans « .affaires » a
+# la racine du depot, NON SUIVI (.gitignore), un mot par ligne — voir
+# .affaires.exemple.
+#
+# ABSENTE, LE CONTROLE DES NOMS NE TOURNE PAS, et le dit fort. Celui des
+# chemins, lui, tourne toujours : il ne repose sur aucune liste — « ce chemin
+# absolu se resout-il sur la machine qui construit l'archive ? » — et c'est le
+# plus solide des deux.
+FICHIER_AFFAIRES = DEPOT / ".affaires"
+
+
+def mots_d_affaires():
+    """Mots interdits, lus dans .affaires. Liste vide s'il n'existe pas."""
+    if not FICHIER_AFFAIRES.is_file():
+        return []
+    return [m.strip() for m in
+            FICHIER_AFFAIRES.read_text(encoding="utf-8").splitlines()
+            if m.strip() and not m.startswith("#")]
+
+
 EXTENSIONS = {".py", ".txt", ".md", ".png", ".qml", ".svg"}
 # Le nom du dossier racine de l'archive EST le nom du paquet pour QGIS, et le
 # repertoire sous lequel l'extension s'installe. Il ne doit pas changer.
@@ -203,7 +228,8 @@ if __name__ == "__main__":
                 echecs.append(f"separateur Windows dans l'archive : {nom}")
         # RIEN QUI DESIGNE LE POSTE OU L'AFFAIRE.
         #
-        # Ce controle portait sur deux mots — « OneDrive » et « 1-AFFAIRES ».
+        # Ce controle portait sur deux mots seulement, tous deux des dossiers
+        # de synchronisation.
         # Il a laisse partir « d:\1-Python » dans noyau.py pendant des
         # semaines, et l'essai equivalent de test_plugin_qgis.py portait meme
         # ce chemin en liste blanche : le garde-fou etait ecrit pour ignorer
@@ -219,9 +245,12 @@ if __name__ == "__main__":
         # memes sur tout poste Windows.
         racines_logicielles = ("c:\\windows", "c:\\program files")
         chemins_absolus = re.compile(r"[A-Za-z]:\\[^\"'\n\r]{3,}")
-        affaires = re.compile(
-            r"Las[_ ]?Hies|Kondiztegi|Ourse|Ardanavy|CETTE_TEST|CASTEST"
-            r"|KON_\d|LH[2-8]\b|OneDrive|1-AFFAIRES", re.IGNORECASE)
+        mots = mots_d_affaires()
+        affaires = (re.compile("|".join(re.escape(m) for m in mots),
+                               re.IGNORECASE) if mots else None)
+        if affaires is None:
+            print(f"   AVERTISSEMENT : {FICHIER_AFFAIRES.name} absent — les "
+                  f"noms d'affaires ne sont PAS controles (les chemins, si).")
         # LES .qml EN FONT PARTIE. Ils n'y etaient pas, et c'est par la que
         # le defaut serait rentre : un fichier de style se regenere d'un clic
         # droit « Enregistrer le style » DANS UN PROJET D'AFFAIRE, et emporte
@@ -239,9 +268,10 @@ if __name__ == "__main__":
                 if Path(chemin).exists():
                     echecs.append(f"chemin du poste dans {nom} : « {chemin} » "
                                   f"(il existe ici, il n'existera pas ailleurs)")
-            for mot in sorted(set(affaires.findall(texte))):
-                echecs.append(f"nom d'affaire ou de cas d'essai dans {nom} : "
-                              f"« {mot} »")
+            if affaires is not None:
+                for mot in sorted(set(affaires.findall(texte))):
+                    echecs.append(f"nom d'affaire ou de cas d'essai dans "
+                                  f"{nom} : « {mot} »")
 
     print()
     if echecs:

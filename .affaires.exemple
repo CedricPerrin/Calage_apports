@@ -1,0 +1,14 @@
+# Mots interdits dans ce qui est distribue : noms d'affaires, identifiants de
+# cas d'essai, dossiers de synchronisation. Un mot par ligne, casse ignoree.
+#
+# COPIER CE FICHIER EN « .affaires » ET Y METTRE LES VRAIS NOMS. .affaires est
+# ignore par git : c'est tout l'objet du dispositif. Les lister dans un fichier
+# suivi reviendrait a publier ce que le garde-fou existe pour retenir.
+#
+# Sans .affaires, faire_zip.py ne controle pas les noms — il le dit — mais il
+# controle toujours les chemins du poste, qui ne reposent sur aucune liste.
+Nom_de_l_affaire
+AUTRE_AFFAIRE
+CAS_DE_RECETTE
+XY1
+OneDrive

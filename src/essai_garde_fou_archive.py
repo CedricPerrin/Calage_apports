@@ -25,14 +25,24 @@ PROJET = Path(__file__).resolve().parent
 CIBLE = PROJET.parent / "calage_apports" / "noyau.py"
 PYTHON = sys.executable
 
+# LES MOTS INJECTES VIENNENT DE .affaires, comme ceux que le garde-fou
+# cherche : les ecrire ici les publierait dans un fichier suivi, ce qui est
+# exactement la faute que cet essai verifie. Sans ce fichier, seule la faute
+# de chemin — la seule qui ne repose sur aucune liste — est eprouvee.
+sys.path.insert(0, str(PROJET))
+import faire_zip                                            # noqa: E402
+
 FAUTES = [
     ("chemin du poste de developpement",
      "\n# essai : " + str(PROJET) + "\n"),
-    ("nom d'affaire cliente",
-     "\n# essai : mesure faite sur Las_Hies\n"),
-    ("identifiant de cas d'essai",
-     "\n# essai : apport KON_01 du modele de recette\n"),
 ]
+_mots = faire_zip.mots_d_affaires()
+if _mots:
+    FAUTES.append(("nom d'affaire ou identifiant de cas d'essai",
+                   f"\n# essai : mesure faite sur {_mots[0]}\n"))
+else:
+    print(f"   ignore : {faire_zip.FICHIER_AFFAIRES.name} absent — la faute "
+          f"« nom d'affaire » n'est pas eprouvee")
 
 sauvegarde = CIBLE.read_text(encoding="utf-8")
 echecs = []

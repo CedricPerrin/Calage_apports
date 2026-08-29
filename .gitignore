@@ -39,3 +39,6 @@ Temp/
 
 # Windows
 Thumbs.db
+
+# Liste locale des mots interdits (noms de clients) — voir .affaires.exemple
+.affaires

@@ -10,6 +10,73 @@ comportement correct est garanti par les tests, pas par le recit de ce qui
 a echoue avant eux.
 
 
+RESERVES ET ECHECS RESIDUELS, TRAITES (29/08/2026)
+------------------------------------------------------------------------
+DEMANDE UTILISATEUR : traiter les deux reserves laissees par la revue et les
+trois echecs residuels du banc d'essai.
+
+LES TROIS ECHECS N'EN ETAIENT PAS. Le banc sortait « 3 ECHEC(S) » sur tout
+poste depourvu de CALAGE_PYTHON — c'est-a-dire sur tout poste neuf. Or
+l'interpreteur HEC-RAS est un EQUIPEMENT OPTIONNEL DU POSTE, pas une piece du
+greffon : celui-ci compose et controle tres bien un paquet sans lui.
+  UN BANC QUI ECHOUE PARTOUT APPREND A IGNORER SES ECHECS, et masquerait le
+  jour venu un vrai defaut. Les trois controles qui EXIGENT un interpreteur
+  sont desormais IGNORES quand il n'y en a pas, avec le motif en clair —
+  l'idiome que le banc emploie deja pour les etapes qui demandent un modele.
+  Les trois autres, qui valent avec ou sans, continuent de tourner.
+  VERIFIE DANS LES DEUX SENS : sans interpreteur, zero echec, deux « ignore » ;
+  avec CALAGE_PYTHON designe, zero echec et les six controles joues. Un
+  interpreteur convenable existait d'ailleurs sur le poste (ras-commander
+  0.99.1, h5py 3.16.0) : il n'etait pas designe, et la recherche automatique ne
+  le trouvait pas — ce qui est VOULU, elle ne devine rien au-dela d'un .venv
+  voisin de la chaine.
+
+RESERVE 1 — L'ENTREE DE « VUE > BARRES D'OUTILS » SURVIVAIT AU DECHARGEMENT.
+iface.addToolBar() n'ajoute pas qu'un QToolBar : il place aussi son
+toggleViewAction() dans le menu des barres d'outils, que removeToolBar() ne
+touche pas. Une case a cocher « Calage des apports » y restait donc apres
+unload(), et un rechargement en ajoutait une seconde.
+  unload() retrouve l'action dans les menus de la fenetre principale et l'en
+  retire — PAR L'ACTION ELLE-MEME, jamais par le nom du menu, qui est un
+  detail interne de QGIS susceptible de changer.
+  LE MANNEQUIN DU BANC LE REPRODUIT DESORMAIS : un QMainWindow nu n'ajoute
+  aucune entree de menu, si bien qu'un essai de retrait y serait passe au vert
+  sans avoir rien retire. Et deux constats PREALABLES verifient que l'entree et
+  la barre sont bien la AVANT unload : un controle qui ne peut pas echouer ne
+  controle rien — c'est deja ce qui avait laisse passer le plantage du lot 3.
+
+RESERVE 2 — LES GARDE-FOUS PUBLIAIENT CE QU'ILS DEVAIENT RETENIR. Le projet
+s'interdit tout nom de client dans ce qui est distribue ; ses propres controles
+portaient pourtant la liste de ces noms EN CLAIR, dans un depot pousse sur
+GitHub. La liste passe dans « .affaires », a la racine, NON SUIVI par git, un
+mot par ligne ; « .affaires.exemple » en donne le modele avec des noms fictifs.
+  faire_zip.py et test_plugin_qgis.py la lisent par la MEME fonction,
+  faire_zip.mots_d_affaires() : elle etait recopiee des deux cotes, donc vouee
+  a diverger. essai_garde_fou_archive.py y prend le mot qu'il injecte.
+  SANS CE FICHIER, LE CONTROLE DES NOMS NE TOURNE PAS, et le dit fort. Celui
+  des chemins, lui, tourne toujours : il ne repose sur aucune liste — « ce
+  chemin absolu se resout-il sur la machine qui construit l'archive ? » — et
+  c'est le plus solide des deux. L'essai adverse confirme que les deux classes
+  de fautes restent refusees.
+  PLUS AUCUN NOM DE CLIENT DANS LE CODE SUIVI. Verifie sur les 17 modules .py
+  du depot.
+
+CE QUI N'EST PAS TRAITE, ET POURQUOI. STATUT.txt porte 58 mentions d'affaires
+reelles et CHECKPOINT.md une dizaine, toutes NARRATIVES : « CONSTAT, MESURE SUR
+LES DONNEES REELLES DE <affaire> ». Chacune rattache un constat au cas qui l'a
+produit, et c'est ce qui fait la valeur de ce journal. Les effacer le viderait ;
+les anonymiser ferait perdre le chemin de retour vers le cas reel. Le choix
+n'appartient pas a la technique : soit le depot devient PRIVE, soit ces deux
+fichiers sortent du suivi, soit on assume. Et dans tous les cas, l'historique
+git porte deja ces noms depuis les premiers commits — les en retirer exige une
+reecriture d'historique et un push force, qui ne se decide pas seul.
+
+VERIFIE (29/08/2026, QGIS 3.44.8-Solothurn, Qt 5.15.13) : test_plugin_qgis.py
+sans aucun echec, avec ET sans CALAGE_PYTHON ; noyau.py, criteres.py et
+livrables.py passent leurs auto-tests ; faire_zip.py rend « archive conforme » ;
+essai_garde_fou_archive.py rend « TOUT PASSE ».
+
+
 AUDIT DU GREFFON, ET SEPT LOTS DE SIMPLIFICATION (29/08/2026)
 ------------------------------------------------------------------------
 DEMANDE UTILISATEUR : audit complet du plugin QGIS, puis plan de

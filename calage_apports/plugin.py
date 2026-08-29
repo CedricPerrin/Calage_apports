@@ -56,6 +56,7 @@ from qgis.PyQt.QtWidgets import (
     QLabel,
     QLayout,
     QLineEdit,
+    QMenu,
     QMessageBox,
     QProgressBar,
     QPushButton,
@@ -3675,10 +3676,14 @@ class PluginCalage:
         """
         Defait ce que initGui a fait — l'essentiel, sinon tout.
 
-        RESERVE CONNUE : iface.addToolBar() n'ajoute pas qu'un QToolBar, il
-        place aussi son toggleViewAction() dans le menu Vue > Barres d'outils.
-        removeToolBar() ne l'en retire pas, et cette entree survit donc au
-        dechargement.
+        ET L'ENTREE DE MENU AVEC. iface.addToolBar() n'ajoute pas qu'un
+        QToolBar : il place aussi son toggleViewAction() dans le menu
+        Vue > Barres d'outils, que removeToolBar() ne touche pas. Une case a
+        cocher « Calage des apports » y survivait donc au dechargement, et un
+        rechargement en ajoutait une seconde. On retrouve l'action dans les
+        menus de la fenetre principale et on l'en retire — par l'action
+        elle-meme, jamais par le nom du menu, qui est un detail interne de
+        QGIS.
 
         LA FENETRE D'ABORD. Elle est NON MODALE et conservee d'une ouverture a
         l'autre : la fermer ne la detruit pas. Elle survivait donc au
@@ -3714,6 +3719,10 @@ class PluginCalage:
         if barre is not None:
             if fenetre_principale is not None:
                 try:
+                    bascule = barre.toggleViewAction()
+                    for menu in fenetre_principale.findChildren(QMenu):
+                        if bascule in menu.actions():
+                            menu.removeAction(bascule)
                     fenetre_principale.removeToolBar(barre)
                 except RuntimeError:
                     pass
