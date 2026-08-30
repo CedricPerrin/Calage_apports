@@ -334,6 +334,107 @@ def definir_interpreteur(chemin):
     return ok, message
 
 
+def emplacement_venv_hecras():
+    """
+    Ou installer l'environnement Python HEC-RAS, ou None si l'on ne sait pas.
+
+    A COTE DE LA CHAINE RETENUE, parce que c'est le seul endroit que
+    interpreteur_hecras() sait retrouver tout seul a la session suivante :
+    l'installer ailleurs obligerait a le redesigner a la main, ce que le
+    bouton est cense eviter.
+
+    JAMAIS SOUS LA COPIE EMBARQUEE. Elle vit dans le dossier d'installation
+    du greffon, que le gestionnaire d'extensions de QGIS efface et reecrit a
+    chaque mise a jour : l'environnement disparaitrait sans prevenir, et le
+    projet s'interdit par ailleurs d'ecrire dans ce dossier.
+    """
+    chaine = trouver_chaine()
+    if chaine is None or chaine == DOSSIER_EMBARQUE:
+        return None
+    return chaine.parent / ".venv"
+
+
+def installer_interpreteur(python_base, journal=None):
+    """
+    Cree un environnement Python HEC-RAS et y installe ras-commander et h5py.
+
+    python_base : l'interpreteur qui sert de BASE au venv. Il n'est pas
+        devine : « python » n'existe pas forcement dans le PATH d'un poste
+        Windows, et celui de QGIS ne sait pas toujours creer un venv
+        utilisable. C'est l'appelant qui le designe.
+    journal : appelable recevant les lignes de sortie, pour que l'attente ne
+        soit pas muette. pip peut prendre plusieurs minutes.
+
+    Retourne (chemin_interpreteur, message). En cas d'echec, (None, motif).
+
+    NE REMPLACE JAMAIS UN ENVIRONNEMENT EXISTANT : si le dossier est deja la,
+    on tente de l'utiliser tel quel. Effacer un .venv que l'utilisateur a
+    peuple lui-meme serait irreversible et hors sujet.
+    """
+    import subprocess
+
+    dire = journal or (lambda _: None)
+    cible = emplacement_venv_hecras()
+    if cible is None:
+        return None, ("aucun emplacement sur : la chaine de calage n'est pas "
+                      "designee, ou c'est la copie embarquee dans le greffon "
+                      "— que le gestionnaire d'extensions efface a chaque "
+                      "mise a jour. Designer d'abord une chaine externe.")
+    python_base = Path(python_base)
+    if not python_base.is_file():
+        return None, f"« {python_base} » n'est pas un fichier."
+
+    interpreteur = cible / "Scripts" / "python.exe"
+    if not interpreteur.exists():
+        interpreteur = cible / "bin" / "python"
+
+    if not interpreteur.exists():
+        dire(f"Création de l'environnement dans {cible}…")
+        try:
+            subprocess.run([str(python_base), "-m", "venv", str(cible)],
+                           check=True, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=600)
+        except Exception as e:                               # noqa: BLE001
+            sortie = getattr(e, "stderr", "") or ""
+            return None, f"création de l'environnement impossible : {e}\n{sortie}"
+        interpreteur = cible / "Scripts" / "python.exe"
+        if not interpreteur.exists():
+            interpreteur = cible / "bin" / "python"
+    else:
+        dire(f"Environnement déjà présent dans {cible}, réutilisé.")
+
+    if not interpreteur.exists():
+        return None, (f"environnement cree dans {cible}, mais aucun "
+                      f"interpreteur n'y a ete trouve.")
+
+    # LA VERSION MINIMALE EST IMPOSEE ICI AUSSI, pas seulement verifiee apres
+    # coup : une 0.98 borne mal les tableaux d'hydrogramme et tronquerait un
+    # apport en silence (voir RAS_COMMANDER_MINIMUM).
+    minimum = ".".join(str(n) for n in RAS_COMMANDER_MINIMUM)
+    dire(f"Installation de ras-commander>={minimum} et h5py… "
+         f"(plusieurs minutes)")
+    try:
+        resultat = subprocess.run(
+            [str(interpreteur), "-m", "pip", "install", "--upgrade",
+             f"ras-commander>={minimum}", "h5py"],
+            capture_output=True, text=True, encoding="utf-8",
+            errors="replace", timeout=1800)
+    except Exception as e:                                   # noqa: BLE001
+        return None, f"installation impossible : {e}"
+    if resultat.returncode != 0:
+        return None, (f"pip a echoue (code {resultat.returncode}) :\n"
+                      f"{(resultat.stderr or resultat.stdout or '')[-2000:]}")
+    dire("Installation terminée, vérification…")
+
+    # LE MEME CONTROLE QUE POUR UN INTERPRETEUR DESIGNE A LA MAIN : ce qui
+    # compte n'est pas que pip ait rendu 0, c'est que la chaine puisse s'en
+    # servir.
+    ok, message = verifier_interpreteur(interpreteur)
+    if not ok:
+        return None, f"environnement cree, mais inutilisable : {message}"
+    return interpreteur, message
+
+
 def restaurer_interpreteur(chemin):
     """
     Retablit un interpreteur DEJA verifie lors d'une session precedente.
@@ -678,13 +779,19 @@ def pentes_locales_apports(dossier_projet, nom_projet, geometrie, chemin_axe,
 # sans QGIS.
 # ---------------------------------------------------------------------------
 
+# SEUIL DE QUALITE NUMERIQUE, PAS DE CONCORDANCE. Doit rester d'accord avec
+# calage.Configuration.bilan_masse_max_pct : c'est la meme grandeur, ecrite
+# ici pour que le classeur la porte sans que le greffon importe la chaine.
+BILAN_MASSE_DEFAUT = 5.0
+
+
 def parametres_calage(dossier_projet, nom_projet, version_hecras, nom_zone_2d,
                       numero_plan, numero_geometrie, numero_unsteady,
                       mode_selection, nom_clone_geometrie, premier_apport,
                       sens_axe, pk_origine_m, nb_max_iterations,
                       tolerance_volume_pct, tolerance_pic_pct, dossier_sortie,
                       sous_dossier_resultats, sous_dossier_suivi,
-                      fenetre=None):
+                      fenetre=None, bilan_masse_max_pct=BILAN_MASSE_DEFAUT):
     """
     Feuille Parametres du classeur, a partir de valeurs simples.
 
@@ -718,6 +825,9 @@ def parametres_calage(dossier_projet, nom_projet, version_hecras, nom_zone_2d,
         # qui les ramene en fractions a la lecture (pont_hecras, « / 100.0 »).
         "Tolerance_volume_pct": tolerance_volume_pct,
         "Tolerance_pic_pct": tolerance_pic_pct,
+        # CELUI-CI RESTE EN POURCENTAGE DES DEUX COTES : ce n'est pas un
+        # rapport a la cible mais l'erreur de conservation du solveur.
+        "Bilan_masse_max_pct": bilan_masse_max_pct,
         "Dossier_sortie": dossier_sortie,
         "Sous_dossier_resultats": sous_dossier_resultats,
         "Sous_dossier_suivi": sous_dossier_suivi,
@@ -841,6 +951,7 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
         # du plan d'etape de l'apport precedent et tient l'amont pour cale.
         "Premier_apport": "",
         "Nb_max_iterations_par_apport": 6,
+        "Bilan_masse_max_pct": BILAN_MASSE_DEFAUT,
         "Source_geometrie": "SHP",
         "Fichier_SHP_Sections": str(chemins_shp.get("sections", "")),
         "Fichier_SHP_Apports": str(chemins_shp.get("apports", "")),
@@ -1031,6 +1142,81 @@ def ecrire_parametre(chemin_classeur, cle, valeur):
     return False
 
 
+def prolonger_cibles(chemin_classeur, duree_h):
+    """
+    Prolonge les hydrogrammes cibles jusqu'a duree_h, EN COMPLETANT PAR DES
+    ZEROS. Retourne {"ajoutees", "duree_avant_h", "duree_apres_h", "colonnes"}.
+
+    POURQUOI ZERO ET NON LA DERNIERE VALEUR. Une cible qui s'arrete avant la
+    fin de la simulation decrit une crue DEJA RETOMBEE : zero est la mesure,
+    pas une commodite. Prolonger a la derniere valeur connue — ce que fait
+    np.interp quand on le laisse faire (invariant 8) — fabriquerait un debit
+    que personne n'a mesure, et le calage passerait ses essais a le combler.
+
+    POURQUOI CETTE FONCTION EXISTE. HEC-RAS refuse de calculer si une serie
+    s'arrete avant la fin de la simulation (« Time series data ends before
+    the end of the simulation »). Le pre-vol le dit desormais avant tout
+    lancement ; il fallait encore le corriger a la main, colonne par colonne,
+    dans Excel.
+
+    LE PAS EST CELUI DE LA SAISIE, repris des deux dernieres lignes. Il n'est
+    pas impose : une cible au quart d'heure reste au quart d'heure, et c'est
+    la chaine qui la densifiera si besoin (criteres.normaliser_entree).
+
+    N'ECRIT RIEN SI LA CIBLE COUVRE DEJA LA DUREE. openpyxl modifie les
+    cellules sur place : styles, graphique et tableau des pics de la feuille
+    Cibles sont conserves.
+    """
+    import openpyxl
+
+    classeur = openpyxl.load_workbook(chemin_classeur)
+    feuille = classeur["Cibles"]
+
+    entetes = [c.value for c in feuille[1]]
+    try:
+        col_temps = entetes.index("Temps_h") + 1
+    except ValueError:
+        raise ValueError("la feuille Cibles n'a pas de colonne « Temps_h ».")
+    # LES COLONNES DE SAISIE SEULEMENT. La feuille porte aussi, a distance, un
+    # graphique et un tableau des debits de pointe (style_classeur.
+    # _ajouter_apercu_cibles) : y ecrire des zeros abimerait l'apercu.
+    colonnes = [i + 1 for i, e in enumerate(entetes)
+                if isinstance(e, str) and e.startswith("Cible_")]
+
+    temps = []
+    for ligne in range(2, feuille.max_row + 1):
+        valeur = feuille.cell(row=ligne, column=col_temps).value
+        if isinstance(valeur, (int, float)):
+            temps.append((ligne, float(valeur)))
+    if len(temps) < 2:
+        raise ValueError("la feuille Cibles porte moins de deux instants : "
+                         "le pas de temps n'est pas deductible.")
+
+    derniere_ligne, derniere_h = temps[-1]
+    pas_h = temps[-1][1] - temps[-2][1]
+    if pas_h <= 0:
+        raise ValueError(f"pas de temps non croissant en fin de saisie "
+                         f"({pas_h:g} h) : corriger la colonne Temps_h.")
+
+    ajoutees = 0
+    instant, ligne = derniere_h, derniere_ligne
+    # TOLERANCE D'UN CENTIEME DE PAS : une cible qui finit pile a la fin de la
+    # simulation ne doit pas gagner une ligne pour une erreur d'arrondi.
+    while instant < duree_h - pas_h * 1e-2:
+        instant += pas_h
+        ligne += 1
+        ajoutees += 1
+        feuille.cell(row=ligne, column=col_temps, value=round(instant, 6))
+        for colonne in colonnes:
+            feuille.cell(row=ligne, column=colonne, value=0.0)
+
+    if ajoutees:
+        classeur.save(chemin_classeur)
+    return {"ajoutees": ajoutees, "duree_avant_h": derniere_h,
+            "duree_apres_h": instant, "pas_h": pas_h,
+            "colonnes": [entetes[c - 1] for c in colonnes]}
+
+
 def controler_paquet(chemin_classeur, contre_modele=True):
     """
     Controle complet du paquet : saisie, chaine geographique, PK et ordre,
@@ -1040,7 +1226,11 @@ def controler_paquet(chemin_classeur, contre_modele=True):
     reimplementee ici. Le controle contre le modele passe par le pont, car il
     exige ras-commander, inutilisable dans le processus QGIS.
 
-    Retourne (anomalies, tableau_pk).
+    Retourne (anomalies, tableau_pk, prolongation), ou prolongation vaut None
+    ou {"duree_h", "apports"} : de quoi PROPOSER a l'utilisateur de prolonger
+    ses hydrogrammes cibles (prolonger_cibles) au lieu de lui decrire le
+    geste. Le chiffre est celui qu'a MESURE le pont, jamais une relecture du
+    message d'anomalie — un texte se reformule, un contrat non.
     """
     import controle_donnees as cd
 
@@ -1048,6 +1238,7 @@ def controler_paquet(chemin_classeur, contre_modele=True):
     geo_anomalies, tableau = cd.controler_geometrie(chemin_classeur)
     anomalies += geo_anomalies
 
+    prolongation = None
     if contre_modele:
         try:
             reponse = appeler_pont("controler-modele", "--template",
@@ -1055,12 +1246,13 @@ def controler_paquet(chemin_classeur, contre_modele=True):
             anomalies += [(cd.ERREUR, m) for m in reponse.get("erreurs", [])]
             anomalies += [(cd.AVERTISSEMENT, m)
                           for m in reponse.get("avertissements", [])]
+            prolongation = reponse.get("prolongation")
         except Exception as e:
             anomalies.append((
                 cd.AVERTISSEMENT,
                 f"controle contre le modele non effectue : {e}"))
 
-    return anomalies, tableau
+    return anomalies, tableau, prolongation
 
 
 def chemins_du_classeur(chemin_classeur):
@@ -1545,7 +1737,7 @@ if __name__ == "__main__":
     print("   " + corr.to_string(index=False).replace("\n", "\n   "))
 
     print("\n4. CONTROLE DU PAQUET")
-    anomalies, tableau = controler_paquet(classeur)
+    anomalies, tableau, _prolongation = controler_paquet(classeur)
     erreurs = [m for n, m in anomalies if n == "ERREUR"]
     for niveau, message in anomalies:
         print(f"   [{niveau:13s}] {message}")
@@ -1557,6 +1749,83 @@ if __name__ == "__main__":
     if tableau is not None:
         print("\n   PK calcules :")
         print("   " + tableau.to_string(index=False).replace("\n", "\n   "))
+
+    print("\n4 bis. PROLONGATION DES CIBLES PAR DES ZEROS")
+    # LE GESTE QUE LE PRE-VOL RECLAME. Un hydrogramme cible qui s'arrete avant
+    # la fin de la simulation fait refuser le calcul par HEC-RAS ; le
+    # prolonger a la main, colonne par colonne dans Excel, etait la seule
+    # issue. Ce qui est eprouve ici : le pas est celui de la SAISIE, les
+    # valeurs ajoutees sont des ZEROS (une crue retombee, pas la derniere
+    # valeur connue — invariant 8), l'existant n'est pas touche, et rappeler
+    # la fonction ne fait rien.
+    import openpyxl
+    _cl = dossier / "essai_prolongation.xlsx"
+    _wb = openpyxl.Workbook()
+    _fe = _wb.active
+    _fe.title = "Cibles"
+    _fe.append(["Temps_h", "Cible_S1", "Cible_S2"])
+    for _i in range(5):                       # 0,00 -> 1,00 h au quart d'heure
+        _fe.append([round(0.25 * _i, 2), 10.0 + _i, 20.0 + _i])
+    _wb.save(_cl)
+
+    _bilan = prolonger_cibles(_cl, 2.0)
+    _lu = pd.read_excel(_cl, sheet_name="Cibles")
+    _ajoutees = _lu[_lu["Temps_h"] > 1.0 + 1e-9]
+    _controles = [
+        ("le pas de la saisie est repris", abs(_bilan["pas_h"] - 0.25) < 1e-9,
+         f"{_bilan['pas_h']} h"),
+        ("la duree visee est atteinte", abs(_lu["Temps_h"].max() - 2.0) < 1e-9,
+         f"{_lu['Temps_h'].max()} h"),
+        ("les lignes ajoutees valent ZERO, pas la derniere valeur",
+         bool((_ajoutees[["Cible_S1", "Cible_S2"]] == 0).all().all()),
+         f"{len(_ajoutees)} ligne(s)"),
+        ("la saisie d'origine est intacte",
+         list(_lu["Cible_S1"][:5]) == [10.0, 11.0, 12.0, 13.0, 14.0],
+         str(list(_lu["Cible_S1"][:5]))),
+        ("rappeler la fonction n'ajoute rien",
+         prolonger_cibles(_cl, 2.0)["ajoutees"] == 0),
+        ("une cible deja assez longue n'est pas touchee",
+         prolonger_cibles(_cl, 1.5)["ajoutees"] == 0),
+    ]
+    for _libelle, _ok, *_detail in _controles:
+        print(f"   [{'OK' if _ok else 'ECHEC'}] {_libelle}"
+              + (f"  ->  {_detail[0]}" if _detail else ""))
+        assert _ok, _libelle
+    _cl.unlink(missing_ok=True)
+
+    print("\n4 ter. EMPLACEMENT DE L'ENVIRONNEMENT HEC-RAS")
+    # JAMAIS SOUS LA COPIE EMBARQUEE : le gestionnaire d'extensions de QGIS
+    # efface et reecrit ce dossier a chaque mise a jour, l'environnement y
+    # disparaitrait sans prevenir.
+    _garde = _dossier_chaine
+    try:
+        _dossier_chaine = DOSSIER_EMBARQUE if est_chaine(DOSSIER_EMBARQUE) else None
+        if _dossier_chaine is not None:
+            print(f"   [{'OK' if emplacement_venv_hecras() is None else 'ECHEC'}]"
+                  f" la copie embarquee est refusee comme emplacement")
+            assert emplacement_venv_hecras() is None
+        else:
+            print("   (copie embarquee absente sur ce poste : controle ignore)")
+        _dossier_chaine = Path(__file__).resolve().parent.parent / "src"
+        if est_chaine(_dossier_chaine):
+            _attendu = _dossier_chaine.parent / ".venv"
+            print(f"   [{'OK' if emplacement_venv_hecras() == _attendu else 'ECHEC'}]"
+                  f" une chaine externe -> {_attendu}")
+            assert emplacement_venv_hecras() == _attendu
+        _dossier_chaine = None
+        print(f"   [{'OK' if emplacement_venv_hecras() is None else 'ECHEC'}]"
+              f" sans chaine designee, aucun emplacement n'est invente"
+              if trouver_chaine() is None else
+              "   (une chaine est trouvee automatiquement : controle ignore)")
+        # installer_interpreteur REFUSE un python de base inexistant, sans
+        # rien creer : c'est le seul chemin de cette fonction qu'un banc peut
+        # emprunter sans telecharger plusieurs centaines de mega-octets.
+        _chemin, _motif = installer_interpreteur(dossier / "python_absent.exe")
+        print(f"   [{'OK' if _chemin is None and _motif else 'ECHEC'}]"
+              f" un python de base inexistant est refuse  ->  {_motif[:60]}")
+        assert _chemin is None and _motif
+    finally:
+        _dossier_chaine = _garde
 
     print("\n5. PK POUR AFFICHAGE DANS QGIS")
     affichage = pk_pour_affichage(chemins["sections"], chemins["axe"])

@@ -163,7 +163,18 @@ class Modele:
 class Configuration:
     """Reglages de la recherche."""
     nb_max_essais: int = 6
-    bilan_masse_max_pct: float = 1.0
+    # QUALITE NUMERIQUE DU CALCUL, ET NON ECART A LA CIBLE : c'est le
+    # « volume accounting error » que HEC-RAS rend lui-meme (colonne
+    # « Error Percent »), soit ce qu'il perd ou fabrique entre ce qui entre,
+    # ce qui sort et ce qui est stocke. Il ne dit RIEN de la concordance avec
+    # l'hydrogramme cible — celle-la se juge par tolerance_beta / _pic /
+    # r_min. Un calcul dont la conservation derive est REJETE : corriger un
+    # apport dessus reviendrait a compenser une erreur du solveur.
+    # 1,0 % jusqu'au 30/08/2026, releve a 5,0 % : sur un modele reel, un
+    # calcul par ailleurs sain rendait 1,119 % et arretait le calage des le
+    # premier apport. VALEUR A FONDER SUR SOURCES (USACE, SOP) — voir
+    # STATUT.txt, « SEUIL DE BILAN DE MASSE ».
+    bilan_masse_max_pct: float = 5.0
     # Tolerance sur le VOLUME. La concordance exige en plus la pointe et la
     # forme : un volume juste avec une pointe fausse serait non conservatif
     # pour une etude d'alea.
@@ -700,6 +711,7 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
          "pour mesurer ce que les sections recoivent sans eux.")
     calcul = modele.calculer()
     resultat.nb_calculs += 1
+    _noter_bilan(suivi, calcul, config)
     acceptable, motif_qualite = qualite_acceptable(calcul, config)
     if not acceptable:
         resultat.motif = (
@@ -894,6 +906,7 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
             modele.appliquer_facteur(apport, 1.0)
             calcul = modele.calculer()
             resultat.nb_calculs += 1
+            _noter_bilan(suivi, calcul, config)
             acceptable, motif_qualite = qualite_acceptable(calcul, config)
 
             if not acceptable:
@@ -1220,6 +1233,21 @@ def _sans_interrompre(fonction, *arguments):
         return fonction(*arguments)
     except Exception:
         return None
+
+
+def _noter_bilan(suivi, calcul, config):
+    """
+    Transmet au suivi le bilan de masse du calcul qui vient de tourner.
+
+    APRES CHAQUE CALCUL, ACCEPTE OU NON. C'est justement le calcul REJETE
+    qu'il faut pouvoir lire a l'ecran : sans cela, l'arret « qualite
+    numerique » n'expose son chiffre que dans le journal texte, que
+    l'utilisateur du greffon n'ouvre pas.
+    """
+    if suivi is None:
+        return
+    _sans_interrompre(suivi.noter_bilan_masse, calcul.bilan_masse_pct,
+                      config.bilan_masse_max_pct)
 
 
 def _jalonner(modele, etape, dire):
@@ -1822,11 +1850,19 @@ if __name__ == "__main__":
               "les deux estimations different bien")
 
     # Deux situations DISTINCTES, qu'il ne faut pas confondre.
+    #
+    # LE SEUIL EST EPINGLE, PAS HERITE DU DEFAUT. Ces deux essais eprouvent le
+    # MECANISME de rejet, pas la valeur de production : ecrits sur le defaut,
+    # ils sont passes au vert le jour ou celui-ci est monte de 1 a 5 % — le
+    # modele fictif rendant exactement 5 %, la comparaison stricte ne
+    # declenchait plus. Le defaut, lui, a son propre controle plus bas.
+    _QUALITE = Configuration(bilan_masse_max_pct=1.0)
+
     print("\n--- MODELE DOUTEUX DES LE CALCUL DE REFERENCE ---")
     modele3 = ModeleFictif(apports[:1], sections[:1], temps, formes[:1],
                            bilan_masse_pct=5.0)
     r3 = caler(modele3, apports[:1], sections[:1], cibles[:1],
-               Configuration(), journal=lambda *a, **k: None)
+               _QUALITE, journal=lambda *a, **k: None)
     # Un modele deja instable APPORTS A ZERO ne peut rien caler du tout : le
     # dire tout de suite vaut mieux que de consommer des essais.
     controler("un modele douteux est arrete des le calcul de reference",
@@ -1841,7 +1877,7 @@ if __name__ == "__main__":
     modele3b = ModeleFictif(apports[:1], sections[:1], temps, formes[:1],
                             seuil_instabilite=0.5)
     r3b = caler(modele3b, apports[:1], sections[:1], cibles[:1],
-                Configuration(), journal=lambda *a, **k: None)
+                _QUALITE, journal=lambda *a, **k: None)
     controler("le calcul de reference d'un modele sain passe",
               r3b.nb_calculs > 1, f"{r3b.nb_calculs} calculs")
     controler("un essai devenu instable est rejete, et la recherche s'arrete",
@@ -1851,6 +1887,23 @@ if __name__ == "__main__":
     controler("tout apport non converge reste non valide",
               all(a.valide == (not a.motif) for a in r3b.apports),
               f"{len(r3b.apports)} apport(s) examine(s)")
+
+    # LE DEFAUT DE PRODUCTION A SON PROPRE CONTROLE, separe du mecanisme
+    # ci-dessus. Il vaut 5 % depuis le 30/08/2026 : a 1 %, un calcul par
+    # ailleurs sain (1,119 % mesure sur un modele reel) arretait le calage
+    # des le premier apport. Le changer est une DECISION, pas un reglage :
+    # ce controle oblige a la prendre sciemment.
+    controler("le defaut de bilan_masse_max_pct est 5 %",
+              Configuration().bilan_masse_max_pct == 5.0,
+              f"{Configuration().bilan_masse_max_pct} %")
+    # LE BILAN N'EST PAS UN ECART A LA CIBLE, et rien ne doit les rapprocher :
+    # un seuil de qualite numerique qui suivrait la tolerance de volume ferait
+    # dependre le rejet d'un calcul de la precision demandee a l'etude.
+    controler("le bilan de masse ne se juge pas contre la tolerance de volume",
+              qualite_acceptable(
+                  ResultatCalcul(reussi=True, bilan_masse_pct=4.0),
+                  Configuration(tolerance_beta=0.001))[0],
+              "un volume exigeant ne rejette pas un calcul sain")
 
     print("\n--- UNE ETAPE OUVERTE N'A PAS ENCORE DE RESULTATS ---")
     # LE MODELE FICTIF EST TROP COMPLAISANT POUR CE CAS : il repond a

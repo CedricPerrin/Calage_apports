@@ -84,6 +84,13 @@ COMMENTAIRES = {
     "Tolerance_pic_pct":
         "Ecart admis sur le DEBIT DE POINTE, en % de la cible. Il a sa propre "
         "tolerance parce qu'il dimensionne l'alea.",
+    "Bilan_masse_max_pct":
+        "QUALITE DU CALCUL, PAS ECART A LA CIBLE. Erreur de conservation que "
+        "HEC-RAS rend lui-meme (« volume accounting error ») : ce qu'il perd "
+        "ou fabrique entre entrees, sorties et stockage. Au-dela, l'essai est "
+        "REJETE sans etre compare a la cible — on ne corrige pas un apport "
+        "pour compenser une erreur du solveur. Desserrer en connaissance de "
+        "cause ; resserrer le pas de calcul du plan est le vrai remede.",
     "Nb_max_iterations_par_apport":
         "Garde-fou de dernier recours, non le mode d'arret normal : la "
         "concordance s'obtient en trois a quatre essais. Minimum 3.",

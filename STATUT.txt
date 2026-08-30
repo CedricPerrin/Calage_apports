@@ -10,6 +10,320 @@ comportement correct est garanti par les tests, pas par le recit de ce qui
 a echoue avant eux.
 
 
+NOTE METHODOLOGIQUE — VERSION 13 (30/08/2026)
+------------------------------------------------------------------------
+DEMANDE UTILISATEUR : « supprimer toute mention a des tests ou reflexions
+passees (ou en les mettant dans 1 § specifique), synthetique, concis,
+efficace et peu verbeux, philosophie du claude.md, privilegier les
+illustrations au texte. » Deux choix tranches avec l'utilisateur avant
+d'ecrire : de VRAIS schemas (pas seulement des tableaux), et une COUPE
+FRANCHE assumant le retrait de contenu.
+
+MESURE, a methode de comptage identique :
+                       paragraphes   tableaux   total   fig
+  V12 (avant)              6 668       3 849    10 517    3
+  V13 (apres)              4 063       3 340     7 403    8
+La PROSE recule de 39 %, le total de 30 %. 23 pages au format PDF.
+
+CE QUI A ETE RETIRE DU CORPS, ET OU C'EST PARTI. Tout le recit — « on a
+essaye X, puis retire », « mesure sur un cas reel » — quitte le corps et se
+regroupe dans une ANNEXE B unique, en trois sections : B.1 le calage complet
+a sept apports, B.2 huit approches essayees puis retirees avec ce qui les a
+fait retirer, B.3 trois incidents de production. Le corps n'enonce plus que
+la regle en vigueur. C'est le « § specifique » que la demande autorisait, et
+il vaut mieux que la suppression : les mesures qui fondent les choix sont
+conservees, sans encombrer la lecture de la methode.
+
+SIX FIGURES NEUVES, chacune REMPLACANT de la prose (le script est conserve
+dans le dossier de travail de la session) :
+  - convention de decalage Δt, et pourquoi elle n'est pas reversible ;
+  - resolution sequentielle amont -> aval ;
+  - fenetre de jugement ;
+  - le cliquet du plancher a zero ;
+  - un plan et un fichier de debit conserves par etape, et la reprise ;
+  - organigramme general.
+
+L'ORGANIGRAMME DE LA V12 ETAIT PERIME, et personne ne l'avait vu. Il
+annoncait un recalage « par ecart minimal » (c'est pic contre pic depuis le
+04/08), un ecart « lisse puis reinjecte a 90 % » (il est reinjecte TEL QUEL
+depuis le 07/08), un controle du nombre de Courant (retire) et une boucle de
+reprise des sections amont (retiree le 08/08). Il est refait. Les deux autres
+figures — profil en long, correction additive — ont ete verifiees exactes et
+sont CONSERVEES telles quelles.
+
+METHODE : le fichier d'origine sert de GABARIT, on en vide le corps et on le
+reconstruit avec ses propres styles — la meme que pour la V11. Sauvegarde :
+methodologie_calage_amont_aval_avant_maj_20260830.docx. Un PDF est produit a
+cote (Word en automation COM).
+
+CE QUI EST ENTRE AU PASSAGE, et qui manquait : le seuil de bilan de masse et
+ce qu'il n'est PAS (§ 1.4 garde-fous), le controle des durees couvertes et la
+prolongation des cibles par des zeros (§ 1.8), le filtrage des blocs
+orphelins de l'unsteady (§ 2.3), et le bouton d'installation de
+l'interpreteur (§ 2.4).
+
+RESTE : le seuil de 5 % n'est toujours pas fonde sur sources — la V13 le dit
+sans le justifier, et l'annexe A.1 le porte en « a faire ».
+
+
+LE PAS DE CALCUL A 1 s N'A PAS SUFFI — LE SEUIL A 5 % ETAIT LE BON CHOIX
+------------------------------------------------------------------------
+Run du 29/08 23:00 (PID 19196), relance apres avoir ramene Intervalle_calcul
+de 2SEC a 1SEC. Termine le 30/08 a 01:11, 2 h 11, UN calcul.
+
+  ARRET : le calcul de reference (apports a zero) n'est pas exploitable :
+          bilan de masse +1.394 % au-dela de 1.0 % admis.
+
+LE PAS PLUS FIN A DEGRADE LE BILAN, PAS AMELIORE : +1,119 % a 2SEC (run
+precedent, sur le premier apport), +1,394 % a 1SEC (celui-ci, des la
+reference). Ce n'est donc PAS un probleme de pas de temps, et la piste
+« resserrer le pas de calcul » — celle que le message d'erreur suggere — ne
+mene nulle part sur ce modele. Reste a chercher du cote du maillage, des
+conditions limites ou de la tolerance 2D du plan.
+
+CE QUE CELA TRANCHE : avec le seuil a 5 % decide le meme jour, ce calcul
+serait passe et le calage aurait demarre. Les deux mesures disponibles sur
+un modele reel (1,119 et 1,394 %) tiennent largement sous 5 % et largement
+au-dessus de 1 %. La valeur reste a fonder sur sources, mais elle n'est pas
+arbitraire : elle est calee sur ce qu'un modele de production rend
+reellement.
+
+AVANCEMENT.JSON DE CE RUN PORTE « bilan_masse: null » : le processus a
+charge suivi.py a son lancement, avant la publication du bilan. Le prochain
+run l'affichera sous les jauges.
+
+
+CORRECTIFS ISSUS DU CALAGE SUHIHANDIA (30/08/2026)
+------------------------------------------------------------------------
+Six defauts mis a nu par le premier calage sur modele client, corriges
+pendant que le calage tournait. VOIR L'ENTREE SUIVANTE pour le recit.
+
+1. LES BLOCS ORPHELINS DE L'UNSTEADY NE SONT PLUS PRIS POUR DES CONDITIONS
+   LIMITES. cartographier_hydrogrammes() gagne un argument noms_connus : les
+   noms de BC lines lus dans la GEOMETRIE du plan. Seuls ces noms sont
+   retenus — comme fait HEC-RAS, qui n'ouvre que ce que la geometrie declare.
+   PiloteHecRas les fournit par _bc_lines_connues(), aux TROIS endroits ou la
+   carte est construite (preparer, apres re-cadencage, jalonner) : une carte
+   filtree comparee a une carte qui ne l'est pas ferait passer tout orphelin
+   pour « disparu ».
+     None VEUT DIRE « JE NE SAIS PAS », PAS « AUCUNE ». Geometrie illisible ->
+     filtre desactive, comportement d'avant a l'identique. Un ensemble VIDE,
+     lui, ne laisse rien passer : seule une vraie lecture peut justifier ce
+     verdict. Les deux cas ont leur controle.
+   Mesure sur ARAN.u18 : 45 blocs pour 14 BC lines. Deux orphelins restes
+   courts (ARA_01 19,9 h, SUH_01 22,0 h) avaient fait REFUSER trois
+   lancements sur des series que le solveur n'ouvre jamais.
+
+2. LE MESSAGE « CONDITION TROP COURTE » DIT DESORMAIS OU CORRIGER.
+   conditions_trop_courtes() recoit apports_a_caler et marque chaque entree
+   d'un « a_caler ». Le message range les fautives en DEUX groupes : apports
+   a caler (a rallonger dans la feuille Cibles du classeur) et autres
+   conditions limites (a corriger dans le modele source). Il ne les
+   distinguait pas, et a nomme deux alimentations amont a un utilisateur qui
+   venait de rallonger ses douze apports — lui donnant raison de croire que
+   le controle se trompait.
+
+3. LE SEUIL DE BILAN DE MASSE PASSE DE 1 % A 5 %, ET DEVIENT VISIBLE.
+   DECISION UTILISATEUR. A 1 %, un calcul par ailleurs sain (1,119 % mesure)
+   arretait le calage des le premier apport.
+     - calage.Configuration.bilan_masse_max_pct : 1.0 -> 5.0 ;
+     - EXPOSE : Bilan_masse_max_pct dans le classeur (creer_template,
+       style_classeur.COMMENTAIRES, noyau.parametres_calage /
+       preparer_classeur, lu par pont_hecras.commande_caler) et champ dans
+       l'onglet 2 du greffon (noyau.BILAN_MASSE_DEFAUT) ;
+     - AFFICHE : suivi.noter_bilan_masse() publie le bilan du DERNIER calcul
+       et son seuil dans avancement.json ; le greffon l'ecrit sous les jauges,
+       en rouge au-dela du seuil. Appele apres CHAQUE calcul, y compris ceux
+       qui vont etre rejetes — c'est justement celui-la qu'il faut lire, et
+       son chiffre n'existait que dans le journal texte.
+   CE N'EST PAS UN ECART A LA CIBLE, et libelles comme commentaires le
+   martelent : c'est le « volume accounting error » du solveur. Un controle
+   neuf verifie qu'une tolerance de volume exigeante ne rejette pas un calcul
+   sain — les deux grandeurs ne doivent jamais se rapprocher.
+   LA VALEUR RESTE A FONDER SUR SOURCES (USACE, SOP) : voir « A faire ».
+
+4. LE CONTROLE DE DUREE REMONTE AU PRE-VOL, AVANT LE LANCEMENT.
+   conditions_trop_courtes() existait, mais n'etait appelee que dans
+   preparer() — soit apres le clonage, dans un sous-processus DETACHE que le
+   greffon ne regarde pas. L'utilisateur lancait, basculait sur l'onglet
+   Suivi, et n'apprenait qu'en ouvrant le journal texte que rien n'avait
+   demarre. TROIS FOIS de suite.
+   pont_hecras._controler_durees_avant_calcul() appelle LA MEME fonction a
+   la COMPOSITION : la reponse arrive dans le compte rendu de « Composer et
+   controler ». Meme partage qu'au point 2 — ERREUR pour un apport a caler
+   (a rallonger dans le classeur, donc a notre portee), AVERTISSEMENT pour
+   une autre condition limite (a corriger dans le modele source).
+   IL NE BLOQUE JAMAIS SUR CE QU'IL N'A PAS SU LIRE : classeur illisible,
+   dossier absent, plan introuvable rendent une liste vide ou un simple
+   avertissement. Un pre-vol qui refuse ce qu'il ne comprend pas est pire
+   qu'un pre-vol absent, et trois controles le verifient.
+     AU MEME ENDROIT, _controler_residus_unsteady() DIT CE QUI TRAHIT UN
+     HISTORIQUE D'EDITION, sans jamais rien bloquer : blocs orphelins
+     (ignores par HEC-RAS comme par nous, mais personne ne disait qu'ils
+     etaient la), meme nom declare dans plusieurs zones 2D, et duree
+     aberrante (> FACTEUR_DUREE_ABERRANTE = 10 fois la simulation).
+     Eprouve sur ARAN.u18, il rend exactement le diagnostic qu'il a fallu
+     poser a la main : 2 orphelins (ARA_01, SUH_01), 12 noms en triple, et
+     SUH01 a 1 096 h pour 19 h simulees.
+     La resolution du contexte (unsteady, plan, zone, BC lines, apports) est
+     EXTRAITE dans _contexte_modele() : recopiee des deux cotes, elle etait
+     vouee a diverger — c'est ce qui etait arrive a mots_d_affaires().
+5. LE GREFFON PROPOSE DE PROLONGER LES CIBLES, AU LIEU DE LE DECRIRE.
+   noyau.prolonger_cibles(classeur, duree_h) allonge chaque colonne de la
+   feuille Cibles jusqu'a la duree visee, EN COMPLETANT PAR DES ZEROS.
+     POURQUOI ZERO. Une cible qui s'arrete avant la fin de la simulation
+     decrit une crue DEJA RETOMBEE : zero est la mesure. Prolonger a la
+     derniere valeur connue — ce que fait np.interp si on le laisse faire
+     (invariant 8) — fabriquerait un debit que personne n'a mesure, et le
+     calage passerait ses essais a le combler.
+   Le pas est celui de la SAISIE, repris des deux dernieres lignes : une
+   cible au quart d'heure y reste. openpyxl ecrit sur place, donc styles,
+   graphique et tableau des pics de la feuille sont conserves.
+   LE CHIFFRE VIENT DE LA MESURE, JAMAIS DU MESSAGE : le pre-vol rend
+   desormais (anomalies, prolongation) et le pont le transmet en clair dans
+   sa reponse JSON ; controler_paquet() rend un TRIPLET. Relire un texte
+   d'anomalie pour en extraire une duree l'aurait rendu non reformulable.
+   La question est posee APRES le compte rendu, jamais pendant : le controle
+   constate, la question propose. Et le geste n'ecrit QUE dans le classeur —
+   une condition limite du modele source trop courte est signalee, jamais
+   reparee d'office.
+
+6. UN BOUTON INSTALLE L'ENVIRONNEMENT PYTHON HEC-RAS.
+   « Designer… » supposait qu'il existe deja ; sur un poste neuf il n'existe
+   pas, et la seule issue etait de taper deux commandes dans une console —
+   ce que le message d'erreur decrivait sans le faire.
+   noyau.installer_interpreteur(python_base, journal) cree le venv puis y
+   installe « ras-commander>=0.99 » et h5py, et le VERIFIE par
+   verifier_interpreteur() : ce qui compte n'est pas que pip ait rendu 0,
+   c'est que la chaine puisse s'en servir.
+     OU : noyau.emplacement_venv_hecras(), a cote de la chaine retenue —
+     le seul endroit que interpreteur_hecras() sait retrouver seul a la
+     session suivante. JAMAIS sous la copie embarquee : le gestionnaire
+     d'extensions de QGIS efface ce dossier a chaque mise a jour.
+     LE PYTHON DE BASE N'EST PAS DEVINE : « python » n'est pas forcement
+     dans le PATH d'un poste Windows, et celui de QGIS ne sait pas toujours
+     creer un venv utilisable. L'utilisateur le designe.
+     NE REMPLACE JAMAIS UN ENVIRONNEMENT EXISTANT : s'il est deja la, on
+     tente de l'utiliser tel quel.
+   Deux questions avant d'agir, pas une : ou l'on ecrit et ce qu'on
+   telecharge, puis quel python de base.
+
+CE QUE LES AUTO-TESTS ONT APPRIS AU PASSAGE. Trois controles de calage.py
+eprouvaient le rejet pour qualite numerique en s'appuyant sur le DEFAUT de
+production : le modele fictif rendant exactement 5 %, ils sont passes au vert
+le jour ou le defaut est monte a 5. Ils epinglent desormais leur propre seuil
+(_QUALITE = Configuration(bilan_masse_max_pct=1.0)), et le defaut a son
+controle dedie. Meme lecon que pour les tolerances le 04/08 : un essai qui
+demontre un MECANISME ne doit pas dependre d'une valeur de production.
+
+UN COMMENTAIRE PERIME CORRIGE AU PASSAGE : _oui_non_ou_defaut()
+(pont_hecras.py) expliquait encore qu'une case « Fenetre_active » vide
+« suit le mode rapide » — retire du code le 07/08/2026. Vide vaut ACTIVE.
+C'etait le dernier reste de « mode rapide » dans les 17 modules.
+
+VERIFIE (30/08/2026) : les DOUZE suites passent, 0 echec — calage, criteres,
+suivi, pilote_hecras, livrables, geometrie, controle_donnees, style_classeur,
+creer_template, elaguer_projet, pont_hecras autotest, calage_apports/noyau.
+Template regenere. Contrat de cles : parametres_calage() rend 19 cles, dont
+Bilan_masse_max_pct. Archive reconstruite (« archive conforme ») et
+essai_garde_fou_archive.py rend « TOUT PASSE » — les deux classes de fautes
+injectees restent refusees.
+EPROUVE SUR LES DONNEES REELLES, hors QGIS : prolonger_cibles() sur une copie
+du classeur Suhihandia (32 pas ajoutes a zero, apercu preserve, idempotent),
+et les trois detections de residus sur ARAN.u18.
+
+NON VERIFIE : rien de tout cela n'a tourne SOUS QGIS. LE CALAGE QUI TOURNAIT
+PENDANT CES CORRECTIFS (29/08 23:00, PID 19196) EXECUTAIT LE CODE D'AVANT —
+le processus a charge ses modules a son lancement. Son verdict ne dit donc
+rien de ces six points.
+
+ATTENTION — LE GREFFON N'EST PLUS INSTALLE DANS LE PROFIL QGIS. Le dossier
+<profil ISL>/python/plugins/calage_apports/ a disparu le 30/08 vers 09:40,
+apres les copies de la nuit. Cause non etablie (desinstallation depuis le
+gestionnaire d'extensions ?). LES SOURCES DU DEPOT SONT INTACTES et
+l'archive est a jour : reinstaller depuis calage_apports.zip.
+
+
+PREMIER CALAGE SUHIHANDIA — CE QUE LE PRE-VOL AURAIT DU DIRE (29/08/2026)
+------------------------------------------------------------------------
+CONTEXTE. Premier essai de calage sur un modele client (ARAN / Suhihandia,
+12 apports SUH01..SUH12, plan de reference p18 « sans apport »). Trois
+lancements avortes de suite dans preparer() -> _recadencer_apports() ->
+conditions_trop_courtes(), sur le message « condition(s) limite(s) plus
+courte(s) que la fenetre de simulation ... Time series data ends before the
+end of the simulation ». AUCUN DEGAT : arret avant tout calcul HEC-RAS.
+
+CE QUI SE PASSE VRAIMENT : LA CHAINE BUTE SUR DES BLOCS ORPHELINS DE
+L'UNSTEADY. Le fichier ARAN.u18 porte 45 blocs « Boundary Location= »,
+repartis sur TROIS etiquettes de zone (« Perimeter 1 », « Perimeter 2025 »,
+« 2D Area 1 ») avec presque tous les noms en triple exemplaire. La
+GEOMETRIE g01, elle, ne declare que 14 BC lines : SUH01..SUH12, BC_Aval,
+SUH01_amont. Il n'y a AUCUNE BC line nommee ARA_01, SUH_01, BC_ARA_01/02/03
+ni BC_SUH_01. HEC-RAS ignore donc ces blocs — l'utilisateur ne les voit pas
+dans son projet, il l'a dit lui-meme — mais la chaine lit TOUS les blocs du
+TEXTE, orphelins compris. Les trois lancements ont echoue sur ARA_01 (19,9 h
+sous « 2D Area 1 ») et SUH_01 (22,0 h), deux ORPHELINS. Le meme fichier porte
+aussi SUH01 a 10 956 valeurs / 6 min = 1 095 h, autre residu.
+
+C'est bien un DEFAUT DE LA CHAINE, et pas seulement un modele sale :
+cartographier_hydrogrammes() et conditions_trop_courtes() devraient
+IGNORER tout bloc de l'unsteady qui n'a pas de BC line correspondante dans
+la geometrie du plan — exactement ce que fait HEC-RAS. La geometrie est le
+juge de ce qui est une condition limite reelle ; l'unsteady ne fait que
+porter les valeurs.
+
+TROIS FAIBLESSES A CORRIGER :
+
+  1. BLOCS ORPHELINS PRIS POUR DES CONDITIONS LIMITES. cartographier_
+     hydrogrammes(unsteady, zone) prend tout « Boundary Location= » de la
+     zone sans croiser avec les BC lines de la geometrie. Un bloc laisse par
+     une ancienne version du modele (autre decoupage de zones, autre jeu
+     d'apports) est traite comme une condition vive : re-cadence, controle en
+     duree, et il peut faire echouer le calage AVANT tout calcul sur une
+     serie que le solveur n'ouvrira jamais. CORRECTIF : filtrer sur
+     l'intersection avec geometrie.noms_bc_lines (ou equivalent) du plan de
+     travail.
+
+  2. LE MESSAGE DE conditions_trop_courtes() NE DISTINGUE PAS « apport a
+     caler » DE « autre condition limite ». caler() connait pourtant la liste
+     apports_a_caler. Ranger les series fautives en deux groupes — apports
+     d'un cote, alimentation amont et autres BC de l'autre — pour que
+     l'utilisateur sache OU corriger. Un apport trop court se rallonge cote
+     classeur (feuille Cibles) ; une alimentation amont, dans le modele.
+
+  3. AUCUN AVERTISSEMENT SUR LES DOUBLONS DE NOM ENTRE ZONES NI SUR LES
+     LONGUEURS ABSURDES. Un meme nom sous « Perimeter 1 » ET « 2D Area 1 »
+     dans le meme unsteady : rien ne le signale. Une serie de 1 095 h dans
+     un modele qui en simule 24 : idem. Deux garde-fous simples
+     (« nom en double entre zones », « duree > N x fenetre »).
+     A rapprocher du piege deja liste plus bas (« un meme nom de condition
+     limite peut exister dans plusieurs zones ») : connu pour la lecture cote
+     plugin, pas encore pour l'unsteady au moment du calage.
+
+CE QUE L'UTILISATEUR A FAIT POUR AVANCER (hors chaine) : rallonge des series
+et/ou reduction de la fenetre du plan (p18 edite a 18:43). Le nettoyage de
+fond de ARAN.u18 — un seul jeu de BC, coherent avec la geometrie et
+Nom_zone_2D — reste a faire cote modele, mais NE DEVRAIT PLUS ETRE UN
+PREALABLE une fois le point 1 corrige.
+
+OU LE 4e LANCEMENT S'EST ARRETE (run 18:44, PID 6896, 2 calculs, 2 h 23).
+preparer() passe, calcul de reference OK (~1 h 10), puis etape
+« Apport_SUH01 » : la section recoit deja 4,6 m3/s sans l'apport pour une
+cible a 5,0 (apport marginal, ~0,4 m3/s a fournir, fenetre 1,2 -> 4,3 h).
+Essai 1 REJETE — bilan de masse HEC-RAS +1,119 %, au-dela du seuil
+bilan_masse_max_pct = 1,0 % code en dur (calage.py). ARRET, apports suivants
+non traites (resolution sequentielle : amont fige). Ce n'est pas un bug :
+la chaine refuse de caler sur un calcul que le solveur juge peu fiable.
+Deux pistes — le classeur imposait Intervalle_calcul = 2SEC quand le plan
+p18 tourne en 1SEC (calcul plus grossier que le modele de base) ; et le
+seuil de 1 % n'est ni expose ni sourced (voir « A faire »).
+
+VOIR AUSSI la liste « A faire » : l'item « CONTROLE DUREE APPORTS / DUREE DE
+CALCUL, AVANT LE LANCEMENT » couvre le fait de remonter ce controle au
+pre-vol du plugin, avec assistance de rallonge du classeur par des zeros ;
+l'item « SEUIL DE BILAN DE MASSE » couvre son exposition et sa valeur.
+
+
 RESERVES ET ECHECS RESIDUELS, TRAITES (29/08/2026)
 ------------------------------------------------------------------------
 DEMANDE UTILISATEUR : traiter les deux reserves laissees par la revue et les
@@ -2421,6 +2735,40 @@ A fournir par l'utilisateur :
   total, § 1.3 de la note).
 
 A faire, par ordre de priorite :
+- [FAIT le 30/08/2026] INSTALLATION ASSISTEE DE L'INTERPRETEUR HEC-RAS :
+  bouton « Installer… » a cote de « Designer… », noyau.installer_interpreteur()
+  et noyau.emplacement_venv_hecras(). Voir l'entree en tete de ce fichier.
+  Les trois points a trancher l'ont ete : le python de base est DEMANDE (pas
+  devine), l'emplacement est refuse si la chaine est la copie embarquee, et
+  l'attente est couverte par @avec_sablier. RESTE : l'eprouver sur un vrai
+  poste neuf — il n'a jamais tourne jusqu'au bout, seul son refus d'un python
+  inexistant est couvert par le banc (installer pour de vrai telechargerait
+  plusieurs centaines de Mo a chaque execution des tests).
+- [FAIT le 30/08/2026] CONTROLE DUREE APPORTS / DUREE DE CALCUL, ET SON
+  ASSISTANCE. Le pre-vol tourne a la composition et nomme les series fautives
+  en disant de quel cote corriger ; le greffon PROPOSE de prolonger les
+  colonnes de la feuille Cibles par des zeros (noyau.prolonger_cibles). Voir
+  l'entree en tete de ce fichier. Raccourcir la fenetre du plan reste, comme
+  prevu, une decision de modelisation laissee a l'utilisateur, et rien n'est
+  jamais ecrit dans le modele source. RESTE : l'eprouver sous QGIS.
+- [FAIT le 30/08/2026] FILTRER LES BLOCS ORPHELINS DE L'UNSTEADY : argument
+  noms_connus de cartographier_hydrogrammes(), fourni par
+  PiloteHecRas._bc_lines_connues(). Le signalement des noms en double entre
+  zones et des durees aberrantes est fait lui aussi, dans
+  pont_hecras._controler_residus_unsteady(). Voir l'entree en tete.
+- SEUIL DE BILAN DE MASSE — [EXPOSE le 30/08/2026, VALEUR ENCORE A FONDER].
+  Le seuil vaut desormais 5 % et se regle dans le classeur comme dans le
+  greffon ; le bilan du dernier calcul s'affiche sous les jauges. Voir
+  l'entree en tete de ce fichier. CE QUI RESTE : DOCUMENTER la valeur a
+  partir de sources — critere de volume error d'HEC-RAS (USACE HEC-RAS 2D
+  Modeling User's Manual / Hydraulic Reference : le manuel cite typiquement
+  un objectif de l'ordre de 1 % du volume entrant, parfois relache pour de
+  petits evenements), guides SOP (USACE ; cadre francais : referentiel
+  FFRP / SHF / guides « etudes de dangers » ; methodo inondation DGPR), et
+  ce que la litterature 2D admet pour un evenement dont le signal utile
+  (ici 0,4 m3/s sur 5) est plus petit que le bruit numerique. Ecrire le
+  raisonnement dans methodologie_calage_amont_aval.docx, pas seulement en
+  commentaire de code.
 - [TRANCHE le 08/08/2026] Decalage_max_h : SUPPRIME, avec son alerte — voir
   son entree en tete de ce fichier. Le decalage est mesure et affiche, jamais
   juge. La piste « coherence le long de l'axe » est reservee a une V2 ;
@@ -2429,13 +2777,23 @@ A faire, par ordre de priorite :
   cocher « Afficher aussi les extensions experimentales » si l'extension
   n'apparait pas apres installation, ce qui leve le seul inconvenient
   pratique ;
-- REMETTRE LA DOCUMENTATION EN COHERENCE avec la simplification :
-  methodologie_calage_apport.docx (le § NEUF sur φ n'a plus d'objet, le
-  plancher irreductible et le choix entre deux algorithmes non plus),
-  AIDE_HTML du plugin, commentaires de pont_hecras.py (« MODE RAPIDE... »
-  au-dessus de la construction de Configuration) et de style_classeur.
-  COMMENTAIRES (« Mode_rapide », « Fenetre_active » : le premier n'a plus
-  d'effet, la seconde ne masque plus l'injection) ;
+- [CLOS le 30/08/2026] REMETTRE LA DOCUMENTATION EN COHERENCE avec la
+  simplification. VERIFIE POINT PAR POINT, il ne restait qu'une ligne :
+  methodologie_calage_apport.docx n'existe plus (absorbe dans
+  methodologie_calage_amont_aval.docx V12 le 08/08, range dans OLD/) et le
+  document actuel ne mentionne φ, le plancher irreductible et les deux
+  algorithmes que pour dire qu'ils N'EXISTENT PLUS — mention deliberee, a
+  conserver ; AIDE_HTML du plugin : plus une seule occurrence ;
+  style_classeur.COMMENTAIRES : « Mode_rapide » retire le 07/08,
+  « Fenetre_active » deja reecrit sur la regle en vigueur. SEUL RESTE, et il
+  est corrige : le commentaire de pont_hecras._oui_non_ou_defaut(), qui
+  renvoyait encore au « mode rapide ».
+- METTRE LA NOTE METHODOLOGIQUE A JOUR DES CORRECTIFS DU 30/08 :
+  methodologie_calage_amont_aval.docx ne connait ni le seuil de bilan de
+  masse expose (Bilan_masse_max_pct, § qualite numerique), ni le pre-vol des
+  durees et sa prolongation par des zeros (§ 2.3 base de temps), ni le
+  filtrage des blocs orphelins de l'unsteady (§ 2.5 pieges). A joindre au
+  sourcage du seuil, meme occasion d'ouvrir Word ;
 - [FAIT le 04/08/2026] LES TOLERANCES PAR DEFAUT ETAIENT-ELLES TENABLES ?
   Elles valaient 0,5 % en volume, et le cas de recette montrait qu'un modele
   au debit de base marque pouvait etre HORS D'ATTEINTE PAR CONSTRUCTION a

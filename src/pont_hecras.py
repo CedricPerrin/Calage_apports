@@ -676,10 +676,12 @@ def _oui_non_ou_defaut(brut):
     """
     Un parametre a TROIS etats : oui, non, ou « laisse la chaine decider ».
 
-    Une case vide n'est pas un « non ». Pour la fenetre d'injection, vide
-    signifie « suit le mode rapide » — la lire comme un refus desactiverait
-    en silence une piece de la methodologie V1.3 chez tous ceux qui n'ont
-    pas rempli la case.
+    Une case vide n'est pas un « non ». Pour « Fenetre_active », vide vaut
+    ACTIVE : la lire comme un refus ferait juger volume, pointe et forme sur
+    la duree simulee entiere chez tous ceux qui n'ont pas rempli la case, et
+    une mini-crue etrangere a l'evenement degraderait alors le verdict.
+    (Ce commentaire renvoyait au « mode rapide », retire du code le
+    07/08/2026 : la fenetre ne suit plus rien, elle est active par defaut.)
     """
     valeur = str(brut or "").strip().lower()
     if valeur in ("oui", "true", "1", "vrai"):
@@ -781,6 +783,249 @@ def _controler_apports_dans_unsteady(chemin_template):
              f"l'Unsteady Flow.")]
 
 
+def _contexte_modele(chemin_template):
+    """
+    Resout, depuis le classeur, ce qu'il faut pour inspecter le modele AVANT
+    tout calcul : (unsteady, plan, zone, noms_connus, apports).
+
+    EXTRAIT PARCE QUE DEUX CONTROLES EN ONT BESOIN — les durees et les
+    residus de l'unsteady — et que recopier cette resolution des deux cotes
+    la vouerait a diverger. C'est exactement ce qui est arrive a
+    mots_d_affaires() (voir RESERVE 2, 29/08/2026).
+
+    Retourne None des qu'un element manque : on ne controle pas ce qu'on n'a
+    pas su lire. Leve RuntimeError si le CLASSEUR lui-meme est illisible —
+    seul cas qui merite d'etre rapporte a l'utilisateur. La seule valeur qui
+    a le droit de manquer est noms_connus : None y veut dire « geometrie
+    illisible, donc aucun filtre », jamais « aucune BC line ».
+    """
+    import pandas as pd
+
+    try:
+        par = pd.read_excel(chemin_template, sheet_name="Parametres")
+        valeurs = dict(zip(par["Parametre"], par["Valeur"]))
+        corr = pd.read_excel(chemin_template, sheet_name="Correspondance")
+    except Exception as e:
+        raise RuntimeError(str(e)) from e
+
+    dossier = Path(str(valeurs.get("Dossier_projet_HECRAS", "")).strip())
+    nom_projet = str(valeurs.get("Nom_projet", "")).strip()
+    if not dossier.is_dir() or not nom_projet:
+        return None
+
+    fichier, _ = _unsteady_effectif(dossier, nom_projet, valeurs)
+    if fichier is None or not fichier.exists():
+        return None                  # deja dit par le controle precedent
+
+    plan = str(valeurs.get("Plan_reference", "p01")).strip().lstrip("pP")
+    fichier_plan = dossier / f"{nom_projet}.p{plan.zfill(2)}"
+
+    colonne = next((c for c in corr.columns if c.startswith("Nom_Apport")), None)
+    apports = ([str(n).strip() for n in corr[colonne].dropna() if str(n).strip()]
+               if colonne is not None else [])
+
+    # MEME FILTRE QUE LE CALAGE : les blocs sans BC line en geometrie sont
+    # ignores par HEC-RAS, donc par nous. Sans cela ces controles refuseraient
+    # a la composition ce que le calage accepte — pire qu'un controle absent.
+    noms_connus = None
+    try:
+        import geometrie as geo
+        numero = str(valeurs.get("Geometrie_reference", "")).strip().lstrip("gG")
+        if str(valeurs.get("Mode_selection_modele", "plan")).lower() != "override":
+            for ligne in fichier_plan.read_text(encoding="utf-8",
+                                                errors="replace").splitlines():
+                if ligne.startswith("Geom File="):
+                    numero = ligne.split("=", 1)[1].strip().lstrip("gG")
+                    break
+        geometrie = dossier / f"{nom_projet}.g{numero.zfill(2)}"
+        if geometrie.exists():
+            noms_connus = set(geo.noms_objets_geometrie(geometrie)["apports"])
+    except Exception:                                        # noqa: BLE001
+        noms_connus = None            # « je ne sais pas », donc aucun filtre
+
+    zone = str(valeurs.get("Nom_zone_2D", "")).strip() or None
+    return fichier, fichier_plan, zone, noms_connus, apports
+
+
+def _controler_durees_avant_calcul(chemin_template):
+    """
+    Les series couvrent-elles la fenetre de simulation du plan de reference ?
+
+    LE CONTROLE EXISTAIT DEJA, MAIS TROP TARD. conditions_trop_courtes() est
+    appelee dans PiloteHecRas.preparer() : soit apres le clonage, dans un
+    sous-processus DETACHE que le greffon ne regarde pas. L'utilisateur
+    lancait un calage, basculait sur l'onglet Suivi, et n'apprenait qu'en
+    ouvrant le journal texte que rien n'avait demarre. Cela s'est produit
+    TROIS FOIS de suite sur un modele reel (30/08/2026).
+    Ici, la meme fonction est appelee a la COMPOSITION : la reponse arrive
+    dans le compte rendu de « Composer et controler », avant tout lancement.
+
+    ERREUR ou AVERTISSEMENT selon le cote ou se corrige la faute : un apport
+    a caler se rallonge dans le classeur — c'est a notre portee, donc
+    bloquant ; une autre condition limite se corrige dans le modele source —
+    on le signale sans pretendre le reparer.
+
+    Ne bloque JAMAIS sur ce qu'il n'a pas su lire : fenetre illisible,
+    geometrie absente, unsteady indeterminable rendent une liste vide. Mieux
+    vaut laisser HEC-RAS trancher que refuser un calage sur une lecture
+    incertaine — c'est deja la regle de conditions_trop_courtes().
+
+    Retourne (anomalies, prolongation), ou prolongation vaut None ou
+    {"duree_h", "apports"} : de quoi permettre au greffon de PROPOSER la
+    correction au lieu de la decrire. Le chiffre vient de la mesure, jamais
+    d'une relecture du message — un texte se reformule, un contrat non.
+    """
+    import controle_donnees as cd
+    from pilote_hecras import conditions_trop_courtes
+
+    try:
+        contexte = _contexte_modele(chemin_template)
+    except RuntimeError as e:
+        return [(cd.AVERTISSEMENT,
+                 f"durees non confrontees a la simulation : {e}")], None
+    if contexte is None:
+        return [], None
+    fichier, fichier_plan, zone, noms_connus, apports = contexte
+
+    try:
+        courtes = conditions_trop_courtes(fichier, fichier_plan, zone,
+                                          noms_connus, apports)
+    except Exception as e:                                   # noqa: BLE001
+        return [(cd.AVERTISSEMENT,
+                 f"durees non confrontees a la simulation : {e}")], None
+    if not courtes:
+        return [], None
+
+    def _dire(noms):
+        return "; ".join(
+            f"« {n} » couvre {courtes[n]['duree_h']:.2f} h pour une simulation "
+            f"de {courtes[n]['simulation_h']:.2f} h" for n in sorted(noms))
+
+    anomalies = []
+    a_caler = [n for n, d in courtes.items() if d["a_caler"]]
+    autres = [n for n, d in courtes.items() if not d["a_caler"]]
+    if a_caler:
+        anomalies.append((cd.ERREUR,
+                          f"apport(s) a caler plus courts que la simulation : "
+                          f"{_dire(a_caler)}. HEC-RAS refuserait de calculer "
+                          f"(« Time series data ends before the end of the "
+                          f"simulation »). Prolonger la colonne dans la "
+                          f"feuille Cibles, ou raccourcir la fenetre de "
+                          f"simulation du plan."))
+    if autres:
+        anomalies.append((cd.AVERTISSEMENT,
+                          f"condition(s) limite(s) hors calage plus courtes "
+                          f"que la simulation : {_dire(autres)}. A corriger "
+                          f"dans le modele source : le calage ne les pilote "
+                          f"pas, mais HEC-RAS refusera de calculer."))
+    # DE QUOI PROPOSER LA CORRECTION, pas seulement la decrire : la duree
+    # visee et les apports concernes, tels qu'ils ont ete MESURES.
+    prolongation = (
+        {"duree_h": max(courtes[n]["simulation_h"] for n in a_caler),
+         "apports": sorted(a_caler)} if a_caler else None)
+    return anomalies, prolongation
+
+
+# Au-dela de ce multiple de la fenetre de simulation, une serie n'est plus une
+# donnee : c'est un residu. 10 est large a dessein — un modele qui simule 24 h
+# avec des entrees couvrant 100 h reste plausible ; 1 095 h, non.
+FACTEUR_DUREE_ABERRANTE = 10
+
+
+def _controler_residus_unsteady(chemin_template):
+    """
+    Signale ce qui, dans le fichier Unsteady, trahit un historique d'edition.
+
+    NE BLOQUE RIEN, JAMAIS. Aucun de ces constats n'empeche un calage : ils
+    expliquent pourquoi un modele se comporte etrangement, et c'est tout ce
+    qu'on leur demande. Trois familles, relevees sur un modele reel dont
+    l'unsteady portait 45 blocs pour 14 BC lines (30/08/2026) :
+
+      - BLOCS ORPHELINS : aucun equivalent en geometrie. HEC-RAS les ignore,
+        le calage aussi depuis le meme jour — mais personne ne disait qu'ils
+        etaient la, et deux d'entre eux ont fait refuser trois lancements ;
+      - MEME NOM DANS PLUSIEURS ZONES : le calage retient celui de
+        Nom_zone_2D, donc le bon. Si HEC-RAS, lui, ouvre l'autre, le debit
+        ecrit ne bougerait jamais et la boucle tournerait des heures avant de
+        conclure a une stagnation ;
+      - DUREE ABERRANTE : une serie de 1 095 h dans un modele qui en simule
+        24 est un residu, pas une donnee. Seul son debut sera lu.
+    """
+    import controle_donnees as cd
+    from pilote_hecras import (cartographier_hydrogrammes,
+                               fenetre_simulation_du_plan, instant_hecras,
+                               lire_hydrogramme_unsteady, _en_minutes)
+
+    try:
+        contexte = _contexte_modele(chemin_template)
+    except RuntimeError:
+        return []                     # deja dit par le controle des durees
+    if contexte is None:
+        return []
+    fichier, fichier_plan, zone, noms_connus, _ = contexte
+
+    try:
+        dans_zone = cartographier_hydrogrammes(fichier, zone)
+        retenus = cartographier_hydrogrammes(fichier, zone, noms_connus)
+        partout = cartographier_hydrogrammes(fichier, None)
+    except Exception:                                        # noqa: BLE001
+        return []
+
+    anomalies = []
+    orphelins = sorted(set(dans_zone) - set(retenus))
+    if orphelins:
+        anomalies.append((cd.AVERTISSEMENT,
+                          f"{len(orphelins)} bloc(s) du fichier Unsteady sans "
+                          f"ligne correspondante dans la geometrie, donc "
+                          f"IGNORE(S) par HEC-RAS comme par le calage : "
+                          f"{', '.join(orphelins)}. Residus d'une version "
+                          f"anterieure du modele — sans effet, mais ils "
+                          f"rendent le fichier difficile a relire."))
+
+    if zone is not None:
+        ailleurs = sorted(n for n, i in partout.items()
+                          if n in retenus and i["autres_zones"])
+        if ailleurs:
+            anomalies.append((cd.AVERTISSEMENT,
+                              f"condition(s) limite(s) declaree(s) dans "
+                              f"PLUSIEURS zones 2D : {', '.join(ailleurs)}. "
+                              f"Le calage retient celle de « {zone} ». Si "
+                              f"HEC-RAS ouvrait l'autre, le debit ecrit "
+                              f"n'aurait aucun effet et la boucle tournerait "
+                              f"sans jamais progresser."))
+
+    try:
+        fenetre = fenetre_simulation_du_plan(fichier_plan)
+        simulation_h = (_en_minutes(instant_hecras(fenetre["fin"]))
+                        - _en_minutes(instant_hecras(fenetre["debut"]))) / 60.0
+    except Exception:                                        # noqa: BLE001
+        return anomalies
+    if simulation_h <= 0:
+        return anomalies
+
+    aberrantes = []
+    for nom, info in retenus.items():
+        pas = info["intervalle_h"]
+        if not pas:
+            continue
+        try:
+            valeurs, _ = lire_hydrogramme_unsteady(fichier, info["debut"],
+                                                   info["fin"])
+        except Exception:                                    # noqa: BLE001
+            continue
+        duree_h = (len(valeurs) - 1) * pas
+        if duree_h > FACTEUR_DUREE_ABERRANTE * simulation_h:
+            aberrantes.append(f"« {nom} » {duree_h:.0f} h")
+    if aberrantes:
+        anomalies.append((cd.AVERTISSEMENT,
+                          f"serie(s) beaucoup plus longues que la simulation "
+                          f"({simulation_h:.2f} h) : {', '.join(aberrantes)}. "
+                          f"Verifier qu'il ne s'agit pas d'un hydrogramme "
+                          f"herite d'un autre evenement : seul le debut sera "
+                          f"lu, et rien ne le signalera."))
+    return anomalies
+
+
 def commande_pentes(args):
     """
     Pente du fond au droit de chaque apport, pour PRE-REMPLIR la colonne
@@ -849,10 +1094,20 @@ def commande_controler_modele(args):
 
     anomalies = cd.controler_contre_modele(args.template, args.geometrie)
     anomalies += _controler_apports_dans_unsteady(args.template)
+    # AVANT LE LANCEMENT, PAS APRES. Le meme controle existe dans preparer(),
+    # mais il n'y parle qu'au journal d'un sous-processus detache.
+    durees, prolongation = _controler_durees_avant_calcul(args.template)
+    anomalies += durees
+    # NE BLOQUE RIEN : dit seulement ce qui, dans l'unsteady, trahit un
+    # historique d'edition — et explique un modele qui se comporte mal.
+    anomalies += _controler_residus_unsteady(args.template)
     erreurs = [m for n, m in anomalies if n == cd.ERREUR]
     return repondre(ok=True,
                     erreurs=erreurs,
                     avertissements=[m for n, m in anomalies if n != cd.ERREUR],
+                    # DE QUOI PROPOSER LA CORRECTION au lieu de la decrire.
+                    # None quand il n'y a rien a prolonger.
+                    prolongation=prolongation,
                     conforme=not erreurs)
 
 
@@ -1255,6 +1510,9 @@ def commande_caler(args):
         nb_max_essais=int(nombre("Nb_max_iterations_par_apport", 6)),
         tolerance_beta=nombre("Tolerance_volume_pct", 5.0) / 100.0,
         tolerance_pic=nombre("Tolerance_pic_pct", 2.0) / 100.0,
+        # DEJA EN POURCENTAGE des deux cotes — pas de « / 100 » ici : c'est
+        # une erreur de conservation du solveur, pas un rapport a la cible.
+        bilan_masse_max_pct=nombre("Bilan_masse_max_pct", 5.0),
         # FENETRE DE JUGEMENT. Les deux seuils sont donnes en POURCENTAGE du
         # volume cumule du deficit. La methodologie les declare explicitement
         # « a confirmer sur les premiers cas d'application » : ils doivent
@@ -1603,6 +1861,64 @@ def commande_autotest(args):
     verifier("un modele au pas horaire est densifie sans changer de duree",
              _nb_valeurs_meme_duree(25, 1.0, 0.1) == 241,
              f"{_nb_valeurs_meme_duree(25, 1.0, 0.1)} valeurs")
+
+    # --- PRE-VOL : LES DUREES, AVANT LE LANCEMENT ---------------------------
+    # Le controle existe aussi dans preparer(), mais il n'y parle qu'au
+    # journal d'un sous-processus detache. Ce qui est eprouve ici, c'est
+    # qu'il NE BLOQUE PAS sur ce qu'il n'a pas su lire : un classeur
+    # incomplet, un dossier absent ou un plan introuvable doivent rendre une
+    # liste vide, pas une exception ni un refus. Un pre-vol qui refuse ce
+    # qu'il ne comprend pas est pire qu'un pre-vol absent.
+    print("\n6. PRE-VOL DES DUREES")
+    import pandas as pd
+
+    _tmp_prevol = Path(tempfile.gettempdir()) / "_essai_calage_prevol.xlsx"
+
+    def _durees(parametres):
+        with pd.ExcelWriter(_tmp_prevol, engine="openpyxl") as w:
+            pd.DataFrame({"Parametre": list(parametres),
+                          "Valeur": list(parametres.values())}
+                         ).to_excel(w, sheet_name="Parametres", index=False)
+            pd.DataFrame({"Nom_Apport": ["A1"], "Nom_Section": ["S1"]}
+                         ).to_excel(w, sheet_name="Correspondance", index=False)
+        return _controler_durees_avant_calcul(_tmp_prevol)
+
+    verifier("un dossier de projet absent ne bloque rien",
+             _durees({"Dossier_projet_HECRAS": r"D:\dossier_qui_n_existe_pas",
+                      "Nom_projet": "ESSAI"}) == ([], None))
+    verifier("un classeur sans dossier ni projet ne bloque rien",
+             _durees({"Nom_projet": ""}) == ([], None))
+    _sans_feuilles = Path(tempfile.gettempdir()) / "_essai_calage_vide.xlsx"
+    pd.DataFrame({"x": [1]}).to_excel(_sans_feuilles, index=False)
+    import controle_donnees as _cd
+    _r, _p = _controler_durees_avant_calcul(_sans_feuilles)
+    verifier("un classeur illisible AVERTIT, il ne refuse pas",
+             len(_r) == 1 and _r[0][0] == _cd.AVERTISSEMENT, str(_r))
+    verifier("et ne propose aucune prolongation", _p is None, str(_p))
+
+    # LES RESIDUS NE BLOQUENT RIEN, JAMAIS — et surtout ne levent pas. Ce
+    # controle est purement informatif : s'il emportait son appelant, il
+    # ferait echouer une composition parfaitement valide pour un constat qui
+    # n'empeche aucun calage.
+    def _residus(parametres):
+        with pd.ExcelWriter(_tmp_prevol, engine="openpyxl") as w:
+            pd.DataFrame({"Parametre": list(parametres),
+                          "Valeur": list(parametres.values())}
+                         ).to_excel(w, sheet_name="Parametres", index=False)
+            pd.DataFrame({"Nom_Apport": ["A1"], "Nom_Section": ["S1"]}
+                         ).to_excel(w, sheet_name="Correspondance", index=False)
+        return _controler_residus_unsteady(_tmp_prevol)
+
+    verifier("les residus ne disent rien d'un modele introuvable",
+             _residus({"Dossier_projet_HECRAS": r"D:\dossier_qui_n_existe_pas",
+                       "Nom_projet": "ESSAI"}) == [])
+    verifier("un classeur illisible ne fait pas lever les residus",
+             _controler_residus_unsteady(_sans_feuilles) == [])
+    verifier("le seuil de duree aberrante est un multiple, pas une constante",
+             FACTEUR_DUREE_ABERRANTE >= 2, f"x{FACTEUR_DUREE_ABERRANTE}")
+
+    _tmp_prevol.unlink(missing_ok=True)
+    _sans_feuilles.unlink(missing_ok=True)
 
     print("\n" + "=" * 74)
     if echecs:

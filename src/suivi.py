@@ -237,6 +237,12 @@ class Suivi:
         self.conforme = None
         self.motif_final = ""
         self.nb_calculs = None
+        # BILAN DE MASSE DU DERNIER CALCUL, et le seuil au-dela duquel il est
+        # rejete. Ce n'est PAS un ecart a la cible : c'est ce que le solveur
+        # perd ou fabrique entre entrees, sorties et stockage. Publie parce
+        # qu'un calage arrete pour « qualite numerique » n'exposait son
+        # chiffre que dans le journal texte.
+        self.bilan_masse = None
         self.etats = [EtatApport(a, s)
                       for a, s in zip(noms_apports, noms_sections)]
         # Un etat est ecrit DES LA CONSTRUCTION : entre le lancement et le
@@ -249,6 +255,31 @@ class Suivi:
             self._consigner("état machine initial", e)
 
     # --- evenements --------------------------------------------------------
+
+    def noter_bilan_masse(self, pct, seuil_pct):
+        """
+        Bilan de masse du calcul qui vient de tourner, et son seuil de rejet.
+
+        ECRIT L'ETAT MACHINE, SANS REPRODUIRE LES LIVRABLES : cette methode
+        est appelee apres CHAQUE calcul, y compris ceux qui vont etre rejetes
+        et n'entreront jamais dans un tableau. Relancer figures et classeurs
+        a chaque fois couterait des secondes pour une seule ligne de texte.
+
+        Un bilan non mesurable (NaN — colonne absente du HDF) n'efface pas le
+        precedent : on garderait sinon l'ecran vide sans savoir si c'est la
+        mesure ou le calcul qui manque.
+        """
+        try:
+            valeur = float(pct)
+        except (TypeError, ValueError):
+            return
+        if not np.isfinite(valeur):
+            return
+        self.bilan_masse = {"pct": valeur, "seuil_pct": float(seuil_pct)}
+        try:
+            self._ecrire_etat()
+        except Exception as e:                              # noqa: BLE001
+            self._consigner("état machine (bilan de masse)", e)
 
     def commencer_apport(self, i):
         """L'apport i entre en cours de recherche."""
@@ -484,6 +515,9 @@ class Suivi:
             # que la boucle.
             "tolerances_pct": {cle: round(100 * float(v), 2)
                                for cle, v in self.tolerances.items()},
+            # QUALITE DU CALCUL, PAS ECART A LA CIBLE. Voir noter_bilan_masse.
+            # None tant qu'aucun calcul n'a rendu la mesure.
+            "bilan_masse": self.bilan_masse,
             "incidents": len(self.incidents),
             "apports": [{
                 "ordre": i + 1,
@@ -1357,6 +1391,27 @@ if __name__ == "__main__":
               all({"apport", "statut", "essais", "volume_pct", "pic_pct"}
                   <= set(a) for a in etat["apports"]),
               f"{len(etat['apports'])} apport(s)")
+
+    # BILAN DE MASSE — QUALITE DU CALCUL, PAS ECART A LA CIBLE. Publie parce
+    # qu'un calage arrete pour « qualite numerique » n'exposait son chiffre
+    # que dans le journal texte, que l'utilisateur du greffon n'ouvre pas.
+    _suivi_bilan = Suivi(sortie / "bilan", ["A"], ["S"])
+    controler("aucun bilan tant qu'aucun calcul n'a tourne",
+              _suivi_bilan.etat()["bilan_masse"] is None)
+    _suivi_bilan.noter_bilan_masse(1.119, 5.0)
+    _b = json.loads((sortie / "bilan" / "avancement.json")
+                    .read_text(encoding="utf-8"))["bilan_masse"]
+    controler("le bilan et son seuil sont publies dans l'etat machine",
+              _b == {"pct": 1.119, "seuil_pct": 5.0}, str(_b))
+    # UN BILAN NON MESURABLE N'EFFACE PAS LE PRECEDENT : on garderait sinon
+    # l'ecran vide sans savoir si c'est la mesure ou le calcul qui manque.
+    _suivi_bilan.noter_bilan_masse(float("nan"), 5.0)
+    controler("un bilan non mesurable laisse le dernier connu en place",
+              _suivi_bilan.etat()["bilan_masse"]["pct"] == 1.119,
+              str(_suivi_bilan.etat()["bilan_masse"]))
+    _suivi_bilan.noter_bilan_masse(None, 5.0)
+    controler("un bilan absent ne leve pas d'exception",
+              _suivi_bilan.etat()["bilan_masse"]["pct"] == 1.119)
 
     # LES TROIS GRANDEURS DES L'ESSAI, pas seulement a la validation. Sinon la
     # jauge « Forme » du plugin reste vide pendant toute la recherche, c'est-a

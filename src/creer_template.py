@@ -55,6 +55,7 @@ PARAMETRES = [
     ("--- PRECISION ATTENDUE ---", ""),
     ("Tolerance_volume_pct", 5.0),
     ("Tolerance_pic_pct", 2.0),
+    ("Bilan_masse_max_pct", 5.0),
     ("Nb_max_iterations_par_apport", 6),
 
     ("--- FENETRE DE JUGEMENT ---", ""),

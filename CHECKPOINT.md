@@ -4,6 +4,58 @@ Point de reprise pour ouvrir une nouvelle conversation avec un contexte
 minimal. L'état courant et les règles en vigueur restent dans `STATUT.txt` ;
 ce fichier ne dit que **où on en est** et **par quoi reprendre**.
 
+> ## ⚠️ Ce fichier est en retard sur `STATUT.txt`
+>
+> Tout ce qui suit la section « Session du 30 août 2026 » ci-dessous décrit
+> un algorithme **retiré le 07/08/2026** : déphasage de la réponse φ, mode
+> rapide, plancher de volume irréductible, correction à deux termes. Ces
+> sections sont conservées comme récit, **pas comme référence**.
+> **`STATUT.txt` fait foi.**
+
+## Session du 30 août 2026 — premier calage sur modèle client
+
+**Le calage n'a pas abouti, et c'est instructif.** Premier essai sur un
+modèle client réel (ARAN / Suhihandia, 12 apports SUH01…SUH12). Cinq
+lancements, aucun apport calé, **aucun dégât** : chaque arrêt s'est produit
+avant ou pendant le calcul de référence, jamais dans un état ambigu.
+
+| # | Où ça s'est arrêté | Cause |
+|---|---|---|
+| 1–3 | `preparer()`, avant tout calcul | conditions limites plus courtes que la simulation — dont **deux blocs orphelins** que HEC-RAS ignore |
+| 4 | 1ᵉʳ apport, après 2 calculs (2 h 23) | bilan de masse **+1,119 %** > 1,0 % |
+| 5 | calcul de référence (2 h 11) | bilan de masse **+1,394 %** > 1,0 % |
+
+**Le pas de calcul n'est pas en cause.** Passer de 2 s à 1 s a *dégradé* le
+bilan (1,119 → 1,394 %). La piste que suggère le message d'erreur — resserrer
+le pas — ne mène nulle part sur ce modèle ; chercher côté maillage,
+conditions limites ou tolérance 2D du plan.
+
+**Six correctifs en sont sortis**, tous détaillés dans `STATUT.txt` :
+
+1. **Blocs orphelins de l'unsteady filtrés** — `cartographier_hydrogrammes()`
+   ne retient que les noms déclarés en géométrie, comme fait HEC-RAS. Sur ce
+   modèle : 45 blocs pour 14 BC lines.
+2. **Le message « condition trop courte » dit où corriger** — apports à caler
+   (→ classeur) vs autres conditions limites (→ modèle source).
+3. **Seuil de bilan de masse 1 % → 5 %**, exposé au classeur et au plugin,
+   et **affiché sous les jauges** de l'onglet Suivi. *Ce n'est pas un écart à
+   la cible* : c'est le « volume accounting error » du solveur.
+4. **Contrôle de durée remonté au pré-vol** — à « Composer et contrôler », plus
+   seulement dans le sous-processus détaché.
+5. **Le plugin propose de prolonger les cibles par des zéros**
+   (`noyau.prolonger_cibles`).
+6. **Bouton « Installer… »** qui crée l'environnement Python HEC-RAS
+   (`noyau.installer_interpreteur`).
+
+**Vérifié** : les 12 suites passent, archive reconstruite et conforme, garde-fou
+adverse « TOUT PASSE ». **Rien n'a tourné sous QGIS** ni sur un calcul HEC-RAS.
+
+**Par quoi reprendre** : réinstaller le greffon (son dossier a disparu du
+profil QGIS le 30/08 vers 09:40), puis relancer le calage — le seuil à 5 %
+laissera passer le calcul de référence.
+
+---
+
 **Ajout du 28 août 2026** — réorganisation du dépôt Git pour la visibilité
 GitHub : la chaîne Python (calage.py, criteres.py, etc., 15 modules) a
 déménagé dans `src/` ; `calage_apports/` (plugin QGIS), la note

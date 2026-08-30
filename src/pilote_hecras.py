@@ -444,7 +444,8 @@ def imposer_intervalle_apport(fichier_unsteady, nom, nom_zone_2d=None,
             "pic_apres": float(np.max(nouvelles))}
 
 
-def conditions_trop_courtes(fichier_unsteady, fichier_plan, nom_zone_2d=None):
+def conditions_trop_courtes(fichier_unsteady, fichier_plan, nom_zone_2d=None,
+                            noms_connus=None, apports_a_caler=None):
     """
     Conditions limites dont la serie s'arrete AVANT la fin de la simulation.
 
@@ -466,10 +467,19 @@ def conditions_trop_courtes(fichier_unsteady, fichier_plan, nom_zone_2d=None):
 
     N valeurs au pas p couvrent (N-1) x p heures, jamais N x p.
 
-    Retourne {nom: {"duree_h", "simulation_h", "nb", "intervalle_h"}}, VIDE si
-    tout couvre la fenetre — ou si celle-ci n'est pas lisible dans le plan,
-    auquel cas on ne bloque rien : mieux vaut laisser HEC-RAS trancher que
-    refuser un calage sur une fenetre qu'on n'a pas su lire.
+    noms_connus : voir cartographier_hydrogrammes. Un bloc ORPHELIN — sans BC
+        line en geometrie — ne doit pas faire refuser un calage : HEC-RAS ne
+        l'ouvrira pas.
+    apports_a_caler : noms des apports pilotes par CE calage. Sert uniquement
+        a RANGER le resultat, pas a filtrer : un apport trop court se rallonge
+        cote classeur, une alimentation amont trop courte dans le modele
+        source, et le message doit dire de quel cote regarder.
+
+    Retourne {nom: {"duree_h", "simulation_h", "nb", "intervalle_h",
+    "a_caler"}}, VIDE si tout couvre la fenetre — ou si celle-ci n'est pas
+    lisible dans le plan, auquel cas on ne bloque rien : mieux vaut laisser
+    HEC-RAS trancher que refuser un calage sur une fenetre qu'on n'a pas su
+    lire.
     """
     if fichier_plan is None or not Path(fichier_plan).is_file():
         return {}
@@ -479,9 +489,10 @@ def conditions_trop_courtes(fichier_unsteady, fichier_plan, nom_zone_2d=None):
     simulation_h = (_en_minutes(instant_hecras(fenetre["fin"]))
                     - _en_minutes(instant_hecras(fenetre["debut"]))) / 60.0
 
+    a_caler = set(apports_a_caler or ())
     courtes = {}
-    for nom, info in cartographier_hydrogrammes(fichier_unsteady,
-                                                nom_zone_2d).items():
+    for nom, info in cartographier_hydrogrammes(fichier_unsteady, nom_zone_2d,
+                                                noms_connus).items():
         pas = info["intervalle_h"]
         if not pas:
             continue
@@ -493,7 +504,8 @@ def conditions_trop_courtes(fichier_unsteady, fichier_plan, nom_zone_2d=None):
         # doit pas faire refuser un modele qui tourne.
         if duree_h < simulation_h - 1e-9:
             courtes[nom] = {"duree_h": duree_h, "simulation_h": simulation_h,
-                            "nb": len(valeurs), "intervalle_h": pas}
+                            "nb": len(valeurs), "intervalle_h": pas,
+                            "a_caler": nom in a_caler}
     return courtes
 
 
@@ -559,7 +571,8 @@ def noms_conditions_limites(fichier_unsteady, nom_zone_2d=None):
     return noms
 
 
-def cartographier_hydrogrammes(fichier_unsteady, nom_zone_2d=None):
+def cartographier_hydrogrammes(fichier_unsteady, nom_zone_2d=None,
+                               noms_connus=None):
     """
     Associe chaque condition limite a SON tableau d'hydrogramme.
 
@@ -587,8 +600,24 @@ def cartographier_hydrogrammes(fichier_unsteady, nom_zone_2d=None):
         avant de conclure a une stagnation. D'ou nom_zone_2d, et a defaut le
         signalement des doublons dans « autres_zones ».
 
+    TROISIEME PIEGE, ET C'EST LE PLUS COUTEUX (30/08/2026) : UN BLOC PEUT
+    N'AVOIR AUCUNE BC LINE DANS LA GEOMETRIE. Un unsteady qui a de
+    l'historique garde des blocs laisses par une version anterieure du modele
+    — autre decoupage de zones, autre jeu d'apports. HEC-RAS les IGNORE : il
+    n'ouvre que les conditions declarees dans la geometrie du plan.
+    Releve sur un modele reel : 45 blocs dans l'unsteady pour 14 BC lines en
+    geometrie, soit CINQ NOMS que l'utilisateur ne voyait nulle part dans son
+    projet. Deux d'entre eux, restes courts, ont fait REFUSER trois lancements
+    de calage sur des series que le solveur n'aurait jamais ouvertes. D'ou
+    noms_connus.
+
     nom_zone_2d : ne retenir que les conditions limites de cette zone 2D.
         Fortement recommande des qu'un fichier a de l'historique.
+    noms_connus : noms de BC lines lus dans la GEOMETRIE. Fournis, seuls ces
+        noms sont retenus — comme fait HEC-RAS. None (defaut) = aucun filtre,
+        et c'est VOULU : la geometrie n'est pas toujours lisible, et un
+        controle qui ne peut pas se faire ne doit rien retirer. Le laisser a
+        None rend exactement le comportement d'avant.
 
     Retourne {nom_bc: {"zone", "debut", "fin", "nb", "intervalle_h",
                        "autres_zones"}}.
@@ -610,6 +639,11 @@ def cartographier_hydrogrammes(fichier_unsteady, nom_zone_2d=None):
         if not nom:
             continue
         if nom_zone_2d is not None and zone != nom_zone_2d:
+            continue
+        # ORPHELIN : aucun equivalent en geometrie, donc invisible pour
+        # HEC-RAS. On l'ignore comme lui, sans quoi le calage se prononce sur
+        # une serie que le solveur n'ouvrira jamais.
+        if noms_connus is not None and nom not in noms_connus:
             continue
 
         suivant = next(((n, d, f) for n, d, f in tables
@@ -1026,7 +1060,8 @@ class PiloteHecRas(Modele):
         self.objets_geometrie = self._objets_geometrie()
 
         self.carte = cartographier_hydrogrammes(self.fichier_unsteady,
-                                                self.nom_zone_2d)
+                                                self.nom_zone_2d,
+                                                self._bc_lines_connues())
         ambigus = {n: i["autres_zones"] for n, i in self.carte.items()
                    if i["autres_zones"]}
         if ambigus:
@@ -1127,7 +1162,8 @@ class PiloteHecRas(Modele):
 
         if convertis:
             self.carte = cartographier_hydrogrammes(self.fichier_unsteady,
-                                                    self.nom_zone_2d)
+                                                    self.nom_zone_2d,
+                                                    self._bc_lines_connues())
 
         discordants = {n: b["motif"] for n, b in verifier_intervalle_apports(
             self.fichier_unsteady, self.nom_zone_2d,
@@ -1149,19 +1185,37 @@ class PiloteHecRas(Modele):
             self.fichier_unsteady,
             (self.dossier / f"{self.nom_projet}.p{self.plan_travail}"
              if self.plan_travail else None),
-            self.nom_zone_2d)
+            self.nom_zone_2d, self._bc_lines_connues(), self.apports_a_caler)
         if courtes:
-            detail = "; ".join(
-                f"« {n} » couvre {d['duree_h']:.2f} h pour une simulation de "
-                f"{d['simulation_h']:.2f} h" for n, d in sorted(courtes.items()))
+            # DEUX GROUPES, PARCE QU'ILS NE SE CORRIGENT PAS AU MEME ENDROIT.
+            # Le message ne les distinguait pas : sur un modele reel, il a
+            # nomme deux conditions d'alimentation amont a un utilisateur qui
+            # venait de rallonger ses douze apports et concluait, a juste
+            # titre de son point de vue, que le controle se trompait.
+            def _lister(noms):
+                return "; ".join(
+                    f"« {n} » couvre {courtes[n]['duree_h']:.2f} h pour une "
+                    f"simulation de {courtes[n]['simulation_h']:.2f} h"
+                    for n in sorted(noms))
+
+            apports = [n for n, d in courtes.items() if d["a_caler"]]
+            autres = [n for n, d in courtes.items() if not d["a_caler"]]
+            detail = ""
+            if apports:
+                detail += (f" APPORTS A CALER — a rallonger dans la feuille "
+                           f"Cibles du classeur : {_lister(apports)}.")
+            if autres:
+                detail += (f" AUTRES CONDITIONS LIMITES (alimentation amont, "
+                           f"apports non cales ici) — a corriger dans le "
+                           f"modele source : {_lister(autres)}.")
             raise ValueError(
                 f"condition(s) limite(s) plus courte(s) que la fenetre de "
-                f"simulation dans {self.fichier_unsteady.name} : {detail}. "
+                f"simulation dans {self.fichier_unsteady.name}.{detail} "
                 f"HEC-RAS refuse de calculer dans ce cas (« Time series data "
                 f"ends before the end of the simulation ») et le calage "
                 f"s'arreterait sur un calcul de reference sans resultats. "
-                f"Prolonger la serie dans le modele source, ou raccourcir la "
-                f"fenetre de simulation du plan.")
+                f"Prolonger la serie, ou raccourcir la fenetre de simulation "
+                f"du plan.")
         return convertis
 
     # --- etapes conservees ---------------------------------------------------
@@ -1218,7 +1272,12 @@ class PiloteHecRas(Modele):
         self._renommer_unsteady(str(flot).zfill(2), titre)
 
         fichier = self._unsteady_du_plan(plan)
-        carte = cartographier_hydrogrammes(fichier, self.nom_zone_2d)
+        # MEME FILTRE QUE self.carte, sans quoi la comparaison ci-dessous
+        # opposerait une carte filtree a une carte qui ne l'est pas : tout
+        # bloc orphelin y passerait pour « present d'un cote, absent de
+        # l'autre » selon le sens de la difference.
+        carte = cartographier_hydrogrammes(fichier, self.nom_zone_2d,
+                                           self._bc_lines_connues())
         absents = sorted(set(self.carte) - set(carte))
         if absents:
             raise RuntimeError(
@@ -1384,6 +1443,21 @@ class PiloteHecRas(Modele):
                 return self.dossier / (f"{self.nom_projet}."
                                        + ligne.split("=", 1)[1].strip())
         raise ValueError(f"aucun « Geom File= » dans {fichier_plan.name}")
+
+    def _bc_lines_connues(self):
+        """
+        Noms des BC lines declarees dans la geometrie de travail, ou None si
+        elle n'est pas lisible.
+
+        None VEUT DIRE « JE NE SAIS PAS », PAS « AUCUNE ». C'est ce qui
+        distingue une geometrie illisible d'une geometrie vide : dans le
+        premier cas le filtre est desactive et l'on retombe sur le
+        comportement d'avant, dans le second il ne resterait aucune condition
+        et le calage s'arreterait — verdict que seule une vraie lecture peut
+        justifier.
+        """
+        objets = self.objets_geometrie
+        return None if objets is None else objets[1]
 
     def _objets_geometrie(self):
         """
@@ -2265,7 +2339,14 @@ if __name__ == "__main__":
         "Interval=15MIN\n"
         "Flow Hydrograph= 3 \n"
         "  100.00  200.00  300.00\n"
-        "Flow Hydrograph Slope= 0.02 \n",
+        "Flow Hydrograph Slope= 0.02 \n"
+        # DANS LA BONNE ZONE, mais SANS BC line en geometrie : le residu que
+        # HEC-RAS ignore et que le calage prenait pour une condition vive.
+        + ligne_localisation("APPORT_B", "Perimeter 1") + "\n"
+        "Interval=15MIN\n"
+        "Flow Hydrograph= 2 \n"
+        "    1.00    2.00\n"
+        "Flow Hydrograph Slope= 0.03 \n",
         encoding="utf-8")
 
     _c = cartographier_hydrogrammes(_piege)
@@ -2289,6 +2370,27 @@ if __name__ == "__main__":
               and list(lire_hydrogramme_unsteady(
                   _piege, _co["APPORT_A"]["debut"],
                   _co["APPORT_A"]["fin"])[0]) == [100.0, 200.0, 300.0])
+
+    # --- BLOCS SANS BC LINE EN GEOMETRIE : HEC-RAS LES IGNORE, NOUS AUSSI ---
+    # Cas reel du 30/08/2026 : un unsteady de 45 blocs pour 14 BC lines en
+    # geometrie. Deux des blocs surnumeraires, restes courts, ont fait
+    # REFUSER trois lancements sur des series que le solveur n'ouvre jamais.
+    _verifier("un bloc sans BC line en geometrie est ignore",
+              set(cartographier_hydrogrammes(
+                  _piege, "Perimeter 1", {"APPORT_A"})) == {"APPORT_A"})
+    _verifier("le filtre retire bien un nom absent de la geometrie",
+              "APPORT_B" not in cartographier_hydrogrammes(
+                  _piege, "Perimeter 1", {"APPORT_A"})
+              and "APPORT_B" in cartographier_hydrogrammes(
+                  _piege, "Perimeter 1"))
+    # NONE VEUT DIRE « JE NE SAIS PAS », PAS « AUCUNE ». Une geometrie
+    # illisible doit desactiver le filtre, jamais vider la carte : sinon un
+    # incident de lecture arreterait un calage parfaitement valide.
+    _verifier("noms_connus=None n'ote rien (geometrie illisible)",
+              cartographier_hydrogrammes(_piege, "Perimeter 1", None)
+              == cartographier_hydrogrammes(_piege, "Perimeter 1"))
+    _verifier("une geometrie VRAIMENT vide, elle, ne laisse rien passer",
+              cartographier_hydrogrammes(_piege, "Perimeter 1", set()) == {})
     _piege.unlink(missing_ok=True)
 
     # --- fenetre de simulation du plan ------------------------------------

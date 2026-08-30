@@ -2233,6 +2233,29 @@ class DialogueParametrage(QDialog):
             "fausse ne serait pas conservatif.")
         f2.addRow("Précision sur le débit de pointe :", self.spin_tol_pic)
 
+        # CE SEUIL N'EST PAS UNE TOLERANCE DE CALAGE, et le libelle doit le
+        # dire : il porte sur la CONSERVATION DE LA MASSE par HEC-RAS, pas
+        # sur l'ecart a la cible. Les deux voisinent dans le meme groupe
+        # parce que l'un et l'autre decident du sort d'un essai, mais les
+        # confondre ferait desserrer la qualite du calcul en croyant
+        # desserrer la precision demandee.
+        self.spin_bilan_masse = QDoubleSpinBox()
+        self.spin_bilan_masse.setRange(0.1, 50.0)
+        self.spin_bilan_masse.setDecimals(2)
+        self.spin_bilan_masse.setSingleStep(0.5)
+        self.spin_bilan_masse.setSuffix(" %")
+        self.spin_bilan_masse.setValue(noyau.BILAN_MASSE_DEFAUT)
+        self.spin_bilan_masse.setToolTip(
+            "QUALITÉ DU CALCUL, PAS ÉCART À LA CIBLE. Erreur de conservation "
+            "que HEC-RAS rend lui-même (« volume accounting error ») : ce "
+            "qu'il perd ou fabrique entre entrées, sorties et stockage. "
+            "Au-delà, l'essai est REJETÉ sans être comparé à la cible — on ne "
+            "corrige pas un apport pour compenser une erreur du solveur.\n\n"
+            "Si un calcul dépasse ce seuil, le vrai remède est de resserrer "
+            "le pas de calcul du plan, pas de desserrer ce chiffre.")
+        f2.addRow("Bilan de masse admis (qualité du calcul) :",
+                  self.spin_bilan_masse)
+
         self.spin_nb_max_essais = QSpinBox()
         self.spin_nb_max_essais.setRange(3, 50)
         self.spin_nb_max_essais.setValue(6)
@@ -2632,6 +2655,13 @@ class DialogueParametrage(QDialog):
         # n'est pas evalue, c'est le dernier apport chiffre qui est montre.
         self.label_jauges = texte_aide("")
         vj.addWidget(self.label_jauges)
+        # BILAN DE MASSE DU DERNIER CALCUL — VOISIN DES JAUGES, MAIS PAS UNE
+        # QUATRIEME JAUGE. Il ne dit rien de l'atteinte de la cible : c'est
+        # la conservation du solveur. Il figure ici parce que c'est lui qui
+        # peut faire REJETER un essai avant toute comparaison, et qu'un arrêt
+        # « qualité numérique » ne se lisait alors que dans le journal texte.
+        self.label_bilan_masse = texte_aide("")
+        vj.addWidget(self.label_bilan_masse)
         self.courbe_suivi = CourbeComparaison()
         vj.addWidget(self.courbe_suivi)
         vj.addWidget(texte_aide(
@@ -2923,6 +2953,8 @@ class DialogueParametrage(QDialog):
                      else " — dernier essai évalué ; le calcul en cours n'a "
                           "pas encore rendu le sien")))
 
+        self._afficher_bilan_masse(etat.get("bilan_masse"))
+
         self.label_suivi_ecoule.setText(duree_lisible(etat.get("ecoule_s")))
         self.label_suivi_reste.setText(
             "—" if etat.get("termine") else duree_lisible(etat.get("reste_s")))
@@ -2934,6 +2966,38 @@ class DialogueParametrage(QDialog):
             + (f" · {etat['incidents']} incident(s)"
                if etat.get("incidents") else ""))
         self._remplir_table_suivi(apports)
+
+    def _afficher_bilan_masse(self, bilan):
+        """
+        Bilan de masse du dernier calcul, sous les jauges.
+
+        TROIS ETATS, ET LE TROISIEME COMPTE AUTANT QUE LES DEUX AUTRES :
+        pas encore mesuré (aucun calcul n'a rendu la valeur), dans le seuil,
+        au-delà du seuil. Le dernier explique à lui seul un calage qui
+        s'arrête sans qu'aucune jauge n'ait bougé.
+
+        Un état publié par une version ANTERIEURE du suivi n'a pas la clé :
+        la ligne reste alors vide plutôt que d'annoncer une mesure absente.
+        """
+        if not isinstance(bilan, dict):
+            self.label_bilan_masse.setText("")
+            return
+        try:
+            pct = float(bilan["pct"])
+            seuil = float(bilan["seuil_pct"])
+        except (KeyError, TypeError, ValueError):
+            self.label_bilan_masse.setText("")
+            return
+        depasse = abs(pct) > seuil
+        couleur = ISL_ROUGE if depasse else ISL_VERT
+        self.label_bilan_masse.setText(
+            f"Bilan de masse du dernier calcul : "
+            f"<b style='color:{couleur}'>{pct:+.3f} %</b> "
+            f"(seuil {seuil:g} %)"
+            + (" — au-delà du seuil : l'essai est rejeté sans être comparé "
+               "à la cible. Resserrer le pas de calcul du plan."
+               if depasse else
+               " — qualité du calcul, pas écart à la cible."))
 
     def _remplir_table_suivi(self, apports):
         from qgis.PyQt.QtGui import QColor
@@ -3028,9 +3092,19 @@ class DialogueParametrage(QDialog):
             "lui-même, sa bibliothèque HDF5 entre en conflit avec celle de "
             "h5py.")
         bouton_interp.clicked.connect(self._choisir_interpreteur)
+        # DÉSIGNER SUPPOSE QU'IL EXISTE DÉJÀ. Sur un poste neuf il n'existe
+        # pas, et la seule issue était de taper deux commandes dans une
+        # console — ce que le message d'erreur décrivait sans le faire.
+        bouton_installer = QPushButton("Installer…")
+        bouton_installer.setToolTip(
+            "Crée un environnement Python à côté de la chaîne de calage et y "
+            "installe ras-commander et h5py. À utiliser sur un poste où "
+            "aucun interpréteur convenable n'existe encore.")
+        bouton_installer.clicked.connect(self._installer_interpreteur)
         ligne_interp = QHBoxLayout()
         ligne_interp.addWidget(self.label_interpreteur, 1)
         ligne_interp.addWidget(bouton_interp)
+        ligne_interp.addWidget(bouton_installer)
         fp.addRow("Interpréteur HEC-RAS :", ligne_interp)
 
         bouton = QPushButton("Vérifier l'environnement")
@@ -3094,6 +3168,80 @@ class DialogueParametrage(QDialog):
                 f"convient pas : sa bibliothèque HDF5 entre en conflit avec "
                 f"celle de h5py.")
         self._maj_parametres_poste()
+
+    @avec_sablier
+    def _installer_interpreteur(self):
+        """
+        Cree l'environnement Python HEC-RAS, apres validation explicite.
+
+        DEUX QUESTIONS, PAS UNE. La premiere dit OU l'on va ecrire et ce que
+        l'on va telecharger — un pip install depuis un poste d'entreprise
+        n'est pas un geste anodin. La seconde demande le python de BASE : il
+        n'est PAS devine, parce que « python » n'existe pas forcement dans le
+        PATH d'un poste Windows et que celui de QGIS ne sait pas toujours
+        creer un venv utilisable. Deviner ici reviendrait a installer plusieurs
+        centaines de mega-octets au mauvais endroit, avec le mauvais Python.
+
+        SUR LE FIL GRAPHIQUE, ET C'EST ASSUME comme les cinq autres methodes
+        longues : pip peut prendre plusieurs minutes, le sablier le dit, et
+        introduire un thread pour cette seule operation coûterait plus que
+        l'attente.
+        """
+        cible = noyau.emplacement_venv_hecras()
+        if cible is None:
+            QMessageBox.warning(
+                self, "Installation impossible",
+                "Aucun emplacement sûr : la chaîne de calage n'est pas "
+                "désignée, ou c'est la copie embarquée dans le greffon — que "
+                "le gestionnaire d'extensions de QGIS efface à chaque mise à "
+                "jour.\n\nDésigner d'abord une chaîne de calage externe.")
+            return
+
+        minimum = ".".join(str(n) for n in noyau.RAS_COMMANDER_MINIMUM)
+        with sans_sablier(self):
+            reponse = QMessageBox.question(
+                self, "Installer l'environnement Python HEC-RAS",
+                f"Un environnement Python va être créé dans :\n{cible}\n\n"
+                f"puis ras-commander>={minimum} et h5py y seront installés "
+                f"depuis PyPI (téléchargement, plusieurs minutes).\n\n"
+                f"QGIS restera figé pendant l'opération.\n\nContinuer ?",
+                QMessageBox.StandardButton.Yes
+                | QMessageBox.StandardButton.No)
+        if reponse != QMessageBox.StandardButton.Yes:
+            return
+
+        with sans_sablier(self):
+            base, _ = QFileDialog.getOpenFileName(
+                self, "Python de base (python.exe) servant à créer "
+                      "l'environnement", "",
+                "Exécutable Python (python.exe python3.exe python);;"
+                "Tous les fichiers (*)")
+        if not base:
+            return
+
+        lignes = []
+        chemin, message = noyau.installer_interpreteur(base, lignes.append)
+        journal = "\n".join(lignes)
+        if chemin is None:
+            journaliser(f"Installation de l'interpréteur HEC-RAS : {message}")
+            boite = QMessageBox(self)
+            boite.setIcon(QMessageBox.Icon.Critical)
+            boite.setWindowTitle("Installation impossible")
+            boite.setText("L'environnement Python HEC-RAS n'a pas pu être "
+                          "installé.")
+            boite.setDetailedText(f"{journal}\n\n{message}")
+            rendre_redimensionnable(boite)
+            rendre_la_main(self)
+            boite.exec()
+            return
+
+        QSettings().setValue(PluginCalage.CLE_INTERPRETEUR, str(chemin))
+        self._maj_parametres_poste()
+        rendre_la_main(self)
+        QMessageBox.information(
+            self, "Environnement installé",
+            f"Interpréteur HEC-RAS installé et vérifié :\n{chemin}\n\n"
+            f"{message}\n\nIl est retenu d'une session à l'autre.")
 
     def _diagnostic(self):
         """
@@ -3164,7 +3312,8 @@ class DialogueParametrage(QDialog):
                 return
             self.classeur = classeur
 
-            anomalies, tableau = noyau.controler_paquet(classeur)
+            anomalies, tableau, prolongation = noyau.controler_paquet(
+                classeur)
             erreurs, avertissements, _ = trier_anomalies(anomalies)
             chemins = noyau.chemins_du_classeur(classeur)
             afficher_pk_sur_carte(chemins, chemins["sens"])
@@ -3178,6 +3327,7 @@ class DialogueParametrage(QDialog):
             boite.setDetailedText(texte_rapport_controle(anomalies, tableau))
             rendre_la_main(self)
             boite.exec()
+            self._proposer_prolongation(prolongation)
             self._maj_onglet_validation_depuis_classeur()
         except Exception as e:
             journaliser("Contrôle d'un classeur existant", e)
@@ -3325,6 +3475,62 @@ class DialogueParametrage(QDialog):
         # changement d'onglet démarre lui-même le rafraîchissement.
         if hasattr(self, "onglets") and hasattr(self, "minuteur_suivi"):
             self.onglets.setCurrentIndex(ONGLET_SUIVI)
+
+    def _proposer_prolongation(self, prolongation):
+        """
+        Offre de prolonger les hydrogrammes cibles par des ZEROS quand ils
+        s'arretent avant la fin de la simulation.
+
+        APRES LE COMPTE RENDU, JAMAIS PENDANT. Le controle vient de dire ce
+        qui ne va pas ; cette question propose de le corriger. Les enchainer
+        dans la meme boite melangerait un constat et une action.
+
+        LE GESTE EST ECRIT DANS LE CLASSEUR, PAS DANS LE MODELE. On ne touche
+        qu'a ce qui est a nous : une condition limite du modele source trop
+        courte est signalee, jamais reparee d'office.
+        """
+        if not isinstance(prolongation, dict):
+            return
+        try:
+            duree = float(prolongation["duree_h"])
+        except (KeyError, TypeError, ValueError):
+            return
+        apports = prolongation.get("apports") or []
+
+        with sans_sablier(self):
+            reponse = QMessageBox.question(
+                self, "Hydrogrammes cibles trop courts",
+                f"{len(apports)} hydrogramme(s) cible(s) s'arrêtent avant la "
+                f"fin de la simulation ({duree:.2f} h) : "
+                f"{', '.join(apports[:8])}"
+                + ("…" if len(apports) > 8 else "")
+                + f".\n\nHEC-RAS refuserait de calculer.\n\n"
+                f"Prolonger ces colonnes jusqu'à {duree:.2f} h en les "
+                f"complétant par des ZÉROS ?\n\n"
+                f"Une crue arrêtée avant la fin de sa fenêtre est retombée : "
+                f"zéro est la valeur juste, et non la dernière connue. Seule "
+                f"la feuille Cibles du classeur est modifiée.",
+                QMessageBox.StandardButton.Yes
+                | QMessageBox.StandardButton.No)
+        if reponse != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            bilan = noyau.prolonger_cibles(self.classeur, duree)
+        except Exception as e:
+            journaliser("Prolongation des hydrogrammes cibles", e)
+            QMessageBox.critical(
+                self, "Prolongation",
+                f"Les hydrogrammes cibles n'ont pas pu être prolongés : {e}\n\n"
+                f"Le classeur est inchangé. Compléter la feuille Cibles à la "
+                f"main, ou raccourcir la fenêtre de simulation du plan.")
+            return
+        QMessageBox.information(
+            self, "Prolongation",
+            f"{bilan['ajoutees']} pas de temps ajoutés à "
+            f"{len(bilan['colonnes'])} colonne(s), de "
+            f"{bilan['duree_avant_h']:.2f} h à {bilan['duree_apres_h']:.2f} h, "
+            f"au pas de {60 * bilan['pas_h']:g} min.\n\n"
+            f"Relancer « Composer et contrôler » pour vérifier.")
 
     def _ouvrir_classeur(self):
         if not self.classeur:
@@ -3543,6 +3749,7 @@ class DialogueParametrage(QDialog):
                 nb_max_iterations=self.spin_nb_max_essais.value(),
                 tolerance_volume_pct=self.spin_tol_volume.value(),
                 tolerance_pic_pct=self.spin_tol_pic.value(),
+                bilan_masse_max_pct=self.spin_bilan_masse.value(),
                 dossier_sortie=dossier_sortie,
                 sous_dossier_resultats=sous_resultats,
                 sous_dossier_suivi=sous_suivi,
@@ -3603,7 +3810,8 @@ class DialogueParametrage(QDialog):
             (Path(dossier_sortie) / sous_resultats).mkdir(parents=True, exist_ok=True)
             (Path(dossier_sortie) / sous_suivi).mkdir(parents=True, exist_ok=True)
 
-            anomalies, tableau = noyau.controler_paquet(self.classeur)
+            anomalies, tableau, prolongation = noyau.controler_paquet(
+                self.classeur)
             erreurs, avertissements, _ = trier_anomalies(anomalies)
             afficher_pk_sur_carte(self.paquet, parametres["Sens_axe"],
                                   self.crs_modele)
@@ -3622,6 +3830,7 @@ class DialogueParametrage(QDialog):
             # Le travail est fini : le compte rendu se lit sans sablier.
             rendre_la_main(self)
             boite.exec()
+            self._proposer_prolongation(prolongation)
             self._maj_resume()
             self._maj_onglet_validation()
         except Exception as e:
