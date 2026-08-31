@@ -380,7 +380,7 @@ def ajouter_condition_limite_debit(fichier_unsteady, nom, nom_zone_2d, debits,
 
 
 def imposer_intervalle_apport(fichier_unsteady, nom, nom_zone_2d=None,
-                              intervalle=INTERVALLE_APPORT):
+                              intervalle=INTERVALLE_APPORT, duree_min_h=None):
     """
     Re-cadence l'hydrogramme d'un apport DEJA present, au pas demande.
 
@@ -440,7 +440,30 @@ def imposer_intervalle_apport(fichier_unsteady, nom, nom_zone_2d=None,
             f"l'hydrogramme de « {nom} » ne compte que {len(valeurs)} "
             f"valeur(s) : rien a re-cadencer.")
     duree_h = (len(valeurs) - 1) * pas_avant
-    if abs(pas_avant - pas_apres) <= 1e-12:
+    # PROLONGEMENT PAR DES ZEROS, POUR LES SEULS APPORTS QUE LE CALAGE PILOTE.
+    #
+    # Un modele livre porte souvent des apports plus courts que la fenetre de
+    # simulation : ils viennent d'un evenement plus bref, ou d'une version
+    # anterieure. HEC-RAS refuse alors de calculer, et l'utilisateur se
+    # retrouve a devoir rallonger a la main douze hydrogrammes... que le
+    # calage va de toute facon REECRIRE des le premier essai. C'est un travail
+    # sans objet, et le message qui le demandait etait faux.
+    #
+    # POURQUOI ZERO ET NON LA DERNIERE VALEUR : np.interp tient la derniere
+    # valeur au-dela du domaine, ce qui injecterait un debit constant sur des
+    # heures. Un apport dont la serie s'arrete est un apport qui ne donne plus
+    # rien.
+    # POURQUOI C'EST SANS CONSEQUENCE : au calcul de reference l'apport est
+    # mis a zero partout, et des le premier essai definir_forme() reecrit la
+    # serie entiere sur la base de temps de la cible. La valeur de remplissage
+    # n'entre donc dans aucun calcul — elle ne sert qu'a ce que le bloc ait la
+    # bonne longueur quand HEC-RAS le lit.
+    if duree_min_h and duree_min_h > duree_h + 1e-9:
+        manque = int(math.ceil((duree_min_h - duree_h) / pas_avant - 1e-9))
+        valeurs = np.concatenate([np.asarray(valeurs, dtype=float),
+                                  np.zeros(manque)])
+        duree_h = (len(valeurs) - 1) * pas_avant
+    elif abs(pas_avant - pas_apres) <= 1e-12:
         return None
 
     # La duree n'est pas toujours un multiple entier du nouveau pas : 0,75 h
@@ -551,7 +574,8 @@ def conditions_trop_courtes(fichier_unsteady, fichier_plan, nom_zone_2d=None,
 
 
 def verifier_intervalle_apports(fichier_unsteady, nom_zone_2d=None,
-                                intervalle=INTERVALLE_APPORT):
+                                intervalle=INTERVALLE_APPORT,
+                                noms_connus=None):
     """
     Relit le fichier et rapporte, par apport, son pas et son compte de valeurs.
 
@@ -560,13 +584,21 @@ def verifier_intervalle_apports(fichier_unsteady, nom_zone_2d=None,
     fait lire a HEC-RAS une serie tronquee, en silence. Le controle compare
     donc le N annonce au nombre de valeurs REELLEMENT relues.
 
+    noms_connus : voir cartographier_hydrogrammes. IL DOIT ETRE LE MEME QUE
+    CELUI DU RE-CADENCAGE. Filtrer les blocs orphelins a l'ECRITURE sans les
+    filtrer a la RELECTURE fait echouer le controle sur des blocs qu'on a
+    volontairement laisses tranquilles : le calage s'arretait alors sur
+    « pas 0.5 h au lieu de 0.1 » pour deux conditions que HEC-RAS n'ouvre
+    meme pas (releve le 31/08/2026, second poste — le filtre du 30/08 avait
+    ete pose a deux endroits sur trois).
+
     Retourne {nom: {"intervalle_h", "nb", "conforme", "motif"}}.
     """
     attendu = _intervalle_en_heures(intervalle_hecras(intervalle))
     texte = _lire_lignes(fichier_unsteady)
     bilan = {}
-    for nom, info in cartographier_hydrogrammes(fichier_unsteady,
-                                                nom_zone_2d).items():
+    for nom, info in cartographier_hydrogrammes(fichier_unsteady, nom_zone_2d,
+                                                noms_connus).items():
         valeurs, _ = lire_hydrogramme_unsteady(fichier_unsteady,
                                                info["debut"], info["fin"])
         entete = next((texte[j] for j in range(info["debut"] - 1, -1, -1)
@@ -1076,6 +1108,23 @@ class PiloteHecRas(Modele):
         # sur celle heritee du plan de reference.
         self._ecrire_fenetre_simulation(self.plan_travail)
 
+        # FENETRE DE REFERENCE, relevee UNE FOIS ET ICI. C'est la borne haute
+        # de limiter_duree() : chaque etape clone le plan de la precedente,
+        # donc une etape raccourcie transmet sa fenetre reduite a la suivante.
+        # Sans cette memoire, un premier apport a l'evenement bref bornait
+        # tout le calage — le deuxieme ne pouvait plus rallonger jusqu'a son
+        # propre evenement, et se calait sur une serie tronquee.
+        self.duree_reference_h = None
+        try:
+            f = fenetre_simulation_du_plan(
+                self.dossier / f"{self.nom_projet}.p{self.plan_travail}")
+            if f.get("debut") and f.get("fin"):
+                self.duree_reference_h = (
+                    _en_minutes(instant_hecras(f["fin"]))
+                    - _en_minutes(instant_hecras(f["debut"]))) / 60.0
+        except Exception:                                    # noqa: BLE001
+            self.duree_reference_h = None
+
         if self.activer_courant:
             try:
                 RasPlan.enable_hdf_output_variable(self.plan_travail,
@@ -1181,12 +1230,31 @@ class PiloteHecRas(Modele):
         intervalle_cible = (intervalle_hecras_depuis_heures(self.pas_travail_h)
                             if self.pas_travail_h else INTERVALLE_APPORT)
 
+        # DUREE A COUVRIR, pour les seuls apports que CE calage pilote. Ce
+        # sont les seuls dont la serie nous appartient : elle est mise a zero
+        # au calcul de reference, puis entierement reecrite a chaque essai.
+        # Les autres conditions limites sont la donnee du modele — on les
+        # signale trop courtes, on ne les rallonge jamais.
+        duree_simulation = None
+        if self.apports_a_caler and self.plan_travail:
+            try:
+                f = fenetre_simulation_du_plan(
+                    self.dossier / f"{self.nom_projet}.p{self.plan_travail}")
+                if f.get("debut") and f.get("fin"):
+                    duree_simulation = (
+                        _en_minutes(instant_hecras(f["fin"]))
+                        - _en_minutes(instant_hecras(f["debut"]))) / 60.0
+            except Exception:                                # noqa: BLE001
+                duree_simulation = None
+
         convertis = []
         for nom in sorted(self.carte):
+            pilote = bool(self.apports_a_caler and nom in self.apports_a_caler)
             try:
                 compte_rendu = imposer_intervalle_apport(
                     self.fichier_unsteady, nom, self.nom_zone_2d,
-                    intervalle=intervalle_cible)
+                    intervalle=intervalle_cible,
+                    duree_min_h=duree_simulation if pilote else None)
             except Exception as e:                          # noqa: BLE001
                 print(f"   AVERTISSEMENT : « {nom} » non recadence : {e}",
                       flush=True)
@@ -1206,9 +1274,13 @@ class PiloteHecRas(Modele):
                                                     self.nom_zone_2d,
                                                     self._bc_lines_connues())
 
+        # LE MEME FILTRE QU'A L'ECRITURE, sans quoi ce controle se prononce
+        # sur des blocs que _recadencer_apports() a volontairement laisses
+        # tranquilles — et arrete le calage sur des orphelins.
         discordants = {n: b["motif"] for n, b in verifier_intervalle_apports(
             self.fichier_unsteady, self.nom_zone_2d,
-            intervalle=intervalle_cible).items()
+            intervalle=intervalle_cible,
+            noms_connus=self._bc_lines_connues()).items()
             if not b["conforme"]}
         if discordants:
             raise ValueError(
@@ -1243,8 +1315,17 @@ class PiloteHecRas(Modele):
             autres = [n for n, d in courtes.items() if not d["a_caler"]]
             detail = ""
             if apports:
-                detail += (f" APPORTS A CALER — a rallonger dans la feuille "
-                           f"Cibles du classeur : {_lister(apports)}.")
+                # CE CAS NE DEVRAIT PLUS SE PRODUIRE : _recadencer_apports()
+                # prolonge par des zeros les apports que le calage pilote. S'il
+                # subsiste, c'est que le prolongement a echoue — pas que
+                # l'utilisateur a mal rempli son classeur. L'ancien message
+                # l'envoyait rallonger la feuille Cibles, ce qui n'a aucun
+                # effet sur la serie du MODELE : conseil faux, releve le
+                # 31/08/2026 sur un modele dont six apports etaient trop
+                # courts.
+                detail += (f" APPORT(S) PILOTE(S) PAR LE CALAGE, dont le "
+                           f"prolongement automatique a echoue — voir les "
+                           f"avertissements ci-dessus : {_lister(apports)}.")
             if autres:
                 detail += (f" AUTRES CONDITIONS LIMITES (alimentation amont, "
                            f"apports non cales ici) — a corriger dans le "
@@ -1466,6 +1547,62 @@ class PiloteHecRas(Modele):
                 f"la structure attendue ; la fenetre de simulation ne peut pas "
                 f"y etre imposee sans risque.")
         fichier_plan.write_text("".join(lignes), encoding="utf-8")
+
+    def limiter_duree(self, heures):
+        """
+        Ramene la fin de simulation du plan de travail a « heures » depuis son
+        debut. Retourne la duree effectivement ecrite, ou None si rien n'a ete
+        change.
+
+        ON NE DEPASSE JAMAIS LA FENETRE DE REFERENCE, relevee par preparer().
+        Au-dela, on calculerait apres la fin des hydrogrammes que le modele
+        porte — c'est le piege deja documente : HEC-RAS ne s'en plaint pas, il
+        calcule dans le vide.
+
+        MAIS ON PEUT RALLONGER EN DECA DE CETTE BORNE, et il le faut. Chaque
+        etape CLONE le plan de la precedente : une etape raccourcie transmet sa
+        fenetre reduite a la suivante. Refuser d'allonger bornait alors tout le
+        calage a l'evenement du PREMIER apport — le deuxieme se calait sur une
+        serie tronquee, avec un volume incalculable. Attrape par l'auto-test le
+        31/08/2026, avant toute mise en production.
+
+        LA FIN EST ARRONDIE A LA MINUTE SUPERIEURE, jamais tronquee : un
+        arrondi vers le bas retirerait jusqu'a une minute a la fenetre de
+        jugement, et le raccourcissement se paierait en couverture.
+
+        AUCUN EFFET SANS PLAN DE TRAVAIL, et aucune exception : cette methode
+        est un gain de temps, pas une etape du calage. Si elle echoue, le
+        calcul tourne sur la fenetre entiere — plus lent, jamais faux.
+        """
+        if not self.plan_travail or heures is None or heures <= 0:
+            return None
+        fichier_plan = self.dossier / f"{self.nom_projet}.p{self.plan_travail}"
+        fenetre = fenetre_simulation_du_plan(fichier_plan)
+        if not (fenetre.get("debut") and fenetre.get("fin")):
+            return None
+        debut, fin = instant_hecras(fenetre["debut"]), instant_hecras(fenetre["fin"])
+        actuelle_min = _en_minutes(fin) - _en_minutes(debut)
+        voulue_min = int(math.ceil(float(heures) * 60.0))
+        plafond = getattr(self, "duree_reference_h", None)
+        if plafond is not None:
+            voulue_min = min(voulue_min, int(round(plafond * 60.0)))
+        if voulue_min == actuelle_min or voulue_min <= 0:
+            return None
+
+        j, mo, an, h, mn = _INSTANT.match(debut).groups()
+        arrivee = (datetime(int(an), MOIS_HECRAS.index(mo) + 1, int(j),
+                            int(h), int(mn)) + timedelta(minutes=voulue_min))
+        nouvelle_fin = (f"{arrivee.day:02d}{MOIS_HECRAS[arrivee.month - 1]}"
+                        f"{arrivee.year:04d},{arrivee.hour:02d}:"
+                        f"{arrivee.minute:02d}")
+        lignes = _lire_lignes(fichier_plan)
+        for i, ligne in enumerate(lignes):
+            if ligne.startswith("Simulation Date="):
+                saut = "\n" if ligne.endswith("\n") else ""
+                lignes[i] = f"Simulation Date={debut},{nouvelle_fin}{saut}"
+                fichier_plan.write_text("".join(lignes), encoding="utf-8")
+                return voulue_min / 60.0
+        return None
 
     def _unsteady_du_plan(self, numero_plan):
         """Fichier unsteady associe a un plan, lu dans le fichier de plan."""
@@ -2432,6 +2569,55 @@ if __name__ == "__main__":
               == cartographier_hydrogrammes(_piege, "Perimeter 1"))
     _verifier("une geometrie VRAIMENT vide, elle, ne laisse rien passer",
               cartographier_hydrogrammes(_piege, "Perimeter 1", set()) == {})
+    # LE FILTRE DOIT VALOIR PARTOUT OU LA CARTE EST ENUMEREE, pas seulement a
+    # l'ecriture. Pose a deux endroits sur trois le 30/08, il laissait
+    # verifier_intervalle_apports() se prononcer sur des orphelins que le
+    # re-cadencage avait volontairement laisses tranquilles : le calage
+    # s'arretait sur « pas 0.5 h au lieu de 0.1 » pour des conditions que
+    # HEC-RAS n'ouvre meme pas (releve le 31/08/2026, second poste).
+    _sans_filtre = verifier_intervalle_apports(_piege, "Perimeter 1",
+                                               intervalle="15MIN")
+    _avec_filtre = verifier_intervalle_apports(_piege, "Perimeter 1",
+                                               intervalle="15MIN",
+                                               noms_connus={"APPORT_A"})
+    _verifier("verifier_intervalle_apports honore le meme filtre",
+              "APPORT_B" in _sans_filtre and "APPORT_B" not in _avec_filtre,
+              f"sans filtre {sorted(_sans_filtre)}, avec {sorted(_avec_filtre)}")
+
+    # --- PROLONGEMENT DES APPORTS PILOTES -------------------------------
+    # Un modele livre porte souvent des apports plus courts que la fenetre de
+    # simulation. HEC-RAS refuse alors de calculer, et l'utilisateur devait
+    # rallonger a la main des series que le calage REECRIT des le premier
+    # essai. Releve le 31/08/2026 : six apports sur douze, et le message
+    # l'envoyait corriger la feuille Cibles — sans aucun effet sur le modele.
+    _court = Path(tempfile.gettempdir()) / "_essai_calage_court.u01"
+    _court.write_text(
+        "Flow Title=Essai\n"
+        + ligne_localisation("BREF", "Perimeter 1") + "\n"
+        "Interval=1HOUR\n"
+        "Flow Hydrograph= 4 \n"
+        "    1.00    5.00    3.00    1.00\n"
+        "Flow Hydrograph Slope= 0.01 \n", encoding="utf-8")
+    _avant = cartographier_hydrogrammes(_court)["BREF"]
+    _v_avant, _ = lire_hydrogramme_unsteady(_court, _avant["debut"],
+                                            _avant["fin"])
+    imposer_intervalle_apport(_court, "BREF", intervalle="1HOUR",
+                              duree_min_h=10.0)
+    _apres = cartographier_hydrogrammes(_court)["BREF"]
+    _v_apres, _ = lire_hydrogramme_unsteady(_court, _apres["debut"],
+                                            _apres["fin"])
+    _verifier("un apport trop court est prolonge jusqu'a la fenetre",
+              abs((len(_v_apres) - 1) * _apres["intervalle_h"] - 10.0) < 1e-9,
+              f"{(len(_v_avant) - 1) * _avant['intervalle_h']:.0f} h -> "
+              f"{(len(_v_apres) - 1) * _apres['intervalle_h']:.0f} h")
+    _verifier("la serie d'origine est intacte, et la queue vaut ZERO",
+              list(_v_apres[:4]) == [1.0, 5.0, 3.0, 1.0]
+              and set(_v_apres[4:]) == {0.0},
+              f"{list(_v_apres)}")
+    _verifier("sans duree_min_h, rien n'est prolonge",
+              imposer_intervalle_apport(_court, "BREF",
+                                        intervalle="1HOUR") is None)
+    _court.unlink(missing_ok=True)
     _piege.unlink(missing_ok=True)
 
     # --- fenetre de simulation du plan ------------------------------------

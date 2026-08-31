@@ -126,6 +126,27 @@ class Modele:
         """
         return None
 
+    def limiter_duree(self, heures):
+        """
+        Raccourcit la fenetre de simulation de l'etape COURANTE a « heures »
+        depuis son debut. Facultatif, et sans effet par defaut.
+
+        POURQUOI C'EST LEGITIME. Un solveur qui marche dans le temps ne peut
+        pas voir l'avenir : la serie lue a une section sur [0, T] est la meme,
+        que le calcul s'arrete a T ou bien plus tard. Tronquer ne change donc
+        rien a ce qu'on lit AVANT la troncature.
+
+        POURQUOI CELA VAUT LA PEINE. Le cout d'un calcul est a peu pres
+        proportionnel a la duree simulee, et les evenements s'allongent vers
+        l'aval : sur un modele reel a douze apports, la premiere section a
+        fini de reagir en 8 h quand la derniere en demande 34. Imposer 34 h a
+        tout le monde double le cout du calage.
+
+        RENDRE None NE FAIT RIEN, et c'est le bon defaut : un modele qui ne
+        sait pas raccourcir sa fenetre calcule simplement comme avant.
+        """
+        return None
+
     def forme_apport(self, nom_apport):
         """Hydrogramme de reference de cet apport : (temps_h, debit)."""
         raise NotImplementedError
@@ -187,6 +208,30 @@ class Configuration:
     # Correlation minimale APRES recalage temporel : c'est la forme, sans la
     # dynamique, qu'on exige de reproduire.
     r_min: float = 0.97
+    # AJUSTER LA DUREE SIMULEE A CE QUE CHAQUE APPORT DEMANDE.
+    #
+    # La fenetre de jugement dit jusqu'ou l'evenement de CET apport est
+    # regarde ; au-dela, plus rien n'est ni juge ni presente. Simuler plus
+    # loin ne sert donc qu'a payer du temps de calcul. Les evenements
+    # s'allongeant vers l'aval, une fenetre unique impose a tous le besoin du
+    # dernier : mesure sur un modele a douze apports, 8 h suffisent au premier
+    # quand le dernier en demande 34 — 41 % du calage depense pour rien.
+    #
+    # TROIS GARDE-FOUS, ET AUCUN N'EST FACULTATIF :
+    #   - la duree ne DECROIT jamais d'un apport au suivant. L'etape 7 relit
+    #     les sections amont, et la verification globale finale relit LE
+    #     DERNIER CALCUL pour TOUTES les sections : raccourcir apres coup les
+    #     priverait de leur fenetre ;
+    #   - elle ne DEPASSE jamais celle du plan de reference. On raccourcit, on
+    #     n'allonge pas : allonger demanderait des hydrogrammes plus longs que
+    #     ce que le modele porte ;
+    #   - marge_duree_h est ajoutee au-dela de la fenetre de jugement, parce
+    #     que celle-ci est detectee sur l'ecart au residuel et qu'un apport
+    #     corrige peut deplacer un peu la reponse.
+    # Le calcul de REFERENCE garde toujours la fenetre entiere : il mesure le
+    # residuel de toutes les sections a la fois.
+    ajuster_duree: bool = True
+    marge_duree_h: float = 2.0
     # CHAMP INERTE depuis le 08/08/2026, conserve pour ne pas casser les
     # classeurs en circulation qui le portent encore. Il plafonnait des
     # « reprises » du controle amont qui ne pouvaient rien reprendre : la
@@ -729,14 +774,16 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
     # ne se manifestait qu'au moment ou son apport arrivait, c'est-a-dire
     # apres le calage complet des apports amont.
     illisibles = []
+    residuels_reference = []
     for section in sections:
         try:
-            _, residuel_zero = modele.lire_section(section)
+            t_zero, residuel_zero = modele.lire_section(section)
         except Exception as e:                              # noqa: BLE001
             illisibles.append(f"{section} ({type(e).__name__}: {e})")
         else:
             dire(f"    {section:24s} recoit {float(np.max(residuel_zero)):7.1f} "
                  f"m3/s sans les apports a caler")
+            residuels_reference.append((t_zero, residuel_zero))
     if illisibles:
         resultat.motif = (
             f"section(s) de controle illisible(s) dans le calcul de "
@@ -745,6 +792,34 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
         dire(f"    ARRET : {resultat.motif}")
         resultat.duree_s = time.time() - debut
         return resultat
+
+    # --- calendrier des durees simulees, etabli ICI et pas ailleurs -------
+    #
+    # TOUTES LES DUREES SE CALCULENT SUR LE CALCUL DE REFERENCE, jamais au fil
+    # de la boucle. La raison est un piege que l'auto-test a attrape : dans la
+    # boucle, le residuel de l'apport N se lit dans les RESULTATS de l'apport
+    # N-1 — donc dans un calcul deja raccourci. Un premier apport dont
+    # l'evenement finit tot tronquait le calcul a 10 h, et le suivant, dont
+    # l'evenement culmine a 14 h, ne pouvait plus mesurer son propre deficit :
+    # sa fenetre etait bornee par la troncature du precedent, la duree ne
+    # croissait jamais, et le calage echouait sur « volume nan ».
+    # Le calcul de reference, lui, porte la fenetre ENTIERE et rend toutes les
+    # sections lisibles ensemble : c'est le seul etat ou le calendrier complet
+    # est mesurable.
+    #
+    # LA DUREE AINSI OBTENUE EST CONSERVATRICE. A l'etat de reference, la
+    # section N ne recoit que le debit non cale : son deficit est donc PLUS
+    # GRAND qu'il ne le sera quand son tour viendra, les apports amont etant
+    # alors actifs. La fenetre mesurée ici est donc plus large que necessaire —
+    # on simule un peu trop, jamais trop peu.
+    #
+    # Δt EST DEDANS : la fenetre est mesuree sur cible(t - Δt) - section(t),
+    # dont l'indice est un instant de SIMULATION. Un evenement cible qui
+    # culmine a 16 h avec Δt = -13 h se lit a la section vers 3 h, et la duree
+    # retenue suit le calendrier DU MODELE, pas celui de la cible.
+    durees_simulees = _calendrier_durees(
+        cibles, residuels_reference, config,
+        dire if config.ajuster_duree else (lambda *a, **k: None))
 
     for i, (apport, section) in enumerate(zip(apports, sections)):
         temps_cible, debit_cible = cibles[i]
@@ -873,6 +948,19 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
                      f"la serie")
             else:
                 bornes_fenetre = None
+
+        # --- duree simulee ajustee a CET apport ---------------------------
+        #
+        # APRES le jalon, donc sur le plan de l'etape et jamais sur le plan de
+        # reference. Le calendrier a ete etabli une fois pour toutes sur le
+        # calcul de reference (voir _calendrier_durees) : le lire ici plutot
+        # que le recalculer evite de le mesurer sur un calcul deja raccourci.
+        if durees_simulees[i] is not None:
+            applique = _sans_interrompre(modele.limiter_duree,
+                                         durees_simulees[i])
+            if applique:
+                dire(f"    duree simulee ramenee a {applique:.1f} h — "
+                     f"au-dela, plus rien n'est juge ni presente")
 
         historique_rapport, essais = [], 0
         debut_apport = time.time()
@@ -1235,6 +1323,80 @@ def _sans_interrompre(fonction, *arguments):
         return None
 
 
+def _calendrier_durees(cibles, residuels, config, dire):
+    """
+    Duree simulee utile a chaque apport, en heures depuis le debut, d'apres le
+    CALCUL DE REFERENCE. Retourne une liste aussi longue que « cibles », ou
+    None a un rang dont la duree n'est pas mesurable.
+
+    La liste est CROISSANTE : l'etape 7 relit les sections amont depuis le
+    calcul courant, et la verification globale finale relit le DERNIER calcul
+    pour TOUTES les sections. Une duree qui redescendrait les priverait de
+    leur fenetre.
+
+    CHAQUE ETAPE COUVRE AUSSI L'EVENEMENT DE LA SUIVANTE, et c'est la
+    subtilite du calendrier. Le calcul de l'etape N n'est pas seulement le
+    resultat de l'apport N : c'est l'ETAT DE REFERENCE de l'apport N+1, celui
+    ou son residuel se lit. Le tronquer a l'evenement de N prive N+1 de la
+    mesure de son propre deficit — son estimation initiale est nulle la ou son
+    evenement se produit, et sa fenetre de jugement est bornee par la
+    troncature du precedent. Attrape par l'auto-test le 31/08/2026 : un
+    premier apport finissant a 10 h rendait le second incalculable.
+    La duree du rang i vaut donc le cumul du rang i+1, le dernier rang gardant
+    le maximum — c'est lui que relit la verification globale.
+
+    Voir Configuration.ajuster_duree pour le reste du raisonnement.
+    """
+    if not config.ajuster_duree:
+        return [None] * len(cibles)
+
+    durees, courante = [], 0.0
+    for i, (temps_cible, debit_cible) in enumerate(cibles):
+        if i >= len(residuels) or residuels[i] is None:
+            durees.append(None)
+            continue
+        t_res, q_res = residuels[i]
+        try:
+            dt = decalage_minimisant_ecart(temps_cible, debit_cible,
+                                           t_res, q_res)
+            manque = ecart_a_la_cible(temps_cible, debit_cible,
+                                      t_res, q_res, dt)
+            _, tf = fenetre_injection(
+                temps_cible, manque,
+                seuil_bas=config.fenetre_seuil_bas,
+                seuil_haut=config.fenetre_seuil_haut,
+                t0_impose=config.fenetre_t0_h,
+                tf_impose=config.fenetre_tf_h,
+                volume_reference=_volume(temps_cible, debit_cible),
+                perte_max=config.tolerance_beta)
+        except Exception:                                    # noqa: BLE001
+            # UNE DUREE QU'ON NE SAIT PAS MESURER N'EN EST PAS UNE : on laisse
+            # la fenetre entiere plutot que de deviner. Le calcul sera plus
+            # long, jamais faux.
+            durees.append(None)
+            continue
+        courante = max(courante, float(tf) + config.fenetre_marge_h
+                       + config.marge_duree_h)
+        durees.append(courante)
+
+    # DECALAGE D'UN RANG : l'etape i doit couvrir l'evenement de i+1, dont
+    # elle est l'etat de reference. Un None quelque part contamine son rang
+    # ET le precedent — on ne raccourcit que ce dont on est sur.
+    calendrier = []
+    for i in range(len(durees)):
+        suivant = durees[i + 1] if i + 1 < len(durees) else durees[i]
+        calendrier.append(None if (durees[i] is None or suivant is None)
+                          else max(durees[i], suivant))
+
+    connues = [d for d in calendrier if d is not None]
+    if connues:
+        dire(f"    durees simulees prevues, apport par apport : "
+             f"{', '.join(f'{d:.1f}' for d in connues)} h "
+             f"(chacune couvre aussi l'evenement du suivant, dont elle est "
+             f"l'etat de reference)")
+    return calendrier
+
+
 def _noter_bilan(suivi, calcul, config):
     """
     Transmet au suivi le bilan de masse du calcul qui vient de tourner.
@@ -1479,6 +1641,10 @@ class ModeleFictif(Modele):
         # il n'a pas de fichiers — mais il note ce qu'on lui demande de jalonner
         # pour que l'auto-test verifie les noms sans HEC-RAS.
         self.etapes = []
+        # Duree simulee imposee par limiter_duree(). None = fenetre entiere,
+        # c'est-a-dire l'etat de tout calcul de reference.
+        self.duree_max = None
+        self.durees_demandees = []
 
     def preparer(self):
         self.facteurs = {a: 0.0 for a in self.apports}
@@ -1486,6 +1652,32 @@ class ModeleFictif(Modele):
     def jalonner(self, etape):
         self.etapes.append(etape)
         return None
+
+    def limiter_duree(self, heures):
+        """
+        Note la duree demandee, et la RESPECTE en tronquant les series lues.
+
+        TRONQUER POUR DE VRAI, ET NON SEULEMENT ENREGISTRER LE CHIFFRE : c'est
+        ce qui fait de ce modele une epreuve. Un mannequin qui se contente de
+        retenir la valeur laisserait passer une troncature qui ampute la
+        fenetre de jugement — le calage continuerait de voir des series
+        completes et rien ne signalerait la faute.
+
+        MEME REGLE QUE LE PILOTE REEL : on ne depasse pas la fenetre de
+        reference — ici, la duree de la serie — mais on peut RALLONGER en deca.
+        Interdire d'allonger bornerait tout le calage a l'evenement du premier
+        apport, chaque etape heritant de la fenetre raccourcie de la
+        precedente. C'est le defaut que cet auto-test a attrape.
+        """
+        if heures is None or heures <= 0:
+            return None
+        plafond = float(self.temps[-1])
+        voulue = min(float(heures), plafond)
+        if self.duree_max is not None and abs(voulue - self.duree_max) < 1e-9:
+            return None
+        self.duree_max = voulue
+        self.durees_demandees.append(voulue)
+        return voulue
 
     def forme_apport(self, nom_apport):
         return self.temps, self.formes[nom_apport]
@@ -1526,6 +1718,13 @@ class ModeleFictif(Modele):
         if decalage:
             lamine = np.concatenate([np.full(decalage, lamine[0]),
                                      lamine[:-decalage]])
+        # LA TRONCATURE EST REELLE : la serie s'arrete ou le calcul se serait
+        # arrete. C'est ce que fait un solveur dont on raccourcit la fenetre,
+        # et c'est la seule facon d'eprouver que le raccourcissement ne coute
+        # pas la fenetre de jugement.
+        if self.duree_max is not None:
+            garde = self.temps <= self.duree_max + 1e-9
+            return self.temps[garde], lamine[garde]
         return self.temps, lamine
 
 
@@ -2114,6 +2313,50 @@ if __name__ == "__main__":
     controler("les apports suivants ne sont pas traites apres un echec",
               len(r5.apports) == 1 and not r5.apports[0].valide,
               f"{len(r5.apports)} apport(s) traite(s) sur 2")
+
+    # --- DUREE SIMULEE AJUSTEE A CHAQUE APPORT ----------------------------
+    # Le modele fictif TRONQUE reellement ses series a la duree demandee : un
+    # ajustement trop court se paierait donc en concordance, et se verrait.
+    print("\n--- DUREE SIMULEE AJUSTEE A CHAQUE APPORT ---")
+    _t6 = np.linspace(0.0, 40.0, 401)
+    # Deux apports dont les evenements finissent LOIN l'un de l'autre : le
+    # premier a 6 h, le second a 20 h. C'est la configuration qui rend
+    # l'ajustement payant, et celle ou une troncature fautive se voit.
+    _f6 = [np.exp(-0.5 * ((_t6 - 3.0) / 1.0) ** 2),
+           np.exp(-0.5 * ((_t6 - 14.0) / 2.5) ** 2)]
+    _m6 = ModeleFictif(["A1", "A2"], ["S1", "S2"], _t6, _f6, retard_h=0.0)
+    _cibles6 = []
+    for _k in range(2):
+        _m6.facteurs = {"A1": 30.0, "A2": 45.0}
+        _cibles6.append((_t6, _m6.lire_section(f"S{_k + 1}")[1].copy()))
+    _m6.duree_max, _m6.durees_demandees = None, []
+    _r6 = caler(_m6, ["A1", "A2"], ["S1", "S2"], _cibles6,
+                Configuration(nb_max_essais=4),
+                journal=lambda *a, **k: None)
+    controler("le calage aboutit malgre la troncature",
+              _r6.conforme, _r6.motif or "conforme")
+    controler("la duree est bien raccourcie, apport par apport",
+              len(_m6.durees_demandees) >= 1
+              and _m6.durees_demandees[0] < 40.0,
+              f"durees demandees : "
+              f"{[round(d, 1) for d in _m6.durees_demandees]}")
+    controler("elle ne DECROIT jamais d'un apport au suivant",
+              _m6.durees_demandees == sorted(_m6.durees_demandees),
+              f"{[round(d, 1) for d in _m6.durees_demandees]}")
+    controler("le premier apport coute moins que le second",
+              _m6.durees_demandees[0] < _m6.durees_demandees[-1]
+              if len(_m6.durees_demandees) > 1 else True,
+              f"{[round(d, 1) for d in _m6.durees_demandees]}")
+    # LE DEFAUT EST DEBRAYABLE, et le debrayer doit tout laisser intact.
+    _m7 = ModeleFictif(["A1", "A2"], ["S1", "S2"], _t6, _f6, retard_h=0.0)
+    _r7 = caler(_m7, ["A1", "A2"], ["S1", "S2"], _cibles6,
+                Configuration(nb_max_essais=4, ajuster_duree=False),
+                journal=lambda *a, **k: None)
+    controler("ajuster_duree=False ne raccourcit rien",
+              _m7.durees_demandees == [] and _m7.duree_max is None,
+              f"{_m7.durees_demandees}")
+    controler("et rend le meme verdict", _r7.conforme == _r6.conforme,
+              f"{_r7.conforme} vs {_r6.conforme}")
 
     print()
     if echecs:

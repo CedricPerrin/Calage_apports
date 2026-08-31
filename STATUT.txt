@@ -246,7 +246,45 @@ et autres conditions limites (modele source). Le greffon PROPOSE de prolonger
 les colonnes de la feuille Cibles par des ZEROS — une crue arretee avant la
 fin de sa fenetre est retombee, zero est la mesure, pas la derniere valeur.
 
-2.6  ETAPES, TRACABILITE, REPRISE
+2.6  DUREE SIMULEE AJUSTEE A CHAQUE APPORT
+--------------------------------------------------------------------------
+La fenetre de jugement dit jusqu'ou l'evenement d'un apport est regarde ;
+au-dela, plus rien n'est ni juge ni presente. Simuler plus loin ne fait que
+couter du temps. Les evenements s'allongeant vers l'aval, une fenetre unique
+impose a tous le besoin du dernier — sur un modele reel a douze apports,
+12 h suffisent au premier quand le dernier en demande 35.
+Configuration.ajuster_duree (defaut True) et marge_duree_h (2 h).
+Mesure sur ce modele : 34 % de temps de calcul en moins.
+
+LE CALENDRIER EST ETABLI SUR LE CALCUL DE REFERENCE, et pas ailleurs
+(calage._calendrier_durees). Dans la boucle, le residuel de l'apport N se lit
+dans les RESULTATS de l'apport N-1 — donc dans un calcul deja raccourci : un
+premier apport dont l'evenement finit tot bornait alors la mesure du suivant,
+la duree ne croissait jamais, et le calage echouait sur « volume nan ». Le
+calcul de reference, lui, porte la fenetre ENTIERE et rend toutes les
+sections lisibles ensemble.
+
+Δt EST DEDANS, ET C'EST L'ESSENTIEL DU GAIN. La fenetre est mesuree sur
+cible(t - Dt) - section(t), dont l'indice est un instant de SIMULATION. Un
+evenement cible qui culmine a 16 h avec Dt = -13 h se lit a la section vers
+3 h : la duree retenue suit le calendrier DU MODELE, jamais celui de la
+cible.
+
+QUATRE GARDE-FOUS, AUCUN FACULTATIF :
+  - la duree ne DECROIT jamais d'un apport au suivant. L'etape 7 relit les
+    sections amont, et la verification globale finale relit LE DERNIER CALCUL
+    pour TOUTES les sections ;
+  - CHAQUE ETAPE COUVRE AUSSI L'EVENEMENT DE LA SUIVANTE, dont elle est
+    l'etat de reference : la duree du rang i vaut le cumul du rang i+1 ;
+  - on ne DEPASSE jamais la fenetre du plan de reference, relevee une fois
+    par preparer() (PiloteHecRas.duree_reference_h). Mais on peut RALLONGER
+    en deca : chaque etape clone le plan de la precedente, donc une etape
+    raccourcie transmet sa fenetre reduite a la suivante ;
+  - une duree qu'on ne sait pas mesurer laisse la fenetre entiere. Plus lent,
+    jamais faux.
+Le calcul de REFERENCE garde toujours la fenetre entiere.
+
+2.7  ETAPES, TRACABILITE, REPRISE
 --------------------------------------------------------------------------
 UN PLAN ET UN UNSTEADY PAR ETAPE, TOUS CONSERVES. calage.caler() appelle
 modele.jalonner(etape) avant le calcul de reference, puis avant chaque
@@ -299,7 +337,7 @@ le calcul et ferme apres coup ceux qui sont apparus entre-temps —
 ras-commander lance un Ras.exe par essai. Reglable par
 PiloteHecRas(fermer_orphelins=False).
 
-2.7  SORTIES DE SUIVI
+2.8  SORTIES DE SUIVI
 --------------------------------------------------------------------------
 suivi.py ecrit AVANCEMENT.JSON (etat machine complet, atomique, reecrit a
 chaque essai) DES LA CONSTRUCTION du suivi, avant le premier calcul.
@@ -323,7 +361,7 @@ se superposent quand le calage aboutit), avec les ECARTS SUR AXE SECONDAIRE ;
 et les apports injectes, le bloc residuel exclu. Hors de la fenetre calculee
 la cellule reste VIDE — une valeur prolongee se lirait comme une mesure.
 
-2.8  IMPLANTATION GEOGRAPHIQUE
+2.9  IMPLANTATION GEOGRAPHIQUE
 --------------------------------------------------------------------------
 PENTE PAR APPORT (« Flow Hydrograph Slope ») : colonne Pente_m_par_m de la
 feuille Correspondance. Laissee vide, deduite du profil en long — pente
@@ -359,7 +397,7 @@ injection sans section en aval n'est pas calee (cas normal) ; une section
 sans injection en amont ne peut pas l'etre du tout (erreur bloquante), tout
 comme une injection que plusieurs sections revendiqueraient.
 
-2.9  QUELLE CHAINE LE GREFFON EXECUTE — LE RANG, JAMAIS LA DATE
+2.10  QUELLE CHAINE LE GREFFON EXECUTE — LE RANG, JAMAIS LA DATE
 --------------------------------------------------------------------------
 Une designation explicite gagne toujours : noyau.definir_chaine (memorisee
 d'une session a l'autre), puis CALAGE_CHAINE. A defaut, deux emplacements
@@ -397,7 +435,7 @@ DONNEES DU GREFFON — %LOCALAPPDATA%\calage_apports sous Windows,
   bouton serait perdu des qu'un profil QGIS neuf viderait QSettings.
 
 
-2.10  OU TROUVER QUOI DANS LE CODE
+2.11  OU TROUVER QUOI DANS LE CODE
 --------------------------------------------------------------------------
 Les fonctions qui portent les regles ci-dessus. Rien de ce qui a ete RETIRE
 du code n'y figure : si un nom manque ici, c'est qu'il n'existe plus.
@@ -829,7 +867,7 @@ sont retirees, devenues inatteignables.
 POURQUOI LE BANC NE L'AVAIT PAS VU. Le controle existait et disait « copie
 embarquee absente sur ce poste : controle ignore » — la copie embarquee
 n'existe QUE dans le zip, jamais sur le disque d'un poste de developpement
-(c'est une regle du projet, voir 2.9). Le banc FABRIQUE desormais une chaine
+(c'est une regle du projet, voir 2.10). Le banc FABRIQUE desormais une chaine
 embarquee factice et pointe DOSSIER_EMBARQUE dessus, de sorte que la branche
 est exercee partout.
 
@@ -860,6 +898,39 @@ calage s'arretait sur un plan parfaitement valide.
   qui a fait diagnostiquer un probleme de majuscules.
   instant_hecras() bascule desormais sur le lendemain, fins de mois, annees
   bissextiles et fins d'annee comprises.
+
+CINQUIEME DEFAUT — LE FILTRE DES ORPHELINS POSE A DEUX ENDROITS SUR TROIS.
+verifier_intervalle_apports() enumerait la carte SANS noms_connus, et se
+prononcait donc sur des blocs que _recadencer_apports() avait volontairement
+laisses tranquilles : « pas 0.5 h au lieu de 0.1 » pour deux conditions que
+HEC-RAS n'ouvre meme pas. Les cinq sites d'enumeration ont ete audites ;
+imposer_intervalle_apport() cherche un nom precis et n'a pas besoin du filtre.
+
+SIXIEME DEFAUT — LES APPORTS DU MODELE PLUS COURTS QUE LA FENETRE. Six
+apports sur douze couvraient 25,5 a 32 h pour une simulation de 36 h. Le cas
+etait INSOLUBLE : raccourcir la fenetre tronquait les trois derniers apports,
+allonger demandait de reprendre douze series a la main. Et le message donnait
+un conseil FAUX — « a rallonger dans la feuille Cibles du classeur », alors
+que les hydrogrammes d'apport vivent dans l'unsteady du modele.
+  LA CHAINE PROLONGE DESORMAIS ELLE-MEME, PAR DES ZEROS, LES SEULS APPORTS
+  QU'ELLE PILOTE (imposer_intervalle_apport(duree_min_h=...)). C'est sans
+  consequence et c'est ce qui le rend legitime : au calcul de reference
+  l'apport est mis a zero partout, et des le premier essai definir_forme()
+  reecrit la serie entiere sur la base de temps de la cible. La valeur de
+  remplissage n'entre dans aucun calcul.
+  Zero et non la derniere valeur : np.interp tient la derniere valeur au-dela
+  du domaine, ce qui injecterait un debit constant pendant des heures.
+  Les autres conditions limites restent la donnee du modele : on les signale
+  trop courtes, on ne les reecrit jamais.
+
+SEPTIEME DEFAUT — PYWIN32 MANQUANT, ET SILENCIEUX. ras-commander installe
+pendant chaque calcul un veilleur qui ferme les boites de dialogue de
+HEC-RAS ; sans win32gui il previent qu'il ne fera rien, et une seule boite
+modale fige alors le calcul INDEFINIMENT. Le manque n'apparaissait qu'en
+avertissement au milieu du journal de ras-commander, la ou personne ne
+regarde. pywin32 entre dans PAQUETS_HECRAS — installe par le bouton, EXIGE
+par la verification. Windows seulement : l'exiger ailleurs refuserait un
+interpreteur valide sur une impossibilite.
 
 QUATRIEME DEFAUT, TROUVE EN CORRIGEANT LE TROISIEME. _en_minutes() comptait
 31 JOURS PAR MOIS. Cela suffit a ORDONNER deux instants, mais fausse toute

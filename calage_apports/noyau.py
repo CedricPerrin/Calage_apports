@@ -306,6 +306,14 @@ PAQUETS_HECRAS = (
     ("pyproj", "pyproj"),
     ("matplotlib", "matplotlib"),
     ("openpyxl", "openpyxl"),
+    # PYWIN32 N'EST PAS UN CONFORT. ras-commander installe pendant chaque
+    # calcul un veilleur qui ferme les boites de dialogue de HEC-RAS ; sans
+    # win32gui il previent qu'il ne fera rien, et une seule boite modale fige
+    # alors le calcul INDEFINIMENT — un calage sans surveillance ne se
+    # reveillerait jamais. Le manque ne se voit qu'en avertissement au milieu
+    # du journal, la ou personne ne le lit (releve le 31/08/2026, second
+    # poste). Windows seulement, voir _CODE_VERIF.
+    ("win32gui", "pywin32"),
 )
 
 
@@ -467,7 +475,10 @@ def installer_interpreteur(python_base, journal=None):
     # LA VERSION MINIMALE EST IMPOSEE ICI AUSSI, pas seulement verifiee apres
     # coup : une 0.98 borne mal les tableaux d'hydrogramme et tronquerait un
     # apport en silence (voir RAS_COMMANDER_MINIMUM).
-    paquets = [p for _, p in PAQUETS_HECRAS]
+    # MEME EXCEPTION QU'A LA VERIFICATION : pywin32 n'existe que sous Windows,
+    # et pip echouerait ailleurs sur tout le lot.
+    paquets = [p for i, p in PAQUETS_HECRAS
+               if sys.platform == "win32" or not i.startswith("win32")]
     dire(f"Installation de {len(paquets)} paquets ({', '.join(paquets[:3])}…) "
          f"— plusieurs minutes")
     try:
@@ -548,6 +559,11 @@ def verifier_interpreteur(chemin):
         "import importlib.util, sys\n"
         f"manquants = [m for m in {noms!r} "
         "if importlib.util.find_spec(m) is None]\n"
+        # pywin32 n'existe QUE sous Windows. L'exiger ailleurs refuserait un
+        # interpreteur par ailleurs valide — la chaine tourne sous Windows en
+        # pratique, mais un refus fonde sur une impossibilite serait faux.
+        "if sys.platform != 'win32':\n"
+        "    manquants = [m for m in manquants if not m.startswith('win32')]\n"
         "if manquants:\n"
         "    print('MANQUANTS ' + ' '.join(manquants)); sys.exit(3)\n"
         "import ras_commander, h5py\n"
