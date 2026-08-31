@@ -42,3 +42,10 @@ Thumbs.db
 
 # Liste locale des mots interdits (noms de clients) — voir .affaires.exemple
 .affaires
+
+# Exemples de livrables : REECRITS a chaque execution de l'auto-test de
+# livrables.py — meme contenu, metadonnees zip differentes. Ils salissaient
+# donc chaque diff (« Bin 5862 -> 5862 bytes »). Retires du suivi le
+# 31/08/2026 ; les fichiers restent sur le disque et l'auto-test continue de
+# les produire. Pour en voir un exemple : lancer « python src/livrables.py ».
+livrables_exemple/

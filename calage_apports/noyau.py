@@ -1318,7 +1318,7 @@ def prolonger_cibles(chemin_classeur, duree_h):
             "colonnes": [entetes[c - 1] for c in colonnes]}
 
 
-def controler_paquet(chemin_classeur, contre_modele=True):
+def controler_paquet(chemin_classeur):
     """
     Controle complet du paquet : saisie, chaine geographique, PK et ordre,
     puis — si un modele est joignable — confrontation a la geometrie reelle.
@@ -1340,18 +1340,17 @@ def controler_paquet(chemin_classeur, contre_modele=True):
     anomalies += geo_anomalies
 
     prolongation = None
-    if contre_modele:
-        try:
-            reponse = appeler_pont("controler-modele", "--template",
-                                   chemin_classeur)
-            anomalies += [(cd.ERREUR, m) for m in reponse.get("erreurs", [])]
-            anomalies += [(cd.AVERTISSEMENT, m)
-                          for m in reponse.get("avertissements", [])]
-            prolongation = reponse.get("prolongation")
-        except Exception as e:
-            anomalies.append((
-                cd.AVERTISSEMENT,
-                f"controle contre le modele non effectue : {e}"))
+    try:
+        reponse = appeler_pont("controler-modele", "--template",
+                               chemin_classeur)
+        anomalies += [(cd.ERREUR, m) for m in reponse.get("erreurs", [])]
+        anomalies += [(cd.AVERTISSEMENT, m)
+                      for m in reponse.get("avertissements", [])]
+        prolongation = reponse.get("prolongation")
+    except Exception as e:
+        anomalies.append((
+            cd.AVERTISSEMENT,
+            f"controle contre le modele non effectue : {e}"))
 
     return anomalies, tableau, prolongation
 

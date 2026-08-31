@@ -995,6 +995,56 @@ decalage_minimisant_ecart rend Dt = -11 h.
   basculera le jour ou le decalage sera mesure autrement, et c'est voulu :
   il dira qu'il faut le relire, pas qu'une regression est apparue.
 
+5.3 quater  LES COUPES RESTANTES DE L'AUDIT (31/08/2026)
+--------------------------------------------------------------------------
+Les dix coupes que l'audit n'avait pas soumises a refutation, traitees une
+par une apres verification. Neuf faites, une refusee, une laissee de cote.
+
+DEUX SOURCES UNIQUES DE PLUS. C'est le vrai gain, pas les lignes.
+  - _en_datetime() et _en_texte_hecras() (pilote_hecras) remplacent l'aller-
+    retour instant HEC-RAS <-> datetime recopie a TROIS endroits. L'une des
+    trois copies comptait 31 jours par mois : un modele traversant fin
+    fevrier voyait toutes ses conditions declarees trop courtes. Troisieme
+    fois de la journee qu'une duplication implicite se paye — apres les deux
+    listes de paquets et les deux predicats de fenetre.
+  - lire_hydrogramme_unsteady() ne rend plus que les valeurs. Elle rendait
+    aussi le DataFrame de ras_commander, et LES DIX-HUIT APPELANTS le
+    jetaient — « valeurs, _ = » ou « [0] ». Le grief n'etait pas les lignes :
+    un objet du solveur fuyait hors du seul module qui doive en connaitre les
+    types.
+
+TROIS SUPPRESSIONS SANS APPELANT : PiloteHecRas.restaurer(), l'option
+--debit-initial du sous-analyseur « injections », et contre_modele=True de
+noyau.controler_paquet() (trois appelants, aucun ne le regle).
+
+reprises_max EST RETIRE de Configuration. Son commentaire disait le conserver
+« pour ne pas casser les classeurs en circulation qui le portent encore ».
+  LA JUSTIFICATION ECRITE NE DECRIVAIT PAS CE QUE FAIT LE CODE : rien ne lit
+  cette cle depuis un classeur, pont_hecras construisant Configuration sans
+  elle. Un vieux classeur la portant etait ignore, champ ou pas. Le champ
+  etait lu ZERO fois.
+  A RETENIR : un commentaire qui justifie une conservation est une
+  affirmation VERIFIABLE, et celle-la etait fausse depuis le 08/08. Relire le
+  motif, pas seulement le champ.
+controle_amont EST GARDE : il commande une etape reelle (relecture des
+sections amont), et un interrupteur sur un controle garde une valeur de mise
+au point meme inutilise.
+
+livrables_exemple/ N'EST PLUS SUIVI PAR GIT (13 fichiers, 972 Ko). Les xlsx
+etaient REECRITS a chaque execution de l'auto-test de livrables.py — meme
+contenu, metadonnees zip differentes — et salissaient chaque diff d'un
+« Bin 5862 -> 5862 bytes ». Les fichiers restent sur le disque, l'auto-test
+continue de les produire, .gitignore les ecarte.
+
+LA COUPE REFUSEE : activer_courant et fermer_orphelins de PiloteHecRas,
+proposes comme drapeaux morts. Le § 2.7 promet « Reglable par
+PiloteHecRas(fermer_orphelins=False) » — le chasseur n'avait grepe que les
+.py. LA DOCUMENTATION EST UNE SURFACE D'API : ce qui y est promis est tenu.
+
+LA COUPE LAISSEE DE COTE : la boite de compte rendu dupliquee de plugin.py.
+Cinq lignes communes pour un fichier qu'aucun banc local ne couvre — le gain
+ne paie pas le risque (section 6).
+
 5.4  CE QUE LES TROIS CAS ONT APPRIS, ENSEMBLE
 --------------------------------------------------------------------------
   - CALER LA SECTION ET DETERMINER L'APPORT SONT DEUX QUESTIONS DISTINCTES.
@@ -1178,21 +1228,11 @@ A FAIRE, PAR ORDRE DE PRIORITE
     pas calculable.
   - PORTER RAS_COMMANDER_MINIMUM dans verification_environnement.py, qui
     affiche la version sans la juger. Ce module n'est pas distribue.
-  - PASSER LES DIX COUPES NON VERIFIEES DE L'AUDIT DU 31/08 (section 5.3 ter),
-    une trentaine de lignes : deux repetitions structurelles (plugin.py:3321,
-    pilote_hecras.py:112), le second element du couple rendu par
-    lire_hydrogramme_unsteady, PiloteHecRas.restaurer(), l'option
-    --debit-initial, contre_modele=True de controler_paquet, reprises_max et
-    controle_amont de Configuration, et les treize fichiers de
-    livrables_exemple/ suivis par git. AUCUNE n'a ete soumise a refutation :
-    les traiter une par une, jamais en lot.
-      reprises_max MERITE UN MOT : son commentaire dit etre conserve « pour ne
-      pas casser les classeurs en circulation ». Or RIEN ne lit cette cle
-      depuis un classeur — pont_hecras construit Configuration sans elle. La
-      justification ecrite ne correspond pas a ce que fait le code.
-      ET LES XLSX DE livrables_exemple/ SONT REECRITS a chaque execution de
-      l'auto-test de livrables.py : meme contenu, metadonnees zip
-      differentes. Ils salissent chaque diff.
+  - LA BOITE DE COMPTE RENDU DUPLIQUEE de plugin.py (deux sites, ~3320 et
+    ~3817) : cinq lignes reellement communes, titres et textes differents.
+    SEULE COUPE DE L'AUDIT DU 31/08 LAISSEE DE COTE, et delibere : le gain ne
+    paie pas le risque dans un fichier qu'aucun banc local ne couvre. A
+    reprendre le jour ou plugin.py sera eprouve sous QGIS.
   - CORRIGER LA DIVERGENCE DU CLASSEUR D'ITERATIONS : la ligne A3 annonce
     toujours « x 1,000 » et « plancher 0,00 % », valeurs par defaut de
     parametres que calage.py ne renseigne plus depuis le 07/08.

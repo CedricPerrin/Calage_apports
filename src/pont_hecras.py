@@ -1039,7 +1039,7 @@ def _controler_residus_unsteady(chemin_template):
         if not pas:
             continue
         try:
-            valeurs, _ = lire_hydrogramme_unsteady(fichier, info["debut"],
+            valeurs = lire_hydrogramme_unsteady(fichier, info["debut"],
                                                    info["fin"])
         except Exception:                                    # noqa: BLE001
             continue
@@ -1275,7 +1275,7 @@ def commande_injections(args):
             # « nb » compte les LIGNES du tableau, pas les valeurs : le format
             # en aligne dix par ligne. C'est le tableau relu qui donne le
             # nombre exact de pas de temps.
-            reference, _ = lire_hydrogramme_unsteady(
+            reference = lire_hydrogramme_unsteady(
                 args.unsteady, modele_temps["debut"], modele_temps["fin"])
             forme = [0.0] * _nb_valeurs_meme_duree(
                 len(reference), modele_temps["intervalle_h"] or pas_h, pas_h)
@@ -1732,9 +1732,6 @@ def construire_analyseur():
     a.add_argument("--forme-depuis", dest="forme_depuis", default=None,
                    help="reprendre la DUREE d'une condition limite existante "
                         "(le pas, lui, reste celui de --intervalle)")
-    a.add_argument("--debit-initial", dest="debit_initial", type=float,
-                   default=1.0,
-                   help="a defaut de --forme-depuis : debit constant initial")
     a.add_argument("--nb-valeurs", dest="nb_valeurs", type=int, default=241,
                    help="a defaut de --forme-depuis : nombre de pas "
                         "(241 = 24 h au pas de 6 min)")

@@ -232,12 +232,6 @@ class Configuration:
     # residuel de toutes les sections a la fois.
     ajuster_duree: bool = True
     marge_duree_h: float = 2.0
-    # CHAMP INERTE depuis le 08/08/2026, conserve pour ne pas casser les
-    # classeurs en circulation qui le portent encore. Il plafonnait des
-    # « reprises » du controle amont qui ne pouvaient rien reprendre : la
-    # verification est une relecture pure du dernier calcul, la rejouer donne
-    # le meme verdict. Voir l'etape 7 de caler().
-    reprises_max: int = 2
     controle_amont: bool = True
 
     # ------------------------------------------------------------------

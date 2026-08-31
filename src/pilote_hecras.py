@@ -109,11 +109,35 @@ def instant_hecras(texte):
             raise ValueError(
                 f"instant « {texte} » invalide : 24:00 designe minuit en fin "
                 f"de journee, et n'admet donc pas de minutes ({mn} lu).")
+        # LA DATE SE CONSTRUIT ICI SANS L'HEURE, et non par _en_datetime() :
+        # h vaut « 24 », que datetime refuse. C'est justement ce que cette
+        # branche est en train de corriger.
         veille = datetime(int(annee), MOIS_HECRAS.index(mois) + 1, int(jour))
-        lendemain = veille + timedelta(days=1)
-        return (f"{lendemain.day:02d}{MOIS_HECRAS[lendemain.month - 1]}"
-                f"{lendemain.year:04d},00:00")
+        return _en_texte_hecras(veille + timedelta(days=1))
     return f"{jour}{mois}{annee},{h}:{mn}"
+
+
+def _en_datetime(instant):
+    """
+    Instant HEC-RAS valide -> datetime. SOURCE UNIQUE de cette conversion.
+
+    Elle etait recopiee a trois endroits, et l'une des trois copies comptait
+    31 jours par mois : un modele traversant fin fevrier voyait toutes ses
+    conditions declarees trop courtes (voir _en_minutes). Trois copies d'un
+    meme calcul finissent toujours par diverger — il n'y en a plus qu'une.
+
+    L'instant DOIT avoir ete valide par instant_hecras() : l'heure y vaut 00 a
+    23, la forme 24:00 ayant deja bascule sur le lendemain.
+    """
+    jour, mois, annee, h, mn = _INSTANT.match(instant).groups()
+    return datetime(int(annee), MOIS_HECRAS.index(mois) + 1, int(jour),
+                    int(h), int(mn))
+
+
+def _en_texte_hecras(quand):
+    """datetime -> instant HEC-RAS « JJMMMAAAA,HH:MM ». Inverse du precedent."""
+    return (f"{quand.day:02d}{MOIS_HECRAS[quand.month - 1]}"
+            f"{quand.year:04d},{quand.hour:02d}:{quand.minute:02d}")
 
 
 def intervalle_hecras(texte):
@@ -189,10 +213,8 @@ def _en_minutes(instant):
     L'instant DOIT avoir ete valide par instant_hecras() : l'heure y vaut 00 a
     23, la forme 24:00 ayant deja bascule sur le lendemain.
     """
-    jour, mois, annee, h, mn = _INSTANT.match(instant).groups()
-    quand = datetime(int(annee), MOIS_HECRAS.index(mois) + 1, int(jour),
-                     int(h), int(mn))
-    return int((quand - datetime(1900, 1, 1)).total_seconds() // 60)
+    return int((_en_datetime(instant)
+                - datetime(1900, 1, 1)).total_seconds() // 60)
 
 
 def fenetre_simulation_du_plan(fichier_plan):
@@ -434,7 +456,7 @@ def imposer_intervalle_apport(fichier_unsteady, nom, nom_zone_2d=None,
             f"ou non reconnue. Le re-cadencer supposerait de deviner la base "
             f"de temps actuelle.")
 
-    valeurs, _ = lire_hydrogramme_unsteady(chemin, info["debut"], info["fin"])
+    valeurs = lire_hydrogramme_unsteady(chemin, info["debut"], info["fin"])
     if len(valeurs) < 2:
         raise ValueError(
             f"l'hydrogramme de « {nom} » ne compte que {len(valeurs)} "
@@ -560,7 +582,7 @@ def conditions_trop_courtes(fichier_unsteady, fichier_plan, nom_zone_2d=None,
         pas = info["intervalle_h"]
         if not pas:
             continue
-        valeurs, _ = lire_hydrogramme_unsteady(fichier_unsteady,
+        valeurs = lire_hydrogramme_unsteady(fichier_unsteady,
                                                info["debut"], info["fin"])
         duree_h = (len(valeurs) - 1) * pas if len(valeurs) > 1 else 0.0
         # TOLERANCE D'UN PAS : une serie qui s'arrete pile a la fin de la
@@ -634,7 +656,7 @@ def verifier_intervalle_apports(fichier_unsteady, nom_zone_2d=None,
     bilan = {}
     for nom, info in cartographier_hydrogrammes(fichier_unsteady, nom_zone_2d,
                                                 noms_connus).items():
-        valeurs, _ = lire_hydrogramme_unsteady(fichier_unsteady,
+        valeurs = lire_hydrogramme_unsteady(fichier_unsteady,
                                                info["debut"], info["fin"])
         entete = next((texte[j] for j in range(info["debut"] - 1, -1, -1)
                        if texte[j].startswith(MOTIF_HYDROGRAMME)), "")
@@ -782,12 +804,20 @@ def cartographier_hydrogrammes(fichier_unsteady, nom_zone_2d=None,
 
 
 def lire_hydrogramme_unsteady(fichier_unsteady, debut, fin):
-    """Valeurs d'un tableau d'hydrogramme, dans l'ordre du fichier."""
+    """
+    Valeurs d'un tableau d'hydrogramme, dans l'ordre du fichier.
+
+    NE REND QUE LES VALEURS. Cette fonction rendait aussi le DataFrame de
+    ras_commander, et les dix-huit appelants le jetaient tous — « valeurs, _ =
+    » ou « [0] ». Le vrai grief n'etait pas les lignes gagnees : c'etait qu'un
+    objet du solveur fuyait hors de ce module, seul endroit qui doive connaitre
+    les types de ras_commander (voir le docstring du module).
+    """
     from ras_commander import RasUnsteady
 
     lignes = _lire_lignes(fichier_unsteady)
     table = RasUnsteady.parse_fixed_width_table(lignes, debut, fin)
-    return table["Value"].to_numpy(dtype=float), table
+    return table["Value"].to_numpy(dtype=float)
 
 
 # ---------------------------------------------------------------------------
@@ -1271,7 +1301,7 @@ class PiloteHecRas(Modele):
         self._recadencer_apports()
 
         for nom, info in self.carte.items():
-            valeurs, _ = lire_hydrogramme_unsteady(
+            valeurs = lire_hydrogramme_unsteady(
                 self.fichier_unsteady, info["debut"], info["fin"])
             self.originaux[nom] = valeurs
         self.hdf_resultats = self.dossier / (
@@ -1688,12 +1718,8 @@ class PiloteHecRas(Modele):
         if voulue_min == actuelle_min or voulue_min <= 0:
             return None
 
-        j, mo, an, h, mn = _INSTANT.match(debut).groups()
-        arrivee = (datetime(int(an), MOIS_HECRAS.index(mo) + 1, int(j),
-                            int(h), int(mn)) + timedelta(minutes=voulue_min))
-        nouvelle_fin = (f"{arrivee.day:02d}{MOIS_HECRAS[arrivee.month - 1]}"
-                        f"{arrivee.year:04d},{arrivee.hour:02d}:"
-                        f"{arrivee.minute:02d}")
+        nouvelle_fin = _en_texte_hecras(
+            _en_datetime(debut) + timedelta(minutes=voulue_min))
         lignes = _lire_lignes(fichier_plan)
         for i, ligne in enumerate(lignes):
             if ligne.startswith("Simulation Date="):
@@ -2121,11 +2147,6 @@ class PiloteHecRas(Modele):
                 f"condition limite « {nom_apport} » absente du fichier "
                 f"unsteady. Presentes : {sorted(self.carte)}")
 
-    def restaurer(self):
-        """Remet les hydrogrammes d'origine dans le fichier de travail."""
-        for nom in self.carte:
-            self.appliquer_facteur(nom, 1.0)
-
 
 # ---------------------------------------------------------------------------
 # Diagnostic de raccordement, sans lancer de calcul
@@ -2276,7 +2297,7 @@ if __name__ == "__main__":
               "APPORT_ESSAI" in _carte)
     if "APPORT_ESSAI" in _carte:
         _info = _carte["APPORT_ESSAI"]
-        _relus, _ = lire_hydrogramme_unsteady(_tampon, _info["debut"],
+        _relus = lire_hydrogramme_unsteady(_tampon, _info["debut"],
                                               _info["fin"])
         _verifier("les debits relus sont EXACTEMENT ceux ecrits",
                   len(_relus) == len(_debits)
@@ -2312,7 +2333,7 @@ if __name__ == "__main__":
               f"+{60 * _cr['prolonge_h']:.0f} min de queue plate" if _cr else "")
 
     _carte_r = cartographier_hydrogrammes(_tampon)
-    _vals_r, _ = lire_hydrogramme_unsteady(_tampon, _carte_r["EXISTANT"]["debut"],
+    _vals_r = lire_hydrogramme_unsteady(_tampon, _carte_r["EXISTANT"]["debut"],
                                            _carte_r["EXISTANT"]["fin"])
     # Aux instants de l'ANCIENNE grille, les valeurs doivent etre intactes :
     # une interpolation lineaire repasse par ses points d'appui. C'est ce qui
@@ -2345,7 +2366,7 @@ if __name__ == "__main__":
         encoding="utf-8")
     _cr2 = imposer_intervalle_apport(_tampon2, "HORAIRE")
     _c2 = cartographier_hydrogrammes(_tampon2)
-    _v2, _ = lire_hydrogramme_unsteady(_tampon2, _c2["HORAIRE"]["debut"],
+    _v2 = lire_hydrogramme_unsteady(_tampon2, _c2["HORAIRE"]["debut"],
                                        _c2["HORAIRE"]["fin"])
     _verifier("3 h au pas horaire font 31 valeurs au pas de 6 min",
               _cr2 and _cr2["nb_apres"] == 31 and abs(_cr2["prolonge_h"]) < 1e-9,
@@ -2464,7 +2485,7 @@ if __name__ == "__main__":
                                  apports_a_caler=["APPORT_01"])
     _pilote_garde.fichier_unsteady = _tampon4
     _pilote_garde.carte = cartographier_hydrogrammes(_tampon4)
-    _valeurs_avant, _ = lire_hydrogramme_unsteady(
+    _valeurs_avant = lire_hydrogramme_unsteady(
         _tampon4, _pilote_garde.carte["BC_MAUVAIS"]["debut"],
         _pilote_garde.carte["BC_MAUVAIS"]["fin"])
     try:
@@ -2487,7 +2508,7 @@ if __name__ == "__main__":
               "3 min",
               abs(_carte_garde["BC_MAUVAIS"]["intervalle_h"] - 0.05) < 1e-9,
               f"pas {60 * _carte_garde['BC_MAUVAIS']['intervalle_h']:.1f} min")
-    _valeurs_apres, _ = lire_hydrogramme_unsteady(
+    _valeurs_apres = lire_hydrogramme_unsteady(
         _tampon4, _carte_garde["BC_MAUVAIS"]["debut"],
         _carte_garde["BC_MAUVAIS"]["fin"])
     # LA DUREE EST CONSERVEE, PAS LE NOMBRE DE VALEURS. 3 valeurs a 6 min
@@ -2636,7 +2657,7 @@ if __name__ == "__main__":
     _verifier("le filtrage par zone leve l'ambiguite",
               "APPORT_A" in _cz and not _cz["APPORT_A"]["autres_zones"])
     if "APPORT_A" in _cz:
-        _v, _ = lire_hydrogramme_unsteady(_piege, _cz["APPORT_A"]["debut"],
+        _v = lire_hydrogramme_unsteady(_piege, _cz["APPORT_A"]["debut"],
                                           _cz["APPORT_A"]["fin"])
         _verifier("c'est bien le bloc de la BONNE zone qui est retenu",
                   list(_v) == [7.0, 8.0, 9.0])
@@ -2646,7 +2667,7 @@ if __name__ == "__main__":
               "APPORT_A" in _co
               and list(lire_hydrogramme_unsteady(
                   _piege, _co["APPORT_A"]["debut"],
-                  _co["APPORT_A"]["fin"])[0]) == [100.0, 200.0, 300.0])
+                  _co["APPORT_A"]["fin"])) == [100.0, 200.0, 300.0])
 
     # --- BLOCS SANS BC LINE EN GEOMETRIE : HEC-RAS LES IGNORE, NOUS AUSSI ---
     # Cas reel du 30/08/2026 : un unsteady de 45 blocs pour 14 BC lines en
@@ -2727,12 +2748,12 @@ if __name__ == "__main__":
         "    1.00    5.00    3.00    1.00\n"
         "Flow Hydrograph Slope= 0.01 \n", encoding="utf-8")
     _avant = cartographier_hydrogrammes(_court)["BREF"]
-    _v_avant, _ = lire_hydrogramme_unsteady(_court, _avant["debut"],
+    _v_avant = lire_hydrogramme_unsteady(_court, _avant["debut"],
                                             _avant["fin"])
     imposer_intervalle_apport(_court, "BREF", intervalle="1HOUR",
                               duree_min_h=10.0)
     _apres = cartographier_hydrogrammes(_court)["BREF"]
-    _v_apres, _ = lire_hydrogramme_unsteady(_court, _apres["debut"],
+    _v_apres = lire_hydrogramme_unsteady(_court, _apres["debut"],
                                             _apres["fin"])
     _verifier("un apport trop court est prolonge jusqu'a la fenetre",
               abs((len(_v_apres) - 1) * _apres["intervalle_h"] - 10.0) < 1e-9,
@@ -3096,7 +3117,7 @@ if __name__ == "__main__":
             print("   aucune condition limite a hydrogramme de debit")
             continue
         for nom, info in carte.items():
-            valeurs, _ = lire_hydrogramme_unsteady(fichier, info["debut"],
+            valeurs = lire_hydrogramme_unsteady(fichier, info["debut"],
                                                    info["fin"])
             duree = (len(valeurs) - 1) * (info["intervalle_h"] or 0)
             print(f"   {nom:16s} zone={info['zone']:14s} "
