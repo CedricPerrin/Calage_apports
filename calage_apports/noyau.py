@@ -281,6 +281,33 @@ VARIABLE_INTERPRETEUR = "CALAGE_PYTHON"
 # portant sur l'import laisse passer.
 RAS_COMMANDER_MINIMUM = (0, 99)
 
+# CE QU'IL FAUT A L'INTERPRETEUR HEC-RAS, en (nom d'import, nom pip).
+#
+# UNE SEULE LISTE POUR INSTALLER ET POUR VERIFIER. Elles etaient implicitement
+# deux — installer_interpreteur() posait ras-commander et h5py,
+# verifier_interpreteur() n'exigeait que les memes deux — et le pont, lui,
+# importe geometrie des la premiere composition, donc geopandas. Un
+# environnement cree par le bouton etait donc ACCEPTE puis echouait sur
+# « ModuleNotFoundError: No module named 'geopandas' » a la premiere
+# operation reelle (releve le 31/08/2026, second poste). Deux listes qui
+# doivent s'accorder finissent toujours par diverger : il n'y en a plus qu'une.
+#
+# rasterio N'Y EST PAS, a dessein : il n'est importe que par la lecture d'un
+# profil en long sur RASTER, option non retenue par defaut, et il pese lourd.
+# Son absence n'empeche aucun calage.
+PAQUETS_HECRAS = (
+    ("ras_commander", f"ras-commander>={'.'.join(str(n) for n in RAS_COMMANDER_MINIMUM)}"),
+    ("h5py", "h5py"),
+    ("numpy", "numpy"),
+    ("pandas", "pandas"),
+    ("scipy", "scipy"),
+    ("geopandas", "geopandas"),
+    ("shapely", "shapely"),
+    ("pyproj", "pyproj"),
+    ("matplotlib", "matplotlib"),
+    ("openpyxl", "openpyxl"),
+)
+
 
 def interpreteur_hecras():
     """
@@ -440,13 +467,12 @@ def installer_interpreteur(python_base, journal=None):
     # LA VERSION MINIMALE EST IMPOSEE ICI AUSSI, pas seulement verifiee apres
     # coup : une 0.98 borne mal les tableaux d'hydrogramme et tronquerait un
     # apport en silence (voir RAS_COMMANDER_MINIMUM).
-    minimum = ".".join(str(n) for n in RAS_COMMANDER_MINIMUM)
-    dire(f"Installation de ras-commander>={minimum} et h5py… "
-         f"(plusieurs minutes)")
+    paquets = [p for _, p in PAQUETS_HECRAS]
+    dire(f"Installation de {len(paquets)} paquets ({', '.join(paquets[:3])}…) "
+         f"— plusieurs minutes")
     try:
         resultat = subprocess.run(
-            [str(interpreteur), "-m", "pip", "install", "--upgrade",
-             f"ras-commander>={minimum}", "h5py"],
+            [str(interpreteur), "-m", "pip", "install", "--upgrade", *paquets],
             capture_output=True, text=True, encoding="utf-8",
             errors="replace", timeout=1800)
     except Exception as e:                                   # noqa: BLE001
@@ -489,9 +515,15 @@ def verifier_interpreteur(chemin):
     """
     Cet interpreteur sait-il piloter HEC-RAS ? Retourne (ok, message).
 
-    Le test est celui qui compte : importer ras-commander ET h5py dans un
-    sous-processus, avec le meme assainissement d'environnement que les appels
-    reels. Verifier la seule existence du fichier ne prouverait rien.
+    Le test est celui qui compte : importer TOUT ce dont le pont a besoin
+    (PAQUETS_HECRAS) dans un sous-processus, avec le meme assainissement
+    d'environnement que les appels reels. Verifier la seule existence du
+    fichier ne prouverait rien.
+
+    IL N'EXIGEAIT QUE ras-commander ET h5py, si bien qu'un environnement
+    depourvu de geopandas etait accepte ici pour echouer a la premiere
+    composition — loin de la cause, et apres que l'utilisateur ait cru
+    l'installation reussie.
     """
     import subprocess
 
@@ -505,10 +537,23 @@ def verifier_interpreteur(chemin):
     chemin = Path(chemin)
     if not chemin.is_file():
         return False, f"« {chemin} » n'est pas un fichier."
-    code = ("import ras_commander, h5py, sys; "
-            "print(f'python {sys.version_info.major}.{sys.version_info.minor}"
-            ".{sys.version_info.micro}, ras-commander "
-            "{ras_commander.__version__}, h5py {h5py.__version__}')")
+    # CHAQUE MODULE EST TESTE SEPAREMENT, et les manquants sont TOUS
+    # rapportes. Un « import a, b, c » unique s'arrete au premier absent :
+    # l'utilisateur corrigerait alors un manque, relancerait, en decouvrirait
+    # un deuxieme, et ainsi de suite.
+    noms = [i for i, _ in PAQUETS_HECRAS]
+    code = (
+        # « import importlib » NE SUFFIT PAS : importlib.util est un
+        # sous-module, qui n'est pas charge par l'import du paquet.
+        "import importlib.util, sys\n"
+        f"manquants = [m for m in {noms!r} "
+        "if importlib.util.find_spec(m) is None]\n"
+        "if manquants:\n"
+        "    print('MANQUANTS ' + ' '.join(manquants)); sys.exit(3)\n"
+        "import ras_commander, h5py\n"
+        "print(f'python {sys.version_info.major}.{sys.version_info.minor}"
+        ".{sys.version_info.micro}, ras-commander "
+        "{ras_commander.__version__}, h5py {h5py.__version__}')")
     try:
         # DECODAGE IMPOSE, ET TOLERANT. Sans lui, Python decode la sortie dans
         # l'encodage ambiant : un interpreteur qui echoue en ecrivant des
@@ -522,6 +567,16 @@ def verifier_interpreteur(chemin):
             timeout=90, env=environnement_propre(chemin))
     except Exception as e:
         return False, f"{type(e).__name__}: {e}"
+    if acheve.returncode == 3 and "MANQUANTS" in (acheve.stdout or ""):
+        absents = acheve.stdout.split("MANQUANTS", 1)[1].split()
+        pip = " ".join(p for i, p in PAQUETS_HECRAS if i in absents)
+        return False, (
+            f"module(s) absent(s) de cet interpreteur : "
+            f"{', '.join(absents)}.\n\nLe pont en a besoin des la premiere "
+            f"composition. Les installer par :\n"
+            f"    \"{chemin}\" -m pip install {pip}\n\n"
+            f"ou laisser le bouton « Installer… » creer un environnement "
+            f"complet.")
     if acheve.returncode != 0:
         return False, _cause_echec(acheve)
 

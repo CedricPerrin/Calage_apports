@@ -3193,14 +3193,18 @@ class DialogueParametrage(QDialog):
         # second cas, et le bouton refusait donc de servir sur un poste neuf
         # — le seul ou il est utile.
         cible = noyau.emplacement_venv_hecras()
-        minimum = ".".join(str(n) for n in noyau.RAS_COMMANDER_MINIMUM)
+        # LA LISTE VIENT DU NOYAU, jamais recopiee ici : c'est elle qui est
+        # installée ET vérifiée, et l'annoncer autrement finirait par mentir.
+        paquets = [p for _, p in noyau.PAQUETS_HECRAS]
         with sans_sablier(self):
             reponse = QMessageBox.question(
                 self, "Installer l'environnement Python HEC-RAS",
                 f"Un environnement Python va être créé dans :\n{cible}\n\n"
-                f"puis ras-commander>={minimum} et h5py y seront installés "
-                f"depuis PyPI (téléchargement, plusieurs minutes).\n\n"
-                f"QGIS restera figé pendant l'opération.\n\nContinuer ?",
+                f"puis {len(paquets)} paquets y seront installés depuis "
+                f"PyPI :\n{', '.join(paquets)}\n\n"
+                f"Téléchargement de plusieurs centaines de Mo, plusieurs "
+                f"minutes. QGIS restera figé pendant l'opération.\n\n"
+                f"Continuer ?",
                 QMessageBox.StandardButton.Yes
                 | QMessageBox.StandardButton.No)
         if reponse != QMessageBox.StandardButton.Yes:

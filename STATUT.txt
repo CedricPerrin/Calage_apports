@@ -833,6 +833,46 @@ n'existe QUE dans le zip, jamais sur le disque d'un poste de developpement
 embarquee factice et pointe DOSSIER_EMBARQUE dessus, de sorte que la branche
 est exercee partout.
 
+DEUXIEME DEFAUT — L'ENVIRONNEMENT INSTALLE ETAIT INCOMPLET, ET ACCEPTE QUAND
+MEME. installer_interpreteur() posait ras-commander et h5py ; c'est tout ce
+que verifier_interpreteur() exigeait, donc l'environnement passait. Mais le
+pont importe geometrie des la premiere composition, donc GEOPANDAS —
+« ModuleNotFoundError: No module named 'geopandas' », loin de la cause et
+apres que l'utilisateur ait cru l'installation reussie.
+  LES DEUX LISTES ETAIENT IMPLICITEMENT DEUX, et devaient s'accorder sans que
+  rien ne l'impose : elles ont diverge. PAQUETS_HECRAS les remplace, en
+  (nom d'import, nom pip) — dix paquets, installes ET verifies depuis la meme
+  source, et annonces au greffon depuis elle aussi.
+  rasterio n'y est pas, a dessein : importe seulement par la lecture d'un
+  profil sur RASTER, option non retenue par defaut, et il pese lourd.
+  CHAQUE MODULE EST TESTE SEPAREMENT et TOUS les manquants sont rapportes
+  d'un coup, avec la commande pip exacte : un « import a, b, c » unique
+  s'arrete au premier absent, et l'utilisateur corrigerait un manque a la
+  fois, en relancant a chaque tour.
+
+TROISIEME DEFAUT — « 01Jan2000,2400 » REFUSE. 24:00 designe MINUIT EN FIN DE
+JOURNEE (convention HEC) : c'est ainsi qu'un plan ecrit la fin d'une
+simulation d'une journee pleine. La regex n'admettait que 00 a 23, et le
+calage s'arretait sur un plan parfaitement valide.
+  LA CASSE N'ETAIT PAS EN CAUSE : instant_hecras() applique .upper() depuis
+  toujours, et « 01Jan2000,0000 » passait deja. Le message d'erreur, qui
+  parlait de mois en trois lettres, envoyait sur une fausse piste — c'est lui
+  qui a fait diagnostiquer un probleme de majuscules.
+  instant_hecras() bascule desormais sur le lendemain, fins de mois, annees
+  bissextiles et fins d'annee comprises.
+
+QUATRIEME DEFAUT, TROUVE EN CORRIGEANT LE TROISIEME. _en_minutes() comptait
+31 JOURS PAR MOIS. Cela suffit a ORDONNER deux instants, mais fausse toute
+SOUSTRACTION des qu'ils encadrent la fin d'un mois plus court : 28 fevrier ->
+1er mars ressortait a 96 h au lieu de 24. Or cette duree est celle de la
+fenetre de simulation, a laquelle conditions_trop_courtes() confronte chaque
+condition limite : un modele valide dont la simulation enjambe une fin de
+fevrier, d'avril, de juin, de septembre ou de novembre voyait TOUTES ses
+conditions declarees trop courtes, et le calage refuse avant tout calcul.
+Le calendrier est desormais reel (datetime). Personne ne l'avait rencontre —
+les modeles eprouves jusqu'ici simulent en janvier, en juillet ou sur des
+dates fictives au 1er janvier.
+
 
 6. POINTS OUVERTS
 ================================================================================

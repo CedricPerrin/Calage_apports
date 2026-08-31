@@ -26,6 +26,7 @@ import re
 import shutil
 import subprocess
 import time
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import numpy as np
@@ -46,7 +47,7 @@ MOIS_HECRAS = ("JAN", "FEB", "MAR", "APR", "MAY", "JUN",
 # « 0000 ». N'accepter que l'une des deux ferait rejeter un plan parfaitement
 # valide au moment de pre-remplir la fenetre.
 _INSTANT = re.compile(r"^(0[1-9]|[12]\d|3[01])(" + "|".join(MOIS_HECRAS)
-                      + r")(\d{4}),([01]\d|2[0-3]):?([0-5]\d)$")
+                      + r")(\d{4}),([01]\d|2[0-4]):?([0-5]\d)$")
 # Format d'un intervalle : 1SEC, 0.2SEC, 1MIN, 10MIN, 1HOUR...
 _INTERVALLE = re.compile(r"^\d+(\.\d+)?(SEC|MIN|HOUR|DAY|WEEK|MONTH|YEAR)$")
 
@@ -76,6 +77,21 @@ def instant_hecras(texte):
     La validation est stricte a dessein : une date mal formee n'est pas
     refusee par HEC-RAS, elle est interpretee autrement — le calcul tourne
     alors sur une fenetre fausse, et rien dans les resultats ne le signale.
+
+    TROIS ECRITURES SONT ACCEPTEES, parce que HEC-RAS les produit toutes :
+      - la casse du mois est libre (« 01Jan2000 » comme « 01JAN2000 ») ;
+      - l'heure s'ecrit avec ou sans deux-points (« 00:00 » ou « 0000 ») ;
+      - 24:00 designe MINUIT EN FIN DE JOURNEE, convention HEC : « 01JAN2000,
+        2400 » est le meme instant que « 02JAN2000,00:00 ». C'est ainsi
+        qu'HEC-RAS ecrit la fin d'une simulation d'une journee pleine, et le
+        refuser bloquait le calage sur un plan parfaitement valide (releve le
+        31/08/2026 en eprouvant la portabilite sur un second poste).
+
+    LA SORTIE EST TOUJOURS NORMALISEE sur la forme a deux-points et sur une
+    heure de 00 a 23, la journee suivante prenant le relais s'il le faut.
+    Ecrire une seule forme evite qu'un projet melange les deux au gre des
+    plans clones, et garde _en_minutes() — qui compare des instants — a
+    l'abri d'une heure 24 qu'il compterait comme un jour de plus.
     """
     t = str(texte).strip().upper().replace(" ", "")
     trouve = _INSTANT.match(t)
@@ -84,10 +100,19 @@ def instant_hecras(texte):
             f"instant « {texte} » invalide : attendu JJMMMAAAA,HH:MM avec un "
             f"mois anglais sur trois lettres ({', '.join(MOIS_HECRAS[:3])}...), "
             f"par exemple 13OCT2014,00:00")
-    # Normalise sur la forme a deux-points : les deux sont lues par HEC-RAS,
-    # mais en ecrire une seule evite qu'un meme projet melange les deux au gre
-    # des plans clones.
     jour, mois, annee, h, mn = trouve.groups()
+    if h == "24":
+        # 24:30 n'a aucun sens : minuit est un INSTANT, pas une heure ou l'on
+        # peut avancer. La regex laisse passer les minutes, c'est ici qu'on
+        # tranche.
+        if mn != "00":
+            raise ValueError(
+                f"instant « {texte} » invalide : 24:00 designe minuit en fin "
+                f"de journee, et n'admet donc pas de minutes ({mn} lu).")
+        veille = datetime(int(annee), MOIS_HECRAS.index(mois) + 1, int(jour))
+        lendemain = veille + timedelta(days=1)
+        return (f"{lendemain.day:02d}{MOIS_HECRAS[lendemain.month - 1]}"
+                f"{lendemain.year:04d},00:00")
     return f"{jour}{mois}{annee},{h}:{mn}"
 
 
@@ -147,11 +172,27 @@ def valider_fenetre_simulation(fenetre):
 
 
 def _en_minutes(instant):
-    """Instant valide -> minutes depuis une origine arbitraire, pour comparer."""
-    m = _INSTANT.match(instant)
-    jour, mois, annee, h, mn = m.groups()
-    return ((int(annee) * 12 + MOIS_HECRAS.index(mois)) * 31
-            + int(jour)) * 1440 + int(h) * 60 + int(mn)
+    """
+    Instant valide -> minutes depuis une origine fixe, pour comparer et pour
+    MESURER UNE DUREE.
+
+    LE CALENDRIER EST REEL. Cette fonction comptait auparavant 31 jours par
+    mois, ce qui suffit a ORDONNER deux instants mais fausse toute
+    SOUSTRACTION des qu'ils encadrent la fin d'un mois plus court : 28 fevrier
+    -> 1er mars ressortait a 96 h au lieu de 24. Or la duree ainsi calculee est
+    celle de la fenetre de simulation, a laquelle conditions_trop_courtes()
+    confronte chaque condition limite — un modele parfaitement valide dont la
+    simulation enjambe une fin de fevrier, d'avril, de juin, de septembre ou
+    de novembre voyait donc TOUTES ses conditions declarees trop courtes, et
+    le calage refuse avant tout calcul. Releve le 31/08/2026.
+
+    L'instant DOIT avoir ete valide par instant_hecras() : l'heure y vaut 00 a
+    23, la forme 24:00 ayant deja bascule sur le lendemain.
+    """
+    jour, mois, annee, h, mn = _INSTANT.match(instant).groups()
+    quand = datetime(int(annee), MOIS_HECRAS.index(mois) + 1, int(jour),
+                     int(h), int(mn))
+    return int((quand - datetime(1900, 1, 1)).total_seconds() // 60)
 
 
 def fenetre_simulation_du_plan(fichier_plan):
@@ -2420,6 +2461,50 @@ if __name__ == "__main__":
               and instant_hecras("13OCT2014,1200") == "13OCT2014,12:00")
     _verifier("une heure invalide reste refusee sans deux-points",
               _leve(ValueError, instant_hecras, "13OCT2014,2500"))
+    # 24:00 = MINUIT EN FIN DE JOURNEE, convention HEC. C'est ainsi qu'un plan
+    # ecrit la fin d'une simulation d'une journee pleine, et le refuser
+    # bloquait le calage sur un plan valide (releve le 31/08/2026, second
+    # poste). La bascule sur le lendemain doit tenir sur les fins de mois,
+    # les annees bissextiles et les fins d'annee.
+    _verifier("24:00 bascule sur minuit du lendemain",
+              instant_hecras("01Jan2000,2400") == "02JAN2000,00:00"
+              and instant_hecras("01JAN2000,24:00") == "02JAN2000,00:00")
+    _verifier("la bascule tient sur une fin de mois et une fin d'annee",
+              instant_hecras("31JAN2000,2400") == "01FEB2000,00:00"
+              and instant_hecras("31DEC2000,2400") == "01JAN2001,00:00")
+    _verifier("la bascule connait les annees bissextiles",
+              instant_hecras("28FEB2000,2400") == "29FEB2000,00:00"
+              and instant_hecras("28FEB2001,2400") == "01MAR2001,00:00")
+    _verifier("24:30 est refuse : minuit est un instant, pas une heure",
+              _leve(ValueError, instant_hecras, "01JAN2000,24:30"))
+
+    # _en_minutes SERT A MESURER UNE DUREE, pas seulement a ordonner. Il
+    # comptait 31 jours par mois : 28 fevrier -> 1er mars ressortait a 96 h.
+    # La duree ainsi calculee est celle de la fenetre de simulation, a
+    # laquelle conditions_trop_courtes() confronte chaque condition limite —
+    # un modele valide enjambant une fin de mois courte voyait donc TOUTES
+    # ses conditions declarees trop courtes.
+    def _duree_h(a, b):
+        return (_en_minutes(instant_hecras(b))
+                - _en_minutes(instant_hecras(a))) / 60.0
+
+    _verifier("une duree d'un jour vaut 24 h, quel que soit le mois",
+              all(abs(_duree_h(a, b) - 24.0) < 1e-9 for a, b in (
+                  ("01JAN2000,00:00", "02JAN2000,00:00"),
+                  ("31JAN2000,00:00", "01FEB2000,00:00"),
+                  ("28FEB2001,00:00", "01MAR2001,00:00"),
+                  ("29FEB2000,00:00", "01MAR2000,00:00"),
+                  ("30APR2000,00:00", "01MAY2000,00:00"),
+                  ("31DEC2000,00:00", "01JAN2001,00:00"))))
+    _verifier("une journee pleine ecrite « 2400 » vaut bien 24 h",
+              abs(_duree_h("01JAN2000,00:00", "01JAN2000,2400") - 24.0) < 1e-9)
+    _verifier("l'ordre chronologique est preserve",
+              [_en_minutes(instant_hecras(x)) for x in (
+                  "01JAN2000,00:00", "01JAN2000,00:01", "02JAN2000,00:00",
+                  "01FEB2000,00:00", "01JAN2001,00:00")]
+              == sorted(_en_minutes(instant_hecras(x)) for x in (
+                  "01JAN2000,00:00", "01JAN2000,00:01", "02JAN2000,00:00",
+                  "01FEB2000,00:00", "01JAN2001,00:00")))
     _verifier("un intervalle bien forme est accepte",
               intervalle_hecras("0.2sec") == "0.2SEC")
     _verifier("un intervalle sans unite est refuse",
