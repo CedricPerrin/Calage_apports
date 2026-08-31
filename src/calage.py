@@ -971,6 +971,24 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
             if applique:
                 dire(f"    duree simulee ramenee a {applique:.1f} h — "
                      f"au-dela, plus rien n'est juge ni presente")
+                # LE PLAFOND A-T-IL ROGNE ? La duree voulue peut depasser la
+                # fenetre du plan de reference (PiloteHecRas.duree_reference_h),
+                # qui la borne. Ce qui se perd alors est la MARGE, pas la
+                # fenetre jugee : sur les douze cibles reelles du 31/08/2026,
+                # la plus haute borne jugee tombe a 35,5 h sous un plafond de
+                # 36 h, et seul le dernier apport perd 1,5 h de marge_duree_h.
+                #
+                # JOURNAL SEULEMENT, PAS D'ALERTE, decision du 31/08/2026 : une
+                # marge existe pour etre rognee, et rien de ce qui est juge ne
+                # manque. Si la FENETRE elle-meme finissait par ne plus rentrer,
+                # ce n'est pas ici que ca se verrait mais dans la couverture,
+                # que criteres.diagnostiquer chiffre desormais des le premier
+                # dixieme d'heure manquant.
+                if applique < durees_simulees[i] - 1e-9:
+                    dire(f"      ({durees_simulees[i]:.1f} h voulues : plafond "
+                         f"du plan de reference — "
+                         f"{durees_simulees[i] - applique:.1f} h de marge en "
+                         f"moins, la fenetre jugee reste couverte)")
 
         historique_rapport, essais = [], 0
         debut_apport = time.time()
@@ -2461,6 +2479,38 @@ if __name__ == "__main__":
                       and _m8.durees_demandees[0] < 40.0,
                       f"durees demandees : "
                       f"{[round(d, 1) for d in _m8.durees_demandees]}")
+
+    # LE PLAFOND ROGNE LA MARGE, ET LE DIT — SANS ALERTE NI ECHEC.
+    #
+    # Serie de 20 h, evenement centre sur 14 h : le calendrier veut 21,7 h et
+    # le plafond n'en donne que 20. Ce qui se perd est la MARGE ; la fenetre
+    # jugee (7,9 -> 19,7 h) reste couverte, et le calage doit rester conforme.
+    # Decision du 31/08/2026 : journal seulement. Une marge existe pour etre
+    # rognee, et un garde-fou qui se declenche pour une perte sans consequence
+    # apprend a etre ignore. Le jour ou la FENETRE ne rentrerait plus, c'est la
+    # couverture qui le dirait (criteres.diagnostiquer, section 4 ter).
+    _t9 = np.linspace(0.0, 20.0, 201)
+    _f9 = [np.exp(-0.5 * ((_t9 - 14.0) / 2.0) ** 2)
+           + 0.004 * np.exp(-(_t9 - 14.0) / 25.0) * (_t9 > 14.0)]
+    _m9 = ModeleFictif(["A1"], ["S1"], _t9, _f9, retard_h=0.0)
+    _m9.facteurs = {"A1": 40.0}
+    _cibles9 = [(_t9, _m9.lire_section("S1")[1].copy())]
+    _m9.duree_max, _m9.durees_demandees = None, []
+    _dits9 = []
+    _r9 = caler(_m9, ["A1"], ["S1"], _cibles9,
+                Configuration(nb_max_essais=4), journal=_dits9.append)
+    _rogne9 = [l for l in map(str, _dits9) if "voulues" in l]
+    controler("le plafond qui rogne la marge le DIT au journal",
+              bool(_rogne9), _rogne9[0].strip()[:95] if _rogne9 else "rien")
+    controler("il chiffre la marge perdue et rassure sur la fenetre",
+              bool(_rogne9) and "de marge en moins" in _rogne9[0]
+              and "fenetre jugee reste couverte" in _rogne9[0],
+              _rogne9[0].strip()[:95] if _rogne9 else "rien")
+    controler("et le calage reste CONFORME : rien de juge ne manque",
+              _r9.conforme, _r9.motif or "conforme")
+    controler("aucune alerte n'est levee pour une simple perte de marge",
+              bool(_r9.apports) and not _r9.apports[0].diagnostic.alertes,
+              str(_r9.apports[0].diagnostic.alertes) if _r9.apports else "?")
 
     print()
     if echecs:

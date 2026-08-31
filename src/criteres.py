@@ -551,6 +551,28 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
             f"{100 * (fin - debut) / duree_cible:.0f} % de la duree de "
             f"l'hydrogramme cible - allonger la simulation, sinon le volume "
             f"manquant sera attribue a tort a un defaut d'apport")
+    elif duree_cible > 0 and (fin - debut) < duree_cible - 1e-9:
+        # L'ANGLE MORT DE couverture_min, ET IL EST AVEUGLE PAR CONSTRUCTION.
+        #
+        # Entre 90 et 100 % de couverture, la bloquante ci-dessus se taisait
+        # et RIEN D'AUTRE NE POUVAIT LE DIRE : les volumes sont integres sur
+        # le MEME intervalle rogne pour la cible et pour le calcul (voir
+        # debut_v / fin_v plus haut), donc leur rapport reste a 100 % alors
+        # qu'une part de l'evenement juge n'a jamais ete simulee. Mesure du
+        # 31/08/2026 : fenetre jugee 2-35 h, calcul arrete a 34 h — 97 % de
+        # couverture, volume 100,0 %, aucune alerte.
+        #
+        # NON BLOQUANTE, A DESSEIN : ce qui manque est la queue de
+        # l'evenement, dont le poids en volume est justement inferieur a la
+        # tolerance — le verdict garde son sens. Mais il porte sur un
+        # evenement incomplet, et celui qui lit le rapport doit le savoir.
+        # Le seuil bloquant reste a couverture_min.
+        alertes.append(
+            f"{duree_cible - (fin - debut):.1f} h de la fenetre jugee ne sont "
+            f"pas simulees ({100 * (fin - debut) / duree_cible:.0f} % de "
+            f"couverture) : le verdict porte sur un evenement incomplet. Le "
+            f"rapport de volume ne peut PAS le reveler, cible et calcul etant "
+            f"integres sur le meme intervalle rogne")
     alertes.extend(bloquantes)
 
     return Diagnostic(
@@ -714,6 +736,38 @@ if __name__ == "__main__":
     _verifier("une simulation trop courte est BLOQUANTE",
               bool(d.alertes_bloquantes) and not d.converge,
               str(d.alertes_bloquantes))
+
+    # ENTRE 90 ET 100 % DE COUVERTURE, PLUS RIEN NE SE TAIT.
+    #
+    # Ce controle manquait, et son absence laissait un angle mort AVEUGLE PAR
+    # CONSTRUCTION : les volumes etant integres sur le meme intervalle rogne
+    # pour la cible et pour le calcul, leur rapport reste a 100 % alors qu'une
+    # part de l'evenement juge n'a jamais ete simulee. Aucun autre indicateur
+    # ne pouvait le reveler — d'ou l'assertion sur rapport_volume ci-dessous,
+    # qui fige la raison meme d'exister de cette alerte.
+    _tc = np.linspace(0.0, 40.0, 401)
+    _qc = 50.0 * np.exp(-0.5 * ((_tc - 20.0) / 6.0) ** 2)
+    _n34 = int(34.0 / 0.1) + 1
+    _rogne = diagnostiquer(_tc, _qc, _tc[:_n34], _qc[:_n34],
+                           fenetre=(2.0, 35.0))
+    _non_bloq = [a for a in _rogne.alertes
+                 if a not in _rogne.alertes_bloquantes]
+    _verifier("une fenetre jugee rognee de 3 % est DITE, sans bloquer",
+              bool(_non_bloq) and not _rogne.alertes_bloquantes,
+              f"{len(_non_bloq)} alerte(s) non bloquante(s), "
+              f"{len(_rogne.alertes_bloquantes)} bloquante(s)")
+    _verifier("elle chiffre les heures manquantes",
+              any("1.0 h" in a and "97 %" in a for a in _non_bloq),
+              _non_bloq[0][:100] if _non_bloq else "aucune")
+    _verifier("et le rapport de volume, lui, ne pouvait RIEN en dire",
+              abs(_rogne.rapport_volume - 1.0) < 1e-6,
+              f"volume {100 * _rogne.rapport_volume:.1f} % malgre 1,0 h "
+              f"non simulee")
+    # ET LE CAS SYMETRIQUE : une fenetre entierement couverte ne dit rien,
+    # sans quoi l'alerte se declencherait partout et on cesserait de la lire.
+    _entier = diagnostiquer(_tc, _qc, _tc, _qc, fenetre=(2.0, 35.0))
+    _verifier("une fenetre entierement couverte ne leve aucune alerte",
+              not _entier.alertes, str(_entier.alertes))
 
     print("\n--- 4bis. Le retard ne doit pas couter du volume ---")
     #

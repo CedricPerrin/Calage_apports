@@ -146,6 +146,39 @@ exposee : c'est une valeur, pas un reglage). Elle ne coute aucun calcul.
   depasse la cible qu'APRES l'evenement, ne doit ni degrader le verdict ni
   noyer la crue dans la figure remise a l'ingenieur.
 
+2.2 bis  CE QUI MANQUE A LA FENETRE JUGEE EST TOUJOURS DIT
+--------------------------------------------------------------------------
+Deux pertes possibles, deux traitements, et il ne faut pas les confondre.
+
+LA FENETRE JUGEE N'EST PAS ENTIEREMENT SIMULEE — la seule qui compte.
+criteres.diagnostiquer chiffre les heures manquantes DES LE PREMIER DIXIEME
+D'HEURE :
+  au-dela de 10 % manquants     bloquante, « allonger la simulation »
+  de 0 a 10 % manquants         alerte NON bloquante, heures chiffrees
+La seconde a ete ajoutee le 31/08/2026, et elle fermait un angle mort
+AVEUGLE PAR CONSTRUCTION : les volumes de la cible et du calcul sont
+integres sur le MEME intervalle rogne, donc leur rapport reste a 100 % alors
+qu'une part de l'evenement juge n'a jamais ete simulee. Mesure : fenetre
+jugee 2-35 h, calcul arrete a 34 h — couverture 97 %, volume 100,0 %, et
+avant correctif aucune alerte. NON bloquante a dessein : ce qui manque est la
+queue de l'evenement, dont le poids en volume est inferieur a la tolerance,
+donc le verdict garde son sens — mais il porte sur un evenement incomplet, et
+qui lit le rapport doit le savoir.
+
+LE PLAFOND ROGNE LA MARGE — benin, journal seulement.
+La duree voulue vaut tf + fenetre_marge_h + marge_duree_h et peut depasser la
+fenetre du plan de reference, qui la borne. Ce qui se perd alors est la MARGE,
+pas la fenetre. Mesure sur les douze cibles reelles du 31/08 : la plus haute
+borne jugee tombe a 35,5 h sous un plafond de 36 h, et seul le dernier apport
+perd 1,5 h de marge_duree_h — AUCUNE fenetre jugee n'est tronquee.
+  UNE MARGE EXISTE POUR ETRE ROGNEE : pas d'alerte, pas de reserve au
+  livrable, une ligne de journal qui chiffre la perte et rappelle que la
+  fenetre reste couverte. Un garde-fou qui se declenche pour une perte sans
+  consequence apprend a etre ignore.
+  A NE PAS CONFONDRE avec le manque de 3 h annonce le 31/08 au matin : celui-la
+  etait un artefact du melange d'unites (section 5.3 ter), ou tf valait 81,5 h
+  sur le dernier apport. Corrige, il n'y a plus de fenetre tronquee.
+
 2.3  QUALITE NUMERIQUE
 --------------------------------------------------------------------------
 Le BILAN DE MASSE rendu par HEC-RAS (« volume accounting error », colonne
@@ -1128,14 +1161,6 @@ A FAIRE, PAR ORDRE DE PRIORITE
     Y ajouter la duree ajustee et son gain REEL de 11 % (section 5.3 bis) —
     la note ne doit pas reprendre les 34 % estimes. Meme occasion d'ouvrir
     Word.
-  - DIRE DANS UN LIVRABLE QUE LE MODELE EST TROP COURT. Quand le calendrier
-    des durees bute sur duree_reference_h, la chaine tronque en silence :
-    seul le journal porte la valeur voulue. Sur Suhihandia V3 il manque 3 h
-    sur 36 pour six apports. A remonter en alerte (non bloquante) et dans la
-    note de synthese, avec le nombre d'heures manquantes.
-  - HORODATER LES SORTIES DE dire(). Sur un calage de 25 h, les lignes de la
-    chaine ne sont pas datees et on ne peut chronometrer aucune etape
-    (section 5.3 bis). Prefixer par HH:MM:SS a l'ecriture.
   - EPROUVER SOUS QGIS les six correctifs du 30/08, et le bouton
     « Installer… » sur un poste neuf.
   - RECREER LE SCRIPT DE PRE-VOL (sections lisibles, apports presents, cibles

@@ -1338,6 +1338,28 @@ def _texte_parametre(valeurs, cle, defaut=""):
     return defaut if v is None or pd.isna(v) else str(v).strip()
 
 
+def _dire_horodate(*morceaux):
+    """
+    Ecrit une ligne du journal, PRECEDEE DE L'HEURE.
+
+    Les lignes de ras-commander passent par logging et portent deja
+    « AAAA-MM-JJ HH:MM:SS » ; celles de la chaine, non. On ne pouvait donc
+    chronometrer aucune etape sans se caler sur la ligne horodatee voisine —
+    ce qui a fait lire « le premier apport a cale en 8 secondes » la ou il en
+    avait mis 1 h 15 (releve le 31/08/2026 sur un calage de 25 h).
+
+    MEME FORMAT QUE ras-commander, a dessein : un calage traverse minuit,
+    donc la date est necessaire, et le journal reste triable d'un bout a
+    l'autre. L'indentation des lignes de la chaine est conservee derriere
+    l'horodatage, qui ne remplace pas la hierarchie visuelle.
+
+    SOURCE UNIQUE pour tous les appels « journal= » de production : deux
+    lambdas separees auraient fini par diverger, comme les deux listes de
+    paquets avant PAQUETS_HECRAS.
+    """
+    print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), *morceaux, flush=True)
+
+
 def _cibles_depuis_classeur(chemin_template, journal=None):
     """
     Lit les hydrogrammes cibles de la feuille Cibles, dans l'ordre de la
@@ -1437,7 +1459,7 @@ def commande_caler(args):
             return defaut
 
     apports, sections, cibles, manquantes = _cibles_depuis_classeur(
-        chemin_template, journal=lambda m: print(m, flush=True))
+        chemin_template, journal=_dire_horodate)
     if manquantes:
         return repondre(ok=False, erreur=(
             f"hydrogrammes cibles manquants ou inexploitables pour : "
@@ -1578,7 +1600,7 @@ def commande_caler(args):
     print(f"Calage : {len(apports)} apport(s), plan de reference "
          f"{plan_reference}", flush=True)
     resultat = caler(pilote, apports, sections, cibles, config, suivi=suivi,
-                     journal=lambda *a: print(*a, flush=True),
+                     journal=_dire_horodate,
                      etape_reference=etape_reference)
 
     # VERDICT DANS LE SUIVI, avant meme les livrables. Sans lui, celui qui
