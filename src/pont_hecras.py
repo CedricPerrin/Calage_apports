@@ -954,7 +954,8 @@ def _controler_residus_unsteady(chemin_template):
     import controle_donnees as cd
     from pilote_hecras import (cartographier_hydrogrammes,
                                fenetre_simulation_du_plan, instant_hecras,
-                               lire_hydrogramme_unsteady, _en_minutes)
+                               lire_hydrogramme_unsteady, pretraitement_perime,
+                               _en_minutes)
 
     try:
         contexte = _contexte_modele(chemin_template)
@@ -964,14 +965,43 @@ def _controler_residus_unsteady(chemin_template):
         return []
     fichier, fichier_plan, zone, noms_connus, _ = contexte
 
+    anomalies_pretraitement = []
+    try:
+        for ligne in Path(fichier_plan).read_text(
+                encoding="utf-8", errors="replace").splitlines():
+            if ligne.startswith("Geom File="):
+                g = Path(fichier_plan).with_suffix(
+                    "." + ligne.split("=", 1)[1].strip())
+                perime = pretraitement_perime(g)
+                if perime:
+                    anomalies_pretraitement.append((
+                        cd.AVERTISSEMENT,
+                        f"le pretraitement 2D de {g.name} est PERIME : le "
+                        f"fichier texte a ete modifie il y a "
+                        f"{perime['geometrie_h']:.1f} h, son .hdf date de "
+                        f"{perime['hdf_h']:.1f} h. C'est NORMAL apres une "
+                        f"composition — ecrire les sections et les injections "
+                        f"perime les tables 2D. HEC-RAS les refera au premier "
+                        f"calcul ; sur un modele lourd (gros terrain, projet "
+                        f"sur un partage reseau) cela peut echouer sur "
+                        f"« Geometry Writer Failed », et le calage s'arretera "
+                        f"avant tout resultat. Dans le doute : ouvrir le "
+                        f"modele dans HEC-RAS et lancer le plan une fois a la "
+                        f"main, puis lancer le calage SANS recomposer."))
+                break
+    except Exception:                                        # noqa: BLE001
+        pass
+
     try:
         dans_zone = cartographier_hydrogrammes(fichier, zone)
         retenus = cartographier_hydrogrammes(fichier, zone, noms_connus)
         partout = cartographier_hydrogrammes(fichier, None)
     except Exception:                                        # noqa: BLE001
-        return []
+        # Le pretraitement, lui, a pu etre constate : on ne perd pas ce
+        # constat parce que la lecture de l'unsteady a echoue.
+        return anomalies_pretraitement
 
-    anomalies = []
+    anomalies = list(anomalies_pretraitement)
     orphelins = sorted(set(dans_zone) - set(retenus))
     if orphelins:
         anomalies.append((cd.AVERTISSEMENT,

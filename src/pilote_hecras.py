@@ -573,6 +573,41 @@ def conditions_trop_courtes(fichier_unsteady, fichier_plan, nom_zone_2d=None,
     return courtes
 
 
+def pretraitement_perime(fichier_geometrie):
+    """
+    Le prétraitement 2D d'une geometrie est-il plus ancien qu'elle ?
+
+    Retourne {"geometrie_h", "hdf_h", "taille_hdf_mo"} — l'age en heures de
+    chacun — ou None si la question n'a pas de sens ici : .gXX absent, ou
+    .gXX.hdf jamais produit (geometrie neuve, jamais pretraitee).
+
+    POURQUOI CE CONTROLE EXISTE. Ecrire dans le .gXX — ce que fait « Composer
+    et controler » a chaque passage — PERIME le .gXX.hdf, et HEC-RAS refait
+    alors ses tables 2D au calcul suivant. Sur un modele leger c'est une
+    affaire de secondes. Sur un modele lourd, c'est long et cela peut ECHOUER :
+    releve le 31/08/2026, « Computing 2D Flow Area tables: Associated terrain
+    has been updated. Geometry Writer Failed » — un terrain de 17,7 Go traverse
+    par le reseau, et 98 secondes perdues avant que le calage ne s'arrete sur
+    un calcul de reference sans resultats.
+
+    ON NE BLOQUE PAS, ON PREVIENT. Le pretraitement perime est l'etat NORMAL
+    juste apres une composition, et HEC-RAS le refait tres bien la plupart du
+    temps. En faire une erreur bloquerait le cas courant pour un risque qui ne
+    se realise que sur les gros modeles.
+    """
+    g = Path(fichier_geometrie)
+    hdf = g.with_suffix(g.suffix + ".hdf")
+    if not g.is_file() or not hdf.is_file():
+        return None
+    t_g, t_h = g.stat().st_mtime, hdf.stat().st_mtime
+    if t_h >= t_g:
+        return None
+    maintenant = time.time()
+    return {"geometrie_h": (maintenant - t_g) / 3600.0,
+            "hdf_h": (maintenant - t_h) / 3600.0,
+            "taille_hdf_mo": hdf.stat().st_size / (1024 * 1024)}
+
+
 def verifier_intervalle_apports(fichier_unsteady, nom_zone_2d=None,
                                 intervalle=INTERVALLE_APPORT,
                                 noms_connus=None):
@@ -794,7 +829,47 @@ def _messages_hecras(hdf_resultats):
 
     Sans eux, l'utilisateur n'a qu'un constat d'echec et doit aller fouiller
     dans le dossier du projet.
+
+    LE FICHIER DE RESULTATS EST INTERROGE EN PREMIER, et c'est le point qui
+    compte. Meme un HDF « partiel » — celui d'un calcul qui n'a jamais demarre
+    — porte « Results/Summary/Compute Messages (text) », ou HEC-RAS ecrit
+    exactement ce qu'il a refuse de faire. Le _compute_pXX.log, lui, ne
+    contient souvent que les lignes du serveur de communication, que ce
+    filtre ecarte : la chaine concluait alors « aucun message exploitable »
+    et renvoyait l'utilisateur ouvrir HEC-RAS a la main, alors que la reponse
+    etait dans le fichier qu'elle venait de lire.
+    Constate le 31/08/2026 : un calage arrete sur un calcul sans resultats,
+    quand le HDF portait « Computing 2D Flow Area tables: Associated terrain
+    has been updated / Geometry Writer Failed / Error Processing Geometry ».
     """
+    try:
+        import h5py
+        with h5py.File(hdf_resultats, "r") as h:
+            for cle in ("Results/Summary/Compute Messages (text)",
+                        "Results/Summary/Compute Messages"):
+                if cle not in h:
+                    continue
+                brut = h[cle][()]
+                if isinstance(brut, bytes):
+                    texte = brut.decode("utf-8", "replace")
+                else:
+                    texte = "\n".join(
+                        x.decode("utf-8", "replace") if isinstance(x, bytes)
+                        else str(x) for x in np.ravel(brut))
+                lignes = [l.strip() for l in texte.splitlines() if l.strip()]
+                # LES LIGNES QUI COMPTENT SONT LES DERNIERES : c'est la que
+                # HEC-RAS dit ce qui a echoue. Le debut ne fait que decrire ce
+                # qu'il a commence a ecrire.
+                retenues = [l for l in lignes
+                            if not l.startswith(("Plan:", "Simulation started",
+                                                 "Computation Task",
+                                                 "Complete Process"))]
+                if retenues:
+                    return ("Messages de HEC-RAS : "
+                            + " | ".join(retenues[-4:]))
+    except Exception:                                        # noqa: BLE001
+        pass
+
     journal = Path(hdf_resultats).with_name(
         f"_compute_p{Path(hdf_resultats).suffixes[0].lstrip('.p')}.log")
     candidats = [journal] + sorted(
@@ -1148,6 +1223,30 @@ class PiloteHecRas(Modele):
         # sept lignes de reference disparaissaient au milieu d'un calage de
         # 26 heures, et l'on ne l'aurait su qu'a la lecture suivante.
         self.objets_geometrie = self._objets_geometrie()
+
+        # PRETRAITEMENT 2D PERIME — on previent, on ne bloque pas. Voir
+        # pretraitement_perime() : c'est l'etat normal apres une composition,
+        # mais c'est aussi ce qui fait echouer un calage sur un modele lourd,
+        # avant le moindre calcul et sans que rien ne l'ait annonce.
+        try:
+            perime = pretraitement_perime(
+                self._geometrie_du_plan(self.plan_travail))
+        except Exception:                                    # noqa: BLE001
+            perime = None
+        if perime:
+            print(f"   ATTENTION : le pretraitement 2D de la geometrie est "
+                  f"PERIME — le .gXX a ete modifie il y a "
+                  f"{perime['geometrie_h']:.1f} h, son .hdf date de "
+                  f"{perime['hdf_h']:.1f} h ({perime['taille_hdf_mo']:.0f} Mo).\n"
+                  f"              HEC-RAS va refaire ses tables 2D au premier "
+                  f"calcul. Sur un modele lourd — gros terrain, projet sur un "
+                  f"partage reseau — cela peut ECHOUER sur « Geometry Writer "
+                  f"Failed », et le calage s'arretera sur un calcul sans "
+                  f"resultats.\n"
+                  f"              Si c'est le cas : ouvrir le modele dans "
+                  f"HEC-RAS, lancer le plan une fois a la main pour faire le "
+                  f"pretraitement, puis relancer le calage SANS recomposer.",
+                  flush=True)
 
         self.carte = cartographier_hydrogrammes(self.fichier_unsteady,
                                                 self.nom_zone_2d,
@@ -2580,6 +2679,35 @@ if __name__ == "__main__":
     _avec_filtre = verifier_intervalle_apports(_piege, "Perimeter 1",
                                                intervalle="15MIN",
                                                noms_connus={"APPORT_A"})
+    # --- LES MESSAGES DE HEC-RAS SONT DANS LE HDF, MEME PARTIEL ----------
+    # Un calcul qui n'a jamais demarre laisse quand meme
+    # « Results/Summary/Compute Messages (text) », ou HEC-RAS dit ce qu'il a
+    # refuse. La chaine ne lisait que _compute_pXX.log — qui ne porte souvent
+    # que les lignes du serveur de communication, ecartees par le filtre — et
+    # concluait « aucun message exploitable » en renvoyant l'utilisateur
+    # ouvrir HEC-RAS a la main. La reponse etait dans le fichier qu'elle
+    # venait de lire (releve le 31/08/2026 : « Geometry Writer Failed »).
+    print("\n--- messages de HEC-RAS dans un HDF partiel ---")
+    import h5py as _h5
+    _msg_hdf = Path(tempfile.gettempdir()) / "_essai_calage_msg.p01.hdf"
+    with _h5.File(_msg_hdf, "w") as _h:
+        _h.create_dataset(
+            "Results/Summary/Compute Messages (text)",
+            data=np.bytes_((
+                "Plan: 'sans apport' (ESSAI.p01)\n"
+                "Simulation started at: 31Aug2026 12:22:00 PM\n"
+                "Writing Geometry...\n"
+                "Geometry Writer Failed\n"
+                "Error Processing Geometry\n"
+                "Computation Task\tTime\n").encode("utf-8")))
+    _lu = _messages_hecras(_msg_hdf)
+    _verifier("la cause est extraite du HDF, pas du journal texte",
+              "Geometry Writer Failed" in _lu
+              and "Error Processing Geometry" in _lu, _lu[:110])
+    _verifier("l'en-tete de plan et les temps ne noient pas la cause",
+              "Simulation started" not in _lu and "Computation Task" not in _lu)
+    _msg_hdf.unlink(missing_ok=True)
+
     _verifier("verifier_intervalle_apports honore le meme filtre",
               "APPORT_B" in _sans_filtre and "APPORT_B" not in _avec_filtre,
               f"sans filtre {sorted(_sans_filtre)}, avec {sorted(_avec_filtre)}")
