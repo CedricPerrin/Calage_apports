@@ -98,21 +98,11 @@ except Exception as e:
     controler("ecriture et relecture d'un shapefile", False, str(e))
 
 try:
-    importlib.import_module("rasterio")
-    controler("rasterio", True, md.version("rasterio")
-              + " - lecture facultative du terrain d'entree", bloquant=False)
-except Exception:
-    controler("rasterio", False,
-              "absent : sans effet, le profil en long est tire du maillage",
-              bloquant=False)
-
-try:
     import geometrie
     attendues = ["lire_lignes", "lire_axe", "calculer_pk", "verifier_ordre",
                  "verifier_position_apports", "controler_shp",
                  "controler_contre_maillage", "echantillonner_axe",
                  "zones_2d", "maillage_du_modele", "profil_depuis_modele",
-                 "terrain_du_modele", "profil_terrain_raster",
                  "controler_profil", "ecrire_dans_geometrie",
                  "lignes_depuis_modele"]
     absentes = [f for f in attendues if not hasattr(geometrie, f)]
@@ -250,10 +240,6 @@ FONCTIONS_RAS = {
     "HdfBndry": ["get_bc_lines", "get_reference_lines"],
     "HdfMesh": ["get_mesh_cell_points", "get_mesh_cell_polygons",
                 "get_mesh_areas"],
-    # Terrain reellement associe au plan : un projet peut en declarer
-    # plusieurs, et l'association differe d'un plan a l'autre.
-    "RasMap": ["get_hdf_geometry_association", "get_terrain_names",
-               "list_terrain_layers"],
 }
 try:
     import ras_commander as rc
@@ -406,8 +392,7 @@ try:
                           sheet_name="Parametres")
     _cles = set(_par["Parametre"].astype(str))
     _sig = {"Source_geometrie", "Fichier_SHP_Sections", "Fichier_SHP_Apports",
-            "Fichier_SHP_Axe", "Sens_axe", "Source_profil_en_long",
-            "Pas_profil_m"}
+            "Fichier_SHP_Axe", "Sens_axe", "Pas_profil_m"}
     controler("parametres SIG du template", _sig <= _cles,
               "route shapefile + axe hydraulique + terrain"
               if _sig <= _cles else f"absents : {sorted(_sig - _cles)}")

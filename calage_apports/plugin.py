@@ -367,47 +367,51 @@ def gdf_vers_couche(gdf, nom_couche, crs_authid):
     return couche
 
 
-def construire_couche_lignes_depuis_wkt(nom_couche, entites, crs_authid):
+def _couche_memoire_depuis_wkt(nom_couche, entites, crs_authid, type_geometrie,
+                               champ):
     """
-    Cree une couche MEMOIRE QGIS de lignes a partir d'entites {"nom", "wkt"},
-    telles que renvoyees par noyau.charger_couches_modele().
+    Corps commun aux deux fabriques ci-dessous, qui ne differaient que par le
+    type de geometrie et le nom de l'attribut — lequel est aussi la cle portee
+    par les entites (« nom » pour les lignes, « zone » pour les perimetres).
 
-    Une couche memoire est TOUJOURS editable : c'est ce qui permet de
-    dessiner de nouvelles sections directement sur la carte, par-dessus ce
-    qui existe deja dans la geometrie HEC-RAS.
+    Une couche memoire est TOUJOURS editable : c'est ce qui permet de dessiner
+    de nouvelles sections directement sur la carte, par-dessus ce qui existe
+    deja dans la geometrie HEC-RAS.
     """
-    couche = QgsVectorLayer(f"LineString?crs={crs_authid}", nom_couche, "memory")
+    couche = QgsVectorLayer(f"{type_geometrie}?crs={crs_authid}", nom_couche,
+                            "memory")
     fournisseur = couche.dataProvider()
-    fournisseur.addAttributes([QgsField("nom", TYPE_CHAMP_TEXTE)])
+    fournisseur.addAttributes([QgsField(champ, TYPE_CHAMP_TEXTE)])
     couche.updateFields()
     objets = []
     for entite in entites:
         f = QgsFeature(couche.fields())
         f.setGeometry(QgsGeometry.fromWkt(entite["wkt"]))
-        f["nom"] = str(entite["nom"])
+        f[champ] = str(entite[champ])
         objets.append(f)
     if objets:
         fournisseur.addFeatures(objets)
     couche.updateExtents()
     return couche
+
+
+# LES DEUX NOMS PUBLICS SONT CONSERVES : ils sont passes PAR REFERENCE aux
+# appels de _charger_couche (l. 2071-2077) et repris tels quels par
+# test_plugin_qgis.py. Les remplacer par un seul appelable parametre aurait
+# fait toucher cinq sites pour rien.
+def construire_couche_lignes_depuis_wkt(nom_couche, entites, crs_authid):
+    """
+    Couche MEMOIRE QGIS de lignes a partir d'entites {"nom", "wkt"}, telles
+    que renvoyees par noyau.charger_couches_modele().
+    """
+    return _couche_memoire_depuis_wkt(nom_couche, entites, crs_authid,
+                                      "LineString", "nom")
 
 
 def construire_couche_polygones_depuis_wkt(nom_couche, entites, crs_authid):
-    """Meme principe que ci-dessus, pour l'emprise (perimetre de zone 2D)."""
-    couche = QgsVectorLayer(f"Polygon?crs={crs_authid}", nom_couche, "memory")
-    fournisseur = couche.dataProvider()
-    fournisseur.addAttributes([QgsField("zone", TYPE_CHAMP_TEXTE)])
-    couche.updateFields()
-    objets = []
-    for entite in entites:
-        f = QgsFeature(couche.fields())
-        f.setGeometry(QgsGeometry.fromWkt(entite["wkt"]))
-        f["zone"] = str(entite["zone"])
-        objets.append(f)
-    if objets:
-        fournisseur.addFeatures(objets)
-    couche.updateExtents()
-    return couche
+    """Meme principe, pour l'emprise (perimetre de zone 2D)."""
+    return _couche_memoire_depuis_wkt(nom_couche, entites, crs_authid,
+                                      "Polygon", "zone")
 
 
 # ---------------------------------------------------------------------------

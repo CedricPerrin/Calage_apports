@@ -292,9 +292,10 @@ RAS_COMMANDER_MINIMUM = (0, 99)
 # operation reelle (releve le 31/08/2026, second poste). Deux listes qui
 # doivent s'accorder finissent toujours par diverger : il n'y en a plus qu'une.
 #
-# rasterio N'Y EST PAS, a dessein : il n'est importe que par la lecture d'un
-# profil en long sur RASTER, option non retenue par defaut, et il pese lourd.
-# Son absence n'empeche aucun calage.
+# rasterio N'Y EST PAS, et n'a plus de raison d'y etre : la lecture d'un profil
+# en long sur RASTER etait son seul importateur, et elle a ete retiree le
+# 31/08/2026 — jamais raccordee, elle rendait une colonne « z_terrain » que le
+# seul consommateur du profil ne lit pas. Le profil vient du maillage.
 PAQUETS_HECRAS = (
     ("ras_commander", f"ras-commander>={'.'.join(str(n) for n in RAS_COMMANDER_MINIMUM)}"),
     ("h5py", "h5py"),
@@ -1060,7 +1061,6 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
         "Sens_axe": "amont_aval",
         "Champ_nom_SHP": "nom",
         "PK_origine_m": 0,
-        "Source_profil_en_long": "MODELE",
         "Pas_profil_m": 25,
         "Distance_max_axe_maillage_m": "",
     }

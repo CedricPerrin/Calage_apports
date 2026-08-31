@@ -568,7 +568,19 @@ def fenetre_injection(temps, ecart, seuil_bas=0.005, seuil_haut=0.99,
         t0, tf = t0_defaut, tf_defaut
     else:
         if volume_reference and perte_max:
-            perte_bout = 0.5 * float(perte_max) * float(volume_reference)
+            # LES DEUX VOLUMES DOIVENT ETRE DANS LA MEME UNITE, et ils ne
+            # l'etaient pas. « cumul » ci-dessus integre avec « pas » en
+            # SECONDES, donc en m3 ; _volume(), lui, integre un temps en
+            # HEURES, donc en m3/s.h — 3 600 fois plus petit. Le min() ci-
+            # dessous retenait donc TOUJOURS perte_bout, exclu_haut valait
+            # ~0, et tf tombait sur le dernier instant ou l'ecart est encore
+            # positif : seuil_haut n'a jamais coupe quoi que ce soit en
+            # production. Mesure du 31/08/2026 sur douze cibles reelles :
+            # tf = 24,0 h sur SUH03 la ou 99 % du volume est atteint a 13,0 h,
+            # et 81,5 h sur SUH12 pour 34,5 h. Le calage simulait la queue
+            # numerique des cibles, pas leur crue.
+            perte_bout = (0.5 * float(perte_max) * float(volume_reference)
+                          * 3600.0)
             exclu_bas = min(seuil_bas * total, perte_bout)
             exclu_haut = min((1.0 - seuil_haut) * total, perte_bout)
         else:
@@ -926,9 +938,7 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
             # FENETRE DE L'EVENEMENT PRINCIPAL — voir fenetre_injection() et
             # Configuration. Restreint le jugement et la presentation des
             # resultats, pas l'apport injecte.
-            fenetre_demandee = (True if config.fenetre_active is None
-                                else bool(config.fenetre_active))
-            if fenetre_demandee:
+            if _fenetre_demandee(config):
                 bornes_fenetre = fenetre_injection(
                     temps_cible, manquant,
                     seuil_bas=config.fenetre_seuil_bas,
@@ -1323,6 +1333,23 @@ def _sans_interrompre(fonction, *arguments):
         return None
 
 
+def _fenetre_demandee(config):
+    """
+    Le JUGEMENT est-il restreint a l'evenement principal ?
+
+    SOURCE UNIQUE POUR LES DEUX DECISIONS QUI EN DEPENDENT : la fenetre de
+    jugement (caler(), etape « premiere estimation ») et le raccourcissement
+    de la duree simulee (_calendrier_durees). Elles etaient prises sur des
+    criteres disjoints — la premiere sur fenetre_active, la seconde sur
+    ajuster_duree seul — et cette asymetrie a coute un calage entier : voir
+    le commentaire de _calendrier_durees.
+
+    Une case vide du classeur n'est pas un « non » (voir
+    pont_hecras._oui_non_ou_defaut) : elle vaut le defaut, qui est oui.
+    """
+    return True if config.fenetre_active is None else bool(config.fenetre_active)
+
+
 def _calendrier_durees(cibles, residuels, config, dire):
     """
     Duree simulee utile a chaque apport, en heures depuis le debut, d'apres le
@@ -1348,6 +1375,23 @@ def _calendrier_durees(cibles, residuels, config, dire):
     Voir Configuration.ajuster_duree pour le reste du raisonnement.
     """
     if not config.ajuster_duree:
+        return [None] * len(cibles)
+
+    # ET PAS NON PLUS SI LE JUGEMENT N'EST PAS FENETRE. Toute la
+    # justification du raccourcissement est « au-dela, plus rien n'est ni juge
+    # ni presente » (voir Configuration.ajuster_duree). Fenetre_active=non
+    # rend cette premisse FAUSSE : la cible est jugee en entier, et la
+    # couverture est alors mesuree sur TOUTE sa duree
+    # (criteres.diagnostiquer, duree_cible = tc[-1] - tc[0]). Tronquer quand
+    # meme faisait echouer un calage par ailleurs parfait sur la bloquante
+    # « la fenetre de calcul ne couvre que N % — allonger la simulation »,
+    # alors que c'est la chaine qui venait de la raccourcir, et que
+    # ajuster_duree n'est pas reglable depuis le classeur.
+    # Mesure du 31/08/2026 : volume 100,0 %, pointe 100,0 %, conforme=False.
+    # Le defaut etait LATENT — tf tombait jusque-la sur la fin de serie, donc
+    # limiter_duree() ne retirait rien ; le correctif d'unites de
+    # fenetre_injection() l'a rendu agissant.
+    if not _fenetre_demandee(config):
         return [None] * len(cibles)
 
     durees, courante = [], 0.0
@@ -2333,8 +2377,33 @@ if __name__ == "__main__":
     _r6 = caler(_m6, ["A1", "A2"], ["S1", "S2"], _cibles6,
                 Configuration(nb_max_essais=4),
                 journal=lambda *a, **k: None)
-    controler("le calage aboutit malgre la troncature",
-              _r6.conforme, _r6.motif or "conforme")
+    # CE MONTAGE N'EPROUVE PAS LA TRONCATURE, MAIS LA MESURE DU DECALAGE —
+    # et il faut le dire, parce que son nom d'origine (« le calage aboutit
+    # malgre la troncature ») designait la mauvaise cause pendant des
+    # semaines.
+    #
+    # Le residuel de S2, apport A2 a zero, est la contribution de A1 : elle
+    # pique a 3 h quand la cible de S2 pique a 14 h. decalage_minimisant_ecart
+    # aligne l'un sur l'autre et rend Dt = -11 h, ce qui place la fenetre de
+    # jugement hors de l'evenement de A2. C'EST EXACTEMENT LA PATHOLOGIE DE
+    # LA SECTION 5.3 DE STATUT.txt : un Dt qui n'est pas un temps de transfert
+    # mais l'ecart entre deux pics qui ne decrivent pas la meme eau.
+    #
+    # MESURE DU 31/08/2026 — le rapport d'amplitude n'y est pour rien :
+    # facteurs A1/A2 = 30/45, 5/45 puis 2/60 rendent TOUS Dt = -11,00 h. Le
+    # montage n'est donc pas un artefact a corriger, il est fidele ; c'est la
+    # mesure du decalage qui est en cause (point ouvert V2 : juger le decalage
+    # sur sa COHERENCE LE LONG DE L'AXE, section 6 de STATUT.txt).
+    #
+    # CE QU'ON EXIGE DONC ICI : que la chaine REFUSE l'apport et le DISE,
+    # plutot que de le caler de travers en silence. Le jour ou le decalage
+    # sera mesure autrement, ce controle basculera — et c'est voulu : il
+    # signalera qu'il faut le relire, pas qu'une regression est apparue.
+    # Que la troncature ne casse PAS un calage sain est eprouve plus bas,
+    # sur le montage a traine fine.
+    controler("un decalage aberrant fait refuser l'apport, et le DIT",
+              (not _r6.conforme) and "A2" in (_r6.motif or ""),
+              (_r6.motif or "conforme")[:120])
     controler("la duree est bien raccourcie, apport par apport",
               len(_m6.durees_demandees) >= 1
               and _m6.durees_demandees[0] < 40.0,
@@ -2357,6 +2426,41 @@ if __name__ == "__main__":
               f"{_m7.durees_demandees}")
     controler("et rend le meme verdict", _r7.conforme == _r6.conforme,
               f"{_r7.conforme} vs {_r6.conforme}")
+
+    # FENETRE DESACTIVEE : LA DUREE NE DOIT PLUS ETRE TOUCHEE NON PLUS.
+    # Ce controle manquait, et son absence a laisse passer un defaut qui
+    # rendait NON CONFORME un calage par ailleurs parfait : la duree etait
+    # raccourcie sur une fenetre que le jugement n'utilisait pas, et la
+    # couverture — mesuree alors sur TOUTE la cible — levait sa bloquante
+    # « allonger la simulation ». La cible porte ici une traine fine, comme
+    # les vraies : sans elle, la couverture passe et le defaut se cache.
+    _t8 = np.linspace(0.0, 40.0, 401)
+    _f8 = [np.exp(-0.5 * ((_t8 - 4.0) / 1.2) ** 2)
+           + 0.004 * np.exp(-(_t8 - 4.0) / 25.0) * (_t8 > 4)]
+    _cibles8 = []
+    for _sans in (False, True):
+        _m8 = ModeleFictif(["A1"], ["S1"], _t8, _f8, retard_h=0.0)
+        _m8.facteurs = {"A1": 40.0}
+        if not _cibles8:
+            _cibles8 = [(_t8, _m8.lire_section("S1")[1].copy())]
+        _m8.duree_max, _m8.durees_demandees = None, []
+        _r8 = caler(_m8, ["A1"], ["S1"], _cibles8,
+                    Configuration(nb_max_essais=4,
+                                  fenetre_active=(False if _sans else None)),
+                    journal=lambda *a, **k: None)
+        if _sans:
+            controler("fenetre_active=non ne raccourcit rien non plus",
+                      _m8.durees_demandees == [] and _m8.duree_max is None,
+                      f"durees demandees : {_m8.durees_demandees}")
+            controler("et le calage reste conforme, sans bloquante de "
+                      "couverture", _r8.conforme,
+                      _r8.motif or "conforme")
+        else:
+            controler("fenetre active : la duree EST bien raccourcie",
+                      len(_m8.durees_demandees) == 1
+                      and _m8.durees_demandees[0] < 40.0,
+                      f"durees demandees : "
+                      f"{[round(d, 1) for d in _m8.durees_demandees]}")
 
     print()
     if echecs:

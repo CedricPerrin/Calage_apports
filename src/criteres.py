@@ -478,19 +478,54 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
         # couvrent reellement.
         debut, fin = max(debut, f0), min(fin, f1)
     avance, retard = max(decalage_h, 0.0), min(decalage_h, 0.0)
-    if np.isfinite(debut) and (fin + retard) - (debut + avance) <= 0:
-        # Le decalage excede la fenetre : plus rien de comparable.
+
+    # BORNES PROPRES AU VOLUME. « debut/fin » servent aussi a juger la
+    # COUVERTURE plus bas, ou ils doivent rester ceux de la fenetre : les
+    # elargir la-bas ferait passer pour couverte une simulation qui ne l'est
+    # pas. Le repli ci-dessous ne touche donc que la mesure des volumes.
+    debut_v, fin_v = debut, fin
+    decalage_hors_fenetre = None
+    if np.isfinite(debut) and (fin_v + retard) - (debut_v + avance) <= 0:
+        # LE DECALAGE EXCEDE LA FENETRE JUGEE — il ne reste, apres recalage,
+        # aucun intervalle commun aux deux series. Rendre « nan » ici etait
+        # exact mais muet : caler() n'y lisait qu'un volume non calculable et
+        # concluait « le modele ne repond plus a cet apport », ce qui designe
+        # l'hydraulique alors que la cause est la MESURE DU DECALAGE.
+        #
+        # On rend donc la comparaison des volumes a la fenetre commune
+        # ENTIERE — meme regle que fenetre_injection() sur un ecart nul :
+        # mieux vaut ne rien restreindre que restreindre au hasard — et on le
+        # DIT. Le decalage reste RAPPORTE, JAMAIS JUGE (voir plus haut) :
+        # l'alerte n'est pas bloquante, la comparaison redevient possible, et
+        # c'est a l'operateur de relire ses cibles.
+        #
+        # UN DECALAGE PLUS LONG QUE L'EVENEMENT QU'IL DECALE N'EST PAS UN
+        # TEMPS DE TRANSFERT. Revele le 31/08/2026 en resserrant la borne
+        # haute de fenetre_injection() : le defaut preexistait, une fenetre
+        # qui courait jusqu'au bout de la serie le masquait.
+        decalage_hors_fenetre = (
+            f"le decalage mesure ({decalage_h:+.2f} h) excede la fenetre "
+            f"jugee ({fin - debut:.2f} h) : les volumes sont compares sur "
+            f"toute la fenetre commune, pas sur l'evenement. Un decalage "
+            f"plus long que l'evenement qu'il decale n'est pas un temps de "
+            f"transfert - relire les cibles et leur base de temps")
+        debut_v, fin_v = fenetre_commune(temps_cible, temps_calcule)
+
+    if np.isfinite(debut_v) and (fin_v + retard) - (debut_v + avance) <= 0:
+        # Meme apres elargissement, rien de comparable : la, c'est franc.
         vol_cible = vol_calcule = float("nan")
     else:
         vol_calcule = volume(temps_calcule, debit_calcule,
-                             debut + avance, fin + retard, pas_h)
+                             debut_v + avance, fin_v + retard, pas_h)
         vol_cible = volume(temps_cible, debit_cible,
-                           debut - retard, fin - avance, pas_h)
+                           debut_v - retard, fin_v - avance, pas_h)
 
     # DEUX FAMILLES — voir Diagnostic.converge pour la ligne de partage.
     # « alertes » porte tout ce qui est signale ; « bloquantes » le seul
     # sous-ensemble qui invalide la comparaison.
     alertes, bloquantes = [], []
+    if decalage_hors_fenetre:
+        alertes.append(decalage_hors_fenetre)
     if not np.isfinite(valeur):
         alertes.append("KGE non calculable (serie constante ou moyenne nulle)")
 

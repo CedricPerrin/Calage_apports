@@ -126,17 +126,8 @@ def verifier(libelle, condition, detail=""):  # noqa: D401
 # Mannequins
 # ---------------------------------------------------------------------------
 
-class BarreMessages:
-    def __init__(self):
-        self.messages = []
-
-    def pushMessage(self, titre, texte, level=None, duration=None):  # noqa: N802
-        self.messages.append(texte)
-
-
 class Iface:
     def __init__(self):
-        self.barre = BarreMessages()
         self.menus, self.barres = [], []
         self._fenetre_principale = None
         self._menu_barres = None
@@ -151,15 +142,6 @@ class Iface:
         if self._fenetre_principale is None:
             self._fenetre_principale = QMainWindow()
         return self._fenetre_principale
-
-    def messageBar(self):  # noqa: N802
-        return self.barre
-
-    def addPluginToMenu(self, menu, action):  # noqa: N802
-        self.menus.append(action)
-
-    def removePluginMenu(self, menu, action):  # noqa: N802
-        pass
 
     # Le plugin se range dans le menu Vecteur, comme QGIS le recommande pour
     # un outil travaillant sur des couches vectorielles.

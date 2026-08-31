@@ -58,12 +58,42 @@ SUH01 : 21,5 h en 1 h 15. Une passe des douze apports ≈ 25 h.
 **Rapatrier le modèle et le terrain de 17,7 Go en local rapporterait plus
 que l'optimisation des durées.**
 
-### Ce qui n'a pas été fait
+### Le soir : trois correctifs et trois coupes
 
-Aucune modification de code cette session — la chaîne tournait, et y toucher
-aurait invalidé le run. Les trois points relevés (livrable disant le manque
-d'heures, horodatage de `dire()`, note à mettre à jour avec le gain réel)
-sont inscrits en § 6 de `STATUT.txt`.
+Partis d'une question — « pourquoi ça tourne encore alors que l'hydrogramme
+SUH03 est déjà passé ? » — dont la réponse était un bug. Détail en
+`STATUT.txt` § 5.3 ter.
+
+| | ce qui n'allait pas | mesure |
+|---|---|---|
+| **1** | `fenetre_injection()` comparait un volume en m³ à un volume en m³/s·h dans un `min()` — 3 600× d'écart. `seuil_haut=0.99` était **du code mort en production** | `tf` = 24,0 h sur SUH03 là où 99 % du volume est à **13,0 h** ; 81,5 h au lieu de 34,5 h sur SUH12 |
+| **2** | le correctif 1 a rendu agissante une asymétrie : la fenêtre de jugement gardée par `fenetre_active`, la durée par `ajuster_duree` seul | `Fenetre_active=non` → volume 100,0 %, pointe 100,0 %, **conforme=False** |
+| **3** | un décalage plus long que la fenêtre rendait `volume nan`, et `caler()` concluait « le modèle ne répond plus » — en accusant l'hydraulique | volume redevenu mesurable, alerte non bloquante qui nomme la cause |
+
+Le correctif 2 est traité par un **prédicat unique** `_fenetre_demandee(config)`
+servant les deux sites, plutôt qu'en rustinant un côté — même remède que
+`PAQUETS_HECRAS` pour les deux listes de paquets.
+
+**Trois coupes après audit de sur-ingénierie : −89 lignes de code, −1 dépendance.**
+
+La plus grosse : toute la branche RASTER du profil en long. Elle **n'avait
+jamais été raccordée** — le raster rendait une colonne `z_terrain` que le seul
+consommateur du profil ne lit pas (`livrables.py` lit `z_fond`). Deux pièges
+dans la même coupe : les deux noms figuraient dans une liste `hasattr` à
+`bloquant=True`, et le paramètre dans l'ensemble confronté au template livré.
+Template régénéré : 42 → 41 paramètres.
+
+**Les quatorze suites sont vertes**, garde-fou d'archive compris.
+
+### Ce qui reste à faire
+
+- **Trancher la mesure de Δt** (point V2). Le contrôle recadré exige que la
+  chaîne *refuse* l'apport quand Δt est aberrant ; il basculera le jour où Δt
+  sera mesuré autrement, et c'est voulu.
+- Les **dix coupes non vérifiées** de l'audit, ~30 lignes, à traiter une par
+  une — aucune n'a été soumise à réfutation (§ 6 de `STATUT.txt`).
+- Les trois points du matin : livrable disant le manque d'heures, horodatage
+  de `dire()`, note à mettre à jour avec le gain réel de 11 %.
 
 ## Session du 30 août 2026 — premier calage sur modèle client
 

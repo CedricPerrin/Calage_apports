@@ -75,7 +75,6 @@ PARAMETRES = [
     ("PK_origine_m", 0),
 
     ("--- PROFIL EN LONG ---", ""),
-    ("Source_profil_en_long", "MODELE"),
     ("Pas_profil_m", 25),
     ("Distance_max_axe_maillage_m", ""),
     ("Pente_apport_creee_m_par_m", ""),

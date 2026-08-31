@@ -70,12 +70,6 @@ PARAMETRES_REQUIS = [
 # il n'y a ni PK, ni verification de l'ordre declare, ni profil en long.
 PARAMETRE_AXE = "Fichier_SHP_Axe"
 
-# Source du profil en long. MODELE : cote de maille retenue par HEC-RAS, donc
-# terrain effectivement calcule. RASTER : terrain d'entree, dont le chemin est
-# lu dans le modele et non saisi.
-PARAMETRE_SOURCE_PROFIL = "Source_profil_en_long"
-SOURCES_PROFIL = ("MODELE", "RASTER")
-
 
 def _lire(chemin):
     feuilles = pd.read_excel(chemin, sheet_name=None)
@@ -266,17 +260,6 @@ def controler_geometrie(chemin_template):
                    (PARAMETRE_AXE, p_axe)]:
         if p is not None and not p.exists():
             anomalies.append((ERREUR, f"{cle} : fichier introuvable -> {p}"))
-
-    source = valeurs.get(PARAMETRE_SOURCE_PROFIL)
-    if source is not None and not pd.isna(source):
-        source = str(source).strip().upper()
-        if source not in SOURCES_PROFIL:
-            anomalies.append((
-                ERREUR,
-                f"{PARAMETRE_SOURCE_PROFIL} = '{source}' : valeurs admises "
-                f"{list(SOURCES_PROFIL)}. MODELE prend la cote de maille "
-                f"retenue par HEC-RAS (terrain effectivement calcule), RASTER "
-                f"le terrain d'entree."))
 
     # Source_geometrie declare l'intention ; les chemins declarent le fait.
     # Une contradiction entre les deux doit etre dite, pas devinee.

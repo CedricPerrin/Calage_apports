@@ -37,6 +37,8 @@ CE QUI EST EPROUVE
   - DEUX calages complets sur modele reel ont abouti (section 5).
   - LA DUREE AJUSTEE A CHAQUE APPORT a tourne en production le 31/08 : la
     fenetre reduite est bien ecrite dans le fichier plan (section 5.3 bis).
+  - LES QUATORZE SUITES SONT VERTES, garde-fou d'archive compris, apres les
+    trois correctifs et les trois coupes du 31/08 au soir (section 5.3 ter).
 
 EN COURS AU 31/08, 16 h 15
   Calage Suhihandia V3 lance a 12:33 depuis un SECOND POSTE, sorties sur
@@ -882,6 +884,84 @@ horodatees ; seules celles de ras-commander le sont. Sur un calage de 25 h
 on ne peut donc pas dater une etape sans se caler sur la ligne voisine — ce
 qui m'a fait lire « SUH01 cale en 8 secondes » au lieu de 1 h 15.
 
+5.3 ter  LE SOIR DU 31/08 — TROIS CORRECTIFS ET TROIS COUPES
+--------------------------------------------------------------------------
+Parti d'une question d'utilisateur — « pourquoi ca tourne encore alors que
+l'hydrogramme SUH03 est deja passe ? » — dont la reponse etait un bug.
+
+CORRECTIF 1 : UN MELANGE D'UNITES ANNULAIT LE CRITERE DE COUPURE.
+fenetre_injection() cumule un volume EN M3 (pas = np.diff(t) * 3600) et le
+comparait, dans un min(), a volume_reference produit par _volume() qui
+integre un temps EN HEURES — 3 600 fois plus petit. Le min() retenait donc
+TOUJOURS perte_bout, exclu_haut valait ~0, et tf tombait sur le dernier
+instant a ecart positif. seuil_haut = 0,99 ETAIT DU CODE MORT EN PRODUCTION.
+  Mesure sur les douze cibles reelles : tf = 24,0 h sur SUH03 la ou 99 % du
+  volume est atteint a 13,0 h ; 81,5 h sur SUH12 pour 34,5 h. La chaine
+  simulait la queue numerique des cibles, pas leur crue.
+
+CORRECTIF 2 : LE PREMIER A REVELE UNE ASYMETRIE DE GARDE.
+La fenetre de JUGEMENT etait gardee par fenetre_active ; le
+RACCOURCISSEMENT DE LA DUREE, par ajuster_duree seul. Avec
+Fenetre_active=non la duree etait donc tronquee alors que le jugement
+portait sur toute la cible — et la couverture, mesuree sur toute sa duree,
+levait sa bloquante « allonger la simulation ». Mesure : volume 100,0 %,
+pointe 100,0 %, conforme=False. Un calage parfait refuse, avec un message
+disant d'allonger une simulation que la chaine venait de raccourcir, et
+ajuster_duree n'est pas reglable depuis le classeur.
+  DEUX DECISIONS QUI DEPENDENT DE LA MEME QUESTION SE PRENNENT SUR UN SEUL
+  PREDICAT : _fenetre_demandee(config) sert desormais les deux sites. Meme
+  remede que PAQUETS_HECRAS pour les deux listes de paquets.
+  Le defaut etait LATENT : tf tombant sur la fin de serie, limiter_duree()
+  ne retirait rien.
+
+CORRECTIF 3 : UN DECALAGE PLUS LONG QUE LA FENETRE NE COMPARE PLUS RIEN.
+diagnostiquer() rendait un volume « nan » — exact, et nomme dans son propre
+commentaire — mais caler() n'y lisait qu'un volume non calculable et
+concluait « le modele ne repond plus a cet apport », ce qui accuse
+l'hydraulique quand la cause est la MESURE DU DECALAGE. Les volumes sont
+desormais compares sur la fenetre commune entiere, avec une alerte NON
+BLOQUANTE qui nomme la cause. Les bornes du volume sont DISTINCTES de
+debut/fin, qui servent a juger la couverture : les elargir la-bas aurait
+fait passer pour couverte une simulation qui ne l'est pas.
+
+TROIS COUPES, APRES AUDIT DE SUR-INGENIERIE SUR TOUT LE DEPOT :
+-89 lignes de code, -1 dependance.
+  - LA BRANCHE RASTER DU PROFIL EN LONG, en entier : geometrie.
+    terrain_du_modele() et profil_terrain_raster(), le parametre de classeur
+    Source_profil_en_long et sa liste deroulante, la sonde rasterio, l'entree
+    RasMap de FONCTIONS_RAS. ELLE N'AVAIT JAMAIS ETE RACCORDEE : le raster
+    rendait une colonne « z_terrain » que le seul consommateur du profil ne
+    lit pas (livrables.py lit « z_fond »). Une exploration abandonnee, pas
+    une option. DEUX PIEGES DANS LA MEME COUPE : les deux noms figuraient
+    dans une liste hasattr a bloquant=True, et le parametre dans l'ensemble
+    confronte au template livre — les laisser faisait ECHOUER deux controles.
+    Le template livre a ete regenere : 42 parametres -> 41.
+  - LE MANNEQUIN QGIS INUTILISE de test_plugin_qgis.py : classe
+    BarreMessages, Iface.barre, messageBar(), addPluginToMenu() et
+    removePluginMenu(). Le greffon n'appelle que quatre methodes d'iface —
+    mainWindow, addToolBar, addPluginToVectorMenu, removePluginVectorMenu.
+  - LE CORPS DUPLIQUE des deux fabriques de couches memoire (plugin.py).
+    LES DEUX NOMS PUBLICS SONT CONSERVES : ils sont passes PAR REFERENCE a
+    cinq endroits, dont test_plugin_qgis.py.
+
+CE QUE L'AUDIT A REFUSE DE COUPER, ET POURQUOI C'EST INSTRUCTIF.
+fermer_orphelins et activer_courant ont ete proposes comme drapeaux morts.
+Le § 2.7 ci-dessus ecrit noir sur blanc « Reglable par
+PiloteHecRas(fermer_orphelins=False) » — le chasseur n'avait grepe que les
+.py. LA DOCUMENTATION EST UNE SURFACE D'API : ce qui y est promis est tenu.
+
+LE CONTROLE « le calage aboutit malgre la troncature » A ETE RECADRE, pas
+rendu vert de force. Il n'eprouvait pas la troncature mais la mesure du
+decalage : le residuel de S2 pique a 3 h quand la cible pique a 14 h, et
+decalage_minimisant_ecart rend Dt = -11 h.
+  MESURE : facteurs A1/A2 de 30/45, 5/45 puis 2/60 rendent TOUS -11,00 h. Le
+  rapport d'amplitude n'y est pour rien — c'est un alignement pic a pic, par
+  conception. LE MONTAGE EST DONC FIDELE, pas artefactuel : il reproduit la
+  pathologie de la section 5.3, et l'affaiblir aurait efface un signal juste.
+  Le controle exige maintenant que la chaine REFUSE l'apport et le DISE. Il
+  basculera le jour ou le decalage sera mesure autrement, et c'est voulu :
+  il dira qu'il faut le relire, pas qu'une regression est apparue.
+
 5.4  CE QUE LES TROIS CAS ONT APPRIS, ENSEMBLE
 --------------------------------------------------------------------------
   - CALER LA SECTION ET DETERMINER L'APPORT SONT DEUX QUESTIONS DISTINCTES.
@@ -901,6 +981,15 @@ qui m'a fait lire « SUH01 cale en 8 secondes » au lieu de 1 h 15.
     valides en reintroduisant volontairement le defaut d'origine ; trois
     d'entre eux s'appuyaient sur une valeur de production et sont passes au
     vert le jour ou elle a change.
+  - UN MIN() ENTRE DEUX UNITES DIFFERENTES NE LEVE RIEN : il choisit toujours
+    la meme branche, et le parametre de l'autre devient du code mort
+    silencieux. Aucun des quatorze bancs ne le voyait. Se cherche par la
+    question « ces deux grandeurs sont-elles dans la meme unite ? », pas par
+    un test.
+  - CORRIGER UN DEFAUT EN REVELE D'AUTRES, ET C'EST NORMAL. Le correctif
+    d'unites a rendu agissantes deux asymetries latentes. APRES TOUT
+    CORRECTIF QUI RESSERRE UNE BORNE, CHERCHER CE QUE L'ANCIENNE LARGEUR
+    MASQUAIT.
   - UN GAIN ANNONCE AVANT MESURE EST UNE HYPOTHESE SUR CE QU'ON CROIT QUE
     LE CODE MESURE. Les 34 % promis par l'optimisation des durees en
     valaient 11 : l'estimation portait sur la fin de crue des cibles, le
@@ -954,8 +1043,8 @@ apres que l'utilisateur ait cru l'installation reussie.
   rien ne l'impose : elles ont diverge. PAQUETS_HECRAS les remplace, en
   (nom d'import, nom pip) — dix paquets, installes ET verifies depuis la meme
   source, et annonces au greffon depuis elle aussi.
-  rasterio n'y est pas, a dessein : importe seulement par la lecture d'un
-  profil sur RASTER, option non retenue par defaut, et il pese lourd.
+  rasterio n'y est pas, et n'a plus lieu d'y etre : la lecture d'un profil sur
+  RASTER etait son seul importateur, et elle a ete RETIREE le 31/08/2026.
   CHAQUE MODULE EST TESTE SEPAREMENT et TOUS les manquants sont rapportes
   d'un coup, avec la commande pip exacte : un « import a, b, c » unique
   s'arrete au premier absent, et l'utilisateur corrigerait un manque a la
@@ -1064,6 +1153,21 @@ A FAIRE, PAR ORDRE DE PRIORITE
     pas calculable.
   - PORTER RAS_COMMANDER_MINIMUM dans verification_environnement.py, qui
     affiche la version sans la juger. Ce module n'est pas distribue.
+  - PASSER LES DIX COUPES NON VERIFIEES DE L'AUDIT DU 31/08 (section 5.3 ter),
+    une trentaine de lignes : deux repetitions structurelles (plugin.py:3321,
+    pilote_hecras.py:112), le second element du couple rendu par
+    lire_hydrogramme_unsteady, PiloteHecRas.restaurer(), l'option
+    --debit-initial, contre_modele=True de controler_paquet, reprises_max et
+    controle_amont de Configuration, et les treize fichiers de
+    livrables_exemple/ suivis par git. AUCUNE n'a ete soumise a refutation :
+    les traiter une par une, jamais en lot.
+      reprises_max MERITE UN MOT : son commentaire dit etre conserve « pour ne
+      pas casser les classeurs en circulation ». Or RIEN ne lit cette cle
+      depuis un classeur — pont_hecras construit Configuration sans elle. La
+      justification ecrite ne correspond pas a ce que fait le code.
+      ET LES XLSX DE livrables_exemple/ SONT REECRITS a chaque execution de
+      l'auto-test de livrables.py : meme contenu, metadonnees zip
+      differentes. Ils salissent chaque diff.
   - CORRIGER LA DIVERGENCE DU CLASSEUR D'ITERATIONS : la ligne A3 annonce
     toujours « x 1,000 » et « plancher 0,00 % », valeurs par defaut de
     parametres que calage.py ne renseigne plus depuis le 07/08.

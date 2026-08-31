@@ -291,8 +291,8 @@ def figure_profil_en_long(profil, sections_pk, chemin,
     contexte physique — rupture de pente, zone de stockage, ouvrage.
 
     profil      : DataFrame de colonnes 'pk_m' et 'z_fond', plus
-                  optionnellement 'z_eau_max'. Produit par geometrie.py
-                  (profil_terrain_raster ou profil_depuis_modele).
+                  optionnellement 'z_eau_max'. Produit par
+                  geometrie.profil_depuis_modele().
     sections_pk : PK des sections de controle, en metres.
     apports_pk  : PK des injections, en metres (optionnel).
     pics_*      : debits de pointe cible et calcule aux sections. S'ils sont

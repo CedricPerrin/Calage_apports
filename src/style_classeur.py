@@ -133,10 +133,6 @@ COMMENTAIRES = {
     "PK_origine_m":
         "PK attribue a l'origine de l'axe. Projection METRIQUE obligatoire "
         "(Lambert-93 / EPSG:2154 en France metropolitaine).",
-    "Source_profil_en_long":
-        "MODELE : cote de maille retenue par HEC-RAS, donc le terrain "
-        "reellement calcule — recommande. RASTER : terrain d'entree, dont le "
-        "chemin est lu dans le modele et non saisi.",
     "Pas_profil_m":
         "Pas d'echantillonnage du profil le long de l'axe, en metres.",
     "Distance_max_axe_maillage_m":
@@ -297,7 +293,6 @@ def styler_parametres(feuille):
     # Aides a la saisie sur les parametres a valeurs fermees.
     fermes = {"Source_geometrie": ["SHP", "MANUEL"],
               "Sens_axe": ["amont_aval", "aval_amont"],
-              "Source_profil_en_long": ["MODELE", "RASTER"],
               "Mode_selection_modele": ["plan", "override"],
               # Trois etats : la case VIDE n'est pas un « non », c'est le
               # defaut — fenetre active.

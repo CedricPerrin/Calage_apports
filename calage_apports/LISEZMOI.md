@@ -177,7 +177,7 @@ qualifiée, valable dans les deux.
 
 **Aucune installation Python côté QGIS.** Le Python de QGIS livre déjà
 `pandas`, `numpy`, `matplotlib`, `scipy`, `openpyxl`, `geopandas`, `shapely`,
-`pyproj`, `pyogrio` et `rasterio` ; le plugin n'importe rien d'autre au
+`pyproj` et `pyogrio` ; le plugin n'importe rien d'autre au
 chargement. Seul l'interpréteur HEC-RAS, décrit plus haut, est à fournir.
 
 **Windows.** Le lancement du calage en arrière-plan et la détection d'un

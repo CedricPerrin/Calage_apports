@@ -12,7 +12,8 @@ Il fournit trois services :
      evite toute saisie manuelle et permet de VERIFIER l'ordre declare dans
      le template ;
   3. EXTRACTION DU PROFIL EN LONG (fond du lit et ligne d'eau maximale) le
-     long de l'axe, a partir du terrain raster ou, a defaut, du maillage.
+     long de l'axe, a partir du maillage — c'est lui qui porte le terrain
+     effectivement retenu par le calcul.
 
 Le calcul des PK et les controles SIG ne dependent pas de HEC-RAS. Seules les
 fonctions d'extraction depuis le modele et d'ecriture dans la geometrie en
@@ -705,62 +706,6 @@ def controler_profil(profil):
                 f"l'envers."))
 
     return anomalies
-
-
-def terrain_du_modele(hdf_plan):
-    """
-    Terrain que le modele utilise reellement, lu dans le fichier HDF.
-
-    Un projet peut declarer plusieurs terrains — sur un projet reel de digues,
-    on en trouve couramment un par variante d'amenagement. Demander « le
-    terrain » serait donc ambigu : c'est l'association enregistree dans le
-    plan qui fait foi, et elle peut differer d'un plan a l'autre.
-
-    Retourne un dict {nom, hdf, raster}. 'raster' est le fichier lisible par
-    rasterio (.vrt de preference, sinon .tif), ou None s'il est introuvable.
-    """
-    from ras_commander import RasMap
-
-    association = RasMap.get_hdf_geometry_association(Path(hdf_plan))
-    chemin_hdf = association.get("terrain_hdf_path")
-    resultat = {
-        "nom": association.get("terrain_layer_name"),
-        "hdf": Path(chemin_hdf) if chemin_hdf else None,
-        "raster": None,
-    }
-    if resultat["hdf"] is not None:
-        for extension in (".vrt", ".tif"):
-            candidat = resultat["hdf"].with_suffix(extension)
-            if candidat.exists():
-                resultat["raster"] = candidat
-                break
-    return resultat
-
-
-def profil_terrain_raster(axe, chemin_raster, pas=25.0, pk_origine=0.0):
-    """
-    Profil echantillonne dans le raster de terrain, a la resolution du
-    terrain plutot qu'a celle du maillage.
-
-    A n'utiliser qu'en complement de profil_depuis_modele, et en connaissance
-    de cause : le raster est le terrain d'ENTREE, alors que le maillage porte
-    le terrain effectivement retenu par le calcul. Lorsque le projet comporte
-    des modifications de terrain, les deux different — et c'est le maillage
-    qui decrit ce qui a ete calcule.
-
-    Le chemin est obtenu par terrain_du_modele(), jamais saisi a la main.
-
-    Retourne un DataFrame (pk_m, z_terrain).
-    """
-    import rasterio
-
-    pk, x, y = echantillonner_axe(axe, pas)
-    with rasterio.open(chemin_raster) as src:
-        valeurs = np.array([v[0] for v in src.sample(zip(x, y))], dtype=float)
-        if src.nodata is not None:
-            valeurs[valeurs == src.nodata] = np.nan
-    valeurs[valeurs < -1e5] = np.nan
-    return pd.DataFrame({"pk_m": pk + pk_origine, "z_terrain": valeurs})
 
 
 def _colonne_valeur(gdf, candidats):
