@@ -35,6 +35,15 @@ CE QUI EST EPROUVE
     injecte trois fautes et verifie qu'elles sont refusees, rend « TOUT
     PASSE ».
   - DEUX calages complets sur modele reel ont abouti (section 5).
+  - LA DUREE AJUSTEE A CHAQUE APPORT a tourne en production le 31/08 : la
+    fenetre reduite est bien ecrite dans le fichier plan (section 5.3 bis).
+
+EN COURS AU 31/08, 16 h 15
+  Calage Suhihandia V3 lance a 12:33 depuis un SECOND POSTE, sorties sur
+  T:\...\Suhihandia_v7\HEC_RAS_v7_Suhihandia\Sortie-V3. Reference faite,
+  SUH01 cale, SUH02 en calcul. Fin attendue le 01/09 dans l'apres-midi si
+  chaque apport tient en un essai. AUCUN RESULTAT N'EST ENCORE VALIDE :
+  seul SUH01 est passe, et c'est l'apport non identifiable du lot.
 
 CE QUI N'A JAMAIS TOURNE
   - Le bouton « Installer l'environnement Python HEC-RAS » n'est alle
@@ -251,10 +260,24 @@ fin de sa fenetre est retombee, zero est la mesure, pas la derniere valeur.
 La fenetre de jugement dit jusqu'ou l'evenement d'un apport est regarde ;
 au-dela, plus rien n'est ni juge ni presente. Simuler plus loin ne fait que
 couter du temps. Les evenements s'allongeant vers l'aval, une fenetre unique
-impose a tous le besoin du dernier — sur un modele reel a douze apports,
-12 h suffisent au premier quand le dernier en demande 35.
+impose a tous le besoin du dernier.
 Configuration.ajuster_duree (defaut True) et marge_duree_h (2 h).
-Mesure sur ce modele : 34 % de temps de calcul en moins.
+
+CE QUE CA RAPPORTE VRAIMENT : 11 %, MESURE EN PRODUCTION (Suhihandia,
+31/08, section 5.3). Calendrier sorti par la chaine, pour un plafond a 36 h :
+  21,5  24,7  27,3  29,4  30,0  36,6  38,8  38,8  38,9  39,0  39,0  39,0 h
+SEPT VALEURS SUR DOUZE DEPASSENT LA FENETRE DU MODELE, sont ramenees au
+plafond, et ne rapportent donc rien. 385 h simulees au lieu de 432.
+  Les 34 % annonces AVANT essai etaient une estimation faite sur la FIN DE
+  CRUE DE LA CIBLE. Ce n'est pas ce que la chaine mesure : elle prend la
+  fenetre de DEFICIT sur le calcul de reference — l'intervalle ou la cible
+  depasse ce que la section recoit sans les apports — systematiquement plus
+  longue (SUH01 : 9,6 h de deficit pour 6,5 h de crue). NE PAS REESTIMER CE
+  GAIN SUR LA DUREE DES CIBLES.
+  QUAND LE CALENDRIER DEPASSE LE PLAFOND, IL DIT QUELQUE CHOSE : le modele
+  est trop court pour juger ses derniers apports en entier. Ici il manque
+  3 h sur 36. La chaine tronque et continue — c'est le bon comportement,
+  mais la lecture appartient a l'operateur (point ouvert, section 6).
 
 LE CALENDRIER EST ETABLI SUR LE CALCUL DE REFERENCE, et pas ailleurs
 (calage._calendrier_durees). Dans la boucle, le residuel de l'apport N se lit
@@ -264,11 +287,13 @@ la duree ne croissait jamais, et le calage echouait sur « volume nan ». Le
 calcul de reference, lui, porte la fenetre ENTIERE et rend toutes les
 sections lisibles ensemble.
 
-Δt EST DEDANS, ET C'EST L'ESSENTIEL DU GAIN. La fenetre est mesuree sur
+Δt EST DEDANS. La fenetre est mesuree sur
 cible(t - Dt) - section(t), dont l'indice est un instant de SIMULATION. Un
 evenement cible qui culmine a 16 h avec Dt = -13 h se lit a la section vers
 3 h : la duree retenue suit le calendrier DU MODELE, jamais celui de la
-cible.
+cible. CE QUE Δt RAPPORTE DEPEND DONC DU MODELE, et peut etre nul : sur
+Suhihandia V3 — cibles corrigees — les Dt valent +0,10 h a SUH01 et -1,40 h
+a SUH02, sans effet sensible sur les durees. Ne rien promettre avant mesure.
 
 QUATRE GARDE-FOUS, AUCUN FACULTATIF :
   - la duree ne DECROIT jamais d'un apport au suivant. L'etape 7 relit les
@@ -814,6 +839,49 @@ ENSEIGNEMENTS
   pas certain qu'il faille l'ajouter : un residuel repris d'un autre run est
   une hypothese, pas une mesure.
 
+5.3 bis  SUHIHANDIA V3 — LA DUREE AJUSTEE, EN PRODUCTION (31/08/2026)
+--------------------------------------------------------------------------
+Relance avec les cibles corrigees (donnees_calage.xlsx du 31/08) et la
+duree ajustee ecrite le matin meme. PREMIER PASSAGE EN PRODUCTION DE CE
+CODE. Lancement 12:33, sur T: — modele et terrain sur le reseau.
+
+CA MARCHE, ET C'EST VERIFIE DANS LE FICHIER PLAN, pas seulement au journal :
+  ARAN.p03   Simulation Date = 01JAN2000,00:00 → 01JAN2000,21:30   21,5 h
+pour un modele qui en simule 36.
+
+CE QUE LE PREMIER PASSAGE A APPRIS
+  - LE GAIN EST DE 11 %, PAS DE 34 % (detail et cause en 2.6). Sept durees
+    sur douze depassent le plafond de 36 h et n'economisent rien.
+  - IL MANQUE 3 H AU MODELE. La chaine demande jusqu'a 39,0 h pour juger
+    SUH07..SUH12 ; le plan en offre 36. Les six derniers apports seront
+    juges sur une fenetre tronquee. RIEN NE BLOQUE — le plafond
+    duree_reference_h fait son office — mais le calendrier est le premier
+    outil qui CHIFFRE ce manque, et il faudrait qu'un livrable le dise.
+  - LE PLAFOND ETAIT INDISPENSABLE. Sans lui, sept etapes auraient tente
+    d'ecrire une fenetre plus longue que le plan de reference.
+
+COUT REEL SUR RESEAU : 3,5 a 4,0 min de calcul par heure simulee.
+  calcul de reference   36 h simulees en 2 h 23   (12:34 → 14:58)
+  SUH01                 21,5 h en 1 h 15          (14:58 → 16:13)
+  Une passe des douze apports : environ 25 h. Le modele et le terrain de
+  17,7 Go sont sur T: ; les rapatrier en local pese plus lourd que
+  l'optimisation des durees.
+
+SUH01 EST CALE AU PREMIER ESSAI — ET CE N'EST PAS UNE BONNE NOUVELLE.
+  volume 100,4 %  pointe 100,0 %  forme 100,0 %
+  La section recevait deja 4,9 m3/s sans cet apport pour une cible a 5,0 :
+  il ne pese que 1,3 % du debit, l'ecart possible est de 373 %. CONVERGER
+  EN UN ESSAI EST ICI LE SYMPTOME DE LA NON-IDENTIFIABILITE, pas la preuve
+  que la correction fonctionne. Le premier vrai test est SUH02, dont
+  l'apport porte 9,7 des 14,5 m3/s de sa section (67 %).
+  A RETENIR POUR LIRE UN RAPPORT : un apport calé du premier coup avec des
+  scores parfaits doit faire regarder sa PART avant de se rejouir.
+
+DEFAUT DE JOURNAL RELEVE. Les lignes de la chaine (dire()) ne sont pas
+horodatees ; seules celles de ras-commander le sont. Sur un calage de 25 h
+on ne peut donc pas dater une etape sans se caler sur la ligne voisine — ce
+qui m'a fait lire « SUH01 cale en 8 secondes » au lieu de 1 h 15.
+
 5.4  CE QUE LES TROIS CAS ONT APPRIS, ENSEMBLE
 --------------------------------------------------------------------------
   - CALER LA SECTION ET DETERMINER L'APPORT SONT DEUX QUESTIONS DISTINCTES.
@@ -833,6 +901,11 @@ ENSEIGNEMENTS
     valides en reintroduisant volontairement le defaut d'origine ; trois
     d'entre eux s'appuyaient sur une valeur de production et sont passes au
     vert le jour ou elle a change.
+  - UN GAIN ANNONCE AVANT MESURE EST UNE HYPOTHESE SUR CE QU'ON CROIT QUE
+    LE CODE MESURE. Les 34 % promis par l'optimisation des durees en
+    valaient 11 : l'estimation portait sur la fin de crue des cibles, le
+    code sur la fenetre de deficit du calcul de reference. Le chiffre etait
+    faux parce que la GRANDEUR l'etait. Verifier laquelle avant d'annoncer.
   - UN CONTROLE QUI S'IGNORE LUI-MEME NE CONTROLE RIEN. C'est le meme piege
     sous une autre forme, et il s'est reproduit trois fois : le mannequin
     QGIS rendait mainWindow() = None, donc la moitie de unload() n'etait
@@ -963,7 +1036,17 @@ A FAIRE, PAR ORDRE DE PRIORITE
     petit que le bruit numerique. Ecrire le raisonnement dans la note.
   - METTRE LA NOTE A JOUR des correctifs du 30/08 : seuil de bilan expose,
     pre-vol des durees et prolongation par zeros, filtrage des orphelins.
-    Meme occasion d'ouvrir Word.
+    Y ajouter la duree ajustee et son gain REEL de 11 % (section 5.3 bis) —
+    la note ne doit pas reprendre les 34 % estimes. Meme occasion d'ouvrir
+    Word.
+  - DIRE DANS UN LIVRABLE QUE LE MODELE EST TROP COURT. Quand le calendrier
+    des durees bute sur duree_reference_h, la chaine tronque en silence :
+    seul le journal porte la valeur voulue. Sur Suhihandia V3 il manque 3 h
+    sur 36 pour six apports. A remonter en alerte (non bloquante) et dans la
+    note de synthese, avec le nombre d'heures manquantes.
+  - HORODATER LES SORTIES DE dire(). Sur un calage de 25 h, les lignes de la
+    chaine ne sont pas datees et on ne peut chronometrer aucune etape
+    (section 5.3 bis). Prefixer par HH:MM:SS a l'ecriture.
   - EPROUVER SOUS QGIS les six correctifs du 30/08, et le bouton
     « Installer… » sur un poste neuf.
   - RECREER LE SCRIPT DE PRE-VOL (sections lisibles, apports presents, cibles

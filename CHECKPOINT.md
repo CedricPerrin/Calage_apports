@@ -12,6 +12,59 @@ ce fichier ne dit que **où on en est** et **par quoi reprendre**.
 > sections sont conservées comme récit, **pas comme référence**.
 > **`STATUT.txt` fait foi.**
 
+## Session du 31 août 2026 — la durée ajustée passe en production
+
+**Par quoi reprendre :** `STATUT.txt` § 1 (état courant), § 2.6 (durée
+ajustée) et § 5.3 bis (ce que le premier passage a appris).
+
+### Un calage tourne encore au moment où cette session se ferme
+
+Lancé le 31/08 à 12:33 **depuis un second poste**, sorties dans
+`T:\…\Suhihandia_v7\HEC_RAS_v7_Suhihandia\Sortie-V3\`. À 16:15 : référence
+faite, SUH01 calé, SUH02 en calcul. Fin attendue le **01/09 après-midi** si
+chaque apport tient en un essai.
+
+**Rien n'est validé.** Le seul apport passé est SUH01, celui qui ne pèse que
+1,3 % du débit de sa section. Reprendre en lisant le journal, pas en
+supposant que ça s'est bien terminé.
+
+### Ce que le premier passage a appris
+
+| Ce qui était annoncé | Ce qui a été mesuré |
+|---|---|
+| 34 % de temps de calcul en moins | **11 %** |
+| SUH01 simulé ~12,5 h | **21,5 h** |
+| plafond de 36 h rarement atteint | **7 durées sur 12 le dépassent** |
+
+L'écart vient de la grandeur, pas du calcul : l'estimation portait sur la
+**fin de crue de la cible**, le code mesure la **fenêtre de déficit sur le
+calcul de référence**, toujours plus longue. La chaîne a raison, la
+prévision avait tort.
+
+**Deux constats qui demandent une décision :**
+
+1. **Il manque 3 h au modèle.** Le calendrier réclame jusqu'à 39,0 h pour
+   juger SUH07…SUH12 ; le plan en offre 36. Rien ne bloque — le plafond
+   `duree_reference_h` tronque — mais les six derniers apports seront jugés
+   sur une fenêtre incomplète, et **aucun livrable ne le dit**.
+2. **SUH01 calé au premier essai n'est pas une réussite.** Sa section
+   recevait déjà 4,9 m³/s sur 5,0 attendus. Converger instantanément est ici
+   le symptôme de la non-identifiabilité (écart possible : 373 %).
+
+### Coût réel, sur réseau
+
+3,5 à 4,0 min de calcul par heure simulée. Référence : 36 h en 2 h 23.
+SUH01 : 21,5 h en 1 h 15. Une passe des douze apports ≈ 25 h.
+**Rapatrier le modèle et le terrain de 17,7 Go en local rapporterait plus
+que l'optimisation des durées.**
+
+### Ce qui n'a pas été fait
+
+Aucune modification de code cette session — la chaîne tournait, et y toucher
+aurait invalidé le run. Les trois points relevés (livrable disant le manque
+d'heures, horodatage de `dire()`, note à mettre à jour avec le gain réel)
+sont inscrits en § 6 de `STATUT.txt`.
+
 ## Session du 30 août 2026 — premier calage sur modèle client
 
 **Le calage n'a pas abouti, et c'est instructif.** Premier essai sur un
