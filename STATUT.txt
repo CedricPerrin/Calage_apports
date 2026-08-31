@@ -383,10 +383,18 @@ RAS_COMMANDER_MINIMUM = (0, 99) : verifier_interpreteur() REFUSE une version
 plus ancienne. Une 0.98.2 borne mal les tableaux d'hydrogramme — un apport y
 serait tronque SANS message, et le calage corrigerait ensuite une forme qu'il
 a lui-meme mutilee.
-noyau.emplacement_venv_hecras() / installer_interpreteur() creent l'
-environnement a cote de la chaine retenue — le seul endroit que la recherche
-automatique sait retrouver seule. JAMAIS sous la copie embarquee, que le
-gestionnaire d'extensions efface a chaque mise a jour.
+noyau.emplacement_venv_hecras() / installer_interpreteur() creent
+l'environnement A COTE DE LA CHAINE quand elle est externe (poste de
+developpement, installation par lien symbolique), et sinon dans le DOSSIER DE
+DONNEES DU GREFFON — %LOCALAPPDATA%\calage_apports sous Windows,
+~/.calage_apports ailleurs (noyau.dossier_donnees_greffon).
+  JAMAIS SOUS LA COPIE EMBARQUEE : elle vit dans le dossier d'installation de
+  l'extension, que le gestionnaire de QGIS efface a chaque mise a jour.
+  interpreteur_hecras() cherche AUSSI dans le dossier de donnees. Ce n'est pas
+  une entorse a la regle « aucun emplacement n'est devine » : c'est le seul
+  endroit que le greffon INSTALLE lui-meme, et le chercher revient a se
+  souvenir de ce qu'on a fait. Sans cela, un environnement installe par le
+  bouton serait perdu des qu'un profil QGIS neuf viderait QSettings.
 
 
 2.10  OU TROUVER QUOI DANS LE CODE
@@ -787,6 +795,43 @@ ENSEIGNEMENTS
     valides en reintroduisant volontairement le defaut d'origine ; trois
     d'entre eux s'appuyaient sur une valeur de production et sont passes au
     vert le jour ou elle a change.
+  - UN CONTROLE QUI S'IGNORE LUI-MEME NE CONTROLE RIEN. C'est le meme piege
+    sous une autre forme, et il s'est reproduit trois fois : le mannequin
+    QGIS rendait mainWindow() = None, donc la moitie de unload() n'etait
+    jamais atteinte ; le banc appelait les methodes DIRECTEMENT, donc le
+    plantage des slots Qt ne se voyait pas ; et la copie embarquee n'existant
+    que dans le zip, le controle de l'emplacement du venv etait IGNORE sur
+    tout poste de developpement (voir 5.4 bis). A chaque fois la sortie
+    disait « ignore » ou « OK », et a chaque fois le defaut est apparu
+    ailleurs. QUAND UN CONTROLE NE PEUT PAS S'EXECUTER ICI, LUI FABRIQUER
+    SON DECOR PLUTOT QUE DE LE SAUTER.
+
+5.4 bis  PORTABILITE — EPROUVEE SUR UN SECOND POSTE (31/08/2026)
+--------------------------------------------------------------------------
+Premiere installation sur une machine autre que celle de developpement, a
+partir de l'archive seule. LE BOUTON « INSTALLER L'ENVIRONNEMENT PYTHON
+HEC-RAS » A REFUSE DE SERVIR, avec son propre message : « aucun emplacement
+sur : la chaine de calage n'est pas designee, ou c'est la copie embarquee ».
+
+LE REFUS ETAIT JUSTE SUR L'EMPLACEMENT ET FAUX SUR LA CONCLUSION. Interdire
+d'ecrire sous le dossier d'installation de l'extension est correct — le
+gestionnaire de QGIS l'efface a chaque mise a jour. Mais en conclure qu'il
+n'existait aucun emplacement rendait le bouton inutilisable DANS LE SEUL CAS
+POUR LEQUEL IL A ETE ECRIT : un poste neuf, ou le greffon vient d'une archive
+et n'a donc que sa copie embarquee. Il fallait proposer un autre endroit, pas
+renoncer.
+
+CORRECTIF : emplacement_venv_hecras() ne rend plus jamais None. Chaine
+externe -> a cote d'elle ; sinon -> dossier de donnees du greffon. La branche
+de refus de installer_interpreteur() et la boite d'avertissement du greffon
+sont retirees, devenues inatteignables.
+
+POURQUOI LE BANC NE L'AVAIT PAS VU. Le controle existait et disait « copie
+embarquee absente sur ce poste : controle ignore » — la copie embarquee
+n'existe QUE dans le zip, jamais sur le disque d'un poste de developpement
+(c'est une regle du projet, voir 2.9). Le banc FABRIQUE desormais une chaine
+embarquee factice et pointe DOSSIER_EMBARQUE dessus, de sorte que la branche
+est exercee partout.
 
 
 6. POINTS OUVERTS

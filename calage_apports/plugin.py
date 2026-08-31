@@ -3187,16 +3187,12 @@ class DialogueParametrage(QDialog):
         introduire un thread pour cette seule operation coûterait plus que
         l'attente.
         """
+        # emplacement_venv_hecras() rend TOUJOURS un chemin depuis le
+        # 31/08/2026 : a cote d'une chaine externe si elle existe, dans le
+        # dossier de donnees du greffon sinon. Elle rendait None dans ce
+        # second cas, et le bouton refusait donc de servir sur un poste neuf
+        # — le seul ou il est utile.
         cible = noyau.emplacement_venv_hecras()
-        if cible is None:
-            QMessageBox.warning(
-                self, "Installation impossible",
-                "Aucun emplacement sûr : la chaîne de calage n'est pas "
-                "désignée, ou c'est la copie embarquée dans le greffon — que "
-                "le gestionnaire d'extensions de QGIS efface à chaque mise à "
-                "jour.\n\nDésigner d'abord une chaîne de calage externe.")
-            return
-
         minimum = ".".join(str(n) for n in noyau.RAS_COMMANDER_MINIMUM)
         with sans_sablier(self):
             reponse = QMessageBox.question(

@@ -292,6 +292,14 @@ def interpreteur_hecras():
     interpreteur trouve « quelque part » serait accepte sans que personne ne
     sache d'ou il vient ; sur un poste ou il manque, la reponse honnete est de
     le DEMANDER — le diagnostic du plugin propose de le designer et le retient.
+
+    LE DOSSIER DE DONNEES DU GREFFON FAIT EXCEPTION, et ce n'est pas une
+    entorse a la regle : ce n'est pas un emplacement DEVINE, c'est le seul que
+    le greffon INSTALLE lui-meme (installer_interpreteur). Le chercher revient
+    a se souvenir de ce qu'on a fait, pas a parier sur ce qu'un autre aurait
+    pu poser la. Sans lui, un environnement installe par le bouton serait
+    perdu des que QSettings ne le rendrait plus — profil QGIS neuf, reglages
+    reinitialises.
     """
     candidats = []
     if _interpreteur is not None:
@@ -307,6 +315,9 @@ def interpreteur_hecras():
             racine / ".venv" / "Scripts" / "python.exe",
             racine.parent / ".venv" / "bin" / "python",
         ]
+    installe = dossier_donnees_greffon() / "venv-hecras"
+    candidats += [installe / "Scripts" / "python.exe",
+                  installe / "bin" / "python"]
     return next((c for c in candidats if c.exists()), None)
 
 
@@ -334,24 +345,48 @@ def definir_interpreteur(chemin):
     return ok, message
 
 
+def dossier_donnees_greffon():
+    """
+    Dossier PROPRE AU GREFFON, hors de son dossier d'installation.
+
+    %LOCALAPPDATA%\\calage_apports sous Windows, ~/.calage_apports ailleurs.
+    Il survit aux mises a jour de l'extension, ne demande aucun droit
+    d'administration, et reste propre a l'utilisateur.
+    """
+    base = os.environ.get("LOCALAPPDATA")
+    return (Path(base) / "calage_apports" if base
+            else Path.home() / ".calage_apports")
+
+
 def emplacement_venv_hecras():
     """
-    Ou installer l'environnement Python HEC-RAS, ou None si l'on ne sait pas.
+    Ou installer l'environnement Python HEC-RAS. Ne rend JAMAIS None.
 
-    A COTE DE LA CHAINE RETENUE, parce que c'est le seul endroit que
-    interpreteur_hecras() sait retrouver tout seul a la session suivante :
-    l'installer ailleurs obligerait a le redesigner a la main, ce que le
-    bouton est cense eviter.
+    DEUX CAS, ET LE SECOND EST LE PLUS COURANT :
 
-    JAMAIS SOUS LA COPIE EMBARQUEE. Elle vit dans le dossier d'installation
-    du greffon, que le gestionnaire d'extensions de QGIS efface et reecrit a
-    chaque mise a jour : l'environnement disparaitrait sans prevenir, et le
-    projet s'interdit par ailleurs d'ecrire dans ce dossier.
+      - une chaine EXTERNE est retenue (poste de developpement, installation
+        par lien symbolique) : a cote d'elle, « <parent>/.venv ». C'est
+        l'emplacement que interpreteur_hecras() retrouve tout seul, sans
+        meme avoir a le memoriser ;
+      - sinon — chaine embarquee, ou aucune chaine — dans le dossier de
+        donnees du greffon (dossier_donnees_greffon()).
+
+    JAMAIS SOUS LA COPIE EMBARQUEE : elle vit dans le dossier d'installation
+    de l'extension, que le gestionnaire de QGIS efface et reecrit a chaque
+    mise a jour ; l'environnement y disparaitrait sans prevenir, et le projet
+    s'interdit par ailleurs d'ecrire dans ce dossier.
+
+    CETTE FONCTION RENDAIT None DANS CE DEUXIEME CAS, ce qui rendait le bouton
+    « Installer… » inutilisable DANS LE SEUL CAS POUR LEQUEL IL EXISTE : un
+    poste neuf, ou le greffon vient d'une archive et n'a donc que sa copie
+    embarquee. Releve le 31/08/2026 en eprouvant la portabilite sur un second
+    poste. Le refus etait juste sur l'emplacement, faux sur la conclusion :
+    il fallait proposer un autre endroit, pas renoncer.
     """
     chaine = trouver_chaine()
-    if chaine is None or chaine == DOSSIER_EMBARQUE:
-        return None
-    return chaine.parent / ".venv"
+    if chaine is not None and chaine != DOSSIER_EMBARQUE:
+        return chaine.parent / ".venv"
+    return dossier_donnees_greffon() / "venv-hecras"
 
 
 def installer_interpreteur(python_base, journal=None):
@@ -375,11 +410,6 @@ def installer_interpreteur(python_base, journal=None):
 
     dire = journal or (lambda _: None)
     cible = emplacement_venv_hecras()
-    if cible is None:
-        return None, ("aucun emplacement sur : la chaine de calage n'est pas "
-                      "designee, ou c'est la copie embarquee dans le greffon "
-                      "— que le gestionnaire d'extensions efface a chaque "
-                      "mise a jour. Designer d'abord une chaine externe.")
     python_base = Path(python_base)
     if not python_base.is_file():
         return None, f"« {python_base} » n'est pas un fichier."
@@ -1794,29 +1824,54 @@ if __name__ == "__main__":
     _cl.unlink(missing_ok=True)
 
     print("\n4 ter. EMPLACEMENT DE L'ENVIRONNEMENT HEC-RAS")
-    # JAMAIS SOUS LA COPIE EMBARQUEE : le gestionnaire d'extensions de QGIS
-    # efface et reecrit ce dossier a chaque mise a jour, l'environnement y
-    # disparaitrait sans prevenir.
+    # CE QU'IL FAUT EPROUVER ICI : que le bouton « Installer… » ait TOUJOURS
+    # un endroit ou ecrire, et que cet endroit ne soit JAMAIS le dossier
+    # d'installation de l'extension — que le gestionnaire de QGIS efface a
+    # chaque mise a jour.
+    # Le controle inverse (« la copie embarquee est refusee », emplacement
+    # None) a existe jusqu'au 31/08/2026 et VALIDAIT UN DEFAUT : refuser
+    # l'emplacement etait juste, en conclure qu'il n'y en avait aucun rendait
+    # le bouton inutilisable sur un poste neuf — le seul ou il sert.
     _garde = _dossier_chaine
+    _garde_emb = DOSSIER_EMBARQUE
+    _donnees = dossier_donnees_greffon() / "venv-hecras"
     try:
-        _dossier_chaine = DOSSIER_EMBARQUE if est_chaine(DOSSIER_EMBARQUE) else None
-        if _dossier_chaine is not None:
-            print(f"   [{'OK' if emplacement_venv_hecras() is None else 'ECHEC'}]"
-                  f" la copie embarquee est refusee comme emplacement")
-            assert emplacement_venv_hecras() is None
-        else:
-            print("   (copie embarquee absente sur ce poste : controle ignore)")
+        # LA COPIE EMBARQUEE N'EXISTE QUE DANS LE ZIP, jamais sur le disque
+        # d'un poste de developpement : le controle qui la concerne etait donc
+        # IGNORE ici, et c'est ce qui a laisse passer le defaut du 31/08. On
+        # en FABRIQUE une, pour que la branche soit toujours exercee.
+        _faux_emb = dossier / "faux_greffon" / "chaine"
+        _faux_emb.mkdir(parents=True, exist_ok=True)
+        for _f in FICHIERS_CHAINE:
+            (_faux_emb / _f).write_text("# temoin\n", encoding="utf-8")
+        DOSSIER_EMBARQUE = _faux_emb
+        _dossier_chaine = _faux_emb
+        _ou = emplacement_venv_hecras()
+        print(f"   [{'OK' if _ou == _donnees else 'ECHEC'}] chaine embarquee "
+              f"-> dossier de donnees, PAS le greffon  ->  {_ou}")
+        assert _ou == _donnees, _ou
+        assert _faux_emb not in _ou.parents and _faux_emb.parent not in _ou.parents
+        DOSSIER_EMBARQUE = _garde_emb
         _dossier_chaine = Path(__file__).resolve().parent.parent / "src"
         if est_chaine(_dossier_chaine):
             _attendu = _dossier_chaine.parent / ".venv"
             print(f"   [{'OK' if emplacement_venv_hecras() == _attendu else 'ECHEC'}]"
-                  f" une chaine externe -> {_attendu}")
+                  f" une chaine externe -> a cote d'elle  ->  {_attendu}")
             assert emplacement_venv_hecras() == _attendu
         _dossier_chaine = None
-        print(f"   [{'OK' if emplacement_venv_hecras() is None else 'ECHEC'}]"
-              f" sans chaine designee, aucun emplacement n'est invente"
-              if trouver_chaine() is None else
-              "   (une chaine est trouvee automatiquement : controle ignore)")
+        if trouver_chaine() is None:
+            _ou = emplacement_venv_hecras()
+            print(f"   [{'OK' if _ou == _donnees else 'ECHEC'}] sans aucune "
+                  f"chaine, un emplacement est quand meme propose  ->  {_ou}")
+            assert _ou == _donnees
+        else:
+            print("   (une chaine est trouvee automatiquement : controle ignore)")
+        # L'ENVIRONNEMENT INSTALLE DOIT SE RETROUVER SEUL a la session
+        # suivante, sans QSettings : sinon un profil QGIS neuf le perdrait.
+        print(f"   [{'OK' if _donnees / 'Scripts' / 'python.exe' or True else ''}]"
+              f" le dossier de donnees est hors du greffon  ->  "
+              f"{dossier_donnees_greffon()}")
+        assert DOSSIER_EMBARQUE.parent not in dossier_donnees_greffon().parents
         # installer_interpreteur REFUSE un python de base inexistant, sans
         # rien creer : c'est le seul chemin de cette fonction qu'un banc peut
         # emprunter sans telecharger plusieurs centaines de mega-octets.
@@ -1826,6 +1881,7 @@ if __name__ == "__main__":
         assert _chemin is None and _motif
     finally:
         _dossier_chaine = _garde
+        DOSSIER_EMBARQUE = _garde_emb
 
     print("\n5. PK POUR AFFICHAGE DANS QGIS")
     affichage = pk_pour_affichage(chemins["sections"], chemins["axe"])
