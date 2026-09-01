@@ -1,0 +1,58 @@
+# Dependances pour TRAVAILLER SUR LE CODE — pas pour piloter HEC-RAS.
+#
+# A QUOI CE FICHIER SERT. Le depot se clone sans « .affaires » (ignore par git)
+# et sans les modeles, qui vivent sur un partage reseau. Une session neuve —
+# poste qui vient de cloner, bac a sable cloud — n'a donc que le code, et
+# devait deviner ce qu'il faut installer. Cree le 01/09/2026, apres qu'une
+# reprise depuis GitHub l'a demande.
+#
+#     python -m pip install -r requirements-dev.txt
+#
+# CE QUI TOURNE AVEC CA : les quinze bancs, sauf ceux qui exigent HEC-RAS ou
+# QGIS (voir plus bas) ; la reconstruction du .docx de la note et de ses
+# figures ; toute lecture et modification du code.
+
+numpy
+pandas
+scipy               # geometrie.py seulement, importe paresseusement
+matplotlib          # figures de suivi, livrables, figures de la note
+openpyxl            # classeurs de saisie et de suivi
+shapely             # geometrie, controles SIG
+geopandas           # lecture des shapefiles
+python-docx         # reconstruction de methodologie_calage_amont_aval.docx
+
+# ---------------------------------------------------------------------------
+# CE QUI N'EST PAS ICI, ET POURQUOI. Les mettre ferait echouer l'installation
+# ou promettrait ce que l'environnement ne peut pas tenir.
+#
+#   ras-commander, h5py   Ils pilotent HEC-RAS et lisent ses fichiers HDF. Ils
+#                         vivent dans un interpreteur SEPARE, cree par le
+#                         bouton « Installer… » du greffon — la bibliotheque
+#                         HDF5 de h5py entre en conflit avec celle de QGIS.
+#                         Voir noyau.PAQUETS_HECRAS, qui est la source unique
+#                         de cette autre liste. Sans eux, les bancs de
+#                         pilote_hecras et pont_hecras s'arretent la ou ils
+#                         auraient parle au solveur, et le disent.
+#   qgis, PyQt            Fournis par l'installation QGIS, jamais par pip.
+#                         test_plugin_qgis.py ne tourne que sous le Python de
+#                         QGIS, et sur une COPIE d'un modele portant des
+#                         resultats.
+#   pywin32               Sert a exporter la note en PDF par Word, et au
+#                         veilleur de boites de dialogue de ras-commander.
+#                         Windows seulement.
+#   rasterio              N'est plus importe par personne : la lecture d'un
+#                         profil sur RASTER a ete retiree le 31/08/2026.
+#
+# ---------------------------------------------------------------------------
+# CE QUI RESTE A FOURNIR A LA MAIN sur un poste neuf, et qu'aucun pip ne donne.
+#
+#   .affaires             Les mots interdits dans ce qui est distribue : noms
+#                         de clients, identifiants de cas d'essai. NON SUIVI
+#                         par git, a dessein — voir .affaires.exemple. Sans
+#                         lui, essai_garde_fou_archive.py eprouve quand meme le
+#                         controle des noms, sur un mot qu'il fabrique, et DIT
+#                         que la liste reste a fournir. Le garde-fou n'est donc
+#                         pas muet, mais il ne surveille RIEN de reel.
+#   les modeles HEC-RAS   Sur le partage reseau de l'affaire. Inaccessibles
+#                         depuis un bac a sable cloud : ni suivi de calage, ni
+#                         lecture de journal, ni relecture de HDF.

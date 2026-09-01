@@ -12,6 +12,36 @@ ce fichier ne dit que **où on en est** et **par quoi reprendre**.
 > sections sont conservées comme récit, **pas comme référence**.
 > **`STATUT.txt` fait foi.**
 
+## Reprendre depuis GitHub, sans le poste de travail
+
+Le dépôt porte le code, `STATUT.txt`, ce fichier, la note et le template.
+**L'historique des conversations ne voyage pas** — il vit dans
+`~/.claude/projects\…` sur le poste. Ces deux fichiers le remplacent.
+
+**Par quoi commencer :** la section du 1er septembre ci-dessous, puis
+`STATUT.txt` § 1, § 2.2 bis, § 2.2 ter, § 5.3 ter et § 5.5. Ne pas lire le
+reste de ce fichier : tout ce qui suit la session du 30 août décrit un
+algorithme retiré le 07/08/2026.
+
+**Installer :** `python -m pip install -r requirements-dev.txt`
+
+**Ce qui ne sera PAS disponible hors du poste**, et qu'il ne faut pas chercher
+à contourner :
+
+| | |
+|---|---|
+| le partage réseau des modèles | ni suivi de calage, ni lecture de journal, ni relecture de HDF |
+| HEC-RAS, `ras-commander`, `h5py` | aucun calage ne peut être lancé ni relu |
+| QGIS | `test_plugin_qgis.py` exige le Python de QGIS |
+| Word | l'export PDF de la note passe par lui ; le `.docx`, lui, se reconstruit |
+| `.affaires` | ignoré par git — ce sont des noms de clients |
+
+Sur `.affaires` : sans lui, `essai_garde_fou_archive.py` éprouve quand même le
+contrôle des noms, **sur un mot qu'il fabrique**, et dit que la liste reste à
+fournir. Le garde-fou n'est donc pas muet — mais il ne surveille rien de réel.
+Avant de committer depuis un clone neuf, se rappeler qu'un nom de client
+passerait.
+
 ## Session du 1er septembre 2026 — un second modèle renverse un critère
 
 **Par quoi reprendre :** `STATUT.txt` § 1 (état courant), § 2.2 bis et 2.2 ter
