@@ -20,6 +20,19 @@ DOSSIER = Path(__file__).parent
 RACINE = DOSSIER.parent  # depot du projet : src/ contient la chaine, RACINE
                          # porte calage_apports/, la note methodologique, le
                          # template et STATUT.txt
+# LA VERSION MINIMALE DE ras-commander VIENT DU NOYAU DU GREFFON, jamais
+# recopiee ici. Elle y est justifiee (une 0.98.2 borne mal les tableaux
+# d'hydrogramme : un apport ecrit y serait tronque SANS message), et le
+# greffon refuse deja un interpreteur qui ne l'atteint pas. Ce script, lui,
+# affichait la version sans la juger : le meme poste etait donc accepte ici
+# et refuse la-bas. Deux regles qui doivent s'accorder finissent toujours par
+# diverger — il n'y en a plus qu'une, et _version_ras_commander est reutilise
+# pour la lire de la meme facon.
+sys.path.insert(0, str(RACINE))
+from calage_apports.noyau import (RAS_COMMANDER_MINIMUM,          # noqa: E402
+                                  _version_ras_commander)
+MINIMUM_LISIBLE = ".".join(str(x) for x in RAS_COMMANDER_MINIMUM)
+
 OK, ABSENT, INFO = "[ OK ]", "[MANQ]", "[ -- ]"
 resultats = []
 
@@ -216,9 +229,19 @@ controler("HEC-RAS 7.0.1 installe", hecras.exists(), str(hecras))
 
 try:
     import ras_commander
-    controler("ras-commander", True, md.version("ras-commander"))
+    installee = md.version("ras-commander")
+    lue = _version_ras_commander(f"ras-commander {installee}")
+    # « lue is None » vaut « je ne sais pas », et laisse passer : meme regle
+    # que dans le noyau, pour la meme raison — un format de version illisible
+    # ne prouve pas une version trop ancienne.
+    trop_ancienne = lue is not None and lue < RAS_COMMANDER_MINIMUM
+    controler(f"ras-commander >= {MINIMUM_LISIBLE}", not trop_ancienne,
+              installee + (" — trop ancienne : les versions anterieures "
+                           "bornent mal les tableaux d'hydrogramme, un apport "
+                           "ecrit y serait tronque en silence"
+                           if trop_ancienne else ""))
 except Exception as e:
-    controler("ras-commander", False, str(e))
+    controler(f"ras-commander >= {MINIMUM_LISIBLE}", False, str(e))
 
 FONCTIONS_RAS = {
     "RasUnsteady": ["extract_boundary_and_tables", "identify_tables",
