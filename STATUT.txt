@@ -50,17 +50,22 @@ CE QUI EST EPROUVE
     faire_zip.py et essai_garde_fou_archive.py. Repasses le 01/09 au soir,
     apres les correctifs et les coupes du 31/08 (section 5.3 ter).
 
-DEUX CALAGES EN COURS AU 01/09, 12 h
+DEUX CALAGES EN COURS — RELEVE DU 01/09 AU SOIR
   SUHIHANDIA V3 — lance le 31/08 a 12:33 depuis un second poste, sorties sur
-  T:\...\Suhihandia_v7\HEC_RAS_v7_Suhihandia\Sortie-V3. Huit apports sur douze
-  cales, tous en un ou deux essais, volumes 99,2 a 101,0 %. IL TOURNE AVEC LA
-  CHAINE D'AVANT LES CORRECTIFS DU SOIR : ses fenetres sont surdimensionnees
-  (le bug d'unites), ses resultats restent valides mais couteux.
+  T:\...\Suhihandia_v7\HEC_RAS_v7_Suhihandia\Sortie-V3. DIX apports sur douze
+  cales au releve de 16:56, SUH11 en calcul, SUH12 en attente. NEUF DES DIX
+  EN UN SEUL ESSAI. Volumes 99,9 a 101,0 %, pointes 98,1 a 100,0 %, formes
+  99,9 a 100,0 %. Zero incident. Fin annoncee le 01/09 vers 22 h.
+  IL TOURNE AVEC LA CHAINE D'AVANT LES CORRECTIFS DU SOIR : ses fenetres sont
+  surdimensionnees (le bug d'unites), ses resultats restent valides mais
+  couteux — 4 500 a 14 400 s par apport.
   ARDANAVY Q100 — lance le 01/09 a 10:05, sorties sur
   T:\...\1-ARDANAVY\Apports\Q100. Six apports, avec le zip de 09:55 (commit
   6964bd9) : PREMIER PASSAGE EN PRODUCTION du correctif d'unites, de
-  l'horodatage et de l'alerte de couverture. Reference faite en 1 h 22,
-  premier apport en calcul. Voir 5.5.
+  l'horodatage et de l'alerte de couverture. TROIS SUR SIX cales au releve de
+  18:42, tous en deux essais, volumes 100,0 / 100,7 / 100,6 %, pointes 99,9 /
+  98,2 / 100,3 %. ARD09 en calcul. Zero incident. Fin annoncee le 02/09 vers
+  2 h. Voir 5.5.
     LES DEUX NE SONT PAS COMPARABLES ENTRE EUX, et il faut le noter au dossier :
     l'un porte le bug d'unites, l'autre non.
 
@@ -328,10 +333,15 @@ CE QUE CELA CHANGE POUR NOTRE 5 %.
   comme tel. Il repond a une autre question : cet essai est-il comparable a sa
   cible ? D'ou sa valeur large — un seuil serre arretait le calage au hasard
   des calculs (0,56 / 0,96 / 1,12 / 1,39 % sur un meme modele, § 5.3).
-  MAIS LE MODELE, LUI, MERITE UN MOT. Nos 0,5 a 1,4 % sont UN A DEUX ORDRES DE
-  GRANDEUR au-dessus de ce que HEC appelle « very low ». Ce n'est pas le
-  calage qui doit s'en accommoder en silence : c'est une observation a porter
-  au client, au meme titre que la derive du decalage.
+  MAIS LE MODELE, LUI, MERITE UN MOT — ET C'EST DU MODELE QU'IL S'AGIT, PAS
+  DE LA CHAINE. Releve du 01/09 au soir sur les deux calages en cours :
+        ARDANAVY     0,014 %   dans ce que HEC appelle « very low »
+        SUHIHANDIA   0,471 %   vingt fois au-dessus
+  Les 0,5 a 1,4 % de la section 5.3 sont un trait de CE modele-la, pas une
+  caracteristique de la methode : un autre modele de la meme affaire, dans la
+  meme chaine, rend 0,014 %. C'est une observation a porter au client sur le
+  modele concerne, au meme titre que la derive du decalage — et a ne pas
+  generaliser, ce que la premiere redaction de ce paragraphe faisait.
   ET LA PISTE ORDINAIRE NE MENE NULLE PART ICI : resserrer le pas de calcul a
   DEGRADE le bilan (1,12 -> 1,39 %, § 5.3), alors que c'est le remede que la
   litterature de praticiens propose en premier. HEC, lui, ne le propose pas :
@@ -1531,10 +1541,29 @@ A TRANCHER
     est PRIVE, ce qui les rend tenables aujourd'hui. S'il devenait public :
     soit cette section sort du suivi, soit on assume — et dans tous les cas
     l'historique git les porte deja.
-  - REVOIR ETENDUE_DECALAGE_MAX_PART = 0,15 AU TROISIEME MODELE. Il repose sur
-    deux cas (section 2.2 ter), et le premier critere avait deja ete renverse
-    par le deuxieme modele — celui-la meme qui devait le confirmer. Meme
-    reserve que le bilan de masse a 5 %.
+  - REVOIR ETENDUE_DECALAGE_MAX_PART = 0,15. Il repose sur deux cas
+    (section 2.2 ter), et le premier critere avait deja ete renverse par le
+    deuxieme modele — celui-la meme qui devait le confirmer.
+      ET LE RELEVE DU 01/09 AU SOIR AJOUTE UNE OBJECTION DE FOND : L'ETENDUE
+    GRANDIT AVEC LE NOMBRE DE SECTIONS CALEES. Mesure sur le modele A, le
+    meme calage, lu a quatre rangs differents :
+          3 sections   2,1 h        8 sections   4,4 h
+          5 sections   3,3 h       10 sections   6,6 h
+    Le « 4,4 h » inscrit a la section 5.5 etait donc une mesure PARTIELLE,
+    prise a huit apports sur douze, et presentee comme la caracteristique du
+    modele. Elle vaut 6,6 h a dix (pente -0,571 h/section, r -0,950).
+      OR LE SEUIL SE LIT SUR UNE DUREE DE FENETRE, QUI NE GRANDIT PAS, ELLE.
+    Deux modeles egalement coherents mais de longueurs differentes ne sont
+    donc pas juges pareil, et le meme modele ne l'est pas non plus selon ou
+    son calage s'est arrete. Une grandeur comparable serait la PENTE (h par
+    section), ou l'etendue rapportee au nombre de sections — c'est-a-dire ce
+    que la pente disait deja. Ce qui avait ete retire le 01/09 au matin,
+    c'est le « ET correlation elevee », pas la pente elle-meme.
+      NE RIEN TRANCHER SANS UN TROISIEME MODELE COMPLET. Ardanavy en est a
+    trois sections sur six (etendue 0,9 h, pente -0,100, r -0,212 : rien de
+    significatif sur trois points), et ses trois dernieres sections sont
+    justement celles ou la mesure de reference annoncait +2,3, +3,4 et
+    +5,9 h. C'est la que le critere se jouera.
     Sur Las Hies, le seul Dt qui rompait la tendance etait celui de l'apport
     non identifiable — les deux anomalies se recoupaient, sans valoir
     demonstration : c'est un troisieme jeu de donnees a repasser dans la mesure.
