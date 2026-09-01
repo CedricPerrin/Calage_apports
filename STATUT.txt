@@ -80,6 +80,13 @@ LE DEPOT
   ATTENTION EN L'ETENDANT : un mot trop court fait des faux positifs — « ARAN »
   est contenu dans « garantie » et « garantit ». Preferer une forme qui ne
   peut pas etre un mot francais (« ARAN. » avec le point).
+  ELLE PORTE AUSSI LES CODES DE SECTION depuis le 01/09 au soir — SUH01 a
+  SUH12, ARD01 a ARD11. Un code de section n'est pas un nom d'affaire, mais
+  il designe la meme etude, et c'est LUI qui se retrouve dans du code : un nom
+  de plan, une constante, un commentaire de mise au point. Verifie apres
+  extension : l'archive reste conforme (aucun faux positif, « garantie » et
+  « garantit » passent toujours), et SUH03, SUH12 et ARD06 sont desormais
+  refuses la ou ils passaient sans etre vus.
 
 
 2. REGLES EN VIGUEUR
@@ -1448,10 +1455,6 @@ A TRANCHER
     entre le routage des modeles et celui que les cibles supposent. A porter au
     client avec les hydrogrammes, et a trancher — sont-ce les cibles, le
     routage, ou une origine de temps ?
-  - ETENDRE « .affaires » AUX SECTIONS 03 A 12. La liste ne surveille que
-    SUH01 et SUH02 : SUH03 et SUH12 sont passes SANS ETRE VUS dans du code
-    embarque le 01/09, et seul « Suhihandia » a declenche le refus. Un nom de
-    section n'est pas un nom d'affaire, mais il designe la meme etude.
   - EXPERIMENTAL=TRUE est conserve dans metadata.txt (decision utilisateur).
     Le LISEZMOI dit de cocher « Afficher aussi les extensions
     experimentales » si l'extension n'apparait pas apres installation.

@@ -7,6 +7,20 @@
 #
 # Sans .affaires, faire_zip.py ne controle pas les noms — il le dit — mais il
 # controle toujours les chemins du poste, qui ne reposent sur aucune liste.
+#
+# Y METTRE AUSSI LES IDENTIFIANTS DE SECTION, pas seulement le nom de
+# l'affaire. Un code de section n'est pas un nom d'affaire, mais il designe la
+# meme etude — et c'est lui, pas le nom, qui se retrouve dans du code : un
+# nom de plan, une constante, un commentaire de mise au point. Mesure du
+# 01/09/2026 : deux codes de section sont passes sans etre vus dans du code
+# embarque, alors que le nom de l'affaire, lui, avait bien fait refuser
+# l'archive.
+#
+# MAIS PAS DE MOT TROP COURT : la recherche porte sur le TEXTE, pas sur des
+# mots entiers. « ARAN » est contenu dans « garantie » et dans « garantit »,
+# et l'archive serait refusee sur du francais ordinaire. Preferer une forme
+# qui ne peut pas etre un mot — un chiffre dedans, ou un point final :
+# « ARAN. » plutot que « ARAN ».
 Nom_de_l_affaire
 AUTRE_AFFAIRE
 CAS_DE_RECETTE
