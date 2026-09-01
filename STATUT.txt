@@ -298,21 +298,32 @@ couter du temps. Les evenements s'allongeant vers l'aval, une fenetre unique
 impose a tous le besoin du dernier.
 Configuration.ajuster_duree (defaut True) et marge_duree_h (2 h).
 
-CE QUE CA RAPPORTE VRAIMENT : 11 %, MESURE EN PRODUCTION (Suhihandia,
-31/08, section 5.3). Calendrier sorti par la chaine, pour un plafond a 36 h :
-  21,5  24,7  27,3  29,4  30,0  36,6  38,8  38,8  38,9  39,0  39,0  39,0 h
-SEPT VALEURS SUR DOUZE DEPASSENT LA FENETRE DU MODELE, sont ramenees au
-plafond, et ne rapportent donc rien. 385 h simulees au lieu de 432.
-  Les 34 % annonces AVANT essai etaient une estimation faite sur la FIN DE
-  CRUE DE LA CIBLE. Ce n'est pas ce que la chaine mesure : elle prend la
-  fenetre de DEFICIT sur le calcul de reference — l'intervalle ou la cible
-  depasse ce que la section recoit sans les apports — systematiquement plus
-  longue (SUH01 : 9,6 h de deficit pour 6,5 h de crue). NE PAS REESTIMER CE
-  GAIN SUR LA DUREE DES CIBLES.
-  QUAND LE CALENDRIER DEPASSE LE PLAFOND, IL DIT QUELQUE CHOSE : le modele
-  est trop court pour juger ses derniers apports en entier. Ici il manque
-  3 h sur 36. La chaine tronque et continue — c'est le bon comportement,
-  mais la lecture appartient a l'operateur (point ouvert, section 6).
+CE QUE CA RAPPORTE : ~33 %, ET TOUJOURS DIRE LA BASE DE CALCUL.
+CE NOMBRE A ETE FAUX TROIS FOIS. Une valeur sans sa base ne vaut rien ici :
+  34 %    estimation a priori, sur la FIN DE CRUE des cibles       (fausse)
+  11 %    MESURE EN PRODUCTION le 31/08, avec le bug d'unites (385 h)
+  7,6 %   reconstruction sur cibles seules, avec le bug (399 h)
+  33 %    reconstruction sur cibles seules, APRES correctif (290 h)
+A BASE COMPARABLE — reconstruction contre reconstruction — le correctif
+d'unites de fenetre_injection() fait passer le gain de 7,6 % a 33 %
+(section 5.3 ter). LA VALEUR EN PRODUCTION APRES CORRECTIF N'EST PAS ENCORE
+MESUREE : le seul calage qui a tourne portait le bug.
+  Calendrier attendu apres correctif, plafond 36 h :
+    14,0  16,0  17,5  18,5  18,5  21,5  23,5  24,5  31,0  33,0  36,0  36,0 h
+  Contre celui qu'avait sorti la chaine avec le bug :
+    21,5  24,7  27,3  29,4  30,0  36,6  38,8  38,8  38,9  39,0  39,0  39,0 h
+  — ou SEPT valeurs sur douze depassaient le plafond et ne rapportaient rien.
+
+NE PAS REESTIMER CE GAIN SUR LA DUREE DES CIBLES. La chaine mesure la fenetre
+de DEFICIT sur le calcul de reference — l'intervalle ou la cible depasse ce
+que la section recoit sans les apports — qui n'est pas la duree de la crue.
+C'est ce qui rendait les 34 % faux, et le fait qu'ils tombent pres des 33 %
+d'aujourd'hui est une COINCIDENCE : la grandeur estimee n'etait pas la bonne.
+
+APRES CORRECTIF, PLUS AUCUNE FENETRE JUGEE N'EST TRONQUEE sur ce modele : la
+plus haute borne jugee tombe a 35,5 h sous le plafond de 36, et seul le
+dernier apport perd 1,5 h de MARGE (voir 2.2 bis). Le manque de 3 h annonce
+le 31/08 au matin etait un artefact du bug, ou tf valait 81,5 h a SUH12.
 
 LE CALENDRIER EST ETABLI SUR LE CALCUL DE REFERENCE, et pas ailleurs
 (calage._calendrier_durees). Dans la boucle, le residuel de l'apport N se lit
@@ -885,7 +896,8 @@ CA MARCHE, ET C'EST VERIFIE DANS LE FICHIER PLAN, pas seulement au journal :
 pour un modele qui en simule 36.
 
 CE QUE LE PREMIER PASSAGE A APPRIS
-  - LE GAIN EST DE 11 %, PAS DE 34 % (detail et cause en 2.6). Sept durees
+  - LE GAIN MESURE CE JOUR-LA EST DE 11 %, PAS DE 34 % (detail en 2.6 ;
+    le correctif d'unites du soir l'a depuis porte a ~33 %). Sept durees
     sur douze depassent le plafond de 36 h et n'economisent rien.
   - IL MANQUE 3 H AU MODELE. La chaine demande jusqu'a 39,0 h pour juger
     SUH07..SUH12 ; le plan en offre 36. Les six derniers apports seront
@@ -1206,11 +1218,21 @@ A FAIRE, PAR ORDRE DE PRIORITE
     referentiel FFRP / SHF, guides « etudes de dangers », methodo inondation
     DGPR), et a ce que la litterature 2D admet quand le signal utile est plus
     petit que le bruit numerique. Ecrire le raisonnement dans la note.
-  - METTRE LA NOTE A JOUR des correctifs du 30/08 : seuil de bilan expose,
-    pre-vol des durees et prolongation par zeros, filtrage des orphelins.
-    Y ajouter la duree ajustee et son gain REEL de 11 % (section 5.3 bis) —
-    la note ne doit pas reprendre les 34 % estimes. Meme occasion d'ouvrir
-    Word.
+  - VERIFIER LA NOTE A L'OEIL. Elle a ete reconstruite le 01/09 (V14, 24
+    pages, 7 953 mots, 21 tableaux, 8 figures) : § 1.4 porte la regle de
+    couverture, § 1.6 un h3 sur la duree ajustee, § 2.3 la reecriture de
+    « Simulation Date ». La table des matieres et les numeros de page ont ete
+    remis a jour par Word, mais la mise en page apres insertion d'un tableau
+    n'a PAS ete relue. Sauvegarde :
+    _arquivo/methodologie_calage_amont_aval_avant_maj_20260901.docx.
+      POUR LA RECONSTRUIRE : figures_note.py rend SIX figures, mais le contenu
+      en reference HUIT — image2.png et image3.png viennent du document
+      d'origine et doivent etre extraites de word/media/ d'un docx anterieur.
+      Sans elles, construire_docx.py s'arrete sur FileNotFoundError.
+      LE BUG D'UNITES N'Y FIGURE PAS, decision du 01/09 : la note decrit la
+      methode en vigueur, l'annexe B.3 reste aux incidents cote MODELE
+      (bilan de masse, blocs orphelins). L'historique des defauts de la chaine
+      vit dans ce fichier et dans git.
   - EPROUVER SOUS QGIS les six correctifs du 30/08, et le bouton
     « Installer… » sur un poste neuf.
   - RECREER LE SCRIPT DE PRE-VOL (sections lisibles, apports presents, cibles

@@ -213,6 +213,17 @@ CONTENU = [
              "restreints à la fenêtre de jugement, mais la corrélation et le "
              "recalage travaillent encore sur la grille qui englobe les deux "
              "séries."),
+    ("p", "CE QUI MANQUE À LA FENÊTRE JUGÉE EST TOUJOURS DIT, et chiffré en "
+          "heures. Au-delà de 10 % non simulés, la comparaison est déclarée "
+          "invalide et le calage s'arrête sur « allonger la simulation ». En "
+          "deçà, une réserve non bloquante accompagne le verdict : il garde "
+          "son sens, la queue manquante pesant moins que la tolérance de "
+          "volume, mais il porte sur un événement incomplet."),
+    ("note", "Aucun autre indicateur ne pourrait le révéler : la cible et le "
+             "calcul sont intégrés sur le MÊME intervalle rogné, donc leur "
+             "rapport de volume reste à 100 % alors qu'une part de "
+             "l'événement n'a jamais été simulée. C'est pourquoi la réserve "
+             "est émise dès le premier dixième d'heure manquant."),
     ("h3", "Garde-fous"),
     ("bullet", "COUVERTURE — si la simulation ne couvre pas toute la durée de "
                "la cible, une alerte est levée. Le volume manquant serait "
@@ -345,6 +356,51 @@ CONTENU = [
              "qu'ils y valent, et ne seront pas vérifiés. Un fichier de "
              "reprise HEC-RAS, lui, n'aide pas : la notion est temporelle et "
              "non spatiale."),
+    ("h3", "La durée simulée suit chaque apport"),
+    ("p", "Les événements s'allongent vers l'aval : le premier apport a "
+          "souvent fini de s'écouler quand le dernier n'a pas commencé. Une "
+          "fenêtre de simulation unique impose donc à tous le besoin du "
+          "dernier. La durée de chaque étape est ramenée à ce qui lui est "
+          "nécessaire, ce qui ne change AUCUN résultat — seulement le temps de "
+          "calcul."),
+    ("p", "Ce n'est pas la durée de la crue cible qui commande, mais la "
+          "FENÊTRE DE DÉFICIT relevée sur l'état de référence : l'intervalle "
+          "où la cible dépasse ce que la section reçoit sans les apports. Elle "
+          "est plus longue que la crue, et elle est datée dans le calendrier "
+          "DU MODÈLE, non dans celui de la cible — le décalage y est déjà "
+          "incorporé."),
+    ("table", [
+        ["Règle", "Raison"],
+        ["Chaque étape couvre aussi l'événement de la SUIVANTE",
+         "le calcul de l'apport N est l'état de référence de l'apport N+1 : "
+         "c'est dans ses résultats que le déficit de N+1 se lit. Le tronquer à "
+         "l'événement de N priverait N+1 de sa propre mesure."],
+        ["La durée ne décroît jamais d'un apport au suivant",
+         "l'étape de cohérence amont relit les sections déjà calées, et la "
+         "vérification finale relit le DERNIER calcul pour TOUTES les "
+         "sections. Une durée qui redescendrait les priverait de leur "
+         "fenêtre."],
+        ["On ne dépasse jamais la fenêtre du plan de référence",
+         "elle est relevée une fois au départ. Ce qui se perd quand elle borne "
+         "est la MARGE, pas la fenêtre jugée ; le journal le chiffre. Si la "
+         "fenêtre jugée elle-même cessait d'être couverte, c'est le contrôle "
+         "de couverture qui le dirait (§ 1.4)."],
+        ["L'état de référence garde toujours la fenêtre entière",
+         "il mesure le déficit de TOUTES les sections d'un seul coup, donc il "
+         "doit couvrir l'événement le plus tardif."],
+        ["Une durée qu'on ne sait pas mesurer laisse la fenêtre entière",
+         "plus lent, jamais faux."],
+    ]),
+    ("p", "Mesure sur un modèle réel à douze apports, pour une fenêtre de "
+          "référence de 36 h — les durées retenues, apport par apport : 14, "
+          "16, 17,5, 18,5, 18,5, 21,5, 23,5, 24,5, 31, 33, 36 et 36 h. Soit "
+          "290 h simulées au lieu de 432, environ un tiers de temps de calcul "
+          "en moins. CE CHIFFRE DÉPEND ENTIÈREMENT DU JEU DE CIBLES et ne se "
+          "transpose pas : sur un modèle dont les événements sont tous "
+          "synchrones, le gain est nul."),
+    ("note", "L'apport injecté, lui, reste calculé sur TOUTE la série, comme "
+             "la fenêtre de jugement : c'est le JUGEMENT et la PRÉSENTATION "
+             "qui sont restreints, jamais la donnée écrite dans le modèle."),
     ("h2", "1.7  Implantation géométrique : PK et profil en long"),
     ("p", "Le point kilométrique vient d'une projection curviligne sur l'axe "
           "hydraulique, JAMAIS d'une saisie. L'appariement apport → section est "
@@ -474,7 +530,11 @@ CONTENU = [
     ("bullet", "FENÊTRE DE SIMULATION — substituer un fichier de débit couvrant "
                "une autre période ne déplace pas la fenêtre du plan : HEC-RAS "
                "calcule alors hors des hydrogrammes, sans rien signaler. Elle "
-               "est donc saisissable, pré-remplie depuis le plan choisi."),
+               "est donc saisissable, pré-remplie depuis le plan choisi. "
+               "C'est aussi la ligne « Simulation Date= » que le calage "
+               "réécrit à chaque étape pour ajuster la durée à l'apport en "
+               "cours (§ 1.6), sans jamais dépasser celle du plan de "
+               "référence."),
     ("bullet", "BLOCS ORPHELINS — un fichier de débit qui a de l'historique "
                "garde des conditions limites sans ligne correspondante en "
                "géométrie. HEC-RAS les ignore ; la chaîne aussi, en croisant "

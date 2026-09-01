@@ -32,7 +32,7 @@ supposant que ça s'est bien terminé.
 
 | Ce qui était annoncé | Ce qui a été mesuré |
 |---|---|
-| 34 % de temps de calcul en moins | **11 %** |
+| 34 % de temps de calcul en moins | **11 %** (et ~33 % après le correctif du soir) |
 | SUH01 simulé ~12,5 h | **21,5 h** |
 | plafond de 36 h rarement atteint | **7 durées sur 12 le dépassent** |
 
@@ -93,7 +93,8 @@ Template régénéré : 42 → 41 paramètres.
 - Les **dix coupes non vérifiées** de l'audit, ~30 lignes, à traiter une par
   une — aucune n'a été soumise à réfutation (§ 6 de `STATUT.txt`).
 - Les trois points du matin : livrable disant le manque d'heures, horodatage
-  de `dire()`, note à mettre à jour avec le gain réel de 11 %.
+  de `dire()`, note à mettre à jour avec le gain — ~33 % après correctif,
+  et en disant toujours la base de calcul.
 
 ## Session du 30 août 2026 — premier calage sur modèle client
 
