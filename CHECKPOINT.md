@@ -12,6 +12,61 @@ ce fichier ne dit que **où on en est** et **par quoi reprendre**.
 > sections sont conservées comme récit, **pas comme référence**.
 > **`STATUT.txt` fait foi.**
 
+## Session du 1er septembre 2026 — un second modèle renverse un critère
+
+**Par quoi reprendre :** `STATUT.txt` § 1 (état courant), § 2.2 bis et 2.2 ter
+(couverture et cohérence du décalage), § 5.3 ter et 5.3 quater.
+
+**15 bancs verts.** Note de méthodologie en V15 (25 pages, 22 tableaux).
+
+### Deux calages ont tourné en même temps, et c'est ce qui a payé
+
+Un sur le modèle **A** (12 apports, lancé la veille avec la chaîne d'avant les
+correctifs), un sur le modèle **B** (6 apports, avec le zip de 09:55). Le
+second a validé cinq choses en production et **invalidé un critère posé le
+matin même**.
+
+Ce que B a validé : l'horodatage de `dire()`, `pretraitement_perime` (première
+alerte réelle), l'avertissement de pente d'apport, et surtout le **correctif
+d'unités** — décisif ici, pas marginal. Les cibles de B courent jusqu'à
+**208,5 h** de remplissage à zéro et `tf` tombait entre 83 et 129 h : les six
+durées auraient été plafonnées à 37 h, soit **zéro économie**.
+
+### Ce que B a renversé
+
+| | pente | r | étendue Δt | ancien critère |
+|---|---|---|---|---|
+| modèle A (8 apports) | −0,70 | −0,98 | 4,4 h | OUI |
+| **modèle B** (6 apports) | **+0,99** | **+0,73** | **7,0 h** | **non** |
+
+Le modèle B avait la pente la plus forte et la dérive la plus grande, et
+passait sous « pente forte **ET** corrélation élevée » parce que sa dérive
+n'est pas monotone. **Le `ET` sur la corrélation écartait le pire des deux
+cas.** Le critère porte désormais sur l'**étendue de Δt**, rapportée à la
+durée médiane des fenêtres jugées, seuil relatif 15 %.
+
+**Les deux modèles sont au banc, B nommément** — sans lui, rien n'empêcherait
+d'y revenir.
+
+### La leçon de la journée, prise trois fois
+
+Un gain annoncé à 34 %, mesuré à 11 %, puis à 33 % après correctif. Un seuil
+de couverture aveugle par construction. Un critère de cohérence renversé par
+le modèle qui devait le confirmer. **Chaque fois, la valeur était juste et la
+grandeur fausse** — et chaque fois c'est une mesure sur données réelles qui l'a
+montré, jamais un raisonnement.
+
+### Ce qui attend une décision
+
+Sur les **deux** modèles, le décalage dérive de 4 à 7 h le long de l'axe, **en
+sens contraire** : A route plus vite que ses cibles, B plus lentement. Ce n'est
+plus une anomalie isolée. Les sections sont calées à 99–101 % de volume, mais
+les hydrogrammes d'apport livrés portent ce décalage, et pas le même d'une
+section à l'autre. Sont-ce les cibles, le routage, ou une origine de temps ?
+
+Deux détails : `.affaires` ne surveille que `SUH01`/`SUH02` — ni les autres
+sections, ni `ARD06`…`ARD11` ; et le seuil de 15 % ne repose que sur deux cas.
+
 ## Session du 31 août 2026 — la durée ajustée passe en production
 
 **Par quoi reprendre :** `STATUT.txt` § 1 (état courant), § 2.6 (durée

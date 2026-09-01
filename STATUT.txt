@@ -8,14 +8,14 @@ CE FICHIER DIT L'ETAT COURANT ET LES REGLES EN VIGUEUR — rien d'autre.
 Il n'est pas un journal : le recit de ce qui a ete essaye puis retire vit
 dans l'annexe B de methodologie_calage_amont_aval.docx, et l'historique
 detaille dans git. Ce qui est CONSERVE ici du passe tient dans une seule
-section, la 5 : les trois modeles reels sur lesquels la chaine a tourne, et
-ce qu'ils ont appris.
+section, la 5 : les modeles reels sur lesquels la chaine a tourne, et ce
+qu'ils ont appris.
 
   1. ETAT COURANT
   2. REGLES EN VIGUEUR
   3. PIEGES VERIFIES
   4. CONTENU DU DOSSIER
-  5. RETOURS D'EXPERIENCE — LES TROIS MODELES
+  5. RETOURS D'EXPERIENCE — LES MODELES REELS
   6. POINTS OUVERTS
 
 
@@ -40,12 +40,19 @@ CE QUI EST EPROUVE
   - LES QUATORZE SUITES SONT VERTES, garde-fou d'archive compris, apres les
     trois correctifs et les trois coupes du 31/08 au soir (section 5.3 ter).
 
-EN COURS AU 31/08, 16 h 15
-  Calage Suhihandia V3 lance a 12:33 depuis un SECOND POSTE, sorties sur
-  T:\...\Suhihandia_v7\HEC_RAS_v7_Suhihandia\Sortie-V3. Reference faite,
-  SUH01 cale, SUH02 en calcul. Fin attendue le 01/09 dans l'apres-midi si
-  chaque apport tient en un essai. AUCUN RESULTAT N'EST ENCORE VALIDE :
-  seul SUH01 est passe, et c'est l'apport non identifiable du lot.
+DEUX CALAGES EN COURS AU 01/09, 12 h
+  SUHIHANDIA V3 — lance le 31/08 a 12:33 depuis un second poste, sorties sur
+  T:\...\Suhihandia_v7\HEC_RAS_v7_Suhihandia\Sortie-V3. Huit apports sur douze
+  cales, tous en un ou deux essais, volumes 99,2 a 101,0 %. IL TOURNE AVEC LA
+  CHAINE D'AVANT LES CORRECTIFS DU SOIR : ses fenetres sont surdimensionnees
+  (le bug d'unites), ses resultats restent valides mais couteux.
+  ARDANAVY Q100 — lance le 01/09 a 10:05, sorties sur
+  T:\...\1-ARDANAVY\Apports\Q100. Six apports, avec le zip de 09:55 (commit
+  6964bd9) : PREMIER PASSAGE EN PRODUCTION du correctif d'unites, de
+  l'horodatage et de l'alerte de couverture. Reference faite en 1 h 22,
+  premier apport en calcul. Voir 5.5.
+    LES DEUX NE SONT PAS COMPARABLES ENTRE EUX, et il faut le noter au dossier :
+    l'un porte le bug d'unites, l'autre non.
 
 CE QUI N'A JAMAIS TOURNE
   - Le bouton « Installer l'environnement Python HEC-RAS » n'est alle
@@ -799,7 +806,7 @@ La note, le template et ce fichier restent a la racine.
   .affaires              Mots surveilles par les garde-fous. NON SUIVI.
 
 
-5. RETOURS D'EXPERIENCE — LES TROIS MODELES
+5. RETOURS D'EXPERIENCE — LES MODELES REELS
 ================================================================================
 Trois modeles reels ont fait tourner la chaine. Cette section est le SEUL
 endroit du fichier ou l'on regarde en arriere : elle garde les mesures, parce
@@ -1135,7 +1142,45 @@ LA COUPE LAISSEE DE COTE : la boite de compte rendu dupliquee de plugin.py.
 Cinq lignes communes pour un fichier qu'aucun banc local ne couvre — le gain
 ne paie pas le risque (section 6).
 
-5.4  CE QUE LES TROIS CAS ONT APPRIS, ENSEMBLE
+5.5  ARDANAVY Q100 — LE SECOND MODELE, ET IL A RENVERSE UN CRITERE (01/09/2026)
+--------------------------------------------------------------------------
+Quatrieme modele reel, six apports, lance a 10:05 avec le zip de 09:55. Il
+tourne encore a l'heure ou ces lignes s'ecrivent. VALEUR PRINCIPALE : c'est le
+premier passage en production des correctifs du 31/08 au soir, ET le second
+jeu de donnees qui manquait pour calibrer un seuil.
+
+CE QU'IL A VALIDE, MESURE.
+  - L'HORODATAGE DE dire() ecrit bien la date devant, l'indentation des lignes
+    de la chaine conservee derriere.
+  - LE CORRECTIF D'UNITES EST DECISIF ICI, PAS MARGINAL. Les cibles courent
+    jusqu'a 208,5 h de remplissage a zero, et avec le bug tf tombait entre 83
+    et 129 h — en pleine zone de zeros. Les six durees auraient toutes ete
+    plafonnees a 37 h : ZERO economie. Le plan du premier apport porte 30,3 h
+    (Ardanavy.p05, verifie dans le fichier).
+      Calendrier reel : 30,3 / 32,4 / 36,1 / 36,7 / 38,1 / 38,1 h pour un
+      plafond de 37 h. Reconstruction avec le bug : 37 partout.
+  - pretraitement_perime A ALERTE POUR LA PREMIERE FOIS EN VRAI, avec la marche
+    a suivre. C'etait exactement la situation qui avait fait echouer un
+    lancement le 31/08 (« Geometry Writer Failed »).
+  - L'AVERTISSEMENT DE PENTE a signale qu'un apport n'a pas de ligne
+    « Flow Hydrograph Slope= » dans son bloc unsteady : sa pente n'a pas ete
+    appliquee, les cinq autres oui.
+
+CE QU'IL A RENVERSE — le critere de coherence du decalage, pose le matin meme.
+  Detail complet en 2.2 ter. En deux lignes : ce modele a la pente la plus
+  forte (+0,99) et la derive la plus grande (7,0 h contre 4,4), et ne levait
+  AUCUNE alerte sous le premier critere, parce que sa derive n'est pas monotone
+  et que le r restait sous 0,9.
+    UN SEUL JEU DE DONNEES NE CALIBRE RIEN, ET LE DEUXIEME PEUT RENVERSER LE
+    CRITERE PLUTOT QUE LE CONFIRMER. C'est ce qui est arrive, le meme jour.
+
+COMMENT LA MESURE A ETE OBTENUE SANS ATTENDRE LE CALAGE : le HDF du calcul de
+reference etant complet, ses six sections ont ete relues par
+« pont_hecras hydrogramme --plan <hdf> --section <nom> --sortie <ailleurs> ».
+  PENSER A --sortie : sans lui, l'outil ecrit son csv DANS le dossier du
+  modele. Un fichier parasite a ete retire a la main.
+
+5.4  CE QUE LES CAS REELS ONT APPRIS, ENSEMBLE
 --------------------------------------------------------------------------
   - CALER LA SECTION ET DETERMINER L'APPORT SONT DEUX QUESTIONS DISTINCTES.
     La seconde n'a de reponse que si l'apport pese assez lourd. C'est la
@@ -1163,6 +1208,21 @@ ne paie pas le risque (section 6).
     d'unites a rendu agissantes deux asymetries latentes. APRES TOUT
     CORRECTIF QUI RESSERRE UNE BORNE, CHERCHER CE QUE L'ANCIENNE LARGEUR
     MASQUAIT.
+  - UN SEUIL POSE SUR UN SEUL CAS N'EST PAS UN SEUIL, ET LE DEUXIEME CAS PEUT
+    LE RENVERSER PLUTOT QUE LE CONFIRMER. Le critere de coherence du decalage
+    a ete pose le matin du 01/09 sur un modele, et retourne l'apres-midi par le
+    second — qui derivait DAVANTAGE et ne levait rien. Corollaire pratique :
+    quand un seuil ne repose que sur un cas, le NOMMER dans le code et mettre
+    le second jeu de donnees AU BANC des qu'il existe, sinon rien n'empeche d'y
+    revenir. Reste a faire pour le bilan de masse a 5 %.
+  - LA VALEUR PEUT ETRE JUSTE ET LA GRANDEUR FAUSSE, et c'est le piege le plus
+    couteux de la journee du 01/09 — il s'est presente TROIS fois. Un gain
+    annonce sur la fin de crue quand le code mesure une fenetre de deficit. Un
+    seuil de couverture aveugle parce que les deux volumes sont integres sur le
+    meme intervalle. Une pente et un r qui ecartent la pire des deux derives.
+    A chaque fois le calcul etait exact ; c'est ce qu'il mesurait qui ne
+    repondait pas a la question. SE DEMANDER « QUELLE GRANDEUR ? » AVANT
+    « QUELLE VALEUR ? ».
   - UN GAIN ANNONCE AVANT MESURE EST UNE HYPOTHESE SUR CE QU'ON CROIT QUE
     LE CODE MESURE. Les 34 % promis par l'optimisation des durees en
     valaient 11 : l'estimation portait sur la fin de crue des cibles, le

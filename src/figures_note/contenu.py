@@ -200,6 +200,37 @@ CONTENU = [
           "décalage important sans défaut de volume ni de forme désigne un "
           "problème de propagation, que l'apport aggraverait s'il tentait de "
           "le corriger."),
+    ("p", "CE QUI EST JUGÉ, EN REVANCHE, C'EST SA COHÉRENCE LE LONG DE "
+          "L'AXE. Un Δt identique à toutes les sections ne dit rien de "
+          "suspect : c'est une origine de temps qui diffère. Un Δt qui DÉRIVE "
+          "d'une section à l'autre dit que le modèle et les cibles ne routent "
+          "pas la crue au même rythme, et que le désaccord grandit."),
+    ("p", "La grandeur retenue est l'ÉTENDUE de Δt — son maximum moins son "
+          "minimum — rapportée à la durée médiane des fenêtres jugées. Ni son "
+          "amplitude, qui ne distingue rien, ni la pente d'une régression, qui "
+          "suppose une dérive régulière : sur un cas réel la dérive n'était "
+          "pas monotone, et un critère de pente l'aurait laissée passer. Le "
+          "seuil est relatif — 15 % — parce qu'une dérive de 4 h sur des crues "
+          "de 25 h ne dit pas la même chose que sur des crues de 100 h."),
+    ("table", [
+        ["Deux modèles réels", "Ce qui a été mesuré"],
+        ["Modèle A, 8 apports",
+         "pic du modèle +0,26 h par section, pic des cibles +0,84 ; étendue de "
+         "Δt 4,4 h. Le modèle route PLUS VITE que ses cibles ne le supposent."],
+        ["Modèle B, 6 apports",
+         "pic du modèle +2,30 h par section, pic des cibles +1,00 ; étendue de "
+         "Δt 7,0 h. Le modèle route PLUS LENTEMENT — signe inverse."],
+    ]),
+    ("note", "Réserve à porter au client — la mesure ne coûte aucune "
+             "simulation et sort dès l'état de référence, mais elle ne tranche "
+             "pas : les sections seront calées, à 99–101 % de volume. Ce que "
+             "l'étendue interroge est le POSITIONNEMENT TEMPOREL des "
+             "hydrogrammes d'apport livrés, qui reproduisent la forme des "
+             "cibles en portant ce décalage — et pas le même d'une section à "
+             "l'autre. Sont-ce les cibles, le routage du modèle, ou une "
+             "origine de temps ? La question appartient à l'ingénieur ; la "
+             "chaîne se contente de la poser, sans bloquer. Le seuil de 15 % "
+             "ne repose que sur DEUX cas."),
     ("figure", ("fig_fenetre.png",
                 "La fenêtre de jugement, détectée dès l'état de référence.")),
     ("h3", "Comparer sur la bonne fenêtre"),
@@ -859,9 +890,16 @@ CONTENU = [
     ("bullet", "Borner la corrélation et le recalage temporel à la fenêtre de "
                "jugement, comme le sont déjà le volume, la pointe et la "
                "couverture."),
-    ("bullet", "Juger le décalage sur sa COHÉRENCE LE LONG DE L'AXE plutôt que "
-               "sur son amplitude : un décalage qui s'écarte de la tendance de "
-               "ses voisins est suspect quelle que soit sa valeur."),
+    ("bullet", "Reprendre le seuil de cohérence du décalage (15 % de la "
+               "fenêtre jugée) sur un TROISIÈME modèle : il ne repose que sur "
+               "deux cas, et le premier critère retenu avait déjà été renversé "
+               "par le deuxième modèle — celui-là même qui devait le "
+               "confirmer."),
+    ("bullet", "Trancher, avec le client, les dérives de décalage mesurées sur "
+               "les deux modèles : 4 h sur l'un, 7 h sur l'autre, en sens "
+               "contraire. Ce n'est plus une anomalie isolée mais un écart "
+               "systématique entre le routage des modèles et celui que les "
+               "cibles supposent."),
     ("bullet", "Recréer le script de pré-vol, en y portant deux mesures qui ne "
                "coûtent aucune simulation : le cliquet par section, et la part "
                "de chaque apport dans le débit de sa section."),
