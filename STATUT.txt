@@ -28,8 +28,16 @@ CE QUI EST EPROUVE
     creer_template, elaguer_projet, verification_environnement,
     pont_hecras autotest, noyau.
   - test_plugin_qgis.py sous le Python de QGIS (3.44.8 / Qt 5.15.13).
+    149 CONTROLES, 0 ECHEC LE 01/09 AU SOIR — premier passage complet, sur une
+    copie de CETTE_TEST1 (plan p03). Les six correctifs du 30/08 sont donc
+    desormais exerces SOUS QGIS.
     IL LUI FAUT UN MODELE PORTANT DES RESULTATS : sans .pXX.hdf, huit
     controles echouent en cascade — ce n'est pas une regression.
+    IL LUI FAUT AUSSI L'INTERPRETEUR HEC-RAS. Sur ce poste le greffon ne le
+    trouve pas seul — il ne le fait que pour un .venv voisin de la chaine, et
+    D:\1-Python\.venv ne l'est pas. Le designer par la variable
+    CALAGE_PYTHON avant de lancer la suite ; sans lui, la lecture de la
+    geometrie echoue et la suite S'ARRETE en le disant (elle plantait).
     Invoquer sur une COPIE, jamais sur un modele porteur d'un calage : la
     suite MODIFIE la geometrie du modele designe.
   - faire_zip.py rend « archive conforme » ; essai_garde_fou_archive.py, qui
@@ -61,8 +69,6 @@ CE QUI N'A JAMAIS TOURNE
     jusqu'au bout sur aucun poste : seul son refus d'un python inexistant est
     couvert par le banc. Installer pour de vrai telechargerait plusieurs
     centaines de Mo a chaque execution des tests.
-  - Les six correctifs du 30/08 (section 5.3) n'ont pas ete exerces SOUS
-    QGIS — uniquement hors interface.
 
 L'INTERPRETEUR
   D:\1-Python\.venv\Scripts\python.exe   (Python 3.13.11)
@@ -1422,8 +1428,9 @@ A FAIRE, PAR ORDRE DE PRIORITE
       methode en vigueur, l'annexe B.3 reste aux incidents cote MODELE
       (bilan de masse, blocs orphelins). L'historique des defauts de la chaine
       vit dans ce fichier et dans git.
-  - EPROUVER SOUS QGIS les six correctifs du 30/08, et le bouton
-    « Installer… » sur un poste neuf.
+  - EPROUVER LE BOUTON « INSTALLER… » SUR UN POSTE NEUF. C'est le seul
+    chemin qui n'ait jamais tourne de bout en bout. Les six correctifs du
+    30/08, eux, sont passes sous QGIS le 01/09 au soir (§ 1).
   - LE SCRIPT DE PRE-VOL, ET LUI SEUL. LES DEUX MESURES SONT FAITES : la
     part de chaque apport dans le debit de sa section l'etait deja (alerte
     « APPORT PEU IDENTIFIABLE »), le cliquet l'est depuis le 01/09 au soir

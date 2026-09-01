@@ -442,8 +442,16 @@ def _python_utilisable(chemin):
 
     ON VALIDE EN EXECUTANT, JAMAIS SUR LE CHEMIN, et c'est tout l'interet de
     cette fonction. Mesure du 01/09/2026 sur une installation QGIS reelle :
-        C:\...\QGIS\LTR\bin\python.exe          echoue au demarrage
-        C:\...\QGIS\LTR\apps\Python312\python.exe  venv utilisable, pip 25.0.1
+        C:\Program Files\QGIS\LTR\bin\python.exe
+            echoue au demarrage
+        C:\Program Files\QGIS\LTR\apps\Python312\python.exe
+            venv utilisable, pip 25.0.1
+    ILS SONT ECRITS EN ENTIER, et non elides comme ils l'etaient. Un
+    emplacement de LOGICIEL est legitime dans un fichier distribue, mais le
+    garde-fou qui l'autorise le reconnait A SON PREFIXE — celui du dossier
+    des programmes. Abrege par des points de suspension, il ressemblait a
+    un chemin de donnees, et c'est ce qu'il devenait pour le controle.
+    Releve par la suite QGIS le 01/09/2026, a son premier passage complet.
     Le premier n'est qu'un lanceur : hors de l'environnement pose par
     qgis-bin.exe il rend « Could not find platform independent libraries ».
     Une recherche par emplacement l'aurait propose, et l'installation aurait

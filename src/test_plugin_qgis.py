@@ -362,6 +362,23 @@ else:
              and dlg.couche_perimetre is not None,
              f"sections={dlg.couche_sections.featureCount() if dlg.couche_sections else '?'} "
              f"injections={dlg.couche_injections.featureCount() if dlg.couche_injections else '?'}")
+    # SANS COUCHES, TOUT CE QUI SUIT PLANTE — et plantait : la suite s'arretait
+    # vingt lignes plus bas sur « NoneType n'a pas d'attribut featureCount »,
+    # au lieu de dire ce qui manque. Un banc qui s'effondre n'apprend plus rien
+    # de ce qu'il n'a pas encore controle : il rend UN echec la ou il en aurait
+    # rendu quatre-vingt-dix-neuf.
+    #   LA CAUSE ORDINAIRE EST L'INTERPRETEUR HEC-RAS ABSENT — la lecture de la
+    #   geometrie passe par lui. Le greffon ne le trouve seul que si c'est un
+    #   .venv voisin de la chaine retenue ; ailleurs il faut le lui designer, et
+    #   CALAGE_PYTHON dans l'environnement suffit pour cette suite.
+    if dlg.couche_injections is None or dlg.couche_sections is None:
+        print("\n   ARRET : sans les couches du modele, aucun des controles "
+              "suivants n'a de sens.")
+        print("   Le diagnostic de chargement ci-dessus dit pourquoi — un "
+              "interpreteur HEC-RAS introuvable suffit a produire ceci.")
+        print("   Le designer par CALAGE_PYTHON, ou par le bouton "
+              "« Designer… » du greffon.")
+        raise SystemExit(1)
 
     # L'axe et les sections doivent etre COHERENTS avec la geometrie reelle :
     # l'appariement se fait desormais par PK le long de l'axe, et non plus par
@@ -1133,7 +1150,18 @@ for _fichier in sorted(Path(mod_plugin.__file__).parent.glob("*.py")):
     _src = _fichier.read_text(encoding="utf-8")
     _chemins = [c for c in re.findall(r"[A-Za-z]:\\[^\"'\n]{3,}", _src)
                 if not c.lower().startswith(_LOGICIELS)
-                and not c.lower().startswith(_CHAINE)]
+                and not c.lower().startswith(_CHAINE)
+                # UN MOTIF DE RECHERCHE N'EST PAS UN CHEMIN. Les emplacements
+                # ou le greffon va CHERCHER un python portent une etoile ; or
+                # l'etoile est interdite dans un nom de fichier Windows, donc
+                # aucun de ces motifs ne peut etre un chemin de donnees. Les
+                # ecarter ne relache rien.
+                #   ET SURTOUT PAS UNE EXCEPTION NOMINATIVE de plus : ajouter
+                #   « c:\osgeo4w » et « c:\python3 » a la liste blanche aurait
+                #   marche aussi, et c'est exactement ce que le paragraphe
+                #   ci-dessus interdit — une liste blanche qui grandit finit
+                #   par etre la seule chose que le garde-fou ne voit plus.
+                and "*" not in c]
     verifier(f"aucun chemin de donnees dans {_fichier.name}",
              not _chemins, "; ".join(_chemins[:2]) or "aucun")
 
