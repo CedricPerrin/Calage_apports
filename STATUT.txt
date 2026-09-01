@@ -1458,16 +1458,28 @@ A FAIRE, PAR ORDRE DE PRIORITE
       fige »), soit fenetre_injection apprend a se passer du decalage, soit on
       constate que le cas ne se presente pas sur un modele reel. Aucun des
       deux calages du 01/09 ne portait de transitoire dominant hors fenetre.
-  - PENTE D'UN APPORT CREE PAR LE GREFFON : PENTE_APPORT_DEFAUT = 0,01 est
-    EN DUR (plugin.py), alors que la pente du troncon est mesurable au meme
-    endroit. Y porter la pente locale du PK de l'injection et l'ecrire dans
-    le classeur, comme pour Pente_m_par_m. Repli sur 0,01 si le profil n'est
-    pas calculable.
+  - PENTE D'UN APPORT CREE PAR LE GREFFON — REEXAMINE LE 01/09 AU SOIR, ET
+    L'ENJEU EST PLUS PETIT QU'ECRIT. PENTE_APPORT_DEFAUT = 0,01 est bien en
+    dur (plugin.py), mais il ne survit pas au calage : la colonne
+    Pente_m_par_m du classeur est DEJA pre-remplie avec la pente locale
+    (noyau.pentes_locales_apports), et pont_hecras._appliquer_pentes donne a
+    chaque apport la sienne avant d'ecrire — classeur, puis pente deduite du
+    fond, puis rien. Le 0,01 ne vit qu'entre la creation de l'injection et le
+    premier calage.
+      IL NE RESTE QUE LE CAS DU MODELE CREE PAR LE GREFFON PUIS LANCE A LA
+    MAIN, sans calage : celui-la porte 1 % partout. Le corriger a la creation
+    demande la pente au PK de l'injection, or le PK sort de l'appariement, qui
+    n'a pas encore eu lieu quand on ecrit la BC line — et le profil en long
+    exige une geometrie deja pretraitee. La poule et l'oeuf, pour un cas
+    d'usage qui n'est pas celui de la chaine. A faire seulement si ce cas se
+    presente vraiment.
   - LA BOITE DE COMPTE RENDU DUPLIQUEE de plugin.py (deux sites, ~3320 et
     ~3817) : cinq lignes reellement communes, titres et textes differents.
     SEULE COUPE DE L'AUDIT DU 31/08 LAISSEE DE COTE, et delibere : le gain ne
-    paie pas le risque dans un fichier qu'aucun banc local ne couvre. A
-    reprendre le jour ou plugin.py sera eprouve sous QGIS.
+    payait pas le risque dans un fichier qu'aucun banc local ne couvrait.
+    LA CONDITION EST LEVEE depuis le 01/09 au soir — 149 controles passent
+    sous QGIS. Le gain, lui, n'a pas grandi : cinq lignes communes. A trancher
+    par l'utilisateur, pas par le banc.
 
 A TRANCHER
   - FAUT-IL REFUSER DE CALER UN APPORT DONT LA PART TOMBE SOUS UN SEUIL ?
