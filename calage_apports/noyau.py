@@ -425,6 +425,147 @@ def emplacement_venv_hecras():
     return dossier_donnees_greffon() / "venv-hecras"
 
 
+PYTHON_MINIMUM = (3, 9)
+
+# CE QUI DISQUALIFIE UN CANDIDAT SANS MEME L'ESSAYER. Les alias d'execution
+# Windows sont des fichiers de zero octet dont le seul role est d'afficher
+# « Python was not found; run without arguments to install from the Microsoft
+# Store ». Ils occupent le PATH, repondent a « where python », et ne sont pas
+# des interpreteurs. Releve le 01/09/2026 sur un poste neuf : l'utilisateur
+# voyait deux python.exe et aucun ne demarrait.
+_LEURRES = ("windowsapps",)
+
+
+def _python_utilisable(chemin):
+    r"""
+    Version d'un python.exe s'il sait DEMARRER et fabriquer un venv, None sinon.
+
+    ON VALIDE EN EXECUTANT, JAMAIS SUR LE CHEMIN, et c'est tout l'interet de
+    cette fonction. Mesure du 01/09/2026 sur une installation QGIS reelle :
+        C:\...\QGIS\LTR\bin\python.exe          echoue au demarrage
+        C:\...\QGIS\LTR\apps\Python312\python.exe  venv utilisable, pip 25.0.1
+    Le premier n'est qu'un lanceur : hors de l'environnement pose par
+    qgis-bin.exe il rend « Could not find platform independent libraries ».
+    Une recherche par emplacement l'aurait propose, et l'installation aurait
+    echoue apres la validation de l'utilisateur.
+
+    « import venv » est teste explicitement : certaines distributions
+    reduites l'omettent, et l'absence ne se verrait qu'au moment de creer.
+    """
+    chemin = Path(chemin)
+    if not chemin.is_file():
+        return None
+    if any(l in str(chemin).lower() for l in _LEURRES):
+        return None
+    try:
+        if chemin.stat().st_size == 0:
+            return None
+    except OSError:
+        return None
+    try:
+        sortie = subprocess.run(
+            [str(chemin), "-c",
+             "import venv, sys; print('%d.%d.%d' % sys.version_info[:3])"],
+            capture_output=True, text=True, encoding="utf-8",
+            errors="replace", timeout=20)
+    except Exception:                                        # noqa: BLE001
+        return None
+    if sortie.returncode != 0:
+        return None
+    brut = (sortie.stdout or "").strip().splitlines()
+    if not brut:
+        return None
+    try:
+        version = tuple(int(n) for n in brut[-1].split("."))
+    except ValueError:
+        return None
+    return version if version >= PYTHON_MINIMUM else None
+
+
+def _emplacements_python():
+    r"""Chemins a essayer, sans garantie : c'est _python_utilisable qui tranche."""
+    vus, candidats = set(), []
+
+    def ajouter(p):
+        if p is None:
+            return
+        p = Path(p)
+        cle = str(p).lower()
+        if cle not in vus:
+            vus.add(cle)
+            candidats.append(p)
+
+    # LE PYTHON QUI NOUS EXECUTE, par sys.base_prefix et NON sys.executable :
+    # sous QGIS, sys.executable vaut qgis-bin.exe, qui n'est pas un
+    # interpreteur. base_prefix, lui, pointe la racine de l'installation
+    # Python — apps\Python312 sur une installation QGIS Windows.
+    ajouter(Path(sys.base_prefix) / "python.exe")
+    ajouter(Path(sys.base_prefix) / "bin" / "python")
+
+    # Le lanceur « py » sait enumerer ce qui est installe.
+    try:
+        sortie = subprocess.run(["py", "-0p"], capture_output=True, text=True,
+                                encoding="utf-8", errors="replace", timeout=20)
+        for ligne in (sortie.stdout or "").splitlines():
+            morceau = ligne.strip()
+            if "python.exe" in morceau.lower():
+                ajouter(morceau[morceau.lower().index("c:"):].strip('" ')
+                        if "c:" in morceau.lower() else None)
+    except Exception:                                        # noqa: BLE001
+        pass
+
+    for motif in (
+            r"%LOCALAPPDATA%\Programs\Python\Python3*\python.exe",
+            r"C:\Python3*\python.exe",
+            r"C:\Program Files\Python3*\python.exe",
+            # QGIS et OSGeo4W : DEUX niveaux, « QGIS\LTR\apps » comme
+            # « QGIS 3.34\apps ». Motifs bornes plutot qu'un parcours
+            # recursif, qui prendrait des secondes sur Program Files.
+            r"C:\Program Files\QGIS*\apps\Python3*\python.exe",
+            r"C:\Program Files\QGIS*\*\apps\Python3*\python.exe",
+            r"C:\OSGeo4W*\apps\Python3*\python.exe",
+    ):
+        import glob as _glob
+        for trouve in _glob.glob(os.path.expandvars(motif)):
+            ajouter(trouve)
+
+    for nom in ("python", "python3", "py"):
+        ajouter(shutil.which(nom))
+    return candidats
+
+
+def _origine_python(chemin):
+    """« QGIS » si l'interpreteur appartient a une installation QGIS."""
+    bas = str(chemin).lower()
+    return "QGIS" if ("qgis" in bas or "osgeo4w" in bas) else "independant"
+
+
+def pythons_candidats():
+    r"""
+    Interpreteurs capables de servir de BASE au venv HEC-RAS, valides un par
+    un en les executant. Rend une liste de dicts {chemin, version, origine},
+    LE MEILLEUR D'ABORD.
+
+    UN PYTHON INDEPENDANT PASSE AVANT CELUI DE QGIS (decision du 01/09/2026).
+    Les deux fonctionnent, mais un venv construit sur apps\Python312 casse le
+    jour ou une montee de version de QGIS remplace ce dossier — et QGIS se met
+    a jour seul. Celui de QGIS reste propose, et devient le premier choix
+    quand il est le seul present : c'est le cas ordinaire d'un poste neuf, ou
+    il evite toute installation.
+
+    A egalite d'origine, la version la plus recente d'abord.
+    """
+    trouves = []
+    for chemin in _emplacements_python():
+        version = _python_utilisable(chemin)
+        if version is not None:
+            trouves.append({"chemin": Path(chemin), "version": version,
+                            "origine": _origine_python(chemin)})
+    trouves.sort(key=lambda c: (c["origine"] == "QGIS",
+                                tuple(-n for n in c["version"])))
+    return trouves
+
+
 def installer_interpreteur(python_base, journal=None):
     """
     Cree un environnement Python HEC-RAS et y installe ras-commander et h5py.
@@ -706,10 +847,20 @@ def appeler_pont(*arguments, delai=300):
 
     interpreteur = interpreteur_hecras()
     if interpreteur is None:
+        # LE GESTE LE PLUS SIMPLE D'ABORD. Ce message ne proposait que la
+        # variable d'environnement, c'est-a-dire quitter QGIS, ouvrir les
+        # parametres systeme et revenir — alors qu'un bouton fait le travail.
+        # C'est la premiere erreur qu'a vue l'utilisateur sur un poste neuf, et
+        # elle l'envoyait vers la seule issue penible (releve le 29/08/2026,
+        # reformule le 01/09).
         raise RuntimeError(
             f"aucun interpreteur capable de piloter HEC-RAS n'a ete trouve. "
-            f"Definir la variable d'environnement {VARIABLE_INTERPRETEUR} sur "
-            f"le python.exe d'un environnement disposant de ras-commander.")
+            f"Dans l'onglet « Parametres du poste » du greffon : bouton "
+            f"« Installer… » pour en creer un — il cherche seul les Python "
+            f"presents sur le poste et propose ceux qui conviennent — ou "
+            f"« Designer… » si un environnement avec ras-commander existe "
+            f"deja. A defaut, la variable d'environnement "
+            f"{VARIABLE_INTERPRETEUR} accepte le chemin d'un python.exe.")
 
     commande = [str(interpreteur), str(chaine / "pont_hecras.py"),
                 *[str(a) for a in arguments]]
@@ -1942,6 +2093,61 @@ if __name__ == "__main__":
               f" le dossier de donnees est hors du greffon  ->  "
               f"{dossier_donnees_greffon()}")
         assert DOSSIER_EMBARQUE.parent not in dossier_donnees_greffon().parents
+
+        # --- 4 quater. LE GREFFON CHERCHE LES PYTHON TOUT SEUL -------------
+        print("\n4 quater. Recherche des Python utilisables")
+        _cands = pythons_candidats()
+        for _c in _cands:
+            print(f"      {'.'.join(str(n) for n in _c['version']):9} "
+                  f"{_c['origine']:12} {_c['chemin']}")
+
+        # AUCUN LEURRE NE PASSE. C'est le defaut qui a bloque un poste neuf le
+        # 01/09/2026 : deux « python.exe » dans le PATH, tous deux des alias
+        # WindowsApps de zero octet, et le selecteur de fichier n'avait rien a
+        # proposer. On FABRIQUE le leurre plutot que de dependre du poste.
+        _leurre = dossier / "WindowsApps" / "python.exe"
+        _leurre.parent.mkdir(parents=True, exist_ok=True)
+        _leurre.write_bytes(b"")
+        print(f"   [{'OK' if _python_utilisable(_leurre) is None else 'ECHEC'}]"
+              f" un alias WindowsApps de zero octet est refuse")
+        assert _python_utilisable(_leurre) is None
+        _vide = dossier / "python.exe"
+        _vide.write_bytes(b"")
+        print(f"   [{'OK' if _python_utilisable(_vide) is None else 'ECHEC'}]"
+              f" un fichier vide hors WindowsApps aussi")
+        assert _python_utilisable(_vide) is None
+        _pasla = dossier / "jamais" / "python.exe"
+        print(f"   [{'OK' if _python_utilisable(_pasla) is None else 'ECHEC'}]"
+              f" un chemin inexistant aussi")
+        assert _python_utilisable(_pasla) is None
+
+        # ON VALIDE EN EXECUTANT : le python qui fait tourner ce banc doit
+        # passer, puisqu'il sait demarrer et porte venv.
+        _moi = _python_utilisable(sys.executable)
+        print(f"   [{'OK' if _moi is not None else 'ECHEC'}] le python courant "
+              f"est reconnu utilisable  ->  {_moi}")
+        assert _moi is not None and _moi >= PYTHON_MINIMUM
+
+        # L'ORDRE EST LA DECISION DU 01/09/2026 : un Python independant passe
+        # AVANT celui de QGIS, parce qu'un venv bati sur apps\Python3xx casse
+        # quand QGIS monte de version.
+        _indep = [i for i, c in enumerate(_cands)
+                  if c["origine"] == "independant"]
+        _qgis = [i for i, c in enumerate(_cands) if c["origine"] == "QGIS"]
+        _ordre = (not _indep or not _qgis or max(_indep) < min(_qgis))
+        print(f"   [{'OK' if _ordre else 'ECHEC'}] tout Python independant "
+              f"passe avant ceux de QGIS  ->  "
+              f"{len(_indep)} independant(s), {len(_qgis)} QGIS")
+        assert _ordre
+        _versions = [c["version"] for c in _cands
+                     if c["origine"] == "independant"]
+        print(f"   [{'OK' if _versions == sorted(_versions, reverse=True) else 'ECHEC'}]"
+              f" et a origine egale, la version la plus recente d'abord  ->  "
+              f"{['.'.join(str(n) for n in v) for v in _versions]}")
+        assert _versions == sorted(_versions, reverse=True)
+        print(f"   [{'OK' if all(c['chemin'].is_file() for c in _cands) else 'ECHEC'}]"
+              f" tous les candidats rendus existent vraiment")
+        assert all(c["chemin"].is_file() for c in _cands)
         # installer_interpreteur REFUSE un python de base inexistant, sans
         # rien creer : c'est le seul chemin de cette fonction qu'un banc peut
         # emprunter sans telecharger plusieurs centaines de mega-octets.
@@ -1986,7 +2192,9 @@ if __name__ == "__main__":
     interpreteur = interpreteur_hecras()
     print(f"   interpreteur : {interpreteur}")
     if interpreteur is None:
-        print("   introuvable — definir CALAGE_PYTHON")
+        print(f"   introuvable — bouton « Installer… » du greffon "
+              f"({len(pythons_candidats())} base(s) possible(s) sur ce "
+              f"poste), ou « Designer… », ou {VARIABLE_INTERPRETEUR}")
     else:
         try:
             reponse = appeler_pont("verifier", delai=120)

@@ -3214,12 +3214,65 @@ class DialogueParametrage(QDialog):
         if reponse != QMessageBox.StandardButton.Yes:
             return
 
+        # ON PROPOSE, PLUTOT QUE DE DEMANDER DE CHERCHER. Un sélecteur de
+        # fichier vide est sans issue précisément sur le poste où ce bouton
+        # sert : celui qui n'a pas encore d'interpréteur. Relevé le
+        # 01/09/2026 — l'utilisateur voyait deux « python.exe » dans son PATH,
+        # tous deux des leurres WindowsApps de zéro octet, et n'avait rien à
+        # désigner.
+        #
+        # LES CANDIDATS SONT VALIDÉS EN ÉTANT EXÉCUTÉS, pas retenus sur leur
+        # emplacement (voir noyau.pythons_candidats) : une recherche par
+        # chemin aurait proposé « QGIS\LTR\bin\python.exe », qui est un
+        # lanceur et ne démarre pas hors de l'environnement de QGIS.
         with sans_sablier(self):
-            base, _ = QFileDialog.getOpenFileName(
-                self, "Python de base (python.exe) servant à créer "
-                      "l'environnement", "",
-                "Exécutable Python (python.exe python3.exe python);;"
-                "Tous les fichiers (*)")
+            candidats = noyau.pythons_candidats()
+
+        base = ""
+        PARCOURIR = "Parcourir moi-même…"
+        if candidats:
+            libelles = [
+                f"{'.'.join(str(n) for n in c['version'])} — {c['chemin']}"
+                + ("   (fourni par QGIS)" if c["origine"] == "QGIS" else "")
+                for c in candidats] + [PARCOURIR]
+            with sans_sablier(self):
+                choix, valide = QInputDialog.getItem(
+                    self, "Python de base",
+                    f"{len(candidats)} interpréteur(s) utilisable(s) trouvé(s) "
+                    f"sur ce poste.\nLe premier est recommandé : un "
+                    f"environnement bâti sur le Python de QGIS cesse de "
+                    f"fonctionner\nle jour où une montée de version de QGIS "
+                    f"remplace son dossier.",
+                    libelles, 0, False)
+            if not valide:
+                return
+            if choix != PARCOURIR:
+                base = str(candidats[libelles.index(choix)]["chemin"])
+        else:
+            # RIEN TROUVÉ : ON DIT QUOI FAIRE, au lieu d'ouvrir un sélecteur
+            # devant lequel l'utilisateur n'a rien à répondre.
+            with sans_sablier(self):
+                QMessageBox.warning(
+                    self, "Aucun Python utilisable sur ce poste",
+                    "Aucun interpréteur capable de créer un environnement n'a "
+                    "été trouvé.\n\n"
+                    "Les « python.exe » de WindowsApps n'en sont pas : ce sont "
+                    "des fichiers vides dont le seul rôle est d'afficher "
+                    "« Python was not found ». Ils occupent le PATH sans rien "
+                    "exécuter.\n\n"
+                    "Installer Python 3.9 ou plus depuis python.org, en "
+                    "cochant « Add python.exe to PATH », puis relancer QGIS. "
+                    "Le Python fourni avec QGIS convient aussi : il se trouve "
+                    "dans « apps\\Python3xx\\python.exe » de l'installation "
+                    "QGIS, et non dans « bin ».")
+
+        if not base:
+            with sans_sablier(self):
+                base, _ = QFileDialog.getOpenFileName(
+                    self, "Python de base (python.exe) servant à créer "
+                          "l'environnement", "",
+                    "Exécutable Python (python.exe python3.exe python);;"
+                    "Tous les fichiers (*)")
         if not base:
             return
 
