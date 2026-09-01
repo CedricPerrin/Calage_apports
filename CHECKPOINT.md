@@ -42,6 +42,72 @@ fournir. Le garde-fou n'est donc pas muet — mais il ne surveille rien de réel
 Avant de committer depuis un clone neuf, se rappeler qu'un nom de client
 passerait.
 
+## Session du 1er septembre 2026, soir — la liste des points ouverts mentait
+
+**Par quoi reprendre :** `STATUT.txt` § 1 (état courant), § 2.4 (le cliquet),
+§ 6 (points ouverts, désormais élagués).
+
+**15 bancs verts hors QGIS, 149 contrôles verts dessous** — la suite QGIS est
+passée de bout en bout pour la première fois.
+
+### Trois points ouverts sur six étaient déjà faits
+
+Repris un par un, dans le code et non de confiance :
+
+| point ouvert | état réel |
+|---|---|
+| « r et le KGE travaillent sur la grille qui englobe » | faux — bornés depuis longtemps, § 7 du banc |
+| « la ligne A3 annonce x 1,000 et plancher 0,00 % » | faux — elle dit la lecture en escalier |
+| « porter `RAS_COMMANDER_MINIMUM` » | vrai, et fait |
+
+La liste porte maintenant son avertissement en tête : **les vérifier dans le
+code avant de les traiter**. Un point ouvert ne se périme pas tout seul.
+
+### Ce que la vérification a trouvé de pire que ce qui était écrit
+
+Le volume, la pointe, la couverture et la forme étaient bien bornés à la
+fenêtre jugée. Le **décalage**, lui, se mesurait sur toute la grille — et
+c'est lui qui **apparie** les deux séries avant toute comparaison. Mesure : un
+transitoire de mise en eau hors fenêtre, plus haut que l'événement, rendait
+**−26,00 h pour un retard réel de +1,50 h**, et emportait le volume à 109 % et
+r à 0,95, tous deux pourtant bornés. *Borner les grandeurs sans borner leur
+appariement ne bornait rien.*
+
+### Le cliquet, énoncé depuis la V13, mesuré depuis ce soir
+
+Un apport ne sait qu'ajouter du débit : là où la section donne déjà plus que
+la cible, l'excès est irréductible. `caler()` ne refusait que le cas **total**
+(cible entièrement sous le résiduel, jugé sur la pointe). Le cas ordinaire —
+cible atteignable en pointe, volume condamné — passait :
+
+    plancher annonçable AVANT le premier essai   109,8 %
+    volume atteint après trois essais            109,6 %
+    verdict rendu   « le modèle répond de façon trop non linéaire »
+
+Le motif accusait le modèle. La cause était le cliquet, et il ne coûte aucune
+simulation : l'excès est la part négative de l'écart, déjà calculée.
+
+### La suite QGIS, enfin
+
+Deux choses l'empêchaient, invisibles hors QGIS : le banc **s'effondrait** sur
+un `NoneType` au lieu de dire qu'il manquait l'interpréteur (un échec au lieu
+de 149) ; et quatre chemins de `noyau.py` faisaient échouer le contrôle
+d'attache — deux exemples **élidés** qui effaçaient le préfixe que la liste
+blanche reconnaît, deux **motifs de recherche** portant une étoile. L'étoile
+étant interdite dans un nom de fichier Windows, le contrôle les écarte sur ce
+critère plutôt que d'ajouter leurs racines à la liste blanche : *un motif de
+recherche n'est pas un chemin* est une règle, pas une exception nominative.
+
+**Sur ce poste, la suite QGIS exige `CALAGE_PYTHON`** — le greffon ne trouve
+seul qu'un `.venv` voisin de la chaîne.
+
+### Ce qui reste, et ce qui a changé de statut
+
+`plugin.py` est désormais éprouvé sous QGIS : la boîte de compte rendu
+dupliquée, laissée de côté le 31/08 parce qu'« aucun banc local ne la
+couvre », a vu sa condition levée. La pente d'apport en dur
+(`PENTE_APPORT_DEFAUT = 0,01`) devient elle aussi vérifiable.
+
 ## Session du 1er septembre 2026 — un second modèle renverse un critère
 
 **Par quoi reprendre :** `STATUT.txt` § 1 (état courant), § 2.2 bis et 2.2 ter
