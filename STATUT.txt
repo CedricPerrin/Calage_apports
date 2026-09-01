@@ -179,6 +179,57 @@ perd 1,5 h de marge_duree_h — AUCUNE fenetre jugee n'est tronquee.
   etait un artefact du melange d'unites (section 5.3 ter), ou tf valait 81,5 h
   sur le dernier apport. Corrige, il n'y a plus de fenetre tronquee.
 
+2.2 ter  LA COHERENCE DU DECALAGE LE LONG DE L'AXE
+--------------------------------------------------------------------------
+ON NE JUGE PAS L'AMPLITUDE DE Dt, ON JUGE SA COHERENCE — et c'est ce qui rend
+ce controle compatible avec la regle « le decalage est rapporte, jamais juge »
+(§ 2.5). Un Dt de 5 h coherent avec ses voisins ne dit rien de suspect ; un Dt
+qui suit LINEAIREMENT l'heure du pic cible n'est pas un temps de transfert,
+quelle que soit sa valeur.
+
+LA GRANDEUR EST LA PENTE DE Dt CONTRE L'HEURE DU PIC CIBLE
+(calage._coherence_decalage) :
+  pente ~ 0    le pic du modele suit celui des cibles, meme rythme, rien a dire
+  pente ~ -1   le pic du modele ne bouge pas quand celui des cibles se
+               deplace : les deux series ne partagent pas leur origine
+
+MESURE SUR CAS REEL (12 apports, les 8 premiers cales, 01/09/2026) :
+  apport   pic cible   Dt      pic modele deduit
+  1er        3,0     +0,10          3,10
+  2e         4,5     -1,40          3,10
+  3e         5,5     -2,00          3,50
+  4e         6,5     -2,90          3,60
+  5e         7,0     -3,20          3,80
+  6e         7,0     -3,00          4,00
+  7e         8,5     -4,30          4,20
+  8e         9,5     -4,30          5,20
+  pic du modele  +0,26 h par section ; pic des cibles +0,84 h par section
+  pente -0,699, r = -0,984, projection a la 12e section : Dt ~ -9,3 h
+TROIS FOIS PLUS LENT COTE MODELE. Un r de 0,98 sur huit points n'est pas du
+bruit : c'est une divergence systematique, qui grandit vers l'aval.
+
+CE QUE CA NE REMET PAS EN CAUSE : les sections restent calees, a 99-101 % de
+volume. Ce que la pente interroge est le POSITIONNEMENT TEMPOREL des
+hydrogrammes d'apport livres — un apport cale sur une cible decalee de 4,3 h
+reproduit sa forme, a 4,3 h pres.
+
+NE COUTE AUCUNE SIMULATION, et c'est tout l'interet : les pics cibles viennent
+du classeur, ceux du modele du calcul de reference, qui a lieu de toute facon.
+Sur le calage du 31/08 la mesure aurait ete disponible 2 h 23 apres le
+lancement, au lieu de 25 h.
+
+QUATRE GARDE-FOUS :
+  - QUATRE APPORTS AU MINIMUM : une pente sur deux ou trois n'a pas de sens ;
+  - un Dt CONSTANT est la signature SAINE, et il est quand meme CHIFFRE. La
+    premiere version sortait avant d'imprimer quand l'ecart ne variait pas :
+    le seul cas a ne rien rapporter etait le bon. Attrape au banc le 01/09 ;
+  - ALERTE NON BLOQUANTE, portee au journal, a la reponse JSON du pont et a la
+    note de synthese (« Reserves sur l'ensemble du calage », avant le detail
+    par section). ResultatCalage.alertes_chaine est le canal — Diagnostic.alertes
+    est par section, et rien ne portait ce qui se constate sur l'ensemble ;
+  - seuils PENTE_DECALAGE_MAX = 0,5 et CORRELATION_DECALAGE_MIN = 0,9, FONDES
+    SUR UN SEUL CAS. A revoir au deuxieme modele (section 6).
+
 2.3  QUALITE NUMERIQUE
 --------------------------------------------------------------------------
 Le BILAN DE MASSE rendu par HEC-RAS (« volume accounting error », colonne
@@ -1270,12 +1321,16 @@ A TRANCHER
     est PRIVE, ce qui les rend tenables aujourd'hui. S'il devenait public :
     soit cette section sort du suivi, soit on assume — et dans tous les cas
     l'historique git les porte deja.
-  - JUGER LE DECALAGE SUR SA COHERENCE LE LONG DE L'AXE plutot que sur son
-    amplitude, en V2 : un Dt qui s'ecarte de la tendance de ses voisins est
-    suspect quelle que soit sa valeur ; 5 h coherentes avec elles ne le sont
-    pas. Sur Las Hies, le seul Dt qui rompt la tendance est celui de l'apport
-    non identifiable — les deux anomalies se recoupent, sans valoir
-    demonstration.
+  - REVOIR LES DEUX SEUILS DE COHERENCE DU DECALAGE au deuxieme modele.
+    PENTE_DECALAGE_MAX = 0,5 et CORRELATION_DECALAGE_MIN = 0,9 ne reposent que
+    sur UN cas (section 2.2 ter). Meme reserve que le bilan de masse a 5 %.
+    Sur Las Hies, le seul Dt qui rompait la tendance etait celui de l'apport
+    non identifiable — les deux anomalies se recoupaient, sans valoir
+    demonstration : c'est un second jeu de donnees a repasser dans la mesure.
+  - ETENDRE « .affaires » AUX SECTIONS 03 A 12. La liste ne surveille que
+    SUH01 et SUH02 : SUH03 et SUH12 sont passes SANS ETRE VUS dans du code
+    embarque le 01/09, et seul « Suhihandia » a declenche le refus. Un nom de
+    section n'est pas un nom d'affaire, mais il designe la meme etude.
   - EXPERIMENTAL=TRUE est conserve dans metadata.txt (decision utilisateur).
     Le LISEZMOI dit de cocher « Afficher aussi les extensions
     experimentales » si l'extension n'apparait pas apres installation.

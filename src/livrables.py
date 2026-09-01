@@ -551,10 +551,18 @@ def exporter_excel(chemin, **tableaux):
 # SYNTHESE
 # ---------------------------------------------------------------------------
 
-def synthese(titre, noms_sections, diagnostics, chemin=None):
+def synthese(titre, noms_sections, diagnostics, chemin=None,
+             alertes_chaine=()):
     """
     Note de synthese textuelle : conclusion de conformite et points d'attention.
     Redigee pour etre reprise telle quelle dans un rapport d'etude.
+
+    alertes_chaine : reserves qui portent sur L'ENSEMBLE du calage et non sur
+        une section — la coherence du decalage le long de l'axe, par exemple.
+        Diagnostic.alertes est par section ; ce qui se constate sur les douze
+        n'avait aucun endroit pour etre dit, et restait dans le journal texte
+        que le lecteur d'un rapport n'ouvre jamais. Non bloquantes : elles
+        n'entrent pas dans la conclusion de conformite.
     """
     valides = [d.converge for d in diagnostics]
     n, n_ok = len(diagnostics), sum(valides)
@@ -602,6 +610,15 @@ def synthese(titre, noms_sections, diagnostics, chemin=None):
         f"{max(abs(d.decalage_h) for d in diagnostics):.2f} h "
         f"(surveillé, non corrigé)",
         "",
+    ]
+    # AVANT LE DETAIL PAR SECTION, ET APRES LA CONCLUSION : une reserve qui
+    # porte sur tout le calage se lit avant qu'on entre dans les sections, sans
+    # quoi elle passe pour un commentaire sur la derniere.
+    if alertes_chaine:
+        lignes += ["## Réserves sur l'ensemble du calage", ""]
+        lignes += [f"- {a}" for a in alertes_chaine]
+        lignes.append("")
+    lignes += [
         "## Détail par section",
         "",
     ]
@@ -734,6 +751,20 @@ if __name__ == "__main__":
                           Implantation=tg)
     md = synthese("Calage des apports — note de synthèse", sections,
                   diagnostics, sortie / "synthese.md")
+    # UNE RESERVE D'ENSEMBLE DOIT APPARAITRE, ET AVANT LE DETAIL PAR SECTION.
+    _res = synthese("essai", sections, diagnostics,
+                    alertes_chaine=["les deux calendriers ne progressent pas "
+                                    "au meme rythme"])
+    _ok = ("## Réserves sur l'ensemble du calage" in _res
+           and _res.index("## Réserves sur l'ensemble du calage")
+           < _res.index("## Détail par section"))
+    print(f"   [{'OK' if _ok else 'ECHEC'}] la reserve d'ensemble figure dans "
+          f"la synthese, avant le detail par section")
+    assert _ok
+    _sans = synthese("essai", sections, diagnostics)
+    print(f"   [{'OK' if 'Réserves' not in _sans else 'ECHEC'}] et rien ne "
+          f"s'ajoute quand il n'y a pas de reserve")
+    assert "Réserves" not in _sans
 
     print("--- TABLEAU DE BORD ---")
     print(tb.drop(columns=["Alertes"]).to_string(index=False))

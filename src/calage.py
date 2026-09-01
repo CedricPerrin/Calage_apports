@@ -295,6 +295,12 @@ class ResultatCalage:
     nb_calculs: int = 0
     conforme: bool = False
     motif: str = ""
+    # ALERTES QUI NE VISENT AUCUN APPORT EN PARTICULIER mais le calage entier.
+    # Diagnostic.alertes est par apport ; il n'y avait aucun canal pour ce qui
+    # se constate sur l'ENSEMBLE des sections — la coherence du decalage le
+    # long de l'axe, par exemple. Non bloquantes par construction : elles
+    # n'entrent pas dans conforme, qui reste l'affaire des diagnostics.
+    alertes_chaine: list = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -570,8 +576,9 @@ def fenetre_injection(temps, ecart, seuil_bas=0.005, seuil_haut=0.99,
             # ~0, et tf tombait sur le dernier instant ou l'ecart est encore
             # positif : seuil_haut n'a jamais coupe quoi que ce soit en
             # production. Mesure du 31/08/2026 sur douze cibles reelles :
-            # tf = 24,0 h sur SUH03 la ou 99 % du volume est atteint a 13,0 h,
-            # et 81,5 h sur SUH12 pour 34,5 h. Le calage simulait la queue
+            # tf = 24,0 h sur la 3e section la ou 99 % du volume est atteint
+            # a 13,0 h, et 81,5 h sur la 12e pour 34,5 h. Le calage simulait
+            # la queue
             # numerique des cibles, pas leur crue.
             perte_bout = (0.5 * float(perte_max) * float(volume_reference)
                           * 3600.0)
@@ -826,6 +833,16 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
     durees_simulees = _calendrier_durees(
         cibles, residuels_reference, config,
         dire if config.ajuster_duree else (lambda *a, **k: None))
+
+    # ICI ET PAS PLUS TARD. La coherence du decalage se mesure sur le calcul de
+    # reference, donc AVANT les heures d'apports : sur le calage du 31/08 elle
+    # aurait ete disponible 2 h 23 apres le lancement, au lieu de 25 h. Elle ne
+    # coute aucune simulation — voir _coherence_decalage.
+    _alerte_axe = _sans_interrompre(_coherence_decalage, cibles,
+                                    residuels_reference, dire)
+    if _alerte_axe:
+        resultat.alertes_chaine.append(_alerte_axe)
+        dire(f"    ATTENTION — {_alerte_axe}")
 
     for i, (apport, section) in enumerate(zip(apports, sections)):
         temps_cible, debit_cible = cibles[i]
@@ -1345,6 +1362,16 @@ def _sans_interrompre(fonction, *arguments):
         return None
 
 
+# COHERENCE DU DECALAGE LE LONG DE L'AXE — voir _coherence_decalage().
+#
+# SEUILS FONDES SUR UN SEUL CAS, ET IL FAUT LE DIRE : un modele reel a douze
+# apports, 01/09/2026, pente -0,70 avec r = -0,98 sur les huit premiers. Retenus franchement au-dessus
+# du bruit et en deca du cas mesure, faute de second modele pour les calibrer.
+# A REVOIR AU DEUXIEME — meme reserve que le seuil de bilan de masse a 5 %.
+PENTE_DECALAGE_MAX = 0.5
+CORRELATION_DECALAGE_MIN = 0.9
+
+
 def _fenetre_demandee(config):
     """
     Le JUGEMENT est-il restreint a l'evenement principal ?
@@ -1360,6 +1387,100 @@ def _fenetre_demandee(config):
     pont_hecras._oui_non_ou_defaut) : elle vaut le defaut, qui est oui.
     """
     return True if config.fenetre_active is None else bool(config.fenetre_active)
+
+
+def _coherence_decalage(cibles, residuels, dire):
+    r"""
+    Le decalage est-il COHERENT LE LONG DE L'AXE ? Rend une alerte ou None.
+
+    ON NE JUGE PAS L'AMPLITUDE, ON JUGE LA COHERENCE, et c'est ce qui rend ce
+    controle compatible avec la regle « le decalage est rapporte, jamais juge »
+    (decalage_minimisant_ecart). Un Dt de 5 h coherent avec ses voisins ne dit
+    rien de suspect ; un Dt qui suit LINEAIREMENT l'heure du pic cible n'est
+    pas un temps de transfert, quelle que soit sa valeur.
+
+    LA GRANDEUR EST LA PENTE DE Dt CONTRE L'HEURE DU PIC CIBLE.
+      pente ~ 0    le pic du modele suit celui des cibles : les deux
+                   calendriers avancent au meme rythme, rien a signaler.
+      pente ~ -1   le pic du modele ne bouge pas quand celui des cibles se
+                   deplace : les deux series ne partagent pas leur origine.
+
+    MESURE SUR CAS REEL (modele a douze apports, 01/09/2026, les huit
+    premiers cales) :
+      pic du modele  +0,26 h par section
+      pic des cibles +0,84 h par section
+      pente -0,699, r = -0,984, projection a la 12e section : Dt ~ -9,3 h
+    Trois fois plus lent cote modele. Un r de 0,98 sur huit points n'est pas
+    du bruit : c'est une divergence systematique, qui grandit vers l'aval.
+
+    NE COUTE AUCUNE SIMULATION, et c'est tout l'interet : les pics cibles
+    viennent du classeur, ceux du modele du calcul de reference, qui a lieu de
+    toute facon. Sur le calage du 31/08 la mesure aurait ete disponible 2 h 23
+    apres le lancement, avant les 25 h d'apports.
+
+    CE QU'ELLE NE REMET PAS EN CAUSE : les sections restent calees, a 99-101 %
+    de volume. Ce que la pente interroge est le POSITIONNEMENT TEMPOREL des
+    hydrogrammes d'apport livres — un apport cale sur une cible decalee de
+    4,3 h reproduit sa forme, a 4,3 h pres.
+    """
+    points = []
+    for i, (temps_cible, debit_cible) in enumerate(cibles):
+        if i >= len(residuels) or residuels[i] is None:
+            continue
+        t_res, q_res = residuels[i]
+        t_c = np.asarray(temps_cible, dtype=float)
+        q_c = np.asarray(debit_cible, dtype=float)
+        if t_c.size == 0 or not np.any(np.isfinite(q_c)):
+            continue
+        try:
+            dt = float(decalage_minimisant_ecart(temps_cible, debit_cible,
+                                                 t_res, q_res))
+        except Exception:                                    # noqa: BLE001
+            continue
+        points.append((float(t_c[int(np.nanargmax(q_c))]), dt))
+
+    # QUATRE POINTS AU MOINS. Une pente sur deux ou trois apports n'a pas de
+    # sens, et une alerte fondee sur elle serait du bruit.
+    if len(points) < 4:
+        return None
+    pics = np.array([p[0] for p in points])
+    ecarts = np.array([p[1] for p in points])
+    rangs = np.arange(len(points), dtype=float)
+    prog_cible = float(np.polyfit(rangs, pics, 1)[0])
+    prog_modele = float(np.polyfit(rangs, pics + ecarts, 1)[0])
+
+    # UN Dt CONSTANT EST LA SIGNATURE SAINE, PAS UN CAS A SAUTER. La version
+    # d'origine sortait avant d'imprimer quand l'ecart ne variait pas, si bien
+    # que le cas SAIN etait le seul a ne rien rapporter — exactement l'inverse
+    # de ce qu'on veut. On chiffre toujours ; l'alerte, elle, reste
+    # conditionnelle.
+    correlable = np.ptp(pics) >= 1e-6 and np.ptp(ecarts) >= 1e-6
+    if correlable:
+        pente = float(np.polyfit(pics, ecarts, 1)[0])
+        correlation = float(np.corrcoef(pics, ecarts)[0, 1])
+        lecture = f"pente {pente:+.2f}, r = {correlation:+.2f}"
+    else:
+        pente = correlation = 0.0
+        lecture = (f"decalage constant a {float(np.mean(ecarts)):+.2f} h — les "
+                   f"deux calendriers avancent du meme pas")
+
+    dire(f"    coherence du decalage le long de l'axe, sur {len(points)} "
+         f"apport(s) : pic du modele {prog_modele:+.2f} h par section, pic des "
+         f"cibles {prog_cible:+.2f} h par section ; Dt contre pic cible = "
+         f"{lecture}")
+    if (abs(pente) <= PENTE_DECALAGE_MAX
+            or abs(correlation) <= CORRELATION_DECALAGE_MIN):
+        return None
+    return (
+        f"les deux calendriers ne progressent pas au meme rythme : le pic du "
+        f"modele avance de {prog_modele:+.2f} h par section quand celui des "
+        f"cibles avance de {prog_cible:+.2f} h (Dt contre pic cible : pente "
+        f"{pente:+.2f}, r = {correlation:+.2f} sur {len(points)} apports). Un "
+        f"decalage qui suit lineairement l'heure du pic cible n'est pas un "
+        f"temps de transfert. LES SECTIONS SERONT CALEES, mais les "
+        f"hydrogrammes d'apport livres reproduiront la forme des cibles EN "
+        f"ETANT DECALES d'autant, et le decalage grandit vers l'aval. Relire "
+        f"la base de temps des cibles avant d'exploiter ces hydrogrammes.")
 
 
 def _calendrier_durees(cibles, residuels, config, dire):
@@ -1632,7 +1753,8 @@ def produire_livrables_finaux(resultat, modele, dossier_sortie,
     xlsx = liv.exporter_excel(dossier / "tableaux_calage.xlsx",
                              Tableau_de_bord=tb, Apports=ta, Journal=je)
     liv.synthese("Calage des apports — note de synthèse", sections,
-                resultat.diagnostics_finaux, dossier / "synthese.md")
+                resultat.diagnostics_finaux, dossier / "synthese.md",
+                alertes_chaine=resultat.alertes_chaine)
 
     return {"fichiers": fichiers + [xlsx, str(dossier / "synthese.md")],
             "conforme": resultat.conforme}
@@ -2505,6 +2627,56 @@ if __name__ == "__main__":
     controler("aucune alerte n'est levee pour une simple perte de marge",
               bool(_r9.apports) and not _r9.apports[0].diagnostic.alertes,
               str(_r9.apports[0].diagnostic.alertes) if _r9.apports else "?")
+
+    # --- COHERENCE DU DECALAGE LE LONG DE L'AXE -------------------------
+    print("\n--- COHERENCE DU DECALAGE LE LONG DE L'AXE ---")
+    # LES CHIFFRES SONT CEUX DE LA PRODUCTION, pas une invention : huit
+    # apports d'un modele reel, releves au journal du 31/08-01/09/2026. Le banc
+    # doit retrouver pente -0,70 et r -0,98, sans quoi la mesure a derive.
+    _t10 = np.linspace(0.0, 40.0, 401)
+
+    def _bosse(t_pic, amplitude=50.0):
+        return amplitude * np.exp(-0.5 * ((_t10 - t_pic) / 2.0) ** 2)
+
+    _pics_cibles = [3.0, 4.5, 5.5, 6.5, 7.0, 7.0, 8.5, 9.5]
+    _pics_modele = [3.10, 3.10, 3.50, 3.60, 3.80, 4.00, 4.20, 5.20]
+    _cib10 = [(_t10, _bosse(p)) for p in _pics_cibles]
+    _res10 = [(_t10, _bosse(p, 20.0)) for p in _pics_modele]
+    _dits10 = []
+    _alerte10 = _coherence_decalage(_cib10, _res10, _dits10.append)
+    controler("le cas reel leve l'alerte de coherence",
+              bool(_alerte10), (_alerte10 or "aucune")[:95])
+    controler("elle chiffre la pente et la correlation mesurees",
+              bool(_dits10) and "-0.70" in _dits10[0] and "-0.98" in _dits10[0],
+              _dits10[0].strip()[:120] if _dits10 else "rien dit")
+    controler("et les deux progressions le long de l'axe",
+              bool(_dits10) and "+0.26" in _dits10[0] and "+0.84" in _dits10[0],
+              _dits10[0].strip()[60:150] if _dits10 else "")
+
+    # LE CAS SYMETRIQUE, ET IL A DEJA ETE MANQUE UNE FOIS : un decalage
+    # CONSTANT est la signature SAINE. La premiere version sortait avant
+    # d'imprimer quand l'ecart ne variait pas, si bien que le seul cas a ne
+    # rien rapporter etait le bon.
+    _dits11 = []
+    _sain = [(_t10, _bosse(p - 1.0, 20.0)) for p in _pics_cibles]
+    _alerte11 = _coherence_decalage(_cib10, _sain, _dits11.append)
+    controler("un decalage constant ne leve AUCUNE alerte",
+              _alerte11 is None, str(_alerte11)[:80])
+    controler("mais il est quand meme CHIFFRE au journal",
+              bool(_dits11) and "constant" in _dits11[0],
+              _dits11[0].strip()[60:160] if _dits11 else "rien dit")
+
+    controler("moins de quatre apports : aucune pente, aucune alerte",
+              _coherence_decalage(_cib10[:3], _res10[:3],
+                                  lambda *a, **k: None) is None)
+    controler("un residuel illisible est simplement ignore",
+              _coherence_decalage(_cib10, [None] * 8,
+                                  lambda *a, **k: None) is None)
+    # L'ALERTE REMONTE-T-ELLE JUSQU'AU RESULTAT ? Le canal est neuf : sans ce
+    # controle, la mesure resterait dans le journal.
+    controler("ResultatCalage porte le canal des alertes de chaine",
+              isinstance(ResultatCalage().alertes_chaine, list)
+              and ResultatCalage().alertes_chaine == [])
 
     print()
     if echecs:

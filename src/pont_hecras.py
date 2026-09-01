@@ -1660,7 +1660,12 @@ def commande_caler(args):
         plan_conserve=(menage or {}).get("conserve"),
         objets_retires=(menage or {}).get("supprimes") or [],
         dossier_resultats=(str(dossier_sortie / sous_resultats)
-                          if rapport else None))
+                          if rapport else None),
+        # ALERTES QUI VISENT LE CALAGE ENTIER, pas un apport. Non bloquantes :
+        # elles ne touchent pas « conforme ». Sans ce relais, la coherence du
+        # decalage le long de l'axe n'existait que dans le journal texte, que
+        # l'utilisateur du greffon n'ouvre pas.
+        alertes_chaine=list(resultat.alertes_chaine))
 
 
 # ---------------------------------------------------------------------------
