@@ -108,6 +108,38 @@ dupliquée, laissée de côté le 31/08 parce qu'« aucun banc local ne la
 couvre », a vu sa condition levée. La pente d'apport en dur
 (`PENTE_APPORT_DEFAUT = 0,01`) devient elle aussi vérifiable.
 
+### Le suivi des deux calages a corrigé deux chiffres du dossier
+
+Relevé du soir, sur les fichiers de suivi. **Suhihandia V3** : 10/12 calés,
+*neuf en un seul essai*, volumes 99,9–101,0 %, zéro incident. **Ardanavy
+Q100** : 3/6, tous en deux essais, 100,0 / 100,7 / 100,6 %. Rien à faire sur
+l'un ni sur l'autre.
+
+**Le bilan de masse n'est pas un trait de la chaîne.** J'avais écrit une heure
+plus tôt que « nos 0,5 à 1,4 % sont un à deux ordres de grandeur au-dessus de
+ce que HEC appelle *very low* ». Mesure : Ardanavy **0,014 %**, Suhihandia
+**0,471 %** — deux modèles de la même affaire, dans la même chaîne. Le
+0,5–1,4 % appartient à un modèle, pas à la méthode.
+
+**Et « 4,4 h » était une mesure partielle.** L'étendue de Δt du modèle A, au
+dossier comme sa caractéristique, avait été prise à 8 apports sur 12 :
+
+| lu à | 3 sections | 5 | 8 | 10 |
+|---|---|---|---|---|
+| étendue de Δt | 2,1 h | 3,3 h | 4,4 h | **6,6 h** |
+
+**L'étendue grandit avec le nombre de sections calées**, et le seuil se lit sur
+une durée de fenêtre qui, elle, ne grandit pas. Deux modèles également
+cohérents mais de longueurs différentes ne sont donc pas jugés pareil — et le
+même modèle ne l'est pas non plus selon où son calage s'est arrêté. C'est une
+objection **de fond** au critère, pas un ajustement de valeur. La grandeur
+comparable serait la pente en h/section (ici −0,571, r −0,950) : ce que la
+pente disait déjà. Ce qui avait été retiré le matin, c'est le « ET corrélation
+élevée », pas la pente.
+
+Le critère se jouera sur ARD09–ARD11, dont la mesure de référence annonce
++2,3, +3,4 et +5,9 h.
+
 ## Session du 1er septembre 2026 — un second modèle renverse un critère
 
 **Par quoi reprendre :** `STATUT.txt` § 1 (état courant), § 2.2 bis et 2.2 ter
