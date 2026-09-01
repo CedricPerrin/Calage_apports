@@ -512,6 +512,69 @@ def ecart_a_la_cible(temps_cible, debit_cible, temps_calcule, debit_calcule,
     return np.where(dans_cible & dans_calc, cible_decalee - calc_aligne, 0.0)
 
 
+def cliquet_volume(temps_cible, debit_cible, manquant, decalage_h,
+                   fenetre=None):
+    """
+    Rapport de volume MINIMAL que la section peut atteindre — le cliquet.
+
+    UN APPORT NE SAIT QU'AJOUTER DU DEBIT (plancher a zero, cf.
+    corriger_apport). La ou la section donne DEJA plus que la cible sans cet
+    apport, l'exces est irreductible : aucun essai ne le retirera. Le rapport
+    de volume ne peut donc pas redescendre sous
+
+        1 + (volume de l'exces residuel) / (volume de la cible)
+
+    Ce n'est pas un reglage, c'est une consequence de la physique — la meme
+    que le § « Le plancher a zero, et le cliquet qui en decoule » de la note.
+
+    MESURE SUR CE QUE LA CHAINE CALCULE DEJA, ET NE COUTE AUCUN CALCUL :
+    « manquant » est l'ecart rendu par ecart_a_la_cible() au calcul de
+    reference, et l'exces en est simplement la part negative. Aucune seconde
+    interpolation, aucune seconde regle de decalage — cible_decalee est
+    obtenu par le MEME appel, avec un calcul nul, pour que le denominateur
+    soit exactement la cible que le numerateur suppose.
+
+    CE QUE LE CAS TOTAL NE COUVRAIT PAS. caler() refuse deja une cible
+    ENTIEREMENT sous le residuel (max(manquant) <= 0). Entre les deux, il y a
+    le cas ordinaire : la cible est atteignable a la pointe, mais le residuel
+    la depasse sur une partie de la fenetre — assez pour bloquer le volume
+    au-dessus de sa bande. Le calage depensait alors tous ses essais a
+    poursuivre un rapport de volume que sa propre methode lui interdit
+    d'atteindre, et finissait « non conforme » sans jamais dire pourquoi.
+
+    fenetre : (t0, tf) — la fenetre jugee. Le cliquet se mesure la ou le
+    volume se juge, sinon il annonce un plancher sur une duree que personne
+    ne regarde.
+
+    UNE ESTIMATION, PAS UNE BORNE DEMONTREE. Elle suppose le residuel
+    INCHANGE par l'ajout de l'apport — l'hypothese de troncon transparent, la
+    meme sur laquelle la correction elle-meme repose (§ 1.2 de la note). Un
+    modele qui repond non lineairement s'en ecarte un peu : mesure au banc,
+    un cliquet annonce a 109,8 % pour un calage qui s'arrete a 109,6 %. Deux
+    dixiemes de point, quand l'enjeu est de savoir si l'on est a 100 ou a 110.
+    D'ou « environ » dans le message, et une alerte qui ne bloque rien.
+
+    Rend 1,0 quand rien ne depasse : le calage peut atteindre 100 %.
+    """
+    t_cible = np.asarray(temps_cible, dtype=float)
+    exces = np.maximum(-np.asarray(manquant, dtype=float), 0.0)
+    # LE MEME CHEMIN DE CALCUL QUE L'ECART, avec un calcul nul : ce qui reste
+    # est la cible decalee, exactement celle a laquelle « manquant » se
+    # rapporte.
+    cible_decalee = ecart_a_la_cible(t_cible, debit_cible,
+                                     t_cible, np.zeros_like(t_cible),
+                                     decalage_h)
+    if fenetre is not None:
+        dedans = (t_cible >= float(fenetre[0])) & (t_cible <= float(fenetre[1]))
+        if dedans.sum() >= 2:
+            t_cible, exces, cible_decalee = (t_cible[dedans], exces[dedans],
+                                             cible_decalee[dedans])
+    volume_cible = _volume(t_cible, cible_decalee)
+    if volume_cible <= 0.0:
+        return 1.0
+    return 1.0 + _volume(t_cible, exces) / volume_cible
+
+
 def fenetre_injection(temps, ecart, seuil_bas=0.005, seuil_haut=0.99,
                       t0_impose=None, tf_impose=None,
                       volume_reference=None, perte_max=None):
@@ -969,6 +1032,28 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
                      f"la serie")
             else:
                 bornes_fenetre = None
+
+            # LE CLIQUET : JUSQU'OU CE CALAGE PEUT-IL DESCENDRE ?
+            #
+            # Apres la fenetre, parce qu'il se mesure la ou le volume se juge.
+            # Ne coute aucun calcul : tout est deja en main a l'iteration 0.
+            #
+            # ALERTE, PUIS CONTINUE — meme regle que pour un apport peu
+            # identifiable. La section restera peut-etre conforme en pointe et
+            # en forme, et c'est a l'operateur de decider si un volume plancher
+            # a 107 % lui convient. Ce qui n'etait pas admissible, c'est de le
+            # lui apprendre apres six essais et autant de simulations.
+            cliquet = cliquet_volume(temps_cible, debit_cible, manquant,
+                                     decalage_zero, bornes_fenetre)
+            if cliquet > 1.0 + config.tolerance_beta:
+                dire(f"    ATTENTION — VOLUME PLANCHER : la section donne "
+                     f"deja plus que la cible sur une partie de la fenetre, "
+                     f"et un apport ne sait qu'ajouter du debit. Le rapport "
+                     f"de volume ne descendra pas au-dessous d'environ "
+                     f"{100 * cliquet:.1f} %, pour une tolerance de "
+                     f"{100 * config.tolerance_beta:.1f} %. Aucun essai n'y "
+                     f"changera rien : c'est le residuel qu'il faut reprendre "
+                     f"— apports amont deja cales, ou la cible elle-meme.")
 
         # --- duree simulee ajustee a CET apport ---------------------------
         #
@@ -2528,6 +2613,72 @@ if __name__ == "__main__":
     controler("les apports suivants ne sont pas traites apres un echec",
               len(r5.apports) == 1 and not r5.apports[0].valide,
               f"{len(r5.apports)} apport(s) traite(s) sur 2")
+
+    # --- VOLUME PLANCHER : LE CLIQUET DU PLANCHER A ZERO ------------------
+    #
+    # Le cliquet est enonce dans la note depuis la V13 — « le plancher a zero,
+    # et le cliquet qui en decoule » — et n'etait mesure NULLE PART. caler()
+    # ne refusait que le cas TOTAL : une cible entierement sous le residuel.
+    # Entre les deux vit le cas ordinaire, et couteux.
+    print("\n--- VOLUME PLANCHER : LE CLIQUET DU PLANCHER A ZERO ---")
+
+    # D'abord la formule, sur un cas qui se calcule a la main : une cible a
+    # 100 sur 10 h (volume 1000), un residuel a 150 sur les 5 premieres
+    # heures (exces 50 x 5 h = 250). Plancher = 1 + 250/1000 = 1,25.
+    _tk = np.linspace(0.0, 10.0, 1001)
+    _ck = np.full_like(_tk, 100.0)
+    _rk = np.where(_tk <= 5.0, 150.0, 0.0)
+    _mk = ecart_a_la_cible(_tk, _ck, _tk, _rk, 0.0)
+    controler("le cliquet vaut 1 + volume de l'exces / volume de la cible",
+              abs(cliquet_volume(_tk, _ck, _mk, 0.0) - 1.25) < 0.005,
+              f"{cliquet_volume(_tk, _ck, _mk, 0.0):.4f} pour 1,2500 attendu")
+    controler("un residuel partout sous la cible ne cliquette pas",
+              abs(cliquet_volume(_tk, _ck,
+                                 ecart_a_la_cible(_tk, _ck, _tk, _ck * 0.5, 0.0),
+                                 0.0) - 1.0) < 1e-9, "1,0000")
+    # LA FENETRE BORNE LA MESURE, comme elle borne le volume qu'elle predit :
+    # un exces hors de ce qui est juge ne pesera pas sur le verdict, et
+    # l'annoncer serait une fausse alerte.
+    controler("un exces hors de la fenetre jugee ne cliquette pas",
+              abs(cliquet_volume(_tk, _ck, _mk, 0.0, fenetre=(6.0, 10.0))
+                  - 1.0) < 1e-9, "1,0000")
+    controler("le meme exces, plein cadre, cliquette a 150 %",
+              abs(cliquet_volume(_tk, _ck, _mk, 0.0, fenetre=(0.0, 5.0))
+                  - 1.5) < 0.005, "1,5000")
+
+    # PUIS CE QUE CA VAUT EN VRAI. Un residuel pointu qui deborde la cible au
+    # sommet et reste dessous sur les flancs : max(manquant) > 0, donc le
+    # refus total ne se declenche pas, et le calage part pour de bon.
+    _tc2 = np.linspace(0.01, 36, 400)
+    _cible_k = hydrogramme(_tc2, 100.0, t_pic=12.0, forme=2.0)
+    _base_k = hydrogramme(_tc2, 140.0, t_pic=12.0, forme=8.0)
+    _dits_k = []
+    _mk2 = ModeleFictif(["A1"], ["S1"], _tc2, [hydrogramme(_tc2, 10.0)],
+                        debit_base=_base_k)
+    _rk2 = caler(_mk2, ["A1"], ["S1"], [(_tc2, _cible_k)],
+                 Configuration(nb_max_essais=8), journal=_dits_k.append)
+    _annonce = [l for l in _dits_k if "VOLUME PLANCHER" in l]
+    controler("un residuel qui deborde en partie declenche l'alerte",
+              bool(_annonce), (_annonce[0][:110] if _annonce else "aucune"))
+    _atteint = 100 * _rk2.apports[0].diagnostic.rapport_volume
+    _predit = (float(_annonce[0].split("d'environ ")[1].split(" %")[0])
+              if _annonce else 0.0)
+    # LE CHIFFRE ANNONCE EST-IL LE BON ? C'est tout l'interet : il est connu
+    # AVANT le premier essai, et le calage n'a jamais pu descendre en dessous.
+    controler("le plancher annonce est celui que le calage atteint",
+              abs(_predit - _atteint) < 1.0,
+              f"annonce {_predit:.1f} %, atteint {_atteint:.1f} % "
+              f"apres {len(_rk2.apports[0].historique)} essai(s)")
+    controler("et le calage echoue bien, faute de pouvoir descendre",
+              not _rk2.apports[0].valide, _rk2.apports[0].motif[:80])
+    # LE CAS SYMETRIQUE : un calage ordinaire ne doit RIEN annoncer, sans quoi
+    # l'alerte devient un bruit de fond qu'on cesse de lire.
+    _dits_sain = []
+    caler(ModeleFictif(apports[:1], sections[:1], temps, formes[:1]),
+          apports[:1], sections[:1], [cibles[0]],
+          Configuration(nb_max_essais=3), journal=_dits_sain.append)
+    controler("un calage ordinaire n'annonce aucun plancher",
+              not [l for l in _dits_sain if "VOLUME PLANCHER" in l])
 
     # --- DUREE SIMULEE AJUSTEE A CHAQUE APPORT ----------------------------
     # Le modele fictif TRONQUE reellement ses series a la duree demandee : un

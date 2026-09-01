@@ -321,14 +321,36 @@ tolerances ont ete declarees NON CONFORMES apres 26 h de calcul (section
   1. CONCORDANCE atteinte (volume, pointe et forme simultanement) ;
   2. AVANT TOUT CALCUL, la section recoit DEJA au moins autant que la cible
      (max de l'ecart <= 0) : un apport ne sait qu'ajouter du debit. C'est le
-     refus le moins cher du projet, et le SEUL garde-fou avant calcul — il
-     porte sur la POINTE, et ne voit donc pas un volume deja condamne par le
-     cliquet ;
+     refus le moins cher du projet. Il porte sur la POINTE ;
   3. DEUX ESSAIS CONSECUTIFS qui s'eloignent de la concordance ;
   4. NB_MAX_ESSAIS epuise (defaut 6). Le motif dit alors si la pointe
      PROGRESSAIT ENCORE au dernier essai, et de combien d'essais on estime
      etre loin ;
   5. LA CORRECTION N'A PLUS D'EFFET (variation < 1e-6) sans concordance.
+
+LE VOLUME PLANCHER — LE CLIQUET — EST ANNONCE AU MEME MOMENT, mais il ALERTE
+au lieu d'arreter. Depuis le 01/09 au soir, calage.cliquet_volume chiffre, sur
+la fenetre jugee et des l'iteration 0 :
+
+    plancher = 1 + (volume de l'exces residuel) / (volume de la cible)
+
+soit le rapport de volume au-dessous duquel ce calage ne descendra pas, la ou
+le residuel depasse deja la cible. Il ne coute AUCUN calcul : l'exces est la
+part negative de l'ecart, que la chaine calcule deja.
+  IL COUVRE CE QUE LE REFUS 2 NE VOYAIT PAS. Le refus porte sur la pointe et
+  ne voit que le cas TOTAL — une cible entierement sous le residuel. Le cas
+  ORDINAIRE est celui d'une cible atteignable en pointe dont le volume est
+  condamne : mesure au banc, un calage qui depense trois essais pour finir a
+  109,6 % de volume, sur un motif qui accuse la non-linearite du modele alors
+  que rien, jamais, n'aurait pu descendre plus bas. Le plancher etait
+  annoncable a 109,8 % avant le premier essai.
+  ALERTE, PAS ARRET, comme pour un apport peu identifiable : la section peut
+  rester conforme en pointe et en forme, et c'est a l'operateur de dire si un
+  volume plancher lui convient. Ce qui n'etait pas admissible, c'est de le lui
+  apprendre apres six simulations.
+  UNE ESTIMATION, PAS UNE BORNE. Elle suppose le residuel inchange par l'ajout
+  de l'apport — l'hypothese de troncon transparent, celle de la correction
+  elle-meme. Ecart mesure au banc : deux dixiemes de point.
 
 LE MEILLEUR ESSAI EST CONSERVE, JAMAIS LE DERNIER. Il est choisi sur
 (admissibilite, erreur combinee) : un essai tenant les TROIS seuils passe
@@ -1402,11 +1424,20 @@ A FAIRE, PAR ORDRE DE PRIORITE
       vit dans ce fichier et dans git.
   - EPROUVER SOUS QGIS les six correctifs du 30/08, et le bouton
     « Installer… » sur un poste neuf.
-  - RECREER LE SCRIPT DE PRE-VOL (sections lisibles, apports presents, cibles
-    atteignables, sans lancer de calcul), en y portant DEUX mesures qui ne
-    coutent aucune simulation : le CLIQUET par section — qui dit qu'un volume
-    ne pourra pas redescendre a 100 % — et la PART de chaque apport dans le
-    debit de sa section, qui dit s'il sera identifiable.
+  - LE SCRIPT DE PRE-VOL, ET LUI SEUL. LES DEUX MESURES SONT FAITES : la
+    part de chaque apport dans le debit de sa section l'etait deja (alerte
+    « APPORT PEU IDENTIFIABLE »), le cliquet l'est depuis le 01/09 au soir
+    (§ 2.4). Toutes deux tombent A L'ITERATION 0, donc APRES le calcul de
+    reference — le seul qu'elles ne puissent pas eviter, puisqu'elles ont
+    besoin du residuel.
+      CE QUI RESTE : les rendre AVANT d'engager le calage, en les lisant sur
+    un plan DEJA CALCULE que le modele porte. Le residuel s'y approche par
+    « debit a la section moins apport de l'unsteady », sous l'hypothese de
+    troncon transparent. Il y faut un modele reel pour dire si cette
+    approximation vaut la mesure — pas un raisonnement.
+      pont_hecras controler-modele fait deja le reste du pre-vol : noms
+    declares contre geometrie, apports presents dans l'unsteady, durees,
+    residus d'edition.
   - LE DECALAGE FIGE DE caler() N'EST PAS BORNE PAR LA FENETRE, et il ne
     peut pas l'etre simplement : la fenetre est DEDUITE de l'ecart, qui est
     lui-meme calcule avec ce decalage (calage.caler, l. ~903 puis ~953). La
