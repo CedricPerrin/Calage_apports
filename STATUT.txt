@@ -303,7 +303,39 @@ grandeurs ne doivent jamais se rapprocher.
 
 SEUIL : 5 % par defaut (Bilan_masse_max_pct, expose au classeur et au
 greffon). Il valait 1 % jusqu'au 30/08 ; voir section 5.3 pour ce qui a fait
-le relever, et section 6 pour ce qui reste a faire (le fonder sur sources).
+le relever.
+
+CE QUE LES SOURCES DISENT — RECHERCHE DU 01/09/2026, ET LE RESULTAT EST UNE
+ABSENCE. Aucun seuil numerique n'est publie, ni par l'USACE ni du cote
+francais. Ce qu'on trouve, et rien de plus :
+  - le 2D Modeling User's Manual (chapitre « Computation Progress, Numerical
+    Stability, and Volume Accounting ») ne donne que des EXEMPLES, qualifies :
+    0,02017 % pour le modele entier, dit « very low » ; 0,00003 a 0,001063 %
+    par zone 2D, dit « extremely low ». Le tutoriel HEC « Troubleshooting a 2D
+    Model » descend de 0,005 % a moins de 0,000001 % au fil de cinq essais ;
+  - devant une erreur forte, HEC ne prescrit pas un seuil mais une ENQUETE :
+    regarder ou et quand le modele a atteint son nombre maximal d'iterations ;
+  - le cadre francais (guides DGPR/Cerema, etudes de dangers de systemes
+    d'endiguement) traite l'incertitude de modelisation de facon QUALITATIVE.
+    Aucun critere de bilan de masse.
+NE PAS CONFONDRE AVEC « VOLUME TOLERANCE ». HEC-RAS expose un parametre de ce
+nom (defaut 0,01 ft, comme la Water Surface Tolerance) : c'est un critere
+d'arret d'ITERATION, exprime en PIEDS de hauteur d'eau par maille, et non le
+pourcentage rapporte apres coup. Les deux n'ont en commun que le mot.
+
+CE QUE CELA CHANGE POUR NOTRE 5 %.
+  IL N'EST PAS UN CRITERE DE QUALITE DU MODELE, et ne doit pas etre publie
+  comme tel. Il repond a une autre question : cet essai est-il comparable a sa
+  cible ? D'ou sa valeur large — un seuil serre arretait le calage au hasard
+  des calculs (0,56 / 0,96 / 1,12 / 1,39 % sur un meme modele, § 5.3).
+  MAIS LE MODELE, LUI, MERITE UN MOT. Nos 0,5 a 1,4 % sont UN A DEUX ORDRES DE
+  GRANDEUR au-dessus de ce que HEC appelle « very low ». Ce n'est pas le
+  calage qui doit s'en accommoder en silence : c'est une observation a porter
+  au client, au meme titre que la derive du decalage.
+  ET LA PISTE ORDINAIRE NE MENE NULLE PART ICI : resserrer le pas de calcul a
+  DEGRADE le bilan (1,12 -> 1,39 %, § 5.3), alors que c'est le remede que la
+  litterature de praticiens propose en premier. HEC, lui, ne le propose pas :
+  il renvoie au maillage, aux conditions limites et aux tolerances 2D.
 Le bilan du dernier calcul est publie dans avancement.json
 (suivi.noter_bilan_masse) et affiche sous les jauges du greffon.
 
@@ -1401,13 +1433,20 @@ A FAIRE, PAR ORDRE DE PRIORITE
   classeur d'iterations, la version de ras-commander, et la moitie du
   bornement a la fenetre. Un point ouvert ne se perime pas tout seul : il
   reste ecrit tel qu'il a ete pose, et le code, lui, avance.
-  - FONDER LE SEUIL DE BILAN DE MASSE SUR DES SOURCES. Il vaut 5 % et n'est
-    justifie que par les quatre mesures de la section 5.3. A confronter au
-    critere de volume error d'HEC-RAS (USACE, 2D Modeling User's Manual /
-    Hydraulic Reference), aux guides SOP (USACE ; cadre francais :
-    referentiel FFRP / SHF, guides « etudes de dangers », methodo inondation
-    DGPR), et a ce que la litterature 2D admet quand le signal utile est plus
-    petit que le bruit numerique. Ecrire le raisonnement dans la note.
+  - PORTER DANS LA NOTE CE QUE LES SOURCES DISENT DU BILAN DE MASSE. La
+    recherche est faite (§ 2, sous le seuil) et son resultat est une ABSENCE :
+    personne ne publie de seuil, ni l'USACE ni le cadre francais. Reste a
+    l'ECRIRE dans la note, et a en tirer les deux consequences :
+      1. dire que le 5 % est un critere de COMPARABILITE et non de qualite du
+         modele, pour qu'il ne soit pas relu comme une caution ;
+      2. decider si un bilan a 1 % — un a deux ordres de grandeur au-dessus de
+         ce que HEC appelle « very low » — doit etre REMONTE au client comme
+         une observation sur le modele, distincte du verdict de calage. La
+         chaine publie deja la valeur (avancement.json, jauges du greffon) ;
+         elle n'en dit rien.
+    CE QUI N'A PAS ETE TROUVE, et qu'il faudrait chercher ailleurs qu'en
+    ligne : un critere chiffre dans le referentiel FFRP / SHF, ou dans un SOP
+    d'ingenierie. Les recherches n'ont rendu que du qualitatif.
   - VERIFIER LA NOTE A L'OEIL. Elle a ete reconstruite le 01/09 (V15, 25
     pages, 8 334 mots, 22 tableaux, 8 figures) : § 1.4 porte la regle de
     couverture, § 1.6 un h3 sur la duree ajustee, § 2.3 la reecriture de
