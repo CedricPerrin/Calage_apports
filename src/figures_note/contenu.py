@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Contenu de la note methodologique V13.
+Contenu de la note methodologique V15.
 
 COUPE FRANCHE (decision utilisateur 30/08/2026) : ~40 % de mots en moins par
 RETRAIT de contenu, pas par reformulation. Ce qui est retire du corps :
@@ -17,12 +17,12 @@ caption code note.
 
 CONTENU = [
     ("title", "Calage d'apports amont sur des hydrogrammes cibles en aval"),
-    ("sous_titre", "Note méthodologique — Version 13"),
+    ("sous_titre", "Note méthodologique — Version 15"),
     ("p", "Détermine, pour un cours d'eau modélisé en 2D comportant plusieurs "
           "apports successifs, les débits à injecter en chaque point d'apport "
           "pour que le modèle restitue à chaque section de contrôle aval un "
           "hydrogramme cible imposé."),
-    ("note", "Version 13 — les justifications historiques (essais, mesures, "
+    ("note", "Version 15 — les justifications historiques (essais, mesures, "
              "approches écartées) sont regroupées en annexe B ; le corps "
              "n'énonce que la règle en vigueur. Six figures remplacent les "
              "développements qu'elles disent mieux."),

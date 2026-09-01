@@ -23,9 +23,10 @@ qu'ils ont appris.
 ================================================================================
 
 CE QUI EST EPROUVE
-  - Douze suites d'auto-tests, 0 echec : calage, criteres, suivi,
+  - Treize suites d'auto-tests, 0 echec : calage, criteres, suivi,
     pilote_hecras, livrables, geometrie, controle_donnees, style_classeur,
-    creer_template, elaguer_projet, pont_hecras autotest, noyau.
+    creer_template, elaguer_projet, verification_environnement,
+    pont_hecras autotest, noyau.
   - test_plugin_qgis.py sous le Python de QGIS (3.44.8 / Qt 5.15.13).
     IL LUI FAUT UN MODELE PORTANT DES RESULTATS : sans .pXX.hdf, huit
     controles echouent en cascade — ce n'est pas une regression.
@@ -37,8 +38,9 @@ CE QUI EST EPROUVE
   - DEUX calages complets sur modele reel ont abouti (section 5).
   - LA DUREE AJUSTEE A CHAQUE APPORT a tourne en production le 31/08 : la
     fenetre reduite est bien ecrite dans le fichier plan (section 5.3 bis).
-  - LES QUATORZE SUITES SONT VERTES, garde-fou d'archive compris, apres les
-    trois correctifs et les trois coupes du 31/08 au soir (section 5.3 ter).
+  - LES QUINZE BANCS SONT VERTS : les treize suites ci-dessus, plus
+    faire_zip.py et essai_garde_fou_archive.py. Repasses le 01/09 au soir,
+    apres les correctifs et les coupes du 31/08 (section 5.3 ter).
 
 DEUX CALAGES EN COURS AU 01/09, 12 h
   SUHIHANDIA V3 — lance le 31/08 a 12:33 depuis un second poste, sorties sur
@@ -799,7 +801,7 @@ La note, le template et ce fichier restent a la racine.
                          porte la logique, testable hors QGIS. Aucune regle de
                          controle n'y est reecrite.
   calage_apports.zip     Archive d'installation (gitignore).
-  methodologie_calage_amont_aval.docx / .pdf   Note methodologique V13.
+  methodologie_calage_amont_aval.docx / .pdf   Note methodologique V15.
   template_donnees_calage.xlsx                 Classeur de saisie, 4 feuilles.
   livrables_exemple/     Produit par « python livrables.py », pas une source.
   _arquivo/              Documents remplaces, hors du chemin de lecture.
@@ -1356,12 +1358,17 @@ A FAIRE, PAR ORDRE DE PRIORITE
     referentiel FFRP / SHF, guides « etudes de dangers », methodo inondation
     DGPR), et a ce que la litterature 2D admet quand le signal utile est plus
     petit que le bruit numerique. Ecrire le raisonnement dans la note.
-  - VERIFIER LA NOTE A L'OEIL. Elle a ete reconstruite le 01/09 (V14, 24
-    pages, 7 953 mots, 21 tableaux, 8 figures) : § 1.4 porte la regle de
+  - VERIFIER LA NOTE A L'OEIL. Elle a ete reconstruite le 01/09 (V15, 25
+    pages, 8 334 mots, 22 tableaux, 8 figures) : § 1.4 porte la regle de
     couverture, § 1.6 un h3 sur la duree ajustee, § 2.3 la reecriture de
-    « Simulation Date ». La table des matieres et les numeros de page ont ete
+    « Simulation Date », et le critere de coherence du decalage porte sur
+    l'etendue de Dt. La table des matieres et les numeros de page ont ete
     remis a jour par Word, mais la mise en page apres insertion d'un tableau
-    n'a PAS ete relue. Sauvegarde :
+    n'a PAS ete relue.
+      LE .PDF EST EN RETARD D'UNE VERSION : sa page de titre dit encore
+      « Version 13 ». Le .docx a ete corrige le 01/09 au soir, run par run,
+      sans toucher au reste ; le .pdf demande une reexportation par Word, que
+      la relecture a l'oeil fera de toute facon. Sauvegarde :
     _arquivo/methodologie_calage_amont_aval_avant_maj_20260901.docx.
       POUR LA RECONSTRUIRE : figures_note.py rend SIX figures, mais le contenu
       en reference HUIT — image2.png et image3.png viennent du document
