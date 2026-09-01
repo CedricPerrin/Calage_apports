@@ -154,7 +154,7 @@ def axe_recale(temps_cible, temps_calcule, nb_points, pas_h=PAS_RECALAGE_H):
     return debut + np.arange(nb_points) * pas_h
 
 
-def _decalage_pas(qc, qs):
+def _decalage_pas(qc, qs, masque=None):
     """
     Decalage, en pas, qui ALIGNE LE PIC de qs sur celui de qc.
 
@@ -182,9 +182,26 @@ def _decalage_pas(qc, qs):
     qui n'avait jamais ete la mesure reelle, et sur laquelle la correction
     etait pourtant construite. La mesure brute est rendue telle quelle, et
     aucun seuil ne la juge — voir Diagnostic.converge.
+
+    masque : booleens sur la grille de qc/qs, CONTIGUS, restreignant la
+    recherche du pic. C'est la fenetre du hydrogramme principal quand elle est
+    connue. Le decalage est une DIFFERENCE de deux indices pris sous le meme
+    masque contigu : son origine s'annule, la valeur rendue reste en pas de la
+    grille complete.
+      SANS LUI, LE PIC LE PLUS HAUT DE TOUTE LA SERIE GAGNE, ou qu'il soit.
+      Mesure : un transitoire de demarrage place a 4 h, hors d'une fenetre
+      jugee 18-40 h et plus haut que l'evenement, rendait -26,00 h pour un
+      retard reel de +1,50 h. Le volume et la forme, eux, sont deja bornes a
+      la fenetre — mais ils comparent la cible a « calcule(t + decalage) » :
+      un decalage faux les emportait quand meme (109 % de volume, r = 0,962).
+      Borner les trois grandeurs sans borner leur APPARIEMENT ne bornait rien.
+    Ignore s'il retient moins de trois points : aucun pic n'y serait
+    identifiable, et une fenetre de deux points n'est pas une fenetre.
     """
     qc = np.asarray(qc, dtype=float)
     qs = np.asarray(qs, dtype=float)
+    if masque is not None and int(np.count_nonzero(masque)) >= 3:
+        qc, qs = qc[masque], qs[masque]
     if (float(np.ptp(qc)) <= 1e-9 * max(1.0, float(np.max(np.abs(qc))))
             or float(np.ptp(qs)) <= 1e-9 * max(1.0, float(np.max(np.abs(qs))))):
         return 0
@@ -192,7 +209,7 @@ def _decalage_pas(qc, qs):
 
 
 def recaler(temps_cible, debit_cible, temps_calcule, debit_calcule,
-            pas_h=PAS_RECALAGE_H):
+            pas_h=PAS_RECALAGE_H, fenetre=None):
     """
     Recale temporellement l'hydrogramme calcule sur l'hydrogramme cible.
 
@@ -210,6 +227,13 @@ def recaler(temps_cible, debit_cible, temps_calcule, debit_calcule,
     tandis que la cible demarre au debut de l'evenement : les origines
     different presque toujours.
 
+    fenetre : (t0, tf) en heures — la fenetre du hydrogramme PRINCIPAL, quand
+    elle est connue. Elle ne restreint QUE LA RECHERCHE DU PIC : le
+    reechantillonnage reste sur la grille commune (sans quoi le decalage
+    rapporte vaudrait toujours zero, cf. ci-dessus) et les series rendues
+    couvrent toujours cette grille. Voir _decalage_pas pour ce qu'un pic
+    parasite hors fenetre coutait.
+
     Retourne (cible_recalee, calcule_recale, decalage_h).
     Un decalage positif signifie que l'hydrogramme calcule est EN RETARD.
     """
@@ -221,7 +245,11 @@ def recaler(temps_cible, debit_cible, temps_calcule, debit_calcule,
     qc = np.pad(qc, (0, n - len(qc)), mode="edge")
     qs = np.pad(qs, (0, n - len(qs)), mode="edge")
 
-    decalage_pas = _decalage_pas(qc, qs)
+    masque = None
+    if fenetre is not None:
+        axe = debut + np.arange(n) * pas_h
+        masque = (axe >= float(fenetre[0])) & (axe <= float(fenetre[1]))
+    decalage_pas = _decalage_pas(qc, qs, masque)
     decalage_h = decalage_pas * pas_h
 
     # On aligne en tronquant la partie qui deborde, sans reboucler.
@@ -404,8 +432,11 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
     d'avant ce parametre, la comparaison porte sur toute la fenetre commune
     aux deux series.
 
-    LE PIC, LE VOLUME ET LA COUVERTURE SONT TOUS TROIS RESTREINTS A CETTE
-    FENETRE quand elle est fournie. Une mini-crue isolee dans la serie
+    LE PIC, LE VOLUME, LA COUVERTURE, LA FORME ET LA MESURE DU DECALAGE SONT
+    TOUS RESTREINTS A CETTE FENETRE quand elle est fournie. Le decalage en
+    fait partie parce qu'il APPARIE les deux series avant toute comparaison :
+    borner les grandeurs sans borner l'appariement ne bornait rien (voir
+    _decalage_pas). Une mini-crue isolee dans la serie
     d'entree, avant ou apres l'evenement cale, ne doit peser ni sur le pic
     (un maximum pris hors de l'evenement jugerait un debit qui n'est pas
     celui qu'on cale), ni sur le volume, ni sur l'alerte de couverture (dont
@@ -413,7 +444,8 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
     l'evenement, et non celle de toute la donnee d'entree fournie).
     """
     c_a, s_a, decalage_h = recaler(
-        temps_cible, debit_cible, temps_calcule, debit_calcule, pas_h
+        temps_cible, debit_cible, temps_calcule, debit_calcule, pas_h,
+        fenetre=fenetre
     )
 
     tc = np.asarray(temps_cible, dtype=float)
@@ -890,6 +922,40 @@ if __name__ == "__main__":
               _avec_fen.resume())
     _verifier("sans fenetre fournie, le resume ne mentionne aucune fenetre",
               "fenetre" not in _sans_fen.resume(), _sans_fen.resume())
+
+    print("\n--- 7 bis. La fenetre borne aussi la MESURE DU DECALAGE ---")
+    # Le § 7 place la mini-crue SOUS l'evenement : le pic le plus haut de la
+    # serie reste le bon, et le decalage tombe juste par chance. On place ici
+    # un transitoire de demarrage PLUS HAUT que l'evenement, hors fenetre —
+    # ce qu'un modele 2D produit a la mise en eau. Le pic global change alors
+    # de cote, et avec lui l'appariement des deux series.
+    _t7b = np.linspace(0.0, 48.0, 481)
+    _evt_c = hydrogramme(_t7b - 24.0, pic=100.0, t_pic=6.0, forme=3.0)
+    _evt_s = hydrogramme(_t7b - 25.5, pic=100.0, t_pic=6.0, forme=3.0)
+    _cible7b = _evt_c + hydrogramme(_t7b, pic=20.0, t_pic=4.0, forme=3.0)
+    _calc7b = _evt_s + hydrogramme(_t7b, pic=160.0, t_pic=4.0, forme=3.0)
+    _fen7b = (18.0, 40.0)
+    _sans7b = diagnostiquer(_t7b, _cible7b, _t7b, _calc7b)
+    _avec7b = diagnostiquer(_t7b, _cible7b, _t7b, _calc7b, fenetre=_fen7b)
+    _verifier("sans fenetre, le pic parasite emporte le decalage",
+              abs(_sans7b.decalage_h - 1.5) > 1.0,
+              f"{_sans7b.decalage_h:+.2f} h au lieu de +1.50")
+    _verifier("avec la fenetre, le decalage est le retard REEL de l'evenement",
+              abs(_avec7b.decalage_h - 1.5) < 0.05,
+              f"{_avec7b.decalage_h:+.2f} h")
+    _verifier("un decalage juste rend au volume sa mesure",
+              abs(_avec7b.rapport_volume - 1.0) < 0.01,
+              f"{100 * _avec7b.rapport_volume:.1f} % "
+              f"(sans fenetre : {100 * _sans7b.rapport_volume:.1f} %)")
+    _verifier("un decalage juste rend a la forme la sienne",
+              _avec7b.r > 0.999,
+              f"r={_avec7b.r:.4f} (sans fenetre : r={_sans7b.r:.4f})")
+    # SANS FENETRE, RIEN NE CHANGE : la restriction est un choix de
+    # l'appelant, jamais un comportement nouveau impose aux anciens appels.
+    _verifier("une fenetre trop courte pour porter un pic est ignoree",
+              abs(recaler(_t7b, _cible7b, _t7b, _calc7b,
+                          fenetre=(30.0, 30.05))[2] - _sans7b.decalage_h) < 1e-9,
+              "repli sur la serie entiere")
 
     print("\n--- 8. Tolerance de volume par defaut ---")
     # Le defaut precedent (0,5 %) rendait certains modeles hors d'atteinte par

@@ -139,8 +139,9 @@ VOLUME : le suivi et la concordance se prononcent sur rapport_volume
 beta du KGE (rapport des moyennes sur la grille qui ENGLOBE les deux series).
 Les deux ne coincident que si les series partagent leur base de temps.
 
-FENETRE DU HYDROGRAMME PRINCIPAL. Volume, pointe et couverture
-(criteres.diagnostiquer), le verdict de concordance et LES SERIES PRESENTEES
+FENETRE DU HYDROGRAMME PRINCIPAL. Volume, pointe, couverture, forme ET
+MESURE DU DECALAGE (criteres.diagnostiquer), le verdict de concordance et
+LES SERIES PRESENTEES
 ne portent pas sur la serie d'entree entiere, mais sur la seule fenetre
 (t0, tf) de l'evenement cale. Detectee des l'iteration 0 par
 calage.fenetre_injection sur l'ecart au residuel — cumul de la PART POSITIVE
@@ -154,6 +155,15 @@ exposee : c'est une valeur, pas un reglage). Elle ne coute aucun calcul.
   POURQUOI ELLE RESTE : une mini-crue isolee, ou un debit de base qui ne
   depasse la cible qu'APRES l'evenement, ne doit ni degrader le verdict ni
   noyer la crue dans la figure remise a l'ingenieur.
+  ELLE BORNE AUSSI LA RECHERCHE DU PIC, et c'est ce qui la rend efficace :
+  le decalage APPARIE les deux series avant toute comparaison, si bien que
+  borner les trois grandeurs sans borner leur appariement ne bornait rien.
+  Mesure du 01/09 au soir : un transitoire de mise en eau place hors d'une
+  fenetre jugee 18-40 h, et plus haut que l'evenement, faisait rendre
+  -26,00 h pour un retard reel de +1,50 h — et le volume, pourtant borne,
+  partait a 109 % avec r = 0,95. C'est le § 7 bis du banc de criteres.
+  LE REECHANTILLONNAGE, LUI, RESTE SUR LA GRILLE COMMUNE aux deux series :
+  le restreindre annulerait le decalage au lieu de le mesurer.
 
 2.2 bis  CE QUI MANQUE A LA FENETRE JUGEE EST TOUJOURS DIT
 --------------------------------------------------------------------------
@@ -1385,9 +1395,19 @@ A FAIRE, PAR ORDRE DE PRIORITE
     coutent aucune simulation : le CLIQUET par section — qui dit qu'un volume
     ne pourra pas redescendre a 100 % — et la PART de chaque apport dans le
     debit de sa section, qui dit s'il sera identifiable.
-  - BORNER LE KGE, r ET LE RECALAGE a la fenetre de jugement. diagnostiquer()
-    restreint deja le volume, la pointe et la couverture ; r et le KGE
-    travaillent encore sur la grille qui ENGLOBE les deux series.
+  - LE DECALAGE FIGE DE caler() N'EST PAS BORNE PAR LA FENETRE, et il ne
+    peut pas l'etre simplement : la fenetre est DEDUITE de l'ecart, qui est
+    lui-meme calcule avec ce decalage (calage.caler, l. ~903 puis ~953). La
+    poule et l'oeuf. diagnostiquer() borne le sien depuis le 01/09 au soir,
+    mais calage.decalage_minimisant_ecart, qui mesure celui que la CORRECTION
+    emploie, cherche toujours son pic sur la serie entiere. Les deux
+    docstrings affirment mesurer la meme grandeur : elles peuvent desormais
+    diverger, et c'est la fenetre qui a raison.
+      A TRANCHER AVEC LES DONNEES, PAS AU RAISONNEMENT : soit on mesure le
+      decalage deux fois (contre la regle « une seule fois par apport, puis
+      fige »), soit fenetre_injection apprend a se passer du decalage, soit on
+      constate que le cas ne se presente pas sur un modele reel. Aucun des
+      deux calages du 01/09 ne portait de transitoire dominant hors fenetre.
   - PENTE D'UN APPORT CREE PAR LE GREFFON : PENTE_APPORT_DEFAUT = 0,01 est
     EN DUR (plugin.py), alors que la pente du troncon est mesurable au meme
     endroit. Y porter la pente locale du PK de l'injection et l'ecrire dans
