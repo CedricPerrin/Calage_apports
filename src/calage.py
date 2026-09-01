@@ -954,6 +954,10 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
             manquant = None
             decalage_zero = 0.0
             bornes_fenetre = None
+            # DEFINI DANS LES DEUX BRANCHES. Sans cela il garderait la valeur
+            # de l'apport PRECEDENT — la boucle porte sur les apports, et une
+            # variable laissee de cote y traverse les tours sans bruit.
+            cliquet = 1.0
         else:
             # Meme raisonnement que pour les corrections suivantes : le
             # residuel arrive decale, et le soustraire tel quel melerait un
@@ -1287,6 +1291,26 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
         valide = etat_apport == "converge"
         if not valide and not motif:
             motif = "concordance volume / pointe / forme non atteinte"
+
+        # LE CLIQUET EST LA PREMIERE CAUSE A CITER QUAND IL JOUE.
+        #
+        # L'annonce de l'iteration 0 partait au journal, et le VERDICT, lui,
+        # disait autre chose : mesure au banc, « le modele repond de facon
+        # trop non lineaire a cet apport » pour un volume bloque a 109,6 %
+        # quand le plancher valait 109,8 %. Le modele n'y etait pour rien.
+        # Un motif qui designe la mauvaise cause envoie corriger la mauvaise
+        # chose — ici le maillage ou le pas de calcul, quand ce sont les
+        # apports amont ou la cible qu'il faut reprendre.
+        if (not valide and cliquet > 1.0 + config.tolerance_beta
+                and diag is not None
+                and diag.rapport_volume > 1.0 + config.tolerance_beta):
+            motif += (f" LE VOLUME NE POUVAIT PAS DESCENDRE PLUS BAS : la "
+                      f"section donne deja plus que la cible sans cet apport, "
+                      f"et un apport ne sait qu'ajouter du debit — plancher "
+                      f"estime a {100 * cliquet:.1f} %, atteint "
+                      f"{100 * diag.rapport_volume:.1f} %. Reprendre les "
+                      f"apports amont deja cales, ou la cible, avant de "
+                      f"mettre en cause la reponse du modele.")
 
         resultat.apports.append(ResultatApport(
             nom_apport=apport, nom_section=section, valide=valide,
@@ -2671,6 +2695,21 @@ if __name__ == "__main__":
               f"apres {len(_rk2.apports[0].historique)} essai(s)")
     controler("et le calage echoue bien, faute de pouvoir descendre",
               not _rk2.apports[0].valide, _rk2.apports[0].motif[:80])
+    # ET LE VERDICT LE DIT. L'annonce partait au journal, que personne ne
+    # relit une fois le calage fini ; le motif, lui, est repris partout —
+    # classeur, note de synthese, jauges. Il accusait le modele.
+    controler("le motif nomme le plancher, et n'accuse plus le modele",
+              "NE POUVAIT PAS DESCENDRE" in _rk2.apports[0].motif
+              and "apports amont" in _rk2.apports[0].motif,
+              _rk2.apports[0].motif[-150:])
+    # UN ECHEC ORDINAIRE NE DOIT PAS HERITER DE CETTE PHRASE — ni du cliquet
+    # de l'apport precedent, la boucle portant sur les apports.
+    _rk3 = caler(ModeleFictif(apports[:1], sections[:1], temps, formes[:1]),
+                 apports[:1], sections[:1], [(temps, hydrogramme(temps, 1e4))],
+                 Configuration(nb_max_essais=2), journal=lambda *a, **k: None)
+    controler("un echec sans plancher n'herite pas de la phrase",
+              "NE POUVAIT PAS DESCENDRE" not in _rk3.apports[0].motif,
+              _rk3.apports[0].motif[:80])
     # LE CAS SYMETRIQUE : un calage ordinaire ne doit RIEN annoncer, sans quoi
     # l'alerte devient un bruit de fond qu'on cesse de lire.
     _dits_sain = []
