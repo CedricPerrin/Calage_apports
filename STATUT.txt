@@ -208,27 +208,54 @@ MESURE SUR CAS REEL (12 apports, les 8 premiers cales, 01/09/2026) :
 TROIS FOIS PLUS LENT COTE MODELE. Un r de 0,98 sur huit points n'est pas du
 bruit : c'est une divergence systematique, qui grandit vers l'aval.
 
+ET UN SECOND MODELE A RENVERSE LE CRITERE, LE MEME JOUR (6 apports) :
+  section  pic cible   Dt      pic modele
+  1re        11,0     -0,70        10,3
+  2e         12,5     +0,40        12,9
+  3e         14,5     -1,10        13,4
+  4e         15,5     +2,30        17,8
+  5e         15,5     +3,40        18,9
+  6e         16,0     +5,90        21,9
+  pic du modele +2,30 h par section ; pic des cibles +1,00 h par section
+  etendue de Dt 7,0 h, pente +0,99, r +0,73
+SIGNE INVERSE : ici le modele route PLUS LENTEMENT que les cibles.
+
+  LE PREMIER CRITERE — « pente forte ET correlation elevee » — ECARTAIT LE
+  PIRE DES DEUX CAS. Le modele B a la pente la plus forte (+0,99) et la derive
+  la plus grande (7,0 h contre 4,4), et ne levait rien : sa derive n'est pas
+  monotone, donc r restait sous 0,9.
+  LE CRITERE PORTE DESORMAIS SUR L'ETENDUE DE Dt — max moins min — rapportee a
+  la duree MEDIANE des fenetres jugees. Elle ne depend pas de la FORME de la
+  derive, et un Dt constant vaut 0,0 h quelle que soit sa valeur moyenne.
+  ETENDUE_DECALAGE_MAX_PART = 0,15. SEUIL RELATIF ET NON EN HEURES : un Dt qui
+  derive de 4 h sur des crues de 25 h ne dit pas la meme chose que sur des
+  crues de 100 h. FONDE SUR DEUX CAS — a revoir au troisieme.
+  Pente et r restent RAPPORTES : ils disent le sens et la nettete, ce qu'une
+  etendue seule ne montre pas. Ils ne decident plus rien.
+
 CE QUE CA NE REMET PAS EN CAUSE : les sections restent calees, a 99-101 % de
-volume. Ce que la pente interroge est le POSITIONNEMENT TEMPOREL des
+volume. Ce que l'etendue interroge est le POSITIONNEMENT TEMPOREL des
 hydrogrammes d'apport livres — un apport cale sur une cible decalee de 4,3 h
-reproduit sa forme, a 4,3 h pres.
+reproduit sa forme, a 4,3 h pres, et le decalage n'est pas le meme partout.
 
 NE COUTE AUCUNE SIMULATION, et c'est tout l'interet : les pics cibles viennent
 du classeur, ceux du modele du calcul de reference, qui a lieu de toute facon.
 Sur le calage du 31/08 la mesure aurait ete disponible 2 h 23 apres le
-lancement, au lieu de 25 h.
+lancement au lieu de 25 h ; sur le second modele, 1 h 22 apres.
 
-QUATRE GARDE-FOUS :
-  - QUATRE APPORTS AU MINIMUM : une pente sur deux ou trois n'a pas de sens ;
+CINQ GARDE-FOUS :
+  - QUATRE APPORTS AU MINIMUM : une derive sur deux ou trois n'a pas de sens ;
   - un Dt CONSTANT est la signature SAINE, et il est quand meme CHIFFRE. La
     premiere version sortait avant d'imprimer quand l'ecart ne variait pas :
     le seul cas a ne rien rapporter etait le bon. Attrape au banc le 01/09 ;
+  - une derive FAIBLE devant la duree de l'evenement ne leve rien — c'est ce
+    qu'achete le seuil relatif, et un controle l'eprouve ;
   - ALERTE NON BLOQUANTE, portee au journal, a la reponse JSON du pont et a la
     note de synthese (« Reserves sur l'ensemble du calage », avant le detail
     par section). ResultatCalage.alertes_chaine est le canal — Diagnostic.alertes
     est par section, et rien ne portait ce qui se constate sur l'ensemble ;
-  - seuils PENTE_DECALAGE_MAX = 0,5 et CORRELATION_DECALAGE_MIN = 0,9, FONDES
-    SUR UN SEUL CAS. A revoir au deuxieme modele (section 6).
+  - LES DEUX MODELES SONT AU BANC, dont le modele B nommement : sans lui, rien
+    n'empecherait de revenir a un critere qui l'ecarte.
 
 2.3  QUALITE NUMERIQUE
 --------------------------------------------------------------------------
@@ -1321,12 +1348,19 @@ A TRANCHER
     est PRIVE, ce qui les rend tenables aujourd'hui. S'il devenait public :
     soit cette section sort du suivi, soit on assume — et dans tous les cas
     l'historique git les porte deja.
-  - REVOIR LES DEUX SEUILS DE COHERENCE DU DECALAGE au deuxieme modele.
-    PENTE_DECALAGE_MAX = 0,5 et CORRELATION_DECALAGE_MIN = 0,9 ne reposent que
-    sur UN cas (section 2.2 ter). Meme reserve que le bilan de masse a 5 %.
+  - REVOIR ETENDUE_DECALAGE_MAX_PART = 0,15 AU TROISIEME MODELE. Il repose sur
+    deux cas (section 2.2 ter), et le premier critere avait deja ete renverse
+    par le deuxieme modele — celui-la meme qui devait le confirmer. Meme
+    reserve que le bilan de masse a 5 %.
     Sur Las Hies, le seul Dt qui rompait la tendance etait celui de l'apport
     non identifiable — les deux anomalies se recoupaient, sans valoir
-    demonstration : c'est un second jeu de donnees a repasser dans la mesure.
+    demonstration : c'est un troisieme jeu de donnees a repasser dans la mesure.
+  - EXPLOITER LES DEUX MESURES DE DERIVE. Sur les DEUX modeles reels, le
+    decalage derive de 4 a 7 h le long de l'axe, en sens CONTRAIRE d'un modele
+    a l'autre. Ce n'est plus une anomalie isolee : c'est un ecart systematique
+    entre le routage des modeles et celui que les cibles supposent. A porter au
+    client avec les hydrogrammes, et a trancher — sont-ce les cibles, le
+    routage, ou une origine de temps ?
   - ETENDRE « .affaires » AUX SECTIONS 03 A 12. La liste ne surveille que
     SUH01 et SUH02 : SUH03 et SUH12 sont passes SANS ETRE VUS dans du code
     embarque le 01/09, et seul « Suhihandia » a declenche le refus. Un nom de

@@ -839,7 +839,7 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
     # aurait ete disponible 2 h 23 apres le lancement, au lieu de 25 h. Elle ne
     # coute aucune simulation — voir _coherence_decalage.
     _alerte_axe = _sans_interrompre(_coherence_decalage, cibles,
-                                    residuels_reference, dire)
+                                    residuels_reference, config, dire)
     if _alerte_axe:
         resultat.alertes_chaine.append(_alerte_axe)
         dire(f"    ATTENTION — {_alerte_axe}")
@@ -1364,12 +1364,29 @@ def _sans_interrompre(fonction, *arguments):
 
 # COHERENCE DU DECALAGE LE LONG DE L'AXE — voir _coherence_decalage().
 #
-# SEUILS FONDES SUR UN SEUL CAS, ET IL FAUT LE DIRE : un modele reel a douze
-# apports, 01/09/2026, pente -0,70 avec r = -0,98 sur les huit premiers. Retenus franchement au-dessus
-# du bruit et en deca du cas mesure, faute de second modele pour les calibrer.
-# A REVOIR AU DEUXIEME — meme reserve que le seuil de bilan de masse a 5 %.
-PENTE_DECALAGE_MAX = 0.5
-CORRELATION_DECALAGE_MIN = 0.9
+# LE CRITERE PORTE SUR L'ETENDUE DE Dt, ET C'EST LE SECOND MODELE QUI L'A
+# IMPOSE. La premiere version alertait sur « pente forte ET correlation
+# elevee », seuils poses sur un seul cas. Mesure du 01/09/2026 sur un DEUXIEME
+# modele :
+#     modele A, 8 apports : etendue 4,4 h   pente -0,70   r -0,98   -> alertait
+#     modele B, 6 apports : etendue 7,0 h   pente +0,99   r +0,73   -> NON
+# Le modele B a la pente LA PLUS FORTE et la derive LA PLUS GRANDE, et passait
+# quand meme, parce que sa derive n'est pas monotone (-0,70, +0,40, -1,10,
+# +2,30, +3,40, +5,90) et que le r restait sous 0,9. LE « ET » SUR LA
+# CORRELATION ECARTAIT LE PIRE DES DEUX CAS.
+#
+# L'etendue, elle, ne depend pas de la FORME de la derive : un Dt constant —
+# la signature saine — vaut 0,0 h quelle que soit sa valeur moyenne. La pente
+# et le r restent RAPPORTES, parce qu'ils disent le sens et la nettete, mais
+# ne commandent plus rien.
+#
+# SEUIL RELATIF A LA DUREE DE L'EVENEMENT, et non en heures : un Dt qui derive
+# de 4 h sur des crues de 25 h ne dit pas la meme chose que sur des crues de
+# 100 h. Un seuil en heures aurait demande un recalibrage a chaque modele.
+# 15 % DE LA DUREE MEDIANE DES FENETRES JUGEES — franchement au-dessus du
+# bruit, en deca des deux cas mesures. FONDE SUR DEUX CAS : a revoir au
+# troisieme, meme reserve que le bilan de masse a 5 %.
+ETENDUE_DECALAGE_MAX_PART = 0.15
 
 
 def _fenetre_demandee(config):
@@ -1389,39 +1406,41 @@ def _fenetre_demandee(config):
     return True if config.fenetre_active is None else bool(config.fenetre_active)
 
 
-def _coherence_decalage(cibles, residuels, dire):
+def _coherence_decalage(cibles, residuels, config, dire):
     r"""
     Le decalage est-il COHERENT LE LONG DE L'AXE ? Rend une alerte ou None.
 
-    ON NE JUGE PAS L'AMPLITUDE, ON JUGE LA COHERENCE, et c'est ce qui rend ce
-    controle compatible avec la regle « le decalage est rapporte, jamais juge »
-    (decalage_minimisant_ecart). Un Dt de 5 h coherent avec ses voisins ne dit
-    rien de suspect ; un Dt qui suit LINEAIREMENT l'heure du pic cible n'est
-    pas un temps de transfert, quelle que soit sa valeur.
+    ON NE JUGE PAS L'AMPLITUDE DE Dt, ON JUGE SA VARIATION, et c'est ce qui
+    rend ce controle compatible avec la regle « le decalage est rapporte,
+    jamais juge » (decalage_minimisant_ecart). Un Dt de 5 h identique a toutes
+    les sections ne dit rien de suspect : c'est une origine de temps qui
+    differe. Un Dt qui DERIVE le long de l'axe dit que le modele et les cibles
+    ne routent pas la crue au meme rythme, et le desaccord grandit.
 
-    LA GRANDEUR EST LA PENTE DE Dt CONTRE L'HEURE DU PIC CIBLE.
-      pente ~ 0    le pic du modele suit celui des cibles : les deux
-                   calendriers avancent au meme rythme, rien a signaler.
-      pente ~ -1   le pic du modele ne bouge pas quand celui des cibles se
-                   deplace : les deux series ne partagent pas leur origine.
+    LA GRANDEUR EST L'ETENDUE DE Dt — max moins min — rapportee a la duree
+    MEDIANE des fenetres jugees. Voir ETENDUE_DECALAGE_MAX_PART pour pourquoi
+    ce n'est ni la pente, ni un seuil en heures.
 
-    MESURE SUR CAS REEL (modele a douze apports, 01/09/2026, les huit
-    premiers cales) :
-      pic du modele  +0,26 h par section
-      pic des cibles +0,84 h par section
-      pente -0,699, r = -0,984, projection a la 12e section : Dt ~ -9,3 h
-    Trois fois plus lent cote modele. Un r de 0,98 sur huit points n'est pas
-    du bruit : c'est une divergence systematique, qui grandit vers l'aval.
+    DEUX MODELES REELS, DEUX SIGNATURES OPPOSEES (01/09/2026) :
+      modele A, 8 apports  pic modele +0,26 h/section, cibles +0,84
+                           etendue 4,4 h, pente -0,70, r -0,98
+                           le modele route PLUS LENTEMENT que les cibles
+      modele B, 6 apports  pic modele +2,30 h/section, cibles +1,00
+                           etendue 7,0 h, pente +0,99, r +0,73
+                           le modele route PLUS VITE que les cibles
+    Les deux divergent, en sens contraire. C'est bien la VARIATION qui est le
+    signal, pas le signe ni la valeur moyenne.
 
     NE COUTE AUCUNE SIMULATION, et c'est tout l'interet : les pics cibles
     viennent du classeur, ceux du modele du calcul de reference, qui a lieu de
-    toute facon. Sur le calage du 31/08 la mesure aurait ete disponible 2 h 23
-    apres le lancement, avant les 25 h d'apports.
+    toute facon. Sur un calage de 25 h la mesure est disponible des la fin de
+    la reference — 1 h 22 apres le lancement sur le modele B.
 
     CE QU'ELLE NE REMET PAS EN CAUSE : les sections restent calees, a 99-101 %
-    de volume. Ce que la pente interroge est le POSITIONNEMENT TEMPOREL des
+    de volume. Ce que l'etendue interroge est le POSITIONNEMENT TEMPOREL des
     hydrogrammes d'apport livres — un apport cale sur une cible decalee de
-    4,3 h reproduit sa forme, a 4,3 h pres.
+    4,3 h reproduit sa forme, a 4,3 h pres, et le decalage n'est pas le meme
+    d'une section a l'autre.
     """
     points = []
     for i, (temps_cible, debit_cible) in enumerate(cibles):
@@ -1435,52 +1454,70 @@ def _coherence_decalage(cibles, residuels, dire):
         try:
             dt = float(decalage_minimisant_ecart(temps_cible, debit_cible,
                                                  t_res, q_res))
+            # LA MEME FENETRE QUE CELLE QUI SERA JUGEE, mesuree sur le meme
+            # ecart : c'est elle qui donne l'echelle a laquelle un decalage
+            # compte. La recalculer ici ne coute rien — aucun calcul HEC-RAS.
+            manque = ecart_a_la_cible(temps_cible, debit_cible,
+                                      t_res, q_res, dt)
+            f0, f1 = fenetre_injection(
+                temps_cible, manque,
+                seuil_bas=config.fenetre_seuil_bas,
+                seuil_haut=config.fenetre_seuil_haut,
+                t0_impose=config.fenetre_t0_h,
+                tf_impose=config.fenetre_tf_h,
+                volume_reference=_volume(temps_cible, debit_cible),
+                perte_max=config.tolerance_beta)
         except Exception:                                    # noqa: BLE001
             continue
-        points.append((float(t_c[int(np.nanargmax(q_c))]), dt))
+        points.append((float(t_c[int(np.nanargmax(q_c))]), dt,
+                       float(f1) - float(f0)))
 
-    # QUATRE POINTS AU MOINS. Une pente sur deux ou trois apports n'a pas de
-    # sens, et une alerte fondee sur elle serait du bruit.
+    # QUATRE APPORTS AU MOINS. Une derive sur deux ou trois sections n'a pas
+    # de sens, et une alerte fondee sur elle serait du bruit.
     if len(points) < 4:
         return None
     pics = np.array([p[0] for p in points])
     ecarts = np.array([p[1] for p in points])
+    largeurs = np.array([p[2] for p in points])
+
+    etendue = float(np.ptp(ecarts))
+    duree = float(np.median(largeurs[largeurs > 0])) if np.any(largeurs > 0) else 0.0
+    seuil = ETENDUE_DECALAGE_MAX_PART * duree
+
     rangs = np.arange(len(points), dtype=float)
     prog_cible = float(np.polyfit(rangs, pics, 1)[0])
     prog_modele = float(np.polyfit(rangs, pics + ecarts, 1)[0])
-
-    # UN Dt CONSTANT EST LA SIGNATURE SAINE, PAS UN CAS A SAUTER. La version
-    # d'origine sortait avant d'imprimer quand l'ecart ne variait pas, si bien
-    # que le cas SAIN etait le seul a ne rien rapporter — exactement l'inverse
-    # de ce qu'on veut. On chiffre toujours ; l'alerte, elle, reste
-    # conditionnelle.
-    correlable = np.ptp(pics) >= 1e-6 and np.ptp(ecarts) >= 1e-6
-    if correlable:
+    # PENTE ET CORRELATION SONT RAPPORTEES, PLUS JAMAIS DECISIVES : elles
+    # disent le sens de la divergence et sa nettete, ce qu'une etendue seule
+    # ne montre pas. C'est le « ET » entre elles qui ecartait le modele B.
+    if np.ptp(pics) >= 1e-6 and etendue >= 1e-6:
         pente = float(np.polyfit(pics, ecarts, 1)[0])
         correlation = float(np.corrcoef(pics, ecarts)[0, 1])
         lecture = f"pente {pente:+.2f}, r = {correlation:+.2f}"
     else:
-        pente = correlation = 0.0
         lecture = (f"decalage constant a {float(np.mean(ecarts)):+.2f} h — les "
                    f"deux calendriers avancent du meme pas")
 
     dire(f"    coherence du decalage le long de l'axe, sur {len(points)} "
          f"apport(s) : pic du modele {prog_modele:+.2f} h par section, pic des "
-         f"cibles {prog_cible:+.2f} h par section ; Dt contre pic cible = "
-         f"{lecture}")
-    if (abs(pente) <= PENTE_DECALAGE_MAX
-            or abs(correlation) <= CORRELATION_DECALAGE_MIN):
+         f"cibles {prog_cible:+.2f} h par section ; Dt s'etend sur "
+         f"{etendue:.1f} h (seuil {seuil:.1f} h = "
+         f"{100 * ETENDUE_DECALAGE_MAX_PART:.0f} % d'une fenetre de "
+         f"{duree:.1f} h) ; {lecture}")
+
+    if duree <= 0.0 or etendue <= seuil:
         return None
     return (
-        f"les deux calendriers ne progressent pas au meme rythme : le pic du "
-        f"modele avance de {prog_modele:+.2f} h par section quand celui des "
-        f"cibles avance de {prog_cible:+.2f} h (Dt contre pic cible : pente "
-        f"{pente:+.2f}, r = {correlation:+.2f} sur {len(points)} apports). Un "
-        f"decalage qui suit lineairement l'heure du pic cible n'est pas un "
-        f"temps de transfert. LES SECTIONS SERONT CALEES, mais les "
-        f"hydrogrammes d'apport livres reproduiront la forme des cibles EN "
-        f"ETANT DECALES d'autant, et le decalage grandit vers l'aval. Relire "
-        f"la base de temps des cibles avant d'exploiter ces hydrogrammes.")
+        f"le decalage DERIVE de {etendue:.1f} h le long de l'axe, pour des "
+        f"fenetres jugees de {duree:.1f} h en mediane — au-dela des "
+        f"{100 * ETENDUE_DECALAGE_MAX_PART:.0f} % admis ({seuil:.1f} h). Le "
+        f"pic du modele avance de {prog_modele:+.2f} h par section quand celui "
+        f"des cibles avance de {prog_cible:+.2f} h ({lecture}). Un decalage "
+        f"qui n'est pas le meme d'une section a l'autre n'est pas un temps de "
+        f"transfert. LES SECTIONS SERONT CALEES, mais les hydrogrammes "
+        f"d'apport livres reproduiront la forme des cibles EN ETANT DECALES, "
+        f"et pas du meme temps partout. Relire la base de temps des cibles "
+        f"avant d'exploiter ces hydrogrammes.")
 
 
 def _calendrier_durees(cibles, residuels, config, dire):
@@ -2630,47 +2667,85 @@ if __name__ == "__main__":
 
     # --- COHERENCE DU DECALAGE LE LONG DE L'AXE -------------------------
     print("\n--- COHERENCE DU DECALAGE LE LONG DE L'AXE ---")
-    # LES CHIFFRES SONT CEUX DE LA PRODUCTION, pas une invention : huit
-    # apports d'un modele reel, releves au journal du 31/08-01/09/2026. Le banc
-    # doit retrouver pente -0,70 et r -0,98, sans quoi la mesure a derive.
+    # DEUX MODELES REELS, PAS DES INVENTIONS : les pics et les Dt sont ceux
+    # releves aux journaux des 31/08 et 01/09/2026. LE MODELE B EST LA POUR UNE
+    # RAISON PRECISE — il passait sous les premiers seuils (pente ET
+    # correlation) alors qu'il derive PLUS que le modele A. C'est lui qui a
+    # impose le critere d'etendue ; sans ce controle, rien n'empecherait d'y
+    # revenir.
     _t10 = np.linspace(0.0, 40.0, 401)
 
     def _bosse(t_pic, amplitude=50.0):
         return amplitude * np.exp(-0.5 * ((_t10 - t_pic) / 2.0) ** 2)
 
-    _pics_cibles = [3.0, 4.5, 5.5, 6.5, 7.0, 7.0, 8.5, 9.5]
-    _pics_modele = [3.10, 3.10, 3.50, 3.60, 3.80, 4.00, 4.20, 5.20]
-    _cib10 = [(_t10, _bosse(p)) for p in _pics_cibles]
-    _res10 = [(_t10, _bosse(p, 20.0)) for p in _pics_modele]
-    _dits10 = []
-    _alerte10 = _coherence_decalage(_cib10, _res10, _dits10.append)
-    controler("le cas reel leve l'alerte de coherence",
-              bool(_alerte10), (_alerte10 or "aucune")[:95])
-    controler("elle chiffre la pente et la correlation mesurees",
-              bool(_dits10) and "-0.70" in _dits10[0] and "-0.98" in _dits10[0],
-              _dits10[0].strip()[:120] if _dits10 else "rien dit")
+    def _mesurer(pics_cibles, pics_modele):
+        _cib = [(_t10, _bosse(p)) for p in pics_cibles]
+        _res = [(_t10, _bosse(p, 20.0)) for p in pics_modele]
+        _dits = []
+        return _coherence_decalage(_cib, _res, Configuration(),
+                                   _dits.append), _dits, _cib, _res
+
+    # --- MODELE A : derive nette et monotone, -0,70 de pente, r -0,98 -------
+    _pics_a = [3.0, 4.5, 5.5, 6.5, 7.0, 7.0, 8.5, 9.5]
+    _mod_a = [3.10, 3.10, 3.50, 3.60, 3.80, 4.00, 4.20, 5.20]
+    _al_a, _dits_a, _cib_a, _res_a = _mesurer(_pics_a, _mod_a)
+    controler("modele A : la derive du decalage leve l'alerte",
+              bool(_al_a), (_al_a or "aucune")[:90])
+    controler("l'etendue de Dt y est chiffree, avec son seuil",
+              bool(_dits_a) and "s'etend sur 4.4 h" in _dits_a[0]
+              and "seuil" in _dits_a[0],
+              _dits_a[0].strip()[95:200] if _dits_a else "rien dit")
+    controler("pente et correlation restent RAPPORTEES",
+              bool(_dits_a) and "-0.70" in _dits_a[0] and "-0.98" in _dits_a[0],
+              _dits_a[0].strip()[-40:] if _dits_a else "")
     controler("et les deux progressions le long de l'axe",
-              bool(_dits10) and "+0.26" in _dits10[0] and "+0.84" in _dits10[0],
-              _dits10[0].strip()[60:150] if _dits10 else "")
+              bool(_dits_a) and "+0.26" in _dits_a[0] and "+0.84" in _dits_a[0],
+              _dits_a[0].strip()[60:150] if _dits_a else "")
 
-    # LE CAS SYMETRIQUE, ET IL A DEJA ETE MANQUE UNE FOIS : un decalage
-    # CONSTANT est la signature SAINE. La premiere version sortait avant
-    # d'imprimer quand l'ecart ne variait pas, si bien que le seul cas a ne
-    # rien rapporter etait le bon.
-    _dits11 = []
-    _sain = [(_t10, _bosse(p - 1.0, 20.0)) for p in _pics_cibles]
-    _alerte11 = _coherence_decalage(_cib10, _sain, _dits11.append)
+    # --- MODELE B : LE CAS QUI PASSAIT, et qui derive le plus --------------
+    # Derive NON monotone (-0,70 +0,40 -1,10 +2,30 +3,40 +5,90), donc r = 0,73 :
+    # sous l'ancien « |r| > 0,9 » il ne levait rien, avec une etendue de 7,0 h
+    # contre 4,4 pour le modele A. Le sens est aussi INVERSE — ici le modele
+    # route plus lentement que les cibles.
+    _pics_b = [11.0, 12.5, 14.5, 15.5, 15.5, 16.0]
+    _mod_b = [10.3, 12.9, 13.4, 17.8, 18.9, 21.9]
+    _al_b, _dits_b, _cib_b, _res_b = _mesurer(_pics_b, _mod_b)
+    controler("modele B : il leve l'alerte, LUI AUSSI",
+              bool(_al_b), (_al_b or "AUCUNE — regression")[:90])
+    controler("son etendue de 7,0 h depasse celle du modele A",
+              bool(_dits_b) and "s'etend sur 7.0 h" in _dits_b[0],
+              _dits_b[0].strip()[95:175] if _dits_b else "rien dit")
+    controler("alors que sa correlation, seule, l'aurait ecarte",
+              bool(_dits_b) and "+0.73" in _dits_b[0],
+              "r = +0,73 < 0,9 : c'est le defaut de l'ancien critere")
+
+    # --- LE CAS SAIN : un decalage CONSTANT, quelle que soit sa valeur -----
+    # Deja manque une fois : la premiere version sortait avant d'imprimer
+    # quand l'ecart ne variait pas, si bien que le seul cas a ne rien
+    # rapporter etait le bon.
+    _al_s, _dits_s, _, _ = _mesurer(_pics_a, [p - 1.0 for p in _pics_a])
     controler("un decalage constant ne leve AUCUNE alerte",
-              _alerte11 is None, str(_alerte11)[:80])
+              _al_s is None, str(_al_s)[:80])
     controler("mais il est quand meme CHIFFRE au journal",
-              bool(_dits11) and "constant" in _dits11[0],
-              _dits11[0].strip()[60:160] if _dits11 else "rien dit")
+              bool(_dits_s) and "constant" in _dits_s[0],
+              _dits_s[0].strip()[60:170] if _dits_s else "rien dit")
 
-    controler("moins de quatre apports : aucune pente, aucune alerte",
-              _coherence_decalage(_cib10[:3], _res10[:3],
+    # --- CE QUE LE SEUIL RELATIF ACHETE -----------------------------------
+    # Une derive FAIBLE devant la duree de l'evenement ne doit rien lever :
+    # c'est tout l'interet d'un seuil en pourcentage plutot qu'en heures.
+    _al_f, _dits_f, _, _ = _mesurer(
+        _pics_b, [p - 0.5 * (k % 2) for k, p in enumerate(_pics_b)])
+    controler("une derive faible devant l'evenement ne leve rien",
+              _al_f is None, (_al_f or "aucune")[:70])
+    controler("le seuil est bien RELATIF a la fenetre jugee",
+              bool(_dits_f) and "% d'une fenetre de" in _dits_f[0],
+              _dits_f[0].strip()[95:185] if _dits_f else "rien dit")
+
+    controler("moins de quatre apports : aucune derive, aucune alerte",
+              _coherence_decalage(_cib_a[:3], _res_a[:3], Configuration(),
                                   lambda *a, **k: None) is None)
     controler("un residuel illisible est simplement ignore",
-              _coherence_decalage(_cib10, [None] * 8,
+              _coherence_decalage(_cib_a, [None] * 8, Configuration(),
                                   lambda *a, **k: None) is None)
     # L'ALERTE REMONTE-T-ELLE JUSQU'AU RESULTAT ? Le canal est neuf : sans ce
     # controle, la mesure resterait dans le journal.
