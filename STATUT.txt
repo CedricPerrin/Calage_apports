@@ -50,22 +50,26 @@ CE QUI EST EPROUVE
     faire_zip.py et essai_garde_fou_archive.py. Repasses le 01/09 au soir,
     apres les correctifs et les coupes du 31/08 (section 5.3 ter).
 
-DEUX CALAGES EN COURS — RELEVE DU 01/09 AU SOIR
-  SUHIHANDIA V3 — lance le 31/08 a 12:33 depuis un second poste, sorties sur
-  T:\...\Suhihandia_v7\HEC_RAS_v7_Suhihandia\Sortie-V3. DIX apports sur douze
-  cales au releve de 16:56, SUH11 en calcul, SUH12 en attente. NEUF DES DIX
+LES DEUX CALAGES — RELEVE DU 02/09 A 4 H
+  ARDANAVY Q100 — TERMINE LE 02/09 A 0 H 34, CONFORME. Six apports sur six,
+  un ou deux essais chacun, 14 h 29 en tout. Volumes 97,7 a 100,7 %, pointes
+  98,2 a 101,7 %, formes 99,1 a 100,0 %, bilan de masse 0,011 %, zero
+  incident. C'EST LE PREMIER CALAGE COMPLET ET CONFORME DE LA CHAINE
+  CORRIGEE : lance le 01/09 a 10:05 avec le zip de 09:55 (commit 6964bd9), il
+  est le premier passage en production du correctif d'unites, de l'horodatage
+  et de l'alerte de couverture. Sorties sur
+  T:\...\1-ARDANAVY\Apports\Q100. Ses Dt corrigent la section 5.5.
+  SUHIHANDIA V3 — ONZE apports sur douze au releve de 01:47, SUH12 a son
+  troisieme essai (le calcul tournait encore a 3 h 58). Onze valides dont DIX
   EN UN SEUL ESSAI. Volumes 99,9 a 101,0 %, pointes 98,1 a 100,0 %, formes
-  99,9 a 100,0 %. Zero incident. Fin annoncee le 01/09 vers 22 h.
+  99,9 a 100,0 %. Zero incident. Bilan de masse 0,372 % au dernier calcul.
+  Lance le 31/08 a 12:33 depuis un second poste, sorties sur
+  T:\...\Suhihandia_v7\HEC_RAS_v7_Suhihandia\Sortie-V3.
   IL TOURNE AVEC LA CHAINE D'AVANT LES CORRECTIFS DU SOIR : ses fenetres sont
   surdimensionnees (le bug d'unites), ses resultats restent valides mais
-  couteux — 4 500 a 14 400 s par apport.
-  ARDANAVY Q100 — lance le 01/09 a 10:05, sorties sur
-  T:\...\1-ARDANAVY\Apports\Q100. Six apports, avec le zip de 09:55 (commit
-  6964bd9) : PREMIER PASSAGE EN PRODUCTION du correctif d'unites, de
-  l'horodatage et de l'alerte de couverture. TROIS SUR SIX cales au releve de
-  18:42, tous en deux essais, volumes 100,0 / 100,7 / 100,6 %, pointes 99,9 /
-  98,2 / 100,3 %. ARD09 en calcul. Zero incident. Fin annoncee le 02/09 vers
-  2 h. Voir 5.5.
+  couteux — 4 500 a 14 400 s par apport, la ou Ardanavy tient en 2 h 30.
+  SUH12 EST LE SEUL QUI PEINE : volume 99,3 puis 102,0 %, pointe 91,6 puis
+  95,3 % — la pointe progresse de 3,7 points par essai, il lui en faut 98.
     LES DEUX NE SONT PAS COMPARABLES ENTRE EUX, et il faut le noter au dossier :
     l'un porte le bug d'unites, l'autre non.
 
@@ -245,28 +249,45 @@ MESURE SUR CAS REEL (12 apports, les 8 premiers cales, 01/09/2026) :
 TROIS FOIS PLUS LENT COTE MODELE. Un r de 0,98 sur huit points n'est pas du
 bruit : c'est une divergence systematique, qui grandit vers l'aval.
 
-ET UN SECOND MODELE A RENVERSE LE CRITERE, LE MEME JOUR (6 apports) :
-  section  pic cible   Dt      pic modele
-  1re        11,0     -0,70        10,3
-  2e         12,5     +0,40        12,9
-  3e         14,5     -1,10        13,4
-  4e         15,5     +2,30        17,8
-  5e         15,5     +3,40        18,9
-  6e         16,0     +5,90        21,9
-  pic du modele +2,30 h par section ; pic des cibles +1,00 h par section
-  etendue de Dt 7,0 h, pente +0,99, r +0,73
-SIGNE INVERSE : ici le modele route PLUS LENTEMENT que les cibles.
+LE SECOND MODELE N'A RIEN RENVERSE — LA MESURE ETAIT FAUSSE (etabli le
+02/09 a 4 h, sur le calage TERMINE et CONFORME).
+  Le 01/09 a midi, ce modele n'avait qu'UN apport cale : les Dt des cinq
+  autres sections ne pouvaient pas venir de la chaine. Ils ont ete pris sur un
+  seul etat du modele, apports a zero. Or LA METHODE EST SEQUENTIELLE : le Dt
+  d'un apport se mesure sur un residuel ou les apports AMONT sont deja cales.
+  Avec tout a zero, les sections aval sont affamees, leur pic arrive de plus
+  en plus tard, et la mesure fabrique une derive qui grandit avec le rang.
+  LA PREUVE EST DANS L'ECART, APPORT PAR APPORT :
+    annonce le 01/09   -0,70  +0,40  -1,10  +2,30  +3,40  +5,90   etendue 7,0 h
+    mesure par la chaine -0,70  +0,10  -0,80  -0,40  +0,40  +1,00   etendue 1,8 h
+    ecart                 0,00   0,30  -0,30   2,70   3,00   4,90
+  ZERO SUR LE PREMIER APPORT, puis un ecart qui grandit. Le premier est le seul
+  pour lequel les deux lectures decrivent le meme etat — rien n'est encore cale
+  en amont. C'est la signature du defaut, et elle ne laisse pas d'autre lecture.
+  CE QUE LE MODELE VAUT REELLEMENT : etendue 1,8 h, pente +0,280, r +0,751, sur
+  des fenetres jugees de 15,5 h en mediane — soit un seuil a 2,3 h. AUCUNE
+  ALERTE. Avec les chiffres annonces, l'alerte partait. Les deux criteres, le
+  retire comme celui qui l'a remplace, s'accordent sur les vraies valeurs : ce
+  modele est COHERENT.
+SIGNE INVERSE : ici le modele route un peu PLUS LENTEMENT que les cibles
+(pente +0,28 h par section), mais sans commune mesure avec le premier.
 
-  LE PREMIER CRITERE — « pente forte ET correlation elevee » — ECARTAIT LE
-  PIRE DES DEUX CAS. Le modele B a la pente la plus forte (+0,99) et la derive
-  la plus grande (7,0 h contre 4,4), et ne levait rien : sa derive n'est pas
-  monotone, donc r restait sous 0,9.
+  LE PREMIER CRITERE — « pente forte ET correlation elevee » — A ETE RETIRE
+  SUR CE CAS, ET LE CAS N'EXISTE PAS. On lui reprochait de ne pas lever
+  l'alerte sur un modele B qui aurait eu la pente la plus forte (+0,99) et la
+  derive la plus grande (7,0 h contre 4,4). Le modele B reel a une pente de
+  +0,28 et une derive de 1,8 h : il n'y avait rien a lever. Le reproche
+  tombe avec la mesure qui le portait.
   LE CRITERE PORTE DESORMAIS SUR L'ETENDUE DE Dt — max moins min — rapportee a
   la duree MEDIANE des fenetres jugees. Elle ne depend pas de la FORME de la
   derive, et un Dt constant vaut 0,0 h quelle que soit sa valeur moyenne.
   ETENDUE_DECALAGE_MAX_PART = 0,15. SEUIL RELATIF ET NON EN HEURES : un Dt qui
   derive de 4 h sur des crues de 25 h ne dit pas la meme chose que sur des
-  crues de 100 h. FONDE SUR DEUX CAS — a revoir au troisieme.
+  crues de 100 h.
+  IL NE REPOSE PLUS QUE SUR UN SEUL CAS. Il en revendiquait deux ; le second
+  s'est revele mesure sur un etat que la methode n'emploie jamais. Le critere
+  n'est ni valide ni invalide par la : il est SANS APPUI SUFFISANT, et son
+  seuil n'a jamais ete confronte a un modele reellement incoherent.
   Pente et r restent RAPPORTES : ils disent le sens et la nettete, ce qu'une
   etendue seule ne montre pas. Ils ne decident plus rien.
 
@@ -335,11 +356,11 @@ CE QUE CELA CHANGE POUR NOTRE 5 %.
   des calculs (0,56 / 0,96 / 1,12 / 1,39 % sur un meme modele, § 5.3).
   MAIS LE MODELE, LUI, MERITE UN MOT — ET C'EST DU MODELE QU'IL S'AGIT, PAS
   DE LA CHAINE. Releve du 01/09 au soir sur les deux calages en cours :
-        ARDANAVY     0,014 %   dans ce que HEC appelle « very low »
+        ARDANAVY     0,011 %   dans ce que HEC appelle « very low »
         SUHIHANDIA   0,471 %   vingt fois au-dessus
   Les 0,5 a 1,4 % de la section 5.3 sont un trait de CE modele-la, pas une
   caracteristique de la methode : un autre modele de la meme affaire, dans la
-  meme chaine, rend 0,014 %. C'est une observation a porter au client sur le
+  meme chaine, rend 0,011 %. C'est une observation a porter au client sur le
   modele concerne, au meme titre que la derive du decalage — et a ne pas
   generaliser, ce que la premiere redaction de ce paragraphe faisait.
   ET LA PISTE ORDINAIRE NE MENE NULLE PART ICI : resserrer le pas de calcul a
@@ -1255,17 +1276,31 @@ CE QU'IL A VALIDE, MESURE.
     « Flow Hydrograph Slope= » dans son bloc unsteady : sa pente n'a pas ete
     appliquee, les cinq autres oui.
 
-CE QU'IL A RENVERSE — le critere de coherence du decalage, pose le matin meme.
-  Detail complet en 2.2 ter. En deux lignes : ce modele a la pente la plus
-  forte (+0,99) et la derive la plus grande (7,0 h contre 4,4), et ne levait
-  AUCUNE alerte sous le premier critere, parce que sa derive n'est pas monotone
-  et que le r restait sous 0,9.
-    UN SEUL JEU DE DONNEES NE CALIBRE RIEN, ET LE DEUXIEME PEUT RENVERSER LE
-    CRITERE PLUTOT QUE LE CONFIRMER. C'est ce qui est arrive, le meme jour.
+CE QU'IL A CRU RENVERSER — le critere de coherence du decalage, pose le matin
+meme. IL N'A RIEN RENVERSE : la mesure etait fausse, et le calage termine le
+dit (2.2 ter). Pente reelle +0,28 et non +0,99, derive reelle 1,8 h et non
+7,0 : il n'y avait aucune alerte a lever, et le premier critere avait raison
+de se taire.
 
-COMMENT LA MESURE A ETE OBTENUE SANS ATTENDRE LE CALAGE : le HDF du calcul de
-reference etant complet, ses six sections ont ete relues par
-« pont_hecras hydrogramme --plan <hdf> --section <nom> --sortie <ailleurs> ».
+COMMENT LA MESURE FAUSSE A ETE OBTENUE, ET POURQUOI ELLE NE POUVAIT PAS ETRE
+JUSTE. Pour ne pas attendre le calage, les six sections ont ete relues sur le
+HDF DU CALCUL DE REFERENCE, par « pont_hecras hydrogramme --plan <hdf>
+--section <nom> --sortie <ailleurs> ». Le calcul de reference a TOUS LES
+APPORTS A ZERO.
+  OR LA METHODE EST SEQUENTIELLE. Le Dt d'un apport se mesure sur un residuel
+  ou les apports AMONT SONT DEJA CALES — c'est la definition meme du residuel
+  (§ 2.1). Avec tout a zero, chaque section aval est affamee de ce que les
+  apports amont devaient lui apporter : son pic arrive de plus en plus tard a
+  mesure qu'on descend, et la lecture FABRIQUE une derive proportionnelle au
+  rang. C'est exactement la forme des ecarts constates : 0,00 sur le premier
+  apport, puis 0,30, -0,30, 2,70, 3,00, 4,90.
+  LA LECON, ET ELLE EST GENERALE : UN RACCOURCI QUI EVITE D'ATTENDRE LE CALAGE
+  MESURE AUTRE CHOSE QUE LE CALAGE. Le HDF de reference etait bien complet, la
+  commande bien employee, les chiffres bien lus — et la grandeur n'etait pas la
+  bonne. Troisieme fois en deux jours que la valeur est juste et la grandeur
+  fausse ; les deux premieres avaient ete rattrapees par une mesure sur donnees
+  reelles, celle-ci a mis vingt-quatre heures et a fait changer un critere
+  entre-temps.
   PENSER A --sortie : sans lui, l'outil ecrit son csv DANS le dossier du
   modele. Un fichier parasite a ete retire a la main.
 
@@ -1559,11 +1594,16 @@ A TRANCHER
     section), ou l'etendue rapportee au nombre de sections — c'est-a-dire ce
     que la pente disait deja. Ce qui avait ete retire le 01/09 au matin,
     c'est le « ET correlation elevee », pas la pente elle-meme.
-      NE RIEN TRANCHER SANS UN TROISIEME MODELE COMPLET. Ardanavy en est a
-    trois sections sur six (etendue 0,9 h, pente -0,100, r -0,212 : rien de
-    significatif sur trois points), et ses trois dernieres sections sont
-    justement celles ou la mesure de reference annoncait +2,3, +3,4 et
-    +5,9 h. C'est la que le critere se jouera.
+      ET LE SECOND CAS SUR LEQUEL IL REPOSAIT N'EN ETAIT PAS UN. Le calage
+    d'Ardanavy s'est termine le 02/09 a 0 h 34, CONFORME : etendue 1,8 h,
+    pente +0,280, r +0,751, seuil 2,3 h — aucune alerte. Les 7,0 h qui
+    avaient fait changer le critere le 01/09 venaient d'une mesure prise sur
+    un etat que la methode n'emploie jamais (section 5.5). LE CRITERE NE
+    REPOSE PLUS QUE SUR UN CAS, et son seuil n'a jamais rencontre un modele
+    reellement incoherent.
+      NE RIEN TRANCHER SANS UN TROISIEME MODELE, un vrai cette fois — et,
+    tant qu'a faire, sur les Dt QUE LA CHAINE MESURE, jamais sur une lecture
+    de pics faite a cote.
     Sur Las Hies, le seul Dt qui rompait la tendance etait celui de l'apport
     non identifiable — les deux anomalies se recoupaient, sans valoir
     demonstration : c'est un troisieme jeu de donnees a repasser dans la mesure.
