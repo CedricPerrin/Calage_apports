@@ -104,8 +104,34 @@ défait.
 > deux jours ; celle-ci a mis vingt-quatre heures et a fait changer un critère
 > entre-temps.
 
-**Suhihandia V3** : 11/12, dont dix en un seul essai. SUH12 à son troisième
-essai (pointe 91,6 → 95,3 %, il lui en faut 98).
+### Les deux calages sont terminés et conformes
+
+**Suhihandia V3** a fini le 02/09 à 10 h 41 — 12/12, dont **dix en un seul
+essai**, 46 h 07 en tout, zéro incident. `SUH12` a été le seul difficile :
+cinq essais, 14 h 47 à lui seul, pointe 91,6 → 95,3 → 97,4 → 98,6 %. Il passe,
+mais sa forme tombe à 97,1 % pour un minimum de 97,0 — le seul des dix-huit
+apports des deux calages à frôler une limite.
+
+### Et le critère se prononce enfin, sur deux cas réels
+
+| modèle | étendue | médiane des fenêtres | seuil | rapport | verdict |
+|---|---|---|---|---|---|
+| Suhihandia | 6,6 h | 27,8 h | 4,2 h | 0,238 | **ALERTE** |
+| Ardanavy | 1,8 h | 15,5 h | 2,3 h | 0,116 | aucune |
+
+**Il discrimine** — et le critère *retiré* aurait dit exactement la même chose
+(Suhihandia pente −0,494 / r −0,923 → alerte ; Ardanavy +0,280 / +0,751 →
+silence). Le changement du 01/09 a été fait pour une raison qui n'existait pas
+**et** ne change rien sur les données disponibles : rien à défaire dans
+l'urgence.
+
+Deux réserves : la marge du côté silencieux est mince (0,116 pour 0,150), et
+les fenêtres de Suhihandia sont surdimensionnées par le bug d'unités, ce qui
+rend son seuil trop généreux. La conclusion tient, le chiffre non.
+
+L'objection « l'étendue grandit avec le rang » se nuance : 2,1 / 3,3 / 4,4 /
+6,6 h, puis **elle plafonne** à 6,6 h dès le dixième apport. La croissance
+n'est pas mécanique — mais un chiffre lu avant la fin d'un calage ne vaut rien.
 
 ## Session du 1er septembre 2026, soir — la liste des points ouverts mentait
 
