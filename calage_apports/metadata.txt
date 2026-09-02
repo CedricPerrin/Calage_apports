@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.4.0
+version=0.5.0
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,23 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,KGE,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.4.0 — Portabilité. Plus aucun chemin du poste de développement dans
+changelog=0.5.0 — Deux mesures que le calage rendait fausses ou taisait.
+    LE DÉCALAGE EST MESURÉ DANS LA FENÊTRE JUGÉE, et plus sur toute la série.
+    C'est lui qui apparie la cible et le calcul avant toute comparaison :
+    borner le volume, la pointe et la forme sans borner leur appariement ne
+    bornait rien. Un transitoire de mise en eau plus haut que l'événement,
+    hors de la fenêtre, faisait rendre −26,00 h pour un retard réel de
+    +1,50 h, et emportait avec lui le volume (109 %) et la forme (r = 0,95).
+    LE VOLUME PLANCHER EST ANNONCÉ AVANT LE PREMIER ESSAI. Un apport ne sait
+    qu'ajouter du débit : là où la section donne déjà plus que la cible,
+    l'excès est irréductible et le rapport de volume ne peut plus redescendre
+    à 100 %. La chaîne refusait le cas total — une cible entièrement sous le
+    résiduel — et laissait passer le cas ordinaire, où la cible est
+    atteignable en pointe mais le volume condamné. Le calage y dépensait tous
+    ses essais, puis rendait un verdict qui accusait la non-linéarité du
+    modèle. Le plancher est désormais chiffré dès l'itération 0, sans aucune
+    simulation supplémentaire, et le motif d'échec le nomme.
+    0.4.0 — Portabilité. Plus aucun chemin du poste de développement dans
     ce qui est distribué : la chaîne se choisit par un ordre FIXE (désignation
     explicite, copie embarquée, parent du plugin) au lieu de la date de
     modification, qui faisait masquer les sources vives par la copie embarquée
