@@ -1687,9 +1687,11 @@ A TRANCHER
     est PRIVE, ce qui les rend tenables aujourd'hui. S'il devenait public :
     soit cette section sort du suivi, soit on assume — et dans tous les cas
     l'historique git les porte deja.
-  - REVOIR ETENDUE_DECALAGE_MAX_PART = 0,15. Il repose sur deux cas
-    (section 2.2 ter), et le premier critere avait deja ete renverse par le
-    deuxieme modele — celui-la meme qui devait le confirmer.
+  - REVOIR ETENDUE_DECALAGE_MAX_PART = 0,15. Il repose sur deux cas REELS
+    depuis le 02/09 (section 2.2 ter), un de chaque cote du seuil. Le
+    « renversement » par le deuxieme modele, invoque le 01/09, N'A PAS EU
+    LIEU : il venait d'une mesure prise sur un modele prive de ses apports
+    (section 5.5).
       ET UNE OBJECTION DE FOND SUBSISTE : L'ETENDUE GRANDIT AVEC LE NOMBRE DE
     SECTIONS CALEES, au moins un temps. Mesure sur le modele A, le meme
     calage, lu a cinq rangs :
