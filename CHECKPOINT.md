@@ -68,10 +68,30 @@ résiduel où l'amont est **déjà calé**. Avec tout à zéro, chaque section a
 est affamée, son pic arrive de plus en plus tard, et la lecture *fabrique* une
 dérive proportionnelle au rang.
 
+**Et ce n'est pas une déduction — les deux lectures ont été refaites.** Les six
+sections relues sur le plan de référence `p04` (tous apports à zéro) rendent
+10,30 / 12,90 / 13,40 / 17,80 / 18,90 / 21,90 h : le tableau annoncé, **au
+centième d'heure près, sur les six**. Relues sur le plan final `p10` (tous
+apports calés), elles rendent les Δt que la chaîne a mesurés.
+
+| progression du pic le long de l'axe | h/section |
+|---|---|
+| cibles | +1,00 |
+| modèle, apports à **zéro** | **+2,30** |
+| modèle, apports **calés** | **+1,25** |
+
+Le « le modèle route plus de deux fois plus vite que ses cibles » décrivait un
+modèle *privé de ses apports*.
+
 Le modèle réel : étendue 1,8 h, pente +0,280, r +0,751, seuil 2,3 h →
 **aucune alerte**, ni par le critère retiré ni par celui qui l'a remplacé. Le
 reproche fait au premier critère — « il ne lève rien sur le pire des deux
 cas » — tombe avec la mesure qui le portait.
+
+**Et la dérive n'est plus attestée que sur un modèle.** Elle l'était sur deux,
+« en sens contraire », ce qui en faisait un écart systématique entre routage
+et cibles. Il reste Suhihandia, dont les Δt ont toujours été ceux de la chaîne
+(+0,1 → −6,5 h sur dix sections) : une anomalie isolée, sur un modèle.
 
 `ETENDUE_DECALAGE_MAX_PART = 0,15` **ne repose donc plus que sur un cas**. Ni
 validé ni invalidé : sans appui suffisant. Rien n'a été changé dans le code —
