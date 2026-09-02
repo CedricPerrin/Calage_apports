@@ -1448,6 +1448,13 @@ un correctif qui semble sans effet.**
 
 ## Par quoi reprendre — par ordre de priorité
 
+> **PÉRIMÉ — ne pas reprendre par ici.** Cette liste date du 1er août 2026.
+> Elle raisonne sur `Decalage_max_h`, seuil **retiré le 08/08/2026**, et sur
+> une tolérance de volume de 0,5 % qui vaut 5 % depuis le 30/08. Elle est
+> gardée comme récit. **La liste en vigueur est la section 6 de
+> `STATUT.txt`**, et le point de départ est la session la plus récente, en
+> tête de ce fichier.
+
 0. **~~Resserrer les tolérances et relancer.~~ FAIT — voir 0 bis en tête.**
    Conforme à ±3 %/±2 %, et A1 comme A3 avaient bien de la marge. Ce qu'il
    en reste à trancher : **faut-il changer les tolérances par défaut de
@@ -1602,33 +1609,43 @@ un correctif qui semble sans effet.**
 
 ## Commandes utiles
 
-**Interpréteur du projet** — celui qui fait passer les 13 suites :
+**Interpréteur du projet** — celui qui fait passer les 15 bancs :
 
 ```bash
+cd src                       # les modules de la chaîne s'exécutent depuis là
 PY="D:/1-Python/.venv/Scripts/python.exe"
+export PYTHONIOENCODING=utf-8          # console cp1252 : sinon les accents cassent
 
-# Chaîne : les 11 modules auto-testables + le pont + le noyau du plugin
+# 13 suites : les 11 modules auto-testables, le pont, le noyau du plugin
 for m in calage criteres suivi livrables controle_donnees geometrie \
          style_classeur elaguer_projet creer_template \
          verification_environnement pilote_hecras; do "$PY" $m.py; done
 "$PY" pont_hecras.py autotest
-"$PY" calage_apports/noyau.py
-"$PY" faire_zip.py
+"$PY" ../calage_apports/noyau.py       # le noyau est HORS de src/
 
-# Plugin, sous l'interpréteur QGIS (99 contrôles) — celui-là seulement.
-# --modele est OBLIGATOIRE (plus aucun modèle par défaut) et doit désigner une
-# COPIE : la suite MODIFIE la géométrie du modèle désigné. Le modèle doit
-# porter au moins un plan CALCULÉ, sinon 8 contrôles échouent en cascade.
-M="...\01-cas_test\1-HECRAS\CETTE_ESSAI"
-"C:\Program Files\QGIS\LTR\bin\python-qgis-ltr.bat" test_plugin_qgis.py \
-    --modele "$M" --plan "$M\CETTE.p04.hdf"
+# + 2 bancs d'archive, qui ferment la liste des 15
+"$PY" faire_zip.py                     # doit finir sur « archive conforme »
+"$PY" essai_garde_fou_archive.py       # doit finir sur « TOUT PASSE »
 ```
 
-**Lancer un calage en ligne de commande** — sans QGIS, ce qui est le plus sûr
-pour un run long :
+**Plugin, sous l'interpréteur QGIS — 149 contrôles.** Trois conditions, et
+aucune n'est facultative :
+
+- `--modele` doit désigner une **COPIE** : la suite MODIFIE la géométrie du
+  modèle qu'on lui donne. Copier `01-cas_test/1-CETTE/1-HECRAS/CETTE_TEST1`
+  (166 Mo) hors du dépôt.
+- le modèle doit porter au moins un plan **CALCULÉ**, sinon 8 contrôles
+  échouent en cascade — ce n'est pas une régression.
+- `CALAGE_PYTHON` doit désigner l'interpréteur HEC-RAS. Le greffon ne le
+  trouve seul que si c'est un `.venv` **voisin de la chaîne**, ce que
+  `D:\1-Python\.venv` n'est pas. Sans lui la lecture de la géométrie échoue,
+  et la suite s'arrête en le disant.
 
 ```bash
-"$PY" pont_hecras.py caler --template <dossier>/donnees_calage.xlsx
+export CALAGE_PYTHON="D:\1-Python\.venv\Scripts\python.exe"
+M="<une copie de CETTE_TEST1, hors du dépôt>"
+"C:\Program Files\QGIS\LTR\bin\python-qgis-ltr.bat" test_plugin_qgis.py \
+    --modele "$M" --plan "$M\CETTE.p03.hdf"
 ```
 
 **Fermer HEC-RAS avant tout calage.** L'interface réécrit les fichiers du

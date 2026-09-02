@@ -6,6 +6,37 @@ que ça coûterait.
 
 Écrit le 1er août 2026.
 
+> ## ⚠️ Relu le 2 septembre 2026 — deux idées sur quatre sont sans objet
+>
+> **Elles décrivent un algorithme qui n'existe plus.** La correction à deux
+> termes — un étalé pour le volume, un concentré pour la pointe, chacun avec
+> son gain — a été **retirée le 7 août 2026**. Ce qui la remplace n'a qu'un
+> seul terme et aucun gain : l'écart lui-même EST la correction
+> (`STATUT.txt` § 2.1).
+>
+> | idée | état |
+> |---|---|
+> | **1.** Calage simultané | **tient toujours** — mais son constat de départ est faux : les autres sections ne sont plus jetées, elles servent à la durée ajustée et au critère de cohérence du décalage |
+> | **2.** Réutiliser le jacobien | **sans objet** — il n'y a plus de gain à réutiliser |
+> | **3.** Un troisième terme | **sans objet** — il n'y en a plus qu'un, pas deux |
+> | **4.** Tolérances par section | **tient toujours** |
+>
+> **Et les chiffres de coût sont périmés d'un ordre de grandeur.** Ils
+> supposent trois essais par apport à 6,3 min le calcul. Les calages réels
+> convergent en **un ou deux** essais, pour **2 h 25 à 3 h 50 par apport**
+> (`STATUT.txt` § 5.6). Le gain de l'idée 1 reste réel — il porte sur le
+> nombre de calculs — mais le tableau du § 1 ne le chiffre plus.
+>
+> Deux renvois à revoir au passage : l'**étape 7 ne fait plus de reprises** —
+> la boucle a été retirée, elle se contente d'un avertissement (`calage.py`,
+> « étape 7 ») ; et le renvoi « § 1.3 de la note » pour l'hypothèse d'ordre
+> total désigne un autre § que celui qu'annonce `STATUT.txt` (§ 1.2) — la note
+> ayant été refaite en V15, **vérifier lequel est le bon dans le document**
+> avant de corriger l'un ou l'autre.
+>
+> Le fichier est **gardé tel quel** : le raisonnement de l'idée 1 vaut encore,
+> et une idée écartée dit pourquoi elle l'a été.
+
 ---
 
 ## 1. Calage SIMULTANÉ de tous les apports — le vrai levier

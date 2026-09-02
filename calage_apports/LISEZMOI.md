@@ -156,9 +156,12 @@ REM pont vers HEC-RAS
 %CALAGE_PYTHON% chaine\pont_hecras.py autotest
 ```
 
-Les auto-tests des autres modules de la chaîne (`criteres.py`, `calage.py`,
-`suivi.py`, `pilote_hecras.py`, `geometrie.py`, `livrables.py`) se lancent de
-la même manière. `verification_environnement.py` **n'est pas dans l'archive** :
+Les auto-tests des autres modules embarqués (`calage.py`, `controle_donnees.py`,
+`criteres.py`, `geometrie.py`, `livrables.py`, `pilote_hecras.py`,
+`style_classeur.py`, `suivi.py`) se lancent de la même manière — les neuf
+modules de `chaine\` en portent un, `pont_hecras.py` compris.
+
+`verification_environnement.py` **n'est pas dans l'archive** :
 il fait partie des sources du projet, pas de ce qui est distribué.
 
 Pour tester le chargement sous QGIS, **importer `qgis.core` en premier** : le
@@ -188,7 +191,19 @@ HEC-RAS ouvert emploient des mécanismes propres à Windows.
 Le 26 juillet 2026 sur QGIS 3.44.8-Solothurn LTR, Python 3.12.13, GDAL 3.12.2 :
 le pont appelé depuis QGIS a listé les objets d'un modèle réel.
 
-Le 8 août 2026, un calage complet a été mené de bout en bout sur un modèle
-réel — 7 apports, 8 calculs HEC-RAS, 26 h, chaque apport atteignant sa cible au
-premier essai — et l'ensemble des livrables a été produit, profil en long
-compris.
+Le 8 août 2026, un calage complet mené de bout en bout sur un modèle réel —
+7 apports, 8 calculs HEC-RAS, 26 h — et l'ensemble des livrables produit,
+profil en long compris.
+
+**Le 2 septembre 2026, deux calages multi-apports sont allés à leur terme,
+conformes, à quelques heures d'intervalle** : six apports sur six en 14 h 29,
+et douze sur douze en 46 h 07. Dix-huit apports, zéro incident, zéro échec —
+et seize d'entre eux calés en un ou deux essais. Volumes de 97,7 à 102,1 % de
+la cible, pointes de 98,1 à 101,7 %, formes de 97,1 à 100,0 %.
+
+Le même jour, la suite du plugin (`test_plugin_qgis.py`) est passée pour la
+première fois de bout en bout sous QGIS : **149 contrôles, aucun échec**.
+
+> Ce que ces deux calages n'ont PAS rencontré : un volume plancher, un apport
+> refusé, un modèle incohérent. Les garde-fous qui traitent ces cas n'ont donc
+> été éprouvés qu'au banc.

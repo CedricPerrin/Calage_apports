@@ -1135,6 +1135,9 @@ CE QUE LE PREMIER PASSAGE A APPRIS
   - LE PLAFOND ETAIT INDISPENSABLE. Sans lui, sept etapes auraient tente
     d'ecrire une fenetre plus longue que le plan de reference.
 
+CE CALAGE EST ALLE A SON TERME, CONFORME, LE 02/09 A 10 H 41 — resultats et
+enseignements en 5.6.
+
 COUT REEL SUR RESEAU : 3,5 a 4,0 min de calcul par heure simulee.
   calcul de reference   36 h simulees en 2 h 23   (12:34 → 14:58)
   SUH01                 21,5 h en 1 h 15          (14:58 → 16:13)
@@ -1285,12 +1288,13 @@ LA COUPE LAISSEE DE COTE : la boite de compte rendu dupliquee de plugin.py.
 Cinq lignes communes pour un fichier qu'aucun banc local ne couvre — le gain
 ne paie pas le risque (section 6).
 
-5.5  ARDANAVY Q100 — LE SECOND MODELE, ET IL A RENVERSE UN CRITERE (01/09/2026)
+5.5  ARDANAVY Q100 — LE SECOND MODELE, ET LA MESURE QU'IL A FALLU REFAIRE
+     (01-02/09/2026)
 --------------------------------------------------------------------------
-Quatrieme modele reel, six apports, lance a 10:05 avec le zip de 09:55. Il
-tourne encore a l'heure ou ces lignes s'ecrivent. VALEUR PRINCIPALE : c'est le
-premier passage en production des correctifs du 31/08 au soir, ET le second
-jeu de donnees qui manquait pour calibrer un seuil.
+Quatrieme modele reel, six apports, lance a 10:05 le 01/09 avec le zip de
+09:55, TERMINE ET CONFORME le 02/09 a 0 h 34 (resultats en 5.6). VALEUR
+PRINCIPALE : premier passage en production des correctifs du 31/08 au soir,
+et premier calage complet et conforme de la chaine corrigee.
 
 CE QU'IL A VALIDE, MESURE.
   - L'HORODATAGE DE dire() ecrit bien la date devant, l'indentation des lignes
@@ -1337,6 +1341,66 @@ APPORTS A ZERO.
   PENSER A --sortie : sans lui, l'outil ecrit son csv DANS le dossier du
   modele. Un fichier parasite a ete retire a la main.
 
+5.6  LES DEUX CALAGES COMPLETS — CE QU'ILS ONT APPRIS (02/09/2026)
+--------------------------------------------------------------------------
+DEUX CALAGES MULTI-APPORTS SONT ALLES A LEUR TERME, CONFORMES, A QUELQUES
+HEURES D'INTERVALLE. C'est la premiere fois. Dix-huit apports, zero incident,
+zero echec. Avant le 01/09, aucun calage multi-apports n'avait abouti sur un
+modele client : le 30/08 s'etait arrete a deux apports sur douze, sur des
+cibles fausses.
+
+                        ARDANAVY Q100          SUHIHANDIA V3
+  apports                 6 sur 6                12 sur 12
+  verdict                 CONFORME               CONFORME
+  fini le                 02/09  0 h 34          02/09  10 h 41
+  duree totale            14 h 29                46 h 07
+  par apport              2 h 25                 3 h 50
+  essais                  un ou deux             dix sur douze en UN
+  volume                  97,7 a 100,7 %         99,9 a 102,1 %
+  pointe                  98,2 a 101,7 %         98,1 a 100,0 %
+  forme                   99,1 a 100,0 %         97,1 a 100,0 %
+  bilan de masse          0,011 %                0,367 %
+  etendue de Dt           1,8 h                  6,6 h
+  fenetres (mediane)      15,5 h                 27,8 h
+  chaine                  zip du 01/09 09:55     zip d'avant le 31/08 au soir
+
+CE QUE LES DEUX ENSEIGNENT
+
+  - LA CHAINE TIENT UN CALAGE COMPLET, ET DEUX FOIS PLUTOT QU'UNE. C'est le
+    fait principal, et il n'etait pas acquis huit jours plus tot.
+  - SEIZE APPORTS SUR DIX-HUIT CONVERGENT EN UN OU DEUX ESSAIS. La correction
+    additive sans gain ni relaxation suffit, sur des modeles reels, des que
+    l'apport pese assez lourd devant le debit de sa section.
+  - LE SEUL APPORT DIFFICILE EST AUSSI LE SEUL QUI FROLE UNE LIMITE. SUH12 :
+    cinq essais, 14 h 47 a lui seul, pointe 91,6 puis 95,3, 97,4, 98,6 %. Il
+    passe, mais sa forme tombe a 97,1 % pour un minimum de 97,0. Les deux
+    signes vont ensemble — un apport qui resiste est un apport a relire, pas
+    seulement un apport a repasser.
+  - LE COUT EST DOMINE PAR LE MODELE ET PAR LA FENETRE SIMULEE, PAS PAR LA
+    METHODE. 2 h 25 par apport d'un cote, 3 h 50 de l'autre — et les fenetres
+    de Suhihandia commencent TOUTES a 0,00 h, signature du bug d'unites qu'il
+    porte encore. Le correctif d'unites se paie en heures de calcul, pas en
+    points de precision : ses resultats restent valides.
+  - LE BILAN DE MASSE EST UN TRAIT DU MODELE, PAS DE LA CHAINE. 0,011 % contre
+    0,367 % : un facteur trente-trois entre deux modeles de la MEME affaire,
+    dans la MEME chaine. Le premier est dans ce que HEC appelle « very low »,
+    le second vingt fois au-dessus. C'est une observation a porter au client
+    sur le modele concerne (voir le seuil, § 2.2).
+  - LA DERIVE DU DECALAGE AUSSI, ET ELLE N'EST ATTESTEE QUE SUR UN DES DEUX.
+    6,6 h contre 1,8 h. Rapportee a la duree mediane des fenetres : 0,238
+    contre 0,116, pour un seuil a 0,150 — le critere discrimine, et le critere
+    RETIRE le 01/09 aurait dit exactement la meme chose (§ 2.2 ter).
+  - LE PREMIER APPORT EST LE SEUL DONT LE Dt SE LISE SANS ATTENDRE. Pour lui,
+    et pour lui seul, le residuel EST le calcul de reference : rien n'est
+    encore cale en amont. Des le second, le Dt ne se lit qu'une fois l'amont
+    fige. C'est la regle operatoire que la mesure fausse du 01/09 a coute
+    vingt-quatre heures a apprendre (§ 5.5).
+  - CE QUE CES DEUX CAS NE DISENT PAS. Aucun des deux n'a rencontre le volume
+    plancher, ni un apport refuse, ni un modele incoherent. Les garde-fous
+    ajoutes depuis — cliquet, appariement borne a la fenetre — n'ont donc
+    ETE EPROUVES QU'AU BANC. Le premier calage qui les declenchera pour de
+    vrai apprendra quelque chose que ces deux-la n'ont pas appris.
+
 5.4  CE QUE LES CAS REELS ONT APPRIS, ENSEMBLE
 --------------------------------------------------------------------------
   - CALER LA SECTION ET DETERMINER L'APPORT SONT DEUX QUESTIONS DISTINCTES.
@@ -1365,21 +1429,35 @@ APPORTS A ZERO.
     d'unites a rendu agissantes deux asymetries latentes. APRES TOUT
     CORRECTIF QUI RESSERRE UNE BORNE, CHERCHER CE QUE L'ANCIENNE LARGEUR
     MASQUAIT.
-  - UN SEUIL POSE SUR UN SEUL CAS N'EST PAS UN SEUIL, ET LE DEUXIEME CAS PEUT
-    LE RENVERSER PLUTOT QUE LE CONFIRMER. Le critere de coherence du decalage
-    a ete pose le matin du 01/09 sur un modele, et retourne l'apres-midi par le
-    second — qui derivait DAVANTAGE et ne levait rien. Corollaire pratique :
-    quand un seuil ne repose que sur un cas, le NOMMER dans le code et mettre
-    le second jeu de donnees AU BANC des qu'il existe, sinon rien n'empeche d'y
-    revenir. Reste a faire pour le bilan de masse a 5 %.
+  - UN SEUIL POSE SUR UN SEUL CAS N'EST PAS UN SEUIL — MAIS LE SECOND CAS
+    DOIT ETRE MESURE COMME LE PREMIER. Le critere de coherence du decalage a
+    ete pose le matin du 01/09 sur un modele, puis retourne l'apres-midi par un
+    second qui semblait deriver DAVANTAGE sans rien lever. LE SECOND N'AVAIT
+    PAS ETE MESURE DE LA MEME FACON (§ 5.5) : sa derive reelle vaut 1,8 h et
+    non 7,0, et le critere d'origine avait raison de se taire. Un seuil pose
+    sur un cas est fragile ; un seuil RETOURNE par un cas mesure autrement est
+    pire, car on croit alors l'avoir eprouve.
+    Corollaire pratique, inchange : quand un seuil ne repose que sur un cas, le
+    NOMMER dans le code et mettre le second jeu de donnees AU BANC des qu'il
+    existe. Corollaire neuf : verifier d'abord que les deux cas repondent a la
+    MEME question, mesuree sur le MEME etat. Reste a faire pour le bilan de
+    masse a 5 %.
   - LA VALEUR PEUT ETRE JUSTE ET LA GRANDEUR FAUSSE, et c'est le piege le plus
     couteux de la journee du 01/09 — il s'est presente TROIS fois. Un gain
     annonce sur la fin de crue quand le code mesure une fenetre de deficit. Un
     seuil de couverture aveugle parce que les deux volumes sont integres sur le
-    meme intervalle. Une pente et un r qui ecartent la pire des deux derives.
+    meme intervalle. Et un decalage lu sur un modele prive de ses apports,
+    quand la methode le mesure sur un residuel dont l'amont est deja cale.
     A chaque fois le calcul etait exact ; c'est ce qu'il mesurait qui ne
     repondait pas a la question. SE DEMANDER « QUELLE GRANDEUR ? » AVANT
     « QUELLE VALEUR ? ».
+      LA TROISIEME A COUTE LE PLUS CHER, ET POUR UNE RAISON PRECISE : les deux
+      premieres ont ete rattrapees dans la journee par une mesure sur donnees
+      reelles ; celle-la a tenu vingt-quatre heures et a fait CHANGER UN
+      CRITERE entre-temps, parce que le raccourci qui l'a produite — relire le
+      HDF de reference plutot qu'attendre le calage — avait justement ete pris
+      pour ne pas attendre la mesure qui l'aurait dementie. UN RACCOURCI QUI
+      EVITE D'ATTENDRE LE CALAGE MESURE AUTRE CHOSE QUE LE CALAGE.
   - UN GAIN ANNONCE AVANT MESURE EST UNE HYPOTHESE SUR CE QU'ON CROIT QUE
     LE CODE MESURE. Les 34 % promis par l'optimisation des durees en
     valaient 11 : l'estimation portait sur la fin de crue des cibles, le
