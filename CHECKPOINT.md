@@ -42,6 +42,51 @@ fournir. Le garde-fou n'est donc pas muet — mais il ne surveille rien de réel
 Avant de committer depuis un clone neuf, se rappeler qu'un nom de client
 passerait.
 
+## Nuit du 1er au 2 septembre 2026 — le critère reposait sur une mesure fausse
+
+**Par quoi reprendre :** `STATUT.txt` § 1 (les deux calages), § 2.2 ter et
+§ 5.5 (le décalage), § 6 (points ouverts).
+
+**Ardanavy Q100 s'est terminé le 02/09 à 0 h 34, CONFORME** — six apports sur
+six, un ou deux essais chacun, 14 h 29, bilan de masse 0,011 %, zéro incident.
+Premier calage complet et conforme de la chaîne corrigée.
+
+### Et il dément le tableau qui avait fait changer le critère
+
+|  | 1 | 2 | 3 | 4 | 5 | 6 | étendue |
+|---|---|---|---|---|---|---|---|
+| annoncé le 01/09 | −0,70 | +0,40 | −1,10 | +2,30 | +3,40 | +5,90 | **7,0 h** |
+| mesuré par la chaîne | −0,70 | +0,10 | −0,80 | −0,40 | +0,40 | +1,00 | **1,8 h** |
+| écart | 0,00 | 0,30 | −0,30 | 2,70 | 3,00 | 4,90 | |
+
+**Zéro sur le premier apport**, puis un écart qui grandit avec le rang. C'est
+une signature, pas une coïncidence — et la cause est écrite dans le dossier
+lui-même : pour ne pas attendre le calage, les six sections avaient été relues
+sur le HDF **du calcul de référence**, celui où *tous les apports sont à
+zéro*. Or la méthode est séquentielle : le Δt d'un apport se mesure sur un
+résiduel où l'amont est **déjà calé**. Avec tout à zéro, chaque section aval
+est affamée, son pic arrive de plus en plus tard, et la lecture *fabrique* une
+dérive proportionnelle au rang.
+
+Le modèle réel : étendue 1,8 h, pente +0,280, r +0,751, seuil 2,3 h →
+**aucune alerte**, ni par le critère retiré ni par celui qui l'a remplacé. Le
+reproche fait au premier critère — « il ne lève rien sur le pire des deux
+cas » — tombe avec la mesure qui le portait.
+
+`ETENDUE_DECALAGE_MAX_PART = 0,15` **ne repose donc plus que sur un cas**. Ni
+validé ni invalidé : sans appui suffisant. Rien n'a été changé dans le code —
+changer un seuil sur la foi d'un seul cas serait refaire ce qui vient d'être
+défait.
+
+> **La leçon, générale :** un raccourci qui évite d'attendre le calage mesure
+> autre chose que le calage. Le HDF était complet, la commande bien employée,
+> les chiffres bien lus — la grandeur n'était pas la bonne. Troisième fois en
+> deux jours ; celle-ci a mis vingt-quatre heures et a fait changer un critère
+> entre-temps.
+
+**Suhihandia V3** : 11/12, dont dix en un seul essai. SUH12 à son troisième
+essai (pointe 91,6 → 95,3 %, il lui en faut 98).
+
 ## Session du 1er septembre 2026, soir — la liste des points ouverts mentait
 
 **Par quoi reprendre :** `STATUT.txt` § 1 (état courant), § 2.4 (le cliquet),
@@ -117,7 +162,7 @@ l'un ni sur l'autre.
 
 **Le bilan de masse n'est pas un trait de la chaîne.** J'avais écrit une heure
 plus tôt que « nos 0,5 à 1,4 % sont un à deux ordres de grandeur au-dessus de
-ce que HEC appelle *very low* ». Mesure : Ardanavy **0,014 %**, Suhihandia
+ce que HEC appelle *very low* ». Mesure : Ardanavy **0,011 %**, Suhihandia
 **0,471 %** — deux modèles de la même affaire, dans la même chaîne. Le
 0,5–1,4 % appartient à un modèle, pas à la méthode.
 
