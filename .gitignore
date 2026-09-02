@@ -49,3 +49,8 @@ Thumbs.db
 # 31/08/2026 ; les fichiers restent sur le disque et l'auto-test continue de
 # les produire. Pour en voir un exemple : lancer « python src/livrables.py ».
 livrables_exemple/
+
+# Espace de travail VS Code : il ne porte que « ce dossier », sans reglage.
+# Chacun cree le sien s'il en veut un ; le suivre imposerait une disposition
+# d'editeur a tout le monde pour zero information utile.
+Calage_apports.code-workspace
