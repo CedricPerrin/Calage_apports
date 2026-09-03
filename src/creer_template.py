@@ -43,6 +43,7 @@ PARAMETRES = [
     ("Unsteady_reference", "u01"),
     ("Mode_selection_modele", "plan"),
     ("Premier_apport", ""),
+    ("Prefixe_scenario", ""),
 
     ("--- FENETRE DE SIMULATION ---", ""),
     ("Simulation_debut", ""),

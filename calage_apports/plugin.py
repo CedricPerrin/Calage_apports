@@ -1869,6 +1869,29 @@ class DialogueParametrage(QDialog):
         f.addRow("Premier apport à caler :", self.combo_premier_apport)
         self.label_premier_apport = texte_etat()
         f.addRow(self.label_premier_apport)
+
+        # LE PREFIXE VIT A COTE DE « Premier apport » PARCE QUE LES DEUX
+        # DESIGNENT LES MEMES PLANS : la reprise cherche
+        # « <prefixe>-Apport_<precedent> ». Les separer ferait chercher, un
+        # jour, un plan sous un nom qu'on n'a pas ecrit.
+        self.edit_prefixe_scenario = QLineEdit()
+        self.edit_prefixe_scenario.setPlaceholderText(
+            "Q100 — vide : pas de préfixe")
+        self.edit_prefixe_scenario.setToolTip(
+            "Préfixe posé devant le titre de chaque plan créé par le "
+            "calage : « Q100 » donne « Q100-sans apport », "
+            "« Q100-Apport_A1 » et, à l'arrivée, « Q100-avec apports ».\n\n"
+            "INDISPENSABLE si plusieurs scénarios sont calés sur le même "
+            "modèle : sans lui, le calage du Q10 REMPLACE les plans du Q100, "
+            "qui portent exactement les mêmes titres.\n\n"
+            "Le tiret est ajouté tout seul : « Q100 » et « Q100- » donnent "
+            "le même titre.\n\n"
+            "Titre complet limité à 30 caractères — le champ « Short "
+            "Identifier », dont RAS Mapper fait le nom du dossier de "
+            "résultats. Au-delà, la composition REFUSE plutôt que de "
+            "tronquer : deux plans tronqués au même identifiant "
+            "partageraient ce dossier.")
+        f.addRow("Préfixe de scénario :", self.edit_prefixe_scenario)
         return groupe
 
     def _parcourir_dossier_hecras(self):
@@ -3491,11 +3514,16 @@ class DialogueParametrage(QDialog):
         try:
             noyau.ecrire_parametre(self.classeur, "Premier_apport",
                                    self._premier_apport())
+            # MEME RAISON pour le prefixe : c'est le classeur que le pont lit,
+            # et un prefixe modifie apres la composition y resterait perime.
+            noyau.ecrire_parametre(
+                self.classeur, "Prefixe_scenario",
+                self.edit_prefixe_scenario.text().strip())
         except Exception as e:
-            journaliser("Écriture du paramètre Premier_apport", e)
+            journaliser("Écriture des paramètres de lancement", e)
             QMessageBox.critical(
-                self, "Premier apport",
-                f"Le premier apport à caler n'a pas pu être écrit dans le "
+                self, "Premier apport / préfixe de scénario",
+                f"Les réglages de lancement n'ont pas pu être écrits dans le "
                 f"classeur : {e}\n\nLe calage n'est pas lancé — il serait "
                 f"parti sur un réglage autre que celui affiché.")
             return
@@ -3801,6 +3829,7 @@ class DialogueParametrage(QDialog):
                                 else "plan"),
                 nom_clone_geometrie=NOM_CLONE_GEOMETRIE_DEFAUT,
                 premier_apport=self._premier_apport(),
+                prefixe_scenario=self.edit_prefixe_scenario.text().strip(),
                 sens_axe=self.combo_sens_axe.currentText(),
                 pk_origine_m=self.spin_pk_origine.value(),
                 nb_max_iterations=self.spin_nb_max_essais.value(),

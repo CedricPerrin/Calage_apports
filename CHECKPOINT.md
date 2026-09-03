@@ -42,6 +42,65 @@ fournir. Le garde-fou n'est donc pas muet — mais il ne surveille rien de réel
 Avant de committer depuis un clone neuf, se rappeler qu'un nom de client
 passerait.
 
+## Session du 3 septembre 2026 — deux calages conformes, deux jeux de livrables incomplets
+
+**Par quoi reprendre :** `STATUT.txt` § 1 (état courant), § 2.5 (titres des
+plans — neuf), § 5.7 (les cinq défauts, mesurés), § 6 (le verdict de volume,
+à trancher).
+
+**15 bancs verts, 149 contrôles QGIS verts, greffon en 0.6.0.**
+
+### Ce que le relevé des dossiers a montré
+
+Les deux calages étaient conformes. Ardanavy n'avait **pas de profil en
+long** ; Suhihandia n'avait **ni classeur, ni note de synthèse, ni figure des
+apports, ni profil en long**. Les journaux nommaient chaque cause. Cinq
+défauts, chacun reproduit avant correction, chacun avec un banc qui échoue
+avant et passe après :
+
+| défaut | cause | commit |
+|---|---|---|
+| Rapport de 12/12 perdu | masque du **premier** apport appliqué à tous — l'unsteady porte 256, 321, 811 et 1 001 points | `5fb1932` |
+| Figure tronquée à la fenêtre jugée | les séries étaient coupées avant le tracé, alors que `figure_comparaison` cadre déjà seule | `ed21fe9` |
+| « PK indisponibles » | la porte testait la gravité **générale** du contrôle SIG, pas les conditions du PK — une ligne de 94 cm suffisait | `bf3a7aa` |
+| Profil en long / `xarray` | le calage avait tourné sur un **autre interpréteur** (0.99.2 au journal, 0.99.1 au venv) et rien ne le disait | `233f092` |
+| Apports dans le classeur | la feuille n'avait jamais existé | `45668e7` |
+
+### Le préfixe de scénario et le plan final
+
+Demandés par l'utilisateur après lecture du gestionnaire de plans. Conçus par
+panel de trois approches puis juge ; le plan retenu a **renversé une croyance
+du code** : la troncature du *Short Identifier* à 24 caractères n'était pas
+une limite de HEC-RAS mais une convention de ras-commander, sous un
+commentaire faux (« à largeur fixe »). Mesuré sur **103 plans réels** :
+largeur 64 sur les 67 qu'HEC-RAS écrit lui-même, 24 sur les 34 de la chaîne,
+et 14 plans **dépassant 24, jusqu'à 30**, écrits et calculés.
+
+Ce que ça donne : `titre_etape()` seul fabrique les titres, pose le tiret et
+**refuse au-delà de 30** au lieu de rogner — deux plans rognés au même
+identifiant partagent le dossier de résultats que RAS Mapper nomme d'après ce
+champ. Le plan final `avec apports` est **le plan de la dernière étape
+retitré** : il portait déjà tout, il ne lui manquait qu'un nom. Préfixe vide
+= titres d'avant, octet pour octet.
+
+Deux choix par défaut faute d'arbitrage, chacun une constante : `avec
+apports` (fait la paire avec `sans apport`) et préfixe vide.
+
+### Ce qui reste, et qui est au § 6
+
+**Le verdict de volume porte sur la fenêtre jugée, pas sur la crue.** Mesuré
+dans le plan final d'Ardanavy : deux apports sur six sont conformes sur la
+fenêtre (99,9 et 100,3 %) et hors bande sur la crue entière (106,7 et
+111,8 %). `fenetre_injection` ferme à 99 % du **déficit**, et son garde-fou
+borne le déficit exclu, pas le volume exclu — 25 % du volume de crue hors
+fenêtre là où le commentaire promet 2,5 %. La figure le montre désormais ; le
+critère ne le juge pas encore. **À trancher par l'utilisateur** : élargir
+changerait des verdicts déjà rendus.
+
+> Le garde-fou d'archive a fait son travail deux fois : mes commentaires et
+> mes bancs nommaient les affaires du client dans des fichiers distribués.
+> L'extension de `.affaires` aux codes de section (01/09) les a refusés.
+
 ## Nuit du 1er au 2 septembre 2026 — le critère reposait sur une mesure fausse
 
 **Par quoi reprendre :** `STATUT.txt` § 1 (les deux calages), § 2.2 ter et

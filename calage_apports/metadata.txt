@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.5.0
+version=0.6.0
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,40 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,KGE,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.5.0 — Deux mesures que le calage rendait fausses ou taisait.
+changelog=0.6.0 — Ce que deux calages complets ont appris aux livrables.
+    UN CALAGE DE 46 HEURES NE PERD PLUS SON CLASSEUR NI SA NOTE DE SYNTHÈSE :
+    un tableau de masque taillé sur le premier apport et appliqué à tous
+    levait une IndexError dès que deux apports n'avaient pas le même nombre
+    de points — cas ordinaire d'un modèle dont les apports ont été saisis à
+    des moments différents. Chaque apport porte désormais sa propre base de
+    temps, et une figure qui échoue n'emporte plus ce qui vient après elle.
+    LA FIGURE DE COMPARAISON DU RAPPORT MONTRE LA CRUE ENTIÈRE, comme celle
+    du suivi : elle était coupée à la fenêtre jugée et cachait toute la
+    décrue. Ce qui est JUGÉ n'a pas changé ; seule la présentation cesse
+    d'être amputée.
+    LE CLASSEUR PORTE LES HYDROGRAMMES D'APPORT RETENUS, feuille
+    « Hydrogrammes_apports », dans la forme exacte de la feuille « Cibles »
+    du classeur de saisie. Il n'en livrait que le pic et le volume.
+    LE PROFIL EN LONG N'EST PLUS EFFACÉ PAR UNE ERREUR QUI NE LE CONCERNE
+    PAS — une ligne d'injection de 94 cm suffisait — et l'interpréteur qui
+    ne peut pas le tracer est refusé AVANT le calcul, pas après quatorze
+    heures. Le journal nomme l'interpréteur employé.
+    PRÉFIXE DE SCÉNARIO, nouveau champ à côté de « Premier apport » et
+    paramètre « Prefixe_scenario » du classeur : « Q100 » donne
+    « Q100-sans apport », « Q100-Apport_A1 » et, à l'arrivée,
+    « Q100-avec apports ». Sans lui, caler le Q10 après le Q100 sur le même
+    modèle EFFAÇAIT les plans du Q100, pris pour les homonymes d'une relance.
+    Vide = les titres d'avant, au caractère près.
+    LE PLAN FINAL PORTE UN NOM QUI LE DIT : « avec apports ». C'est le plan de
+    la dernière étape RETITRÉ — il portait déjà tous les apports calés et
+    leurs résultats, il ne lui manquait qu'un nom. Aucun clone, aucun calcul.
+    PLUS DE TRONCATURE DU « SHORT IDENTIFIER » À 24 CARACTÈRES. Ce n'était
+    pas une limite de HEC-RAS mais une convention reprise de ras-commander ;
+    mesuré sur 103 plans réels, l'interface écrit jusqu'à 30 caractères et
+    calcule. Au-delà de 30, la composition REFUSE au lieu de rogner : deux
+    plans rognés au même identifiant partageaient le dossier de résultats
+    que RAS Mapper nomme d'après ce champ.
+    0.5.0 — Deux mesures que le calage rendait fausses ou taisait.
     LE DÉCALAGE EST MESURÉ DANS LA FENÊTRE JUGÉE, et plus sur toute la série.
     C'est lui qui apparie la cible et le calcul avant toute comparaison :
     borner le volume, la pointe et la forme sans borner leur appariement ne

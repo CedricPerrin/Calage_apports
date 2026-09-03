@@ -1569,6 +1569,50 @@ class PiloteHecRas(Modele):
                 + (f" — {', '.join(remplaces)} de même nom remplacé(s)"
                    if remplaces else ""))
 
+    def conclure(self, titre):
+        """
+        Donne son titre d'etat final au plan COURANT — celui qui porte tous
+        les apports cales, et leurs resultats.
+
+        AUCUN CLONE, AUCUN CALCUL. Le plan de la derniere etape EST l'etat
+        final : la verification globale vient de le relire section par
+        section sans lancer un seul calcul (voir calage.caler). Un clone
+        n'emporterait pas le .pXX.hdf — RasPlan.clone_plan copie le .pXX
+        seul — et le plan « avec apports » serait muet dans RAS Mapper a cote
+        d'un « Apport_<dernier> » qui, lui, a les resultats. Recopier le .hdf
+        doublerait des centaines de Mo pour deux plans decrivant LE MEME
+        calcul ; recalculer couterait des heures pour refaire a l'identique
+        ce qu'on vient de lire.
+
+        L'ETAPE « Apport_<dernier> » DISPARAIT du gestionnaire de plans :
+        c'est le meme jeu de fichiers, sous le nom qui le decrit. Aucune
+        reprise ne le cherche — « Premier_apport = X » repart du plan de
+        l'apport PRECEDENT X, et le dernier apport n'est le precedent de
+        personne.
+
+        Un etat final homonyme laisse par un calage precedent du meme
+        scenario est remplace, exactement comme une etape : deux
+        « Q100-avec apports » ne diraient plus lequel fait foi.
+        """
+        if self.plan_travail is None or self.fichier_unsteady is None:
+            raise RuntimeError(
+                "conclure() appelee avant preparer() : il n'y a pas encore "
+                "de plan a titrer.")
+        numero = str(self.plan_travail).zfill(2)
+        flot = self.fichier_unsteady.suffix[2:]
+        self._renommer_plan(numero, titre)
+        self._renommer_unsteady(flot, titre)
+        self.etape = titre
+        if self.etapes:
+            # Le plan est le meme : l'etape change de nom, elle ne s'ajoute
+            # pas. Ni plan_travail, ni fichier_unsteady, ni carte, ni
+            # hdf_resultats ne bougent — les livrables restent intacts.
+            self.etapes[-1] = titre
+        remplaces = self._remplacer_homonymes(titre)
+        return (f"plan p{numero} / unsteady u{flot} retitré"
+                + (f" — {', '.join(remplaces)} de même nom remplacé(s)"
+                   if remplaces else ""))
+
     def _remplacer_homonymes(self, titre):
         """
         Efface les plans d'un calage PRECEDENT portant le titre de l'etape.
@@ -1947,8 +1991,23 @@ class PiloteHecRas(Modele):
             for i, ligne in enumerate(lignes):
                 if ligne.startswith(cle):
                     fin = "\n" if ligne.endswith("\n") else ""
-                    # « Short Identifier » est a largeur fixe dans HEC-RAS.
-                    valeur = nom[:24].ljust(24) if "Short" in cle else nom
+                    # PLUS DE TRONCATURE ICI. « nom[:24] » rognait en silence,
+                    # et c'est lui qui fabriquait le doublon : un plan de
+                    # reprise du depot porte « Plan Title=sans apport XXX et
+                    # aval » (25 caracteres, intact) et « Short Identifier=
+                    # sans apport XXX et ava » (24, rogne). Deux etapes rognees
+                    # au meme identifiant partagent le dossier de resultats
+                    # que RAS Mapper nomme d'apres ce champ. La longueur est
+                    # desormais REFUSEE en amont (calage.titre_etape), avant le
+                    # premier calcul.
+                    # LE CHAMP N'EST PAS A LARGEUR FIXE, contrairement a ce que
+                    # disait ce commentaire : sur les 103 .pXX de 01-cas_test,
+                    # l'interface HEC-RAS l'ecrit sur 64, cette chaine sur 24,
+                    # ras-commander sans bourrage (17, 22) — et les trois
+                    # s'ouvrent. LE BOURRAGE A 24 RESTE QUAND MEME :
+                    # « sans apport ».ljust(24) rend octet pour octet la ligne
+                    # des 34 plans que la chaine a deja ecrits.
+                    valeur = nom.ljust(24) if "Short" in cle else nom
                     lignes[i] = f"{cle}{valeur}{fin}"
             chemin.write_text("".join(lignes), encoding="utf-8")
 
@@ -3044,6 +3103,67 @@ if __name__ == "__main__":
     _verifier("titrage : le Flow Title est reecrit",
               "Flow Title=Apport_A2"
               in (_bac / f"{_NOM}.u11").read_text(encoding="utf-8"))
+
+    # 6. LE PLAN FINAL EST UN RETITRAGE, PAS UN CLONE. Le plan de la derniere
+    #    etape porte deja tous les apports cales ET ses resultats ; un clone
+    #    n'emporterait pas son .hdf et serait muet dans RAS Mapper.
+    _batir_projet()
+    _p = _pilote_menage()
+    _p.fichier_unsteady = _bac / f"{_NOM}.u11"
+    _p.etapes = ["Q100-Apport_A1"]
+    _rendu = _p.conclure("Q100-avec apports")
+    _p11 = (_bac / f"{_NOM}.p11").read_text(encoding="utf-8")
+    _verifier("plan final : le plan de la derniere etape porte le titre final",
+              "Plan Title=Q100-avec apports" in _p11, _rendu)
+    _verifier("plan final : le Short Identifier suit",
+              "Short Identifier=Q100-avec apports" in _p11)
+    _verifier("plan final : l'unsteady du plan courant suit",
+              "Flow Title=Q100-avec apports"
+              in (_bac / f"{_NOM}.u11").read_text(encoding="utf-8"))
+    _verifier("plan final : ses resultats sont conserves (aucun clone)",
+              (_bac / f"{_NOM}.p11.hdf").is_file())
+    _verifier("plan final : aucun plan cree ni supprime — les quatre sont la",
+              len(list(_bac.glob(f"{_NOM}.p[0-9][0-9]"))) == 4,
+              str(sorted(p.name
+                         for p in _bac.glob(f"{_NOM}.p[0-9][0-9]"))))
+    _verifier("plan final : l'etape courante est rebaptisee, pas ajoutee",
+              _p.etapes == ["Q100-avec apports"], str(_p.etapes))
+    _verifier("plan final : conclure() avant preparer() est refuse",
+              _leve(RuntimeError,
+                    PiloteHecRas(_bac, _NOM, plan_reference="01").conclure,
+                    "Q100-avec apports"))
+
+    # 7. LA TRONCATURE SILENCIEUSE DU SHORT IDENTIFIER EST PARTIE. C'est elle
+    #    qui fabriquait le doublon : un plan de reprise du depot porte encore
+    #    « sans apport XXX et ava », rogne d'un « l » depuis toujours.
+    _batir_projet()
+    _p = _pilote_menage()
+    _p.fichier_unsteady = _bac / f"{_NOM}.u11"
+    _long = "Riviere1-Q100-avec apports"                # 26 caracteres
+    _p.conclure(_long)
+    _verifier("short id : un titre de 26 caracteres est ecrit ENTIER",
+              f"Short Identifier={_long}\n"
+              in (_bac / f"{_NOM}.p11").read_text(encoding="utf-8"))
+    # RETROCOMPATIBILITE, OCTET POUR OCTET : le bourrage a 24 reste, et rend la
+    # ligne exacte des 34 plans deja ecrits par la chaine dans 01-cas_test.
+    _p.conclure("sans apport")
+    _verifier("short id : un titre court reste complete a 24, octet pour octet",
+              "Short Identifier=" + "sans apport".ljust(24) + "\n"
+              in (_bac / f"{_NOM}.p11").read_text(encoding="utf-8"))
+
+    # 8. UN ETAT FINAL HOMONYME D'UN CALAGE PRECEDENT EST REMPLACE, comme une
+    #    etape : deux « Q100-avec apports » ne diraient plus lequel fait foi.
+    _batir_projet()
+    (_bac / f"{_NOM}.p10").write_text(
+        "Plan Title=Q100-avec apports\n"
+        "Short Identifier=Q100-avec apports\n"
+        "Geom File=g10\nFlow File=u10\n", encoding="utf-8")
+    _p = _pilote_menage()
+    _p.fichier_unsteady = _bac / f"{_NOM}.u11"
+    _rendu = _p.conclure("Q100-avec apports")
+    _verifier("plan final : l'etat final d'un calage precedent est remplace",
+              not (_bac / f"{_NOM}.p10").exists()
+              and (_bac / f"{_NOM}.p11").exists(), _rendu)
 
     _verifier("detection de HEC-RAS ouvert : repond sans lever",
               hecras_ouvert() in (True, False, None), str(hecras_ouvert()))

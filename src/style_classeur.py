@@ -65,6 +65,14 @@ COMMENTAIRES = {
         "Apport par lequel commencer. Vide = tous. Les apports situes en amont "
         "sont tenus pour cales : le calage repart de leur plan d'etape et n'y "
         "touche plus.",
+    "Prefixe_scenario":
+        "Prefixe pose devant le titre de chaque plan cree par le calage : "
+        "« Q100 » donne « Q100-sans apport », « Q100-Apport_<nom> » et, a "
+        "l'arrivee, « Q100-avec apports ». VIDE = titres sans prefixe, comme "
+        "avant. A RENSEIGNER des qu'on cale plusieurs crues sur le MEME "
+        "modele : sans lui, le calage du Q10 EFFACE les plans du Q100, qu'il "
+        "prend pour les homonymes d'une relance. Le tiret est ajoute tout "
+        "seul. Titre complet limite a 30 caracteres.",
     "Simulation_debut":
         "Laisser VIDE pour reprendre celle du plan de reference — le cas "
         "courant. Format JJMMMAAAA,HH:MM, ex. 13OCT2014,00:00.",

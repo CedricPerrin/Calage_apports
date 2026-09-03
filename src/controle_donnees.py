@@ -66,6 +66,59 @@ PARAMETRES_REQUIS = [
     "Nb_max_iterations_par_apport",
 ]
 
+def _controler_prefixe_scenario(valeurs, noms_apports, erreur):
+    """
+    Verifie que le prefixe de scenario laisse tenir les titres de plan.
+
+    LA REGLE APPARTIENT A LA BOUCLE DE CALAGE, qui la fait respecter : la
+    redire ici en ferait une seconde source de verite, qui finirait par
+    diverger. On construit, avec LES MEMES fonctions que le calage, les titres
+    que le calage construira, et on rapporte ce qu'elles refusent.
+
+    ON NE CONTROLE QUE LA LONGUEUR. Deux apports homonymes donneraient bien
+    deux titres identiques, mais le doublon de nom est deja signale dix lignes
+    plus haut par le controle de la feuille Correspondance : le redire ici
+    refuserait un classeur deux fois pour la meme raison.
+
+    LE TITRE DE REPRISE EST INCLUS quand « Premier_apport » est renseigne : il
+    est alors certain d'etre produit, et c'est le plus long des titres.
+    Absent, on ne refuse pas un classeur a cause d'un titre qui ne sera
+    peut-etre jamais construit.
+    """
+    try:
+        from calage import (ETAPE_AVEC_APPORTS, ETAPE_SANS_APPORT,
+                            PREFIXE_ETAPE_APPORT, titre_etape)
+    except ImportError:
+        # Le controle du classeur doit rester utilisable sans la chaine — il
+        # tourne aussi depuis QGIS. L'import est DANS le try pour cela : le
+        # placer au-dessus rendrait ce rattrapage inatteignable.
+        return
+
+    def _propre(cle):
+        brut = valeurs.get(cle)
+        if brut is None or (isinstance(brut, float) and pd.isna(brut)):
+            return ""
+        return str(brut).strip()
+
+    prefixe = _propre("Prefixe_scenario")
+    noms = [ETAPE_SANS_APPORT, ETAPE_AVEC_APPORTS]
+    noms += [f"{PREFIXE_ETAPE_APPORT}{a}" for a in noms_apports]
+    premier = _propre("Premier_apport")
+    if premier in noms_apports:
+        noms.append(f"sans {premier} et aval")
+
+    refus = []
+    for nom in noms:
+        try:
+            titre_etape(nom, prefixe)
+        except ValueError as e:
+            refus.append((len(nom), str(e)))
+    if refus:
+        # LE PIRE DES TITRES, pas le premier venu : c'est lui qui fixe la
+        # marge, et corriger sur un autre laisserait le classeur refuse.
+        erreur(f"Prefixe_scenario : {max(refus)[1]}")
+
+
 # L'axe hydraulique n'est pas indispensable au calage lui-meme, mais sans lui
 # il n'y a ni PK, ni verification de l'ordre declare, ni profil en long.
 PARAMETRE_AXE = "Fichier_SHP_Axe"
@@ -150,6 +203,11 @@ def controler_template(chemin):
         if doublons:
             erreur(f"nom de {libelle} en doublon : {doublons}. Chaque "
                    f"{libelle} doit etre unique — une inconnue par contrainte.")
+
+    # LE PREFIXE SE JUGE SUR LES NOMS D'APPORT REELS : il est donc controle
+    # ici, et non a la section 1, qui ne les connait pas encore.
+    _controler_prefixe_scenario(valeurs, [str(a) for a in corr[col_apport]],
+                                erreur)
 
     # --- 3. Cibles ---------------------------------------------------------
     cib = feuilles["Cibles"]
@@ -683,6 +741,46 @@ if __name__ == "__main__":
         }).to_excel(w, sheet_name="Cibles", index=False)
 
     afficher(controler_template(tmp), "Template fautif (8 anomalies attendues)")
+
+    print("\n2 bis. Prefixe de scenario et longueur des titres de plan")
+    # « Riviere1-Q100 » (13) donne « Riviere1-Q100-Apport_APP06 » : 26
+    # caracteres, l'exemple exact de la demande — il doit PASSER.
+    # « Riviere1_Q100_1000 » (18) donne 31 caracteres : refuse.
+    # Les trois premieres lignes prouvent que le controle ne crie pas a tort —
+    # un garde-fou qui se declenche sans raison apprend a etre ignore.
+    tmp_prefixe = Path(tempfile.gettempdir()) / "template_prefixe.xlsx"
+    _echecs_prefixe = []
+    for prefixe, refus_attendu in (("", False), ("Q100", False),
+                                   ("Riviere1-Q100", False),
+                                   ("Riviere1_Q100_1000", True)):
+        with pd.ExcelWriter(tmp_prefixe, engine="openpyxl") as w:
+            pd.DataFrame({
+                "Parametre": ["Dossier_projet_HECRAS", "Nom_projet",
+                              "Nom_zone_2D", "Nb_max_iterations_par_apport",
+                              "Prefixe_scenario"],
+                "Valeur": [r"D:\projet", "Essai", "Perimeter 1", 6, prefixe],
+            }).to_excel(w, sheet_name="Parametres", index=False)
+            pd.DataFrame({
+                "Ordre": [1, 2],
+                "Nom_Apport (BC line)": ["APP06", "APP07"],
+                "Nom_Section (reference line)": ["S1", "S2"],
+                "Nom_Cible": ["C1", "C2"],
+            }).to_excel(w, sheet_name="Correspondance", index=False)
+            pd.DataFrame({"Temps_h": list(range(11)),
+                          "C1": list(range(11)),
+                          "C2": list(range(11))}
+                         ).to_excel(w, sheet_name="Cibles", index=False)
+        vu = any(niveau == ERREUR and "Prefixe_scenario" in message
+                 for niveau, message in controler_template(tmp_prefixe))
+        juste = vu == refus_attendu
+        print(f"   [{'OK' if juste else 'ECHEC'}] "
+              f"prefixe {prefixe!r:22s} -> {'refuse' if vu else 'accepte'} "
+              f"(attendu : {'refuse' if refus_attendu else 'accepte'})")
+        if not juste:
+            _echecs_prefixe.append(prefixe)
+    if _echecs_prefixe:
+        raise SystemExit(f"{len(_echecs_prefixe)} ECHEC(S) sur le prefixe : "
+                         f"{_echecs_prefixe}")
 
     # --- 3. Chaine SIG ----------------------------------------------------
     print("\n3. CHAINE SIG : shapefiles, PK et coherence geographique")

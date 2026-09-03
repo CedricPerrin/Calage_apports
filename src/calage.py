@@ -79,11 +79,101 @@ from criteres import diagnostiquer
 # gestionnaire de plans sans avoir a deviner quel numero correspond a quoi.
 ETAPE_SANS_APPORT = "sans apport"
 PREFIXE_ETAPE_APPORT = "Apport_"
+# ETAT FINAL, TOUS LES APPORTS CALES. Il existait deja : c'est le plan de la
+# DERNIERE etape d'apport, qui porte tous les apports cales ET leurs
+# resultats — la verification globale se borne a le relire. Rien ne le
+# distinguait d'une etape intermediaire : il fallait savoir de tete quel
+# apport etait le dernier pour retrouver l'etat complet. Voir Modele.conclure :
+# on le RETITRE, on ne le clone pas.
+# « avec apports » et non « avec_apports » : il fait la paire avec
+# « sans apport » dans le gestionnaire de plans, et celui-la ne peut pas
+# changer sans rendre etrangers les plans des calages deja faits.
+ETAPE_AVEC_APPORTS = "avec apports"
+
+# LONGUEUR MAXIMALE D'UN TITRE D'ETAPE. Borne DE FICHIER, pas d'affichage :
+# elle vaut pour le champ « Short Identifier » du plan, dont RAS Mapper fait
+# le NOM DU DOSSIER DE RESULTATS (documentation USACE : le sous-repertoire des
+# cartes stockees est « labeled the same name as the RAS Plan Short ID »).
+#
+# MESUREE, PAS DEVINEE. Releve sur les 103 fichiers .pXX de 01-cas_test/ :
+#   - largeur du champ : 64 sur les 67 plans ecrits par l'interface HEC-RAS,
+#     24 sur les 34 ecrits par cette chaine, 17 et 22 sur deux clones bruts
+#     de ras-commander. Trois largeurs coexistent dans des projets qui
+#     s'ouvrent : le format n'impose donc aucune largeur fixe ;
+#   - contenu utile : 14 plans DEPASSENT 24, jusqu'a 30 caracteres, ecrits ET
+#     calcules par l'interface (leurs .bXX sont la).
+# 30 est donc un PLANCHER DEMONTRE. Le tampon reel est probablement 64
+# (l'interface bourre a cette largeur sur 67 plans sur 67), mais aucun
+# document USACE ne publie de limite, et l'essai n'a pas ete fait. On ne
+# suppose pas. POUR RELEVER : ouvrir un plan dans HEC-RAS, taper 40
+# caracteres dans « Short ID », enregistrer, relire la ligne
+# « Short Identifier= » du .pXX. Une seule constante a changer.
+#
+# LE 24 D'AVANT N'ETAIT PAS UNE LIMITE DE HEC-RAS mais une convention de
+# ras-commander (RasPlan.set_shortid, clone_plan, update_flow_title) que
+# _renommer_plan avait reprise — et sur notre chemin elle n'etait meme pas
+# contraignante, jalonner() reecrivant les trois lignes derriere le clonage.
+# La seule troncature qui atteignait le fichier etait la notre.
+#
+# CE QU'ELLE COUTAIT : une troncature MUETTE, et elle frappait deja. Un plan
+# de reprise du depot porte « Plan Title=sans apport XXX et aval » (25,
+# intact) et « Short Identifier=sans apport XXX et ava » (24, le « l » de
+# « aval » perdu). Avec un prefixe le degat change de nature : six etapes de
+# 26 caracteres se reduiraient TOUTES au meme identifiant, donc au meme
+# dossier de resultats — le doublon meme que le prefixe supprime.
+# On REFUSE, avant le premier calcul.
+LONGUEUR_MAX_TITRE_PLAN = 30
+
+# Separateur pose entre le prefixe de scenario et le nom d'etape.
+SEPARATEUR_PREFIXE = "-"
 
 
-def etape_apport(nom_apport):
+def titre_etape(nom, prefixe=""):
+    """
+    Titre porte par le plan et l'unsteady d'une etape.
+
+    SEUL ENDROIT OU UN TITRE D'ETAPE EST FABRIQUE, et seul qui verifie sa
+    longueur. etape_apport() passe par lui ; controle_donnees l'appelle pour
+    juger le classeur, pont_hecras pour juger la reprise. Une seule regle,
+    jamais deux qui divergent.
+
+    POURQUOI UN PREFIXE. jalonner() REMPLACE le plan homonyme d'un calage
+    precedent — sans quoi le gestionnaire de plans porterait deux
+    « Apport_A1 » dont rien ne dirait lequel fait foi. Consequence non
+    voulue : caler le Q10 apres le Q100 sur le meme modele detruisait les
+    plans du Q100 un par un, en silence, puisque les deux calages titrent
+    leurs etapes pareil. Le prefixe rend les deux series etrangeres.
+
+    LE SEPARATEUR EST POSE ICI, PAS LAISSE A LA SAISIE : « Q100 » et « Q100- »
+    doivent rendre le MEME titre. _remplacer_homonymes et plan_par_titre
+    comparent le « Plan Title » caractere pour caractere ; deux ecritures du
+    meme prefixe donneraient des plans non homonymes, que rien ne
+    remplacerait ni ne retrouverait — le doublon meme que le prefixe
+    supprime. Un prefixe finissant deja par « - » ou « _ » garde le sien : on
+    ne reecrit pas ce que l'utilisateur a tape.
+
+    PREFIXE VIDE = LE COMPORTEMENT D'AVANT, AU CARACTERE PRES.
+    """
+    prefixe = str(prefixe or "").strip()
+    if not prefixe:
+        titre = str(nom)
+    else:
+        separateur = "" if prefixe[-1] in "-_" else SEPARATEUR_PREFIXE
+        titre = f"{prefixe}{separateur}{nom}"
+    if len(titre) > LONGUEUR_MAX_TITRE_PLAN:
+        raise ValueError(
+            f"titre d'etape « {titre} » : {len(titre)} caracteres pour "
+            f"{LONGUEUR_MAX_TITRE_PLAN} tenables. Raccourcir le prefixe de "
+            f"scenario de {len(titre) - LONGUEUR_MAX_TITRE_PLAN} caractere(s) "
+            f"au moins, ou le nom de l'apport. Tronquer donnerait le meme "
+            f"« Short Identifier » a plusieurs plans, donc le meme dossier de "
+            f"resultats sous RAS Mapper.")
+    return titre
+
+
+def etape_apport(nom_apport, prefixe=""):
     """Nom de l'etape de calage d'un apport : « Apport_A1 » pour « A1 »."""
-    return f"{PREFIXE_ETAPE_APPORT}{nom_apport}"
+    return titre_etape(f"{PREFIXE_ETAPE_APPORT}{nom_apport}", prefixe)
 
 
 # ---------------------------------------------------------------------------
@@ -123,6 +213,23 @@ class Modele:
         portant ce nom, de sorte que l'etape precedente reste relisible telle
         qu'elle s'est terminee. C'est ce que fait PiloteHecRas, avec un plan et
         un unsteady flow par etape.
+        """
+        return None
+
+    def conclure(self, etape):
+        """
+        Titre sous ce nom l'etat FINAL : tous les apports cales.
+
+        Facultatif, et sans effet par defaut. Appele une seule fois, apres la
+        verification globale, quand la sequence est allee jusqu'au bout.
+
+        CE N'EST PAS UN JALON DE PLUS. jalonner() ouvre une etape NEUVE : il
+        clone, et un clone n'a pas de resultats. L'etat final, lui, est deja
+        calcule — c'est le dernier calcul, celui que la verification globale
+        vient de relire section par section. Il n'y a rien a cloner ni a
+        recalculer : il n'y a qu'a le TITRER pour ce qu'il est.
+
+        Retourne un compte rendu affichable, ou None.
         """
         return None
 
@@ -233,6 +340,13 @@ class Configuration:
     ajuster_duree: bool = True
     marge_duree_h: float = 2.0
     controle_amont: bool = True
+    # PREFIXE DE SCENARIO POSE DEVANT CHAQUE TITRE D'ETAPE (voir titre_etape).
+    # Vide = les titres d'avant : « sans apport », « Apport_A1 ». « Q100 »
+    # donne « Q100-sans apport », « Q100-Apport_A1 », « Q100-avec apports ».
+    # Sans lui, caler le Q10 apres le Q100 sur le meme modele efface les plans
+    # du Q100 : jalonner() remplace les homonymes, et les deux calages titrent
+    # leurs etapes pareil.
+    prefixe_etape: str = ""
 
     # ------------------------------------------------------------------
     # FENETRE DE L'EVENEMENT PRINCIPAL. Restreint le JUGEMENT (diagnostiquer,
@@ -798,6 +912,8 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
                du modele. En reprise — les apports amont deja cales ne sont pas
                dans la liste, donc pas remis a zero — l'appelant doit fournir un
                nom qui le dise, sinon la trace conservee ment sur son contenu.
+               Donne SANS le prefixe de scenario : caler() le pose lui-meme sur
+               tout ce qu'il titre.
 
     Retourne un ResultatCalage.
     """
@@ -827,7 +943,8 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
     # Un debit injecte nul est parfaitement admis par HEC-RAS.
     for nom in apports:
         modele.appliquer_facteur(nom, 0.0)
-    _jalonner(modele, etape_reference, dire)
+    _jalonner(modele, titre_etape(etape_reference, config.prefixe_etape),
+              dire)
     dire("Calcul de reference : tous les apports a caler sont mis a zero, "
          "pour mesurer ce que les sections recoivent sans eux.")
     calcul = modele.calculer()
@@ -934,7 +1051,7 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
         # NOUVELLE ETAPE AVANT LA PREMIERE ECRITURE de cet apport : ce qui
         # precede — etat de reference ou apport precedent valide — reste ainsi
         # fige dans ses propres fichiers, relisible tel quel.
-        _jalonner(modele, etape_apport(apport), dire)
+        _jalonner(modele, etape_apport(apport, config.prefixe_etape), dire)
 
         # --- premiere estimation : CE QUI MANQUE, apport a zero -----------
         #
@@ -1431,6 +1548,29 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
                               + " ; ".join(d.alertes_bloquantes))
             resultat.motif = ". ".join(causes) + "."
 
+        # --- L'ETAT FINAL PORTE ENFIN UN NOM QUI LE DIT ----------------------
+        #
+        # Le plan de la DERNIERE etape porte deja tous les apports cales ET
+        # leurs resultats : la verification ci-dessus vient de le relire sans
+        # lancer un seul calcul. Rien ne le disait pourtant — il s'appelait
+        # « Apport_<dernier apport> », un titre qui designe une ETAPE, et il
+        # fallait connaitre l'ordre des apports pour savoir lequel des dix
+        # plans du projet etait celui qu'on cherchait.
+        #
+        # ON RETITRE, ON NE CLONE PAS : clone_plan copie le .pXX, pas le
+        # .pXX.hdf. Un plan « avec apports » vide a cote d'un
+        # « Apport_<dernier> » qui a les resultats serait pire que pas de plan
+        # final du tout.
+        #
+        # SANS ATTENDRE LE VERDICT : « avec apports » enonce un CONTENU, pas
+        # une conformite — celle-ci se lit dans les livrables et le suivi. Un
+        # calage NON conforme est justement celui qu'on rouvre, et lui refuser
+        # ce nom le renverrait a la confusion qu'on corrige. En revanche rien
+        # n'est retitre si la sequence s'est arretee en chemin : on n'entre
+        # dans ce bloc que si tous les apports sont valides.
+        _conclure(modele, titre_etape(ETAPE_AVEC_APPORTS, config.prefixe_etape),
+                  dire)
+
     resultat.duree_s = time.time() - debut
     if suivi is not None:
         _sans_interrompre(suivi.terminer)
@@ -1763,6 +1903,29 @@ def _jalonner(modele, etape, dire):
     return rendu
 
 
+def _conclure(modele, titre, dire):
+    """
+    Titre l'etat final, et le DIT — qu'il soit titre ou non.
+
+    Meme discipline que _jalonner : un echec de titrage (fichier verrouille,
+    interface HEC-RAS laissee ouverte) n'annule pas un calage abouti. Il est
+    en revanche annonce, ET il nomme le plan qui porte le resultat :
+    quarante-six heures de calcul ne doivent pas se terminer par « on ne sait
+    plus quel plan regarder ».
+    """
+    try:
+        rendu = modele.conclure(titre)
+    except Exception as e:                                  # noqa: BLE001
+        dire(f"    AVERTISSEMENT : état final « {titre} » non titré "
+             f"({type(e).__name__}: {e}). Le calage est terminé et ses "
+             f"résultats sont bons : c'est le plan de la dernière étape "
+             f"d'apport qui les porte.")
+        return None
+    if rendu:
+        dire(f"    état final « {titre} » : {rendu}")
+    return rendu
+
+
 # ---------------------------------------------------------------------------
 # Assemblage du rapport final
 # ---------------------------------------------------------------------------
@@ -2046,6 +2209,13 @@ class ModeleFictif(Modele):
         self.etapes.append(etape)
         return None
 
+    def conclure(self, etape):
+        # Le retitrage REMPLACE l'etape courante, il n'en ajoute pas une : le
+        # plan est le meme. C'est ce que l'auto-test verifie, sans HEC-RAS.
+        if self.etapes:
+            self.etapes[-1] = etape
+        return None
+
     def limiter_duree(self, heures):
         """
         Note la duree demandee, et la RESPECTE en tronquant les series lues.
@@ -2266,10 +2436,76 @@ if __name__ == "__main__":
 
     # ETAPES JALONNEES : une pour l'etat de reference, une par apport, dans
     # l'ordre. C'est ce qui donne leurs noms aux plans conserves sous HEC-RAS.
+    # LA DERNIERE A CHANGE DE NOM, et c'est la correction du 03/09 : le plan du
+    # dernier apport porte tous les apports cales et leurs resultats ; il
+    # s'appelle desormais « avec apports » et non « Apport_<dernier> ».
     controler("etapes jalonnees dans l'ordre",
-              modele.etapes == [ETAPE_SANS_APPORT]
-              + [etape_apport(a) for a in apports],
+              modele.etapes[:-1] == [ETAPE_SANS_APPORT]
+              + [etape_apport(a) for a in apports[:-1]],
               " | ".join(modele.etapes))
+    controler("l'etat final est titre « avec apports », pas du nom du dernier "
+              "apport",
+              modele.etapes[-1] == ETAPE_AVEC_APPORTS, modele.etapes[-1])
+
+    # --- PREFIXE DE SCENARIO -----------------------------------------------
+    print("\n--- PREFIXE DE SCENARIO ---")
+
+    # RETROCOMPATIBILITE, LE CONTROLE QUI PROTEGE LES CALAGES DEJA FAITS :
+    # prefixe vide = les titres d'avant, au caractere pres.
+    controler("prefixe vide : les titres d'etape sont inchanges",
+              titre_etape(ETAPE_SANS_APPORT) == "sans apport"
+              and titre_etape(ETAPE_SANS_APPORT, "") == "sans apport"
+              and etape_apport("A1") == "Apport_A1"
+              and etape_apport("A1", "") == "Apport_A1",
+              f"{titre_etape(ETAPE_SANS_APPORT)!r} / {etape_apport('A1')!r}")
+    controler("prefixe renseigne : il precede le titre",
+              titre_etape(ETAPE_SANS_APPORT, "Q100") == "Q100-sans apport"
+              and etape_apport("APP06", "Q100") == "Q100-Apport_APP06"
+              and titre_etape(ETAPE_AVEC_APPORTS, "Q100")
+              == "Q100-avec apports",
+              etape_apport("APP06", "Q100"))
+    # « Q100 » et « Q100- » DOIVENT rendre le meme titre : _remplacer_homonymes
+    # et plan_par_titre comparent le Plan Title caractere pour caractere, et
+    # deux ecritures du meme prefixe fabriqueraient les plans en double que ce
+    # prefixe existe pour supprimer.
+    controler("le separateur n'est jamais double",
+              titre_etape("sans apport", "Q100-")
+              == titre_etape("sans apport", " Q100 ") == "Q100-sans apport")
+    controler("un prefixe finissant par « _ » garde le sien",
+              etape_apport("A1", "Q100_") == "Q100_Apport_A1")
+    # LE CAS DE LA DEMANDE, MOT POUR MOT : 26 caracteres, refuses par une borne
+    # a 24 qui n'etait pas celle de HEC-RAS.
+    controler("« Riviere1-Q100 » donne « Riviere1-Q100-avec apports »",
+              titre_etape(ETAPE_AVEC_APPORTS, "Riviere1-Q100")
+              == "Riviere1-Q100-avec apports")
+    # AU-DELA, ON REFUSE — jamais on ne tronque : deux titres rognes au meme
+    # « Short Identifier » partagent le dossier de resultats que RAS Mapper
+    # nomme d'apres ce champ. C'est le doublon que le prefixe supprime, et il
+    # serait absurde qu'il le refabrique.
+    try:
+        etape_apport("APP06", "Riviere1_Q100_1000")     # 18 + 1 + 12 = 31
+        _refus = ""
+    except ValueError as _e:
+        _refus = str(_e)
+    controler("un titre de 31 caracteres est REFUSE, pas tronque",
+              bool(_refus), _refus or "aucune erreur levee")
+    controler("le refus dit de combien raccourcir",
+              "1 caractere(s)" in _refus, _refus)
+
+    # LE CALAGE ENTIER SOUS PREFIXE. On rejoue caler() plutot que d'eprouver la
+    # seule fonction : c'est caler() qui doit poser le prefixe PARTOUT, etat de
+    # reference et plan final compris.
+    modele_p = ModeleFictif(apports, sections, temps, formes)
+    r_p = caler(modele_p, apports, sections, cibles,
+                Configuration(nb_max_essais=8, prefixe_etape="Q100"),
+                journal=lambda *a, **k: None)
+    controler("caler() prefixe TOUTES les etapes, plan final compris",
+              modele_p.etapes == ["Q100-sans apport"]
+              + [f"Q100-Apport_{a}" for a in apports[:-1]]
+              + ["Q100-avec apports"],
+              " | ".join(modele_p.etapes))
+    controler("le prefixe ne change rien au resultat du calage",
+              r_p.conforme, r_p.motif)
 
     # --- rapport final ------------------------------------------------------
     print("\n--- ASSEMBLAGE DU RAPPORT FINAL ---")

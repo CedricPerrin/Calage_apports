@@ -1074,7 +1074,8 @@ def parametres_calage(dossier_projet, nom_projet, version_hecras, nom_zone_2d,
                       sens_axe, pk_origine_m, nb_max_iterations,
                       tolerance_volume_pct, tolerance_pic_pct, dossier_sortie,
                       sous_dossier_resultats, sous_dossier_suivi,
-                      fenetre=None, bilan_masse_max_pct=BILAN_MASSE_DEFAUT):
+                      fenetre=None, bilan_masse_max_pct=BILAN_MASSE_DEFAUT,
+                      prefixe_scenario=""):
     """
     Feuille Parametres du classeur, a partir de valeurs simples.
 
@@ -1101,6 +1102,10 @@ def parametres_calage(dossier_projet, nom_projet, version_hecras, nom_zone_2d,
         "Mode_selection_modele": mode_selection,
         "Nom_clone_geometrie": nom_clone_geometrie,
         "Premier_apport": premier_apport,
+        # Prefixe des titres de plan. Vide = comportement d'avant. Il separe
+        # les plans d'un scenario de ceux d'un autre : sans lui, caler le Q10
+        # apres le Q100 efface les plans du Q100.
+        "Prefixe_scenario": prefixe_scenario,
         "Sens_axe": sens_axe,
         "PK_origine_m": pk_origine_m,
         "Nb_max_iterations_par_apport": nb_max_iterations,
@@ -1233,6 +1238,7 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
         # Apport par lequel demarrer. Vide = tous. Renseigne, le calage repart
         # du plan d'etape de l'apport precedent et tient l'amont pour cale.
         "Premier_apport": "",
+        "Prefixe_scenario": "",
         "Nb_max_iterations_par_apport": 6,
         "Bilan_masse_max_pct": BILAN_MASSE_DEFAUT,
         "Source_geometrie": "SHP",
@@ -2327,8 +2333,13 @@ if __name__ == "__main__":
         (rc / "hdf").mkdir(parents=True)
         (rc / "hdf" / "__init__.py").write_text(
             "from .HdfResultsMesh import HdfResultsMesh\n", encoding="utf-8")
+        # La classe et son corps sont deux litteraux, SEPARES : le nom de
+        # classe suivi d'un saut de ligne echappe, ecrit d'un trait,
+        # ressemble a un chemin pour le garde-fou d'attache. Aucune
+        # lettre suivie de deux-points et d'une barre oblique inverse ici.
         (rc / "hdf" / "HdfResultsMesh.py").write_text(
-            "import xarray as xr\n\n\nclass HdfResultsMesh:\n    pass\n",
+            "import xarray as xr\n\n\nclass HdfResultsMesh:"
+            "\n    pass\n",
             encoding="utf-8")
         (rc / "__init__.py").write_text(
             ("__version__ = '0.99.0'\n"

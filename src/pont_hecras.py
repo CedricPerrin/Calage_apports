@@ -1438,8 +1438,9 @@ def commande_caler(args):
     """
     import pandas as pd
 
-    from calage import (ETAPE_SANS_APPORT, Configuration, caler,
-                        etape_apport, produire_livrables_finaux)
+    from calage import (ETAPE_AVEC_APPORTS, ETAPE_SANS_APPORT, Configuration,
+                        caler, etape_apport, produire_livrables_finaux,
+                        titre_etape)
     from criteres import pas_serie_h
     from pilote_hecras import PiloteHecRas, plan_par_titre
     from suivi import Suivi
@@ -1488,6 +1489,11 @@ def commande_caler(args):
     # tenus pour cales : ils ne sont ni remis a zero, ni retouches. On repart
     # du plan de l'etape precedente, qui les porte deja — repartir du plan de
     # reference les perdrait tous, en silence.
+    # PREFIXE DE SCENARIO. Vide = les titres d'avant. Renseigne, il rend les
+    # plans du Q10 etrangers a ceux du Q100 : jalonner() remplace les
+    # homonymes, et sans lui le second calage efface le premier.
+    prefixe_etape = texte("Prefixe_scenario")
+
     depart, etape_reference, reprise = 0, ETAPE_SANS_APPORT, ""
     premier = texte("Premier_apport")
     if premier:
@@ -1507,8 +1513,13 @@ def commande_caler(args):
     plan_reference = texte("Plan_reference", "p01")
     if depart > 0:
         deja = apports[:depart]
-        etape_precedente = etape_apport(apports[depart - 1])
-        etape_reference = f"sans apport {apports[depart]} et aval"
+        etape_precedente = etape_apport(apports[depart - 1], prefixe_etape)
+        # « sans apport X et aval » NE TENAIT PAS : 25 caracteres pour un nom
+        # de section a cinq lettres, et il etait deja rogne en silence — un
+        # plan de reprise du depot porte « sans apport XXX et ava », le « l »
+        # perdu. La forme courte dit la meme chose, tient, et laisse onze
+        # caracteres au prefixe de scenario.
+        etape_reference = f"sans {apports[depart]} et aval"
         trouve = plan_par_titre(texte("Dossier_projet_HECRAS"),
                                 texte("Nom_projet"), etape_precedente)
         if trouve:
@@ -1558,6 +1569,19 @@ def commande_caler(args):
     )
 
     # La precision est saisie en POURCENTAGE, la chaine raisonne en rapports.
+    # LES TITRES D'ETAPE SONT VERIFIES AVANT LE PREMIER CLONAGE. Au-dela de la
+    # longueur admise, HEC-RAS ne refuse pas : la chaine rognait en silence,
+    # et deux etapes rognees au meme « Short Identifier » partagent le dossier
+    # de resultats que RAS Mapper nomme d'apres ce champ. Le dire ici coute
+    # une seconde ; s'en apercevoir apres coup coute une campagne de calculs.
+    try:
+        titre_etape(etape_reference, prefixe_etape)
+        titre_etape(ETAPE_AVEC_APPORTS, prefixe_etape)
+        for _a in apports:
+            etape_apport(_a, prefixe_etape)
+    except ValueError as e:
+        return repondre(ok=False, erreur=f"Prefixe_scenario : {e}")
+
     config = Configuration(
         nb_max_essais=int(nombre("Nb_max_iterations_par_apport", 6)),
         tolerance_beta=nombre("Tolerance_volume_pct", 5.0) / 100.0,
@@ -1576,7 +1600,10 @@ def commande_caler(args):
         fenetre_t0_h=nombre("Fenetre_t0_h", None),
         fenetre_tf_h=nombre("Fenetre_tf_h", None),
         # Vide = active, le defaut. « non » juge sur toute la duree simulee.
-        fenetre_active=_oui_non_ou_defaut(texte("Fenetre_active", "")))
+        fenetre_active=_oui_non_ou_defaut(texte("Fenetre_active", "")),
+        # Prefixe pose devant chaque titre d'etape. Vide = comportement
+        # d'avant. C'est ce qui separe les plans du Q10 de ceux du Q100.
+        prefixe_etape=prefixe_etape)
 
     dossier_sortie = Path(texte("Dossier_sortie") or chemin_template.parent)
     sous_suivi = texte("Sous_dossier_suivi", "suivi")
