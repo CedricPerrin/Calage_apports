@@ -1953,6 +1953,12 @@ A TRANCHER
     sections. C'est une anomalie ISOLEE, sur un modele, et non un ecart
     systematique entre routage et cibles. A porter au client pour CE modele —
     sont-ce les cibles, le routage, ou une origine de temps ?
+  - LE NOM DU GREFFON RESTE « Calage des apports » POUR LE MOMENT (decision
+    utilisateur du 03/09). Candidats ecartes ou en reserve, pour ne pas les
+    rechercher : Symbolé (trop proche de « symbole »), Syrrhoé (συρροή, les
+    eaux qui affluent ensemble — le plus juste), Épirrhoé (l'afflux), Rhoé
+    (le courant) ; en latin, Affluens — lisible, mais casse la famille grecque
+    avec Hyetos, le greffon des pluies radar.
   - EXPERIMENTAL=TRUE est conserve dans metadata.txt (decision utilisateur).
     Le LISEZMOI dit de cocher « Afficher aussi les extensions
     experimentales » si l'extension n'apparait pas apres installation.
