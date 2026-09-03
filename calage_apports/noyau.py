@@ -643,10 +643,41 @@ def installer_interpreteur(python_base, journal=None):
                       f"{(resultat.stderr or resultat.stdout or '')[-2000:]}")
     dire("Installation terminée, vérification…")
 
+    # PIP NE REPARE PAS UN PAQUET DEJA PRESENT. « --upgrade » suit la strategie
+    # only-if-needed : sur un environnement REUTILISE ou ras-commander est
+    # deja la dans une version qui satisfait « >=0.99 », pip tient la
+    # contrainte pour remplie et ne re-resout PAS ses dependances. Ce qui
+    # manquait dans cet environnement y manque toujours. Releve le
+    # 03/09/2026 sur un poste neuf : onze paquets « installes », puis
+    # « module(s) absent(s) : xarray » — la dependance declaree par
+    # ras-commander que pip n'a jamais regardee.
+    #   ON POSE DONC CE QUE LA SONDE NOMME, avant de juger. La liste vient de
+    #   la meme sonde que le verdict ; un manquant qui n'est pas des notres
+    #   recoit son nom d'import comme nom pip, comme dans le message.
+    manquants = modules_manquants(interpreteur)
+    if manquants:
+        connus = dict(PAQUETS_HECRAS)
+        complement = [connus.get(m, m) for m in manquants]
+        dire(f"Il manque encore {', '.join(complement)} — dependance(s) d'un "
+             f"paquet deja present, que pip n'a pas re-resolues. Installation "
+             f"du complement…")
+        try:
+            resultat = subprocess.run(
+                [str(interpreteur), "-m", "pip", "install", *complement],
+                capture_output=True, text=True, encoding="utf-8",
+                errors="replace", timeout=1800)
+        except Exception as e:                               # noqa: BLE001
+            return None, f"installation du complement impossible : {e}"
+        if resultat.returncode != 0:
+            return None, (f"pip a echoue sur le complement (code "
+                          f"{resultat.returncode}) :\n"
+                          f"{(resultat.stderr or resultat.stdout or '')[-2000:]}")
+        dire("Complément installé, vérification…")
+
     # LE MEME CONTROLE QUE POUR UN INTERPRETEUR DESIGNE A LA MAIN : ce qui
     # compte n'est pas que pip ait rendu 0, c'est que la chaine puisse s'en
     # servir.
-    ok, message = verifier_interpreteur(interpreteur)
+    ok, message = verifier_interpreteur(interpreteur, depuis_installeur=True)
     if not ok:
         return None, f"environnement cree, mais inutilisable : {message}"
     return interpreteur, message
@@ -672,36 +703,17 @@ def restaurer_interpreteur(chemin):
     return True
 
 
-def verifier_interpreteur(chemin):
+def _sonder_interpreteur(chemin):
     """
-    Cet interpreteur sait-il piloter HEC-RAS ? Retourne (ok, message).
+    Lance la sonde d'import dans l'interpreteur et rend son resultat brut.
 
-    Le test est celui qui compte : importer TOUT ce dont le pont a besoin
-    (PAQUETS_HECRAS) dans un sous-processus, avec le meme assainissement
-    d'environnement que les appels reels. Verifier la seule existence du
-    fichier ne prouverait rien.
-
-    IL N'EXIGEAIT QUE ras-commander ET h5py, si bien qu'un environnement
-    depourvu de geopandas etait accepte ici pour echouer a la premiere
-    composition — loin de la cause, et apres que l'utilisateur ait cru
-    l'installation reussie.
+    Retourne (acheve, None) ou (None, message d'erreur). Deux appelants :
+    verifier_interpreteur(), qui en tire un verdict, et modules_manquants(),
+    qui en tire la liste de ce que pip doit encore poser. Une seule sonde,
+    pour que les deux voient la meme chose.
     """
     import subprocess
 
-    # AUCUN INTERPRETEUR DESIGNE est un etat NORMAL — c'est celui de tout poste
-    # neuf, et interpreteur_hecras() rend alors None. Path(None) levait ici un
-    # TypeError, la ou les fonctions voisines (est_chaine, chaine_embarquee)
-    # rendent toutes un refus propre. Le banc d'essai s'y interrompait sur
-    # toute machine depourvue de CALAGE_PYTHON.
-    if chemin is None:
-        return False, "aucun interpreteur n'a ete designe."
-    chemin = Path(chemin)
-    if not chemin.is_file():
-        return False, f"« {chemin} » n'est pas un fichier."
-    # CHAQUE MODULE EST TESTE SEPAREMENT, et les manquants sont TOUS
-    # rapportes. Un « import a, b, c » unique s'arrete au premier absent :
-    # l'utilisateur corrigerait alors un manque, relancerait, en decouvrirait
-    # un deuxieme, et ainsi de suite.
     noms = [i for i, _ in PAQUETS_HECRAS]
     code = (
         # « import importlib » NE SUFFIT PAS : importlib.util est un
@@ -738,18 +750,63 @@ def verifier_interpreteur(chemin):
         ".{sys.version_info.micro}, ras-commander "
         "{ras_commander.__version__}, h5py {h5py.__version__}')")
     try:
-        # DECODAGE IMPOSE, ET TOLERANT. Sans lui, Python decode la sortie dans
-        # l'encodage ambiant : un interpreteur qui echoue en ecrivant des
-        # octets qui n'y sont pas valides — le python de QGIS, justement, celui
-        # que ce controle doit refuser — tuait le fil de lecture de subprocess
+        # errors="replace" : un octet non UTF-8 dans la sortie (accent d'un
+        # chemin, message Windows en cp1252) faisait mourir CE controle-ci
         # sur une UnicodeDecodeError, et la raison de l'echec se perdait au
         # moment precis ou elle sert. Meme regle qu'a l'appel du pont.
-        acheve = subprocess.run(
+        return subprocess.run(
             [str(chemin), "-c", code], capture_output=True, text=True,
             encoding="utf-8", errors="replace",
-            timeout=90, env=environnement_propre(chemin))
-    except Exception as e:
-        return False, f"{type(e).__name__}: {e}"
+            timeout=90, env=environnement_propre(chemin)), None
+    except Exception as e:                                   # noqa: BLE001
+        return None, f"{type(e).__name__}: {e}"
+
+
+def modules_manquants(chemin):
+    """
+    Noms d'import que la sonde declare absents de cet interpreteur.
+
+    [] si rien ne manque, None si la sonde n'a pas pu tourner. C'est ce que
+    l'installeur pose ensuite par pip : la liste vient de la MEME sonde que le
+    verdict, pas d'une seconde regle.
+    """
+    acheve, erreur = _sonder_interpreteur(chemin)
+    if acheve is None:
+        return None
+    if acheve.returncode == 3 and "MANQUANTS" in (acheve.stdout or ""):
+        return acheve.stdout.split("MANQUANTS", 1)[1].split()
+    return []
+
+
+def verifier_interpreteur(chemin, depuis_installeur=False):
+    """
+    Cet interpreteur sait-il piloter HEC-RAS ? Retourne (ok, message).
+
+    depuis_installeur : le message d'echec ne renvoie alors PAS au bouton
+    « Installer… » — c'est lui qui appelle, et il vient d'echouer. Releve le
+    03/09/2026 sur un poste neuf : « ou laisser le bouton Installer… creer un
+    environnement complet », affiche par ce bouton meme. Un message qui
+    conseille ce qui vient d'echouer apprend a etre ignore.
+
+    Le test est celui qui compte : importer TOUT ce dont le pont a besoin
+    (PAQUETS_HECRAS) dans un sous-processus, avec le meme assainissement
+    d'environnement que les appels reels. Verifier la seule existence du
+    fichier ne prouverait rien.
+
+    IL N'EXIGEAIT QUE ras-commander ET h5py, si bien qu'un environnement
+    depourvu de geopandas etait accepte ici pour echouer a la premiere
+    composition — loin de la cause, et apres que l'utilisateur ait cru
+    l'installation reussie.
+    """
+    if chemin is None:
+        return False, "aucun interpreteur n'a ete designe."
+    chemin = Path(chemin)
+    if not chemin.is_file():
+        return False, f"« {chemin} » n'est pas un fichier."
+
+    acheve, erreur = _sonder_interpreteur(chemin)
+    if acheve is None:
+        return False, erreur
     if acheve.returncode == 3 and "MANQUANTS" in (acheve.stdout or ""):
         absents = acheve.stdout.split("MANQUANTS", 1)[1].split()
         # UN MANQUANT PEUT NE PAS ETRE DES NOTRES — xarray arrive par
@@ -763,8 +820,11 @@ def verifier_interpreteur(chemin):
             f"{', '.join(absents)}.\n\nLe pont en a besoin des la premiere "
             f"composition. Les installer par :\n"
             f"    \"{chemin}\" -m pip install {pip}\n\n"
-            f"ou laisser le bouton « Installer… » creer un environnement "
-            f"complet.")
+            + ("L'installeur a deja tente de les poser : voir la sortie de "
+               "pip ci-dessus, et le journal du greffon."
+               if depuis_installeur else
+               "ou laisser le bouton « Installer… » creer un environnement "
+               "complet."))
     if acheve.returncode != 0:
         return False, _cause_echec(acheve)
 
@@ -2372,6 +2432,66 @@ if __name__ == "__main__":
             print(f"   {nom_cas} -> refuse, et la commande pip est donnee")
     finally:
         shutil.rmtree(bac_x, ignore_errors=True)
+
+    print("\n10. L'INSTALLEUR COMPLETE CE QUE LA SONDE NOMME  (poste neuf, 03/09/2026)")
+    # Environnement REUTILISE, ras-commander deja present sans xarray : pip
+    # « --upgrade » ne le repare pas, et l'installeur repondait « inutilisable
+    # : xarray absent... ou laisser le bouton Installer... » — le bouton qui
+    # venait de tourner. AUCUN TELECHARGEMENT : pip est doublé, la sonde est
+    # reelle.
+    bac_i = Path(tempfile.mkdtemp(prefix="calage_installeur_"))
+    _vrai_run = subprocess.run
+    _vrai_emplacement = emplacement_venv_hecras
+    pips = []
+
+    def _run_double(commande, *a, **k):
+        # La sonde (« -c ») tourne pour de vrai : c'est elle qu'on eprouve.
+        # pip est enregistre et repond 0 sans rien poser : c'est ce que fait
+        # un pip qui tient la contrainte pour satisfaite.
+        if "-c" in commande:
+            return _vrai_run(commande, *a, **k)
+        pips.append(list(commande))
+        return subprocess.CompletedProcess(commande, 0, stdout="", stderr="")
+
+    try:
+        faux_venv = bac_i / "venv-hecras"
+        subprocess.run([sys.executable, "-m", "venv", "--without-pip",
+                        str(faux_venv)], check=True, capture_output=True)
+        paquets = faux_venv / "Lib" / "site-packages"
+        for module in (i for i, _ in PAQUETS_HECRAS if i != "ras_commander"):
+            (paquets / f"{module}.py").write_text("__version__ = '0.0'\n",
+                                                  encoding="utf-8")
+        rc = paquets / "ras_commander"
+        (rc / "hdf").mkdir(parents=True)
+        (rc / "hdf" / "__init__.py").write_text(
+            "from .HdfResultsMesh import HdfResultsMesh\n", encoding="utf-8")
+        (rc / "hdf" / "HdfResultsMesh.py").write_text(
+            "import xarray as xr\n\n\nclass HdfResultsMesh:"
+            "\n    pass\n", encoding="utf-8")
+        (rc / "__init__.py").write_text(
+            "__version__ = '0.99.2'\nfrom .hdf import HdfResultsMesh\n",
+            encoding="utf-8")
+
+        globals()["emplacement_venv_hecras"] = lambda: faux_venv
+        subprocess.run = _run_double
+        chemin_i, message_i = installer_interpreteur(sys.executable)
+    finally:
+        subprocess.run = _vrai_run
+        globals()["emplacement_venv_hecras"] = _vrai_emplacement
+        shutil.rmtree(bac_i, ignore_errors=True)
+
+    assert len(pips) == 2, (
+        f"l'installeur doit lancer pip DEUX fois — le lot, puis le complement "
+        f"que la sonde nomme — il l'a lance {len(pips)} fois : {pips}")
+    assert pips[1][-1] == "xarray" and "--upgrade" not in pips[1], (
+        f"le complement doit poser exactement ce que la sonde nomme : {pips[1]}")
+    # pip etant double, xarray manque toujours : l'installeur DOIT echouer,
+    # et son message ne doit plus conseiller le bouton qui vient d'echouer.
+    assert chemin_i is None and "xarray" in message_i, message_i
+    assert "Installer" not in message_i, (
+        f"le message renvoie encore au bouton « Installer… » : {message_i}")
+    print("   complement pose : pip install xarray, apres le lot")
+    print("   message d'echec : nomme xarray et la commande, sans renvoyer au bouton")
 
     print("\nNoyau operationnel. Le plugin ne fait qu'appeler ces fonctions.")
     print("=" * 72)

@@ -117,6 +117,13 @@ session à l'autre. La version de `ras-commander` est **vérifiée** : les
 versions antérieures à 0.99 bornent mal les tableaux d'hydrogramme, et un
 apport y serait tronqué sans message.
 
+Le bouton **Installer…** réutilise un environnement déjà présent plutôt que de
+l'effacer — et le **complète** : pip ne re-résout pas les dépendances d'un
+paquet qu'il trouve déjà installé, si bien qu'un environnement où
+`ras-commander` était là sans `xarray` restait inutilisable après
+« installation ». Depuis la 0.6.1, ce qui manque est nommé par la vérification
+puis posé, et revérifié.
+
 Pour figer les deux emplacements sans passer par l'interface :
 
 ```bat

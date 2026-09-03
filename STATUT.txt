@@ -49,8 +49,9 @@ CE QUI EST EPROUVE
   - LES QUINZE BANCS SONT VERTS : les treize suites ci-dessus, plus
     faire_zip.py et essai_garde_fou_archive.py. Repasses le 03/09, apres les
     cinq correctifs et le prefixe de scenario (section 5.7).
-  - GREFFON EN 0.6.0. Son archive ne se comporte plus comme la 0.5.0 : les
-    livrables ont change (5.7), et le classeur porte un parametre de plus.
+  - GREFFON EN 0.6.1. Son archive ne se comporte plus comme la 0.5.0 : les
+    livrables ont change (5.7), le classeur porte un parametre de plus, et le
+    bouton « Installer… » complete un environnement reutilise (5.7, fin).
 
 CINQ DEFAUTS DES LIVRABLES, TROUVES SUR LES DEUX CALAGES TERMINES (03/09)
   Les deux calages etaient CONFORMES, et leurs livrables INCOMPLETS. Detail
@@ -1610,6 +1611,33 @@ n'est pas touche.
   culmine 4,8 h AVANT sa cible, et sa forme tombe a 97,1 % pour 97,0 exige.
   C'est l'apport qui a coute cinq essais et 14 h 47 (5.6). Rien de neuf, mais
   c'est desormais visible dans le livrable, et pas seulement au journal.
+
+LE CONTROLE NEUF A ATTRAPE SON PREMIER CAS SUR UN POSTE NEUF, LE JOUR MEME —
+ET A REVELE UN DEFAUT DE L'INSTALLEUR (03/09, second poste). Le bouton
+« Installer… » a trouve un environnement DEJA PRESENT, l'a reutilise, a
+« installe » onze paquets, puis la verification a refuse : « module(s)
+absent(s) : xarray ». C'est exactement le manque qui avait coute le profil en
+long a Ardanavy — attrape dix secondes avant, et non quatorze heures apres.
+  MAIS LE MESSAGE CONSEILLAIT LE BOUTON QUI VENAIT D'ECHOUER : « ou laisser le
+  bouton Installer… creer un environnement complet ». Un message qui
+  conseille ce qui vient d'echouer apprend a etre ignore.
+  ET L'INSTALLEUR AURAIT DU COMPLETER LUI-MEME. Il ne le pouvait pas : pip
+  « --upgrade » suit la strategie only-if-needed — sur un environnement
+  reutilise ou ras-commander est deja la dans une version qui satisfait
+  « >=0.99 », pip tient la contrainte pour remplie et NE RE-RESOUT PAS ses
+  dependances. xarray, que ras-commander declare pourtant (verifie :
+  dix-huit dependances declarees, xarray comprise), n'est jamais regarde.
+  Ce qui manquait dans cet environnement y manque toujours apres « pip
+  install ».
+  LE CORRECTIF (0.6.1) : la sonde de verification est partagee entre le
+  verdict et une nouvelle fonction, modules_manquants() ; l'installeur pose ce
+  qu'elle nomme — « pip install xarray » — puis revérifie. Et le message
+  d'echec, quand c'est l'installeur qui parle, ne renvoie plus au bouton.
+  BANC 10 du noyau, sans telechargement : pip est double, la sonde est reelle.
+  Sur le code d'avant, pip n'est lance qu'UNE fois et le banc echoue ; apres,
+  deux fois, la seconde avec exactement « xarray ».
+  EN ATTENDANT LA 0.6.1 SUR CE POSTE : taper la commande pip que le message
+  donne, puis « Designer… » l'interpreteur.
 
 5.4  CE QUE LES CAS REELS ONT APPRIS, ENSEMBLE
 --------------------------------------------------------------------------

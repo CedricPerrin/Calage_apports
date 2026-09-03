@@ -113,6 +113,17 @@ comme le pont. Doublure en lecture seule du pilote : le modèle n'est pas touch�
 le suivi** — dont le `profil_en_long.png` qu'aucun des deux calages n'avait
 obtenu. Les quinze fichiers d'origine sont mis de côté, pas écrasés.
 
+### Le contrôle neuf a attrapé son premier cas sur un poste neuf
+
+Le bouton « Installer… » a **réutilisé** un environnement existant, « installé »
+onze paquets, puis la vérification a refusé : `xarray` absent — le manque
+même qui avait coûté le profil en long à Ardanavy, attrapé dix secondes avant.
+Mais le message conseillait le bouton qui venait d'échouer, et l'installeur
+n'avait pas complété : pip `--upgrade` (*only-if-needed*) ne re-résout pas les
+dépendances d'un paquet déjà présent. **0.6.1** : l'installeur pose ce que la
+sonde nomme puis revérifie, et son message ne renvoie plus au bouton. Banc 10,
+sans téléchargement ; il échoue sur le code d'avant (pip lancé une fois).
+
 ## Nuit du 1er au 2 septembre 2026 — le critère reposait sur une mesure fausse
 
 **Par quoi reprendre :** `STATUT.txt` § 1 (les deux calages), § 2.2 ter et
