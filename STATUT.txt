@@ -69,6 +69,9 @@ CINQ DEFAUTS DES LIVRABLES, TROUVES SUR LES DEUX CALAGES TERMINES (03/09)
        jamais leurs hydrogrammes — feuille « Hydrogrammes_apports », banc.
   ET DEUX AJOUTS DEMANDES : un PREFIXE DE SCENARIO sur les titres de plan, et
   un PLAN FINAL nomme « avec apports » (regle en 2.5).
+  LES LIVRABLES DE SUHIHANDIA ONT ETE RECONSTRUITS le 03/09 depuis son plan
+  final, sans rien recalculer : 19 fichiers, verdict identique au dixieme,
+  profil en long compris (5.7, dernier paragraphe ; outil : section 4).
 
 LES DEUX CALAGES SONT TERMINES ET CONFORMES — RELEVE DU 02/09 A 16 H 25
   LEURS SORTIES ONT DEMENAGE LE 03/09 : elles vivent desormais sous
@@ -1002,6 +1005,12 @@ La note, le template et ce fichier restent a la racine.
                          long, appariement amont/aval, ecriture des objets
                          dans la geometrie HEC-RAS.
     livrables.py         Graphiques, tableaux, export Excel, note de synthese.
+    reconstruire_livrables.py
+                         Reconstruit les livrables d'un calage TERMINE dont le
+                         rapport s'est perdu, depuis son plan final — en
+                         lecture seule sur le modele. Relit les fenetres jugees
+                         au journal et les essais au suivi ; ne refait rien.
+                         Non distribue : c'est un outil de rattrapage.
     suivi.py             Avancement lisible pendant le calcul.
     pilote_hecras.py     Declinaison HEC-RAS de l'interface Modele. Seul
                          module connaissant les formats du solveur.
@@ -1575,6 +1584,32 @@ LE GARDE-FOU D'ARCHIVE A FAIT SON TRAVAIL, DEUX FOIS. Les commentaires et les
 bancs de ces correctifs nommaient les affaires du client dans des fichiers
 DISTRIBUES ; l'extension de « .affaires » aux codes de section (01/09) les a
 refuses. Les chiffres sont restes, les noms sont partis — ils vivent ici.
+
+LES LIVRABLES DE SUHIHANDIA ONT ETE RECONSTRUITS SANS RIEN RECALCULER
+(03/09, 14 h 18). Tout ce que le rapport decrit etait sur le disque : le plan
+final p17 avec ses 274 Mo de resultats, l'unsteady u24 avec les douze apports
+retenus, le classeur avec les cibles, le journal avec les fenetres jugees et
+les decalages retenus, iterations.xlsx avec les essais. Il ne manquait que
+l'assemblage — c'est ce que fait src/reconstruire_livrables.py, avec une
+DOUBLURE EN LECTURE SEULE du pilote : le HDF est ouvert en « r », le modele
+n'est pas touche.
+  ON RELIT, ON NE REFAIT PAS. Les fenetres jugees viennent du JOURNAL, pas
+  d'un recalcul : la chaine a change depuis, et un rapport aux fenetres
+  d'aujourd'hui decrirait le calage qui aurait tourne, pas celui qui a tourne.
+  LA FIDELITE SE VERIFIE, apport par apport, contre ce que le suivi a consigne
+  pendant le calage : les douze volumes, pointes et formes concordent au
+  dixieme, le verdict est CONFORME comme au suivi. 19 fichiers, dont le profil
+  en long que ni l'un ni l'autre des deux calages n'avait obtenu, la feuille
+  « Hydrogrammes_apports », et des figures de comparaison qui montrent la crue
+  entiere. Les quinze fichiers d'origine sont mis de cote dans
+  _avant_reconstruction_20260903_1418/, pas ecrases.
+  CE QUI N'EST PAS RETROUVABLE : le « Volume retenu / 1re estimation » du
+  tableau des apports, qui vient de la boucle et non du modele. Il est vide,
+  pas invente.
+  CE QUE LA FIGURE DE SUH12 MONTRE, maintenant qu'elle est entiere : le modele
+  culmine 4,8 h AVANT sa cible, et sa forme tombe a 97,1 % pour 97,0 exige.
+  C'est l'apport qui a coute cinq essais et 14 h 47 (5.6). Rien de neuf, mais
+  c'est desormais visible dans le livrable, et pas seulement au journal.
 
 5.4  CE QUE LES CAS REELS ONT APPRIS, ENSEMBLE
 --------------------------------------------------------------------------

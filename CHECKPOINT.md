@@ -101,6 +101,18 @@ changerait des verdicts déjà rendus.
 > mes bancs nommaient les affaires du client dans des fichiers distribués.
 > L'extension de `.affaires` aux codes de section (01/09) les a refusés.
 
+### Les livrables de Suhihandia, reconstruits sans recalculer
+
+`src/reconstruire_livrables.py` — nouveau, **non distribué**, outil de
+rattrapage. Il relit le plan final `p17`, l'unsteady `u24`, le classeur, le
+journal et `iterations.xlsx`, rejoue `diagnostiquer()` avec **les fenêtres du
+journal** (on relit, on ne refait pas), et appelle `produire_livrables_finaux`
+comme le pont. Doublure en lecture seule du pilote : le modèle n'est pas touché.
+
+**19 fichiers, verdict CONFORME, les douze lignes concordent au dixième avec
+le suivi** — dont le `profil_en_long.png` qu'aucun des deux calages n'avait
+obtenu. Les quinze fichiers d'origine sont mis de côté, pas écrasés.
+
 ## Nuit du 1er au 2 septembre 2026 — le critère reposait sur une mesure fausse
 
 **Par quoi reprendre :** `STATUT.txt` § 1 (les deux calages), § 2.2 ter et
