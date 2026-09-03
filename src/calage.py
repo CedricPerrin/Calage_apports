@@ -1842,31 +1842,54 @@ def produire_livrables_finaux(resultat, modele, dossier_sortie,
     # jamais recu.
     #
     # Les livrables se limitent donc a la FENETRE DE CALAGE, celle de la cible.
-    temps_apport = None
-    hydrogrammes, dans_fenetre = [], []
+    # CHAQUE APPORT PORTE SA PROPRE BASE DE TEMPS. Dans le fichier unsteady,
+    # chaque hydrogramme est un bloc avec SON « Interval= » et SON nombre de
+    # points ; forme_apport() rend donc un axe par apport, et deux apports du
+    # meme modele n'ont aucune raison d'avoir la meme longueur.
+    #   LE CODE PRECEDENT GARDAIT UN SEUL AXE, ecrase a chaque tour, et
+    #   appliquait le masque du PREMIER apport a l'axe du DERNIER. Mesure sur
+    #   un modele de production a douze apports, tous au pas de 6 min : QUATRE
+    #   longueurs differentes dans le meme fichier unsteady — 256, 321, 811 et
+    #   1 001 points. D'ou « boolean index did not match indexed array : 1001
+    #   contre 811 », et un calage de 46 h, douze apports sur douze conformes,
+    #   qui a perdu son classeur ET sa note de synthese.
+    #   UN AUTRE MODELE DE LA MEME AFFAIRE N'A RIEN VU : ses six apports
+    #   portent 500 points chacun. Le defaut ne se voit que sur un modele dont
+    #   les apports ont ete saisis a des moments differents.
+    temps_apports, hydrogrammes, dans_fenetre = [], [], []
     for i, a in enumerate(resultat.apports):
         t_forme, forme = modele.forme_apport(a.nom_apport)
+        t_forme = np.asarray(t_forme, dtype=float)
         forme = np.asarray(forme, dtype=float)
+        temps_apports.append(t_forme)
         hydrogrammes.append(forme)
-        temps_apport = np.asarray(t_forme, dtype=float)
         fin = float(np.max(resultat.series_finales[i][0]))
-        dans_fenetre.append(temps_apport <= fin + 1e-9)
-    if temps_apport is not None:
-        garde = dans_fenetre[0]
-        fichiers.append(liv.figure_apports_retenus(
-            apports, temps_apport[garde], [h[garde] for h in hydrogrammes],
-            dossier / "apports_retenus.png"))
+        dans_fenetre.append(t_forme <= fin + 1e-9)
+    if temps_apports:
+        # MEME GARDE-FOU QUE LE PROFIL EN LONG PLUS BAS : une figure qui
+        # echoue ne doit plus emporter le classeur et la note de synthese,
+        # qui sont produits APRES elle. C'est exactement ce que la panne
+        # ci-dessus a coute.
+        try:
+            fichiers.append(liv.figure_apports_retenus(
+                apports, [t[g] for t, g in zip(temps_apports, dans_fenetre)],
+                [h[g] for h, g in zip(hydrogrammes, dans_fenetre)],
+                dossier / "apports_retenus.png"))
+        except Exception as e:
+            fichiers.append(f"apports retenus non produits : "
+                            f"{type(e).__name__}: {e}")
 
         # Une queue constante au-dela de la fenetre n'a aucun effet ICI, mais
         # l'apport injecterait ce debit des que la simulation serait allongee.
         # Le dire vaut mieux que le laisser decouvrir.
-        for nom, h, g in zip(apports, hydrogrammes, dans_fenetre):
+        for nom, t_a, h, g in zip(apports, temps_apports, hydrogrammes,
+                                  dans_fenetre):
             queue = h[~g]
             if len(queue) > 2 and float(np.max(queue)) > 0.01 * float(np.max(h)):
                 fichiers.append(
                     f"AVERTISSEMENT — l'apport « {nom} » est prolonge a "
                     f"{float(queue[0]):.1f} m3/s sur "
-                    f"{len(queue) * float(temps_apport[1] - temps_apport[0]):.0f} h "
+                    f"{len(queue) * float(t_a[1] - t_a[0]):.0f} h "
                     f"au-dela de la fenetre simulee. Sans effet sur ce calcul, "
                     f"mais ce debit serait injecte si la fenetre etait "
                     f"allongee.")
@@ -1890,8 +1913,8 @@ def produire_livrables_finaux(resultat, modele, dossier_sortie,
     ta = liv.tableau_apports(
         apports, [a.facteur for a in resultat.apports],
         [float(np.max(h[g])) for h, g in zip(hydrogrammes, dans_fenetre)],
-        [float(np.trapezoid(h[g], temps_apport[g])) * 3.6
-         for h, g in zip(hydrogrammes, dans_fenetre)])
+        [float(np.trapezoid(h[g], t_a[g])) * 3.6
+         for h, t_a, g in zip(hydrogrammes, temps_apports, dans_fenetre)])
     je = liv.journal_essais([
         dict(apport=a.nom_apport, **essai)
         for a in resultat.apports for essai in a.historique])
@@ -2235,6 +2258,61 @@ if __name__ == "__main__":
               not any(c in tb_final.columns
                       for c in ("KGE", "r", "alpha", "beta")),
               " | ".join(tb_final.columns))
+
+    # --- DES APPORTS A BASES DE TEMPS DIFFERENTES -------------------------
+    #
+    # LE CAS QUI A FAIT PERDRE SES LIVRABLES A UN CALAGE DE 46 HEURES. Dans un
+    # fichier unsteady, chaque apport est un bloc avec son propre
+    # « Interval= » et son propre nombre de points. Le modele fictif, lui, rend
+    # le meme axe pour tous : ce banc lui met une doublure qui rend un axe PAR
+    # APPORT, de longueurs differentes, comme le fait un modele reel.
+    # Mesure en production : 256, 321, 811 et 1 001 points chez douze apports.
+    print("\n--- LIVRABLES : DES APPORTS A BASES DE TEMPS DIFFERENTES ---")
+
+    class _ModeleBasesHeterogenes:
+        """Le modele cale, mais dont chaque apport a sa propre base de temps."""
+
+        def __init__(self, reel, noms):
+            self._reel = reel
+            self._axes = {}
+            for k, nom in enumerate(noms):
+                t_a, q_a = reel.forme_apport(nom)
+                # Longueurs volontairement toutes differentes, et la PREMIERE
+                # n'est ni la plus courte ni la plus longue : un masque pris
+                # sur elle est alors trop court pour les uns, trop long pour
+                # les autres.
+                n = len(t_a) - 7 * ((k + 3) % 5)
+                self._axes[nom] = (np.asarray(t_a)[:n], np.asarray(q_a)[:n])
+
+        def forme_apport(self, nom_apport):
+            return self._axes[nom_apport]
+
+        def __getattr__(self, nom):
+            return getattr(self._reel, nom)
+
+    # ETANCHEITE : le dossier est efface AVANT, sinon les fichiers d'un run
+    # precedent feraient verdir ce controle sur du code casse. C'est le piege
+    # que STATUT.txt nomme — un controle qui s'ignore lui-meme ne controle
+    # rien — et il s'applique aussi aux dossiers temporaires reutilises.
+    import shutil
+    _dossier_het = sortie / "rapport_bases_heterogenes"
+    shutil.rmtree(_dossier_het, ignore_errors=True)
+    _modele_het = _ModeleBasesHeterogenes(modele, apports)
+    _tailles = sorted({len(_modele_het.forme_apport(a)[0]) for a in apports})
+    controler("la doublure rend bien des axes de longueurs differentes",
+              len(_tailles) == len(apports), str(_tailles))
+    try:
+        _rap_het = produire_livrables_finaux(resultat, _modele_het, _dossier_het)
+        _leve = None
+    except Exception as e:                                   # noqa: BLE001
+        _rap_het, _leve = None, f"{type(e).__name__}: {e}"
+    controler("le rapport ne leve plus sur des bases heterogenes",
+              _leve is None, _leve or "aucune exception")
+    controler("le classeur, la note et la figure sont tous produits",
+              (_dossier_het / "tableaux_calage.xlsx").is_file()
+              and (_dossier_het / "synthese.md").is_file()
+              and (_dossier_het / "apports_retenus.png").is_file(),
+              ", ".join(sorted(f.name for f in _dossier_het.glob("*")))[:110])
 
     # L'APPORT EXPORTE EST-IL CELUI QUI EST DANS LE MODELE ?
     ap_final = pd.read_excel(dossier_rapport / "tableaux_calage.xlsx",

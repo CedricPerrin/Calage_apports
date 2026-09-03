@@ -436,11 +436,26 @@ def tableau_geometrie(noms_sections, pk_sections, noms_apports=None,
 
 
 def figure_apports_retenus(noms_apports, temps, hydrogrammes, chemin):
-    """Hydrogrammes d'apport finalement retenus : le resultat livrable."""
+    """
+    Hydrogrammes d'apport finalement retenus : le resultat livrable.
+
+    temps : UN AXE PAR APPORT, dans le meme ordre que hydrogrammes — jamais un
+    axe commun. Dans un fichier unsteady, chaque hydrogramme est un bloc avec
+    son propre « Interval= » et son propre nombre de points, et rien n'oblige
+    deux apports du meme modele a partager la meme base de temps. Mesure sur
+    un modele de production : douze apports portant 256, 321, 811 ou 1 001
+    points. L'axe unique qu'attendait cette fonction levait la une IndexError
+    qui a coute au calage entier son classeur et sa note de synthese.
+      UN AXE UNIQUE EST ENCORE ACCEPTE, et applique a tous : c'est ce que
+      rendent les modeles ou les apports partagent leur base, et l'auto-test
+      de ce module en est un.
+    """
     fig, ax = plt.subplots(figsize=(7.2, 3.6))
     palette = plt.cm.viridis(np.linspace(0.15, 0.85, len(noms_apports)))
-    for nom, q, couleur in zip(noms_apports, hydrogrammes, palette):
-        ax.plot(temps, q, lw=1.9, color=couleur, label=nom)
+    axes = (list(temps) if len(temps) == len(hydrogrammes)
+            and np.ndim(temps[0]) > 0 else [temps] * len(hydrogrammes))
+    for nom, t_a, q, couleur in zip(noms_apports, axes, hydrogrammes, palette):
+        ax.plot(t_a, q, lw=1.9, color=couleur, label=nom)
     ax.set_xlabel("Temps (h)")
     ax.set_ylabel("Débit injecté (m³/s)")
     ax.set_title("Hydrogrammes d'apport retenus après calage", loc="left",
