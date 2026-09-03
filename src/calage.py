@@ -1387,19 +1387,25 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
                               r_min=config.r_min,
                               fenetre=a.fenetre_principale)
             resultat.diagnostics_finaux.append(d)
-            # SERIES PRESENTEES DANS LE RAPPORT : restreintes a la fenetre de
-            # l'evenement principal quand elle existe, pour la meme raison
-            # que le diagnostic ci-dessus — une figure qui montre toute la
-            # duree simulee, debit de base compris, noie la crue qu'on cale.
-            if a.fenetre_principale is not None:
-                t0, tf = a.fenetre_principale
-                m_c = (np.asarray(t_c, dtype=float) >= t0) & (np.asarray(t_c, dtype=float) <= tf)
-                m_s = (np.asarray(t_s, dtype=float) >= t0) & (np.asarray(t_s, dtype=float) <= tf)
-                resultat.series_finales.append(
-                    (np.asarray(t_c)[m_c], np.asarray(q_c)[m_c],
-                     np.asarray(t_s)[m_s], np.asarray(q_s)[m_s]))
-            else:
-                resultat.series_finales.append((t_c, q_c, t_s, q_s))
+            # SERIES PRESENTEES DANS LE RAPPORT : ENTIERES, telles que le
+            # modele les rend.
+            #
+            # ELLES ETAIENT COUPEES A LA FENETRE JUGEE, et c'etait un doublon
+            # nuisible. livrables.figure_comparaison cadre DEJA toute seule,
+            # sur la crue significative (_fenetre_crue : 2 % du pic, plus une
+            # demi-heure) — c'est ce qui donne a la figure de SUIVI son
+            # cadrage juste, puisqu'elle, recoit les series entieres. Deux
+            # mecanismes pour la meme intention, et le plus grossier gagnait
+            # dans ce qui part au client.
+            #   MESURE sur un apport reel : coupees, les series ne permettent
+            #   qu'un cadrage 6,50-20,70 h, alors que la crue court jusqu'a
+            #   37 h et que le calcul y redescend a 1,9 % de son pic. La
+            #   figure finale montrait donc MOINS que la figure de suivi, avec
+            #   la meme legende — et cachait toute la decrue.
+            #   CE QUI EST JUGE N'A PAS CHANGE : diagnostiquer() recoit
+            #   toujours la fenetre, et c'est lui qui prononce. Seule la
+            #   PRESENTATION cesse d'etre amputee.
+            resultat.series_finales.append((t_c, q_c, t_s, q_s))
             dire(f"    {section:24s} volume {100 * d.rapport_volume:5.1f} %  "
                  f"pointe {100 * d.rapport_pic:5.1f} %  "
                  f"{'conforme' if d.converge else 'NON CONFORME'}")
@@ -1761,6 +1767,27 @@ def _jalonner(modele, etape, dire):
 # Assemblage du rapport final
 # ---------------------------------------------------------------------------
 
+def _pic_dans_fenetre(temps, debits, fenetre):
+    """
+    Pic d'une serie, RESTREINT a la fenetre jugee quand il y en a une.
+
+    Le profil en long confronte les pics section par section : ce doit etre
+    les memes pics que ceux du tableau de bord, donc ceux de la fenetre. Les
+    series finales, elles, sont desormais rendues ENTIERES pour la figure de
+    comparaison — sans cette restriction, une mini-crue ou un debit de base
+    hors evenement deviendrait le pic affiche au profil.
+
+    Fenetre vide ou absente : le pic de toute la serie, faute de mieux.
+    """
+    q = np.asarray(debits, dtype=float)
+    if fenetre is not None:
+        t = np.asarray(temps, dtype=float)
+        dedans = (t >= float(fenetre[0])) & (t <= float(fenetre[1]))
+        if dedans.any():
+            q = q[dedans]
+    return float(np.max(q)) if q.size else float("nan")
+
+
 def produire_livrables_finaux(resultat, modele, dossier_sortie,
                               profil=None, pk_sections=None, pk_apports=None):
     """
@@ -1863,7 +1890,14 @@ def produire_livrables_finaux(resultat, modele, dossier_sortie,
         forme = np.asarray(forme, dtype=float)
         temps_apports.append(t_forme)
         hydrogrammes.append(forme)
-        fin = float(np.max(resultat.series_finales[i][0]))
+        # LA BORNE EST CELLE DE LA FENETRE JUGEE, prise a sa source. Elle
+        # etait lue sur la fin des series finales, qui n'etaient coupees que
+        # parce qu'elles l'etaient pour la figure : le jour ou l'on a cesse de
+        # les couper, cette borne serait devenue la fin de la CIBLE — jusqu'a
+        # 208 h de remplissage a zero sur un cas reel — et l'avertissement de
+        # queue n'aurait plus rien signale.
+        fin = (float(a.fenetre_principale[1]) if a.fenetre_principale is not None
+               else float(np.max(resultat.series_finales[i][0])))
         dans_fenetre.append(t_forme <= fin + 1e-9)
     if temps_apports:
         # MEME GARDE-FOU QUE LE PROFIL EN LONG PLUS BAS : une figure qui
@@ -1901,8 +1935,12 @@ def produire_livrables_finaux(resultat, modele, dossier_sortie,
                 profil, pk_sections, dossier / "profil_en_long.png",
                 noms_sections=sections, apports_pk=pk_apports,
                 noms_apports=apports,
-                pics_cible=[float(np.max(s[1])) for s in resultat.series_finales],
-                pics_calcule=[float(np.max(s[3])) for s in resultat.series_finales]))
+                pics_cible=[_pic_dans_fenetre(s[0], s[1], a.fenetre_principale)
+                            for s, a in zip(resultat.series_finales,
+                                            resultat.apports)],
+                pics_calcule=[_pic_dans_fenetre(s[2], s[3], a.fenetre_principale)
+                              for s, a in zip(resultat.series_finales,
+                                              resultat.apports)]))
         except Exception as e:
             fichiers.append(f"profil en long non produit : "
                             f"{type(e).__name__}: {e}")
@@ -2258,6 +2296,33 @@ if __name__ == "__main__":
               not any(c in tb_final.columns
                       for c in ("KGE", "r", "alpha", "beta")),
               " | ".join(tb_final.columns))
+
+    # --- LA FIGURE FINALE COUVRE LA CRUE, PAS LA FENETRE JUGEE ------------
+    #
+    # Les series finales etaient coupees a la fenetre de jugement AVANT d'etre
+    # tracees. La figure du rapport montrait donc moins que celle du suivi,
+    # avec la meme legende — et cachait la decrue, la ou un modele s'ecarte
+    # volontiers de sa cible. figure_comparaison cadre deja seule.
+    print("\n--- LES SERIES DU RAPPORT NE SONT PLUS COUPEES ---")
+    _avec_fen = [(a, s) for a, s in zip(resultat.apports, resultat.series_finales)
+                 if a.fenetre_principale is not None]
+    controler("une fenetre de jugement est bien posee sur ce cas",
+              bool(_avec_fen),
+              f"{len(_avec_fen)}/{len(resultat.apports)} apport(s)")
+    if _avec_fen:
+        # Celui dont la fenetre coupe le plus : c'est lui qui revelait le
+        # defaut, et c'est sur lui que le banc doit porter.
+        _a, _s = min(_avec_fen, key=lambda x: x[0].fenetre_principale[1])
+        _t_modele, _ = modele.lire_section(_a.nom_section)
+        _fin_serie = float(np.max(_s[2]))
+        _fin_fen = float(_a.fenetre_principale[1])
+        _fin_modele = float(np.max(_t_modele))
+        controler("la fenetre jugee est bien plus courte que la simulation",
+                  _fin_fen < _fin_modele - 1e-9,
+                  f"fenetre {_fin_fen:.2f} h, modele {_fin_modele:.2f} h")
+        controler("et la serie du rapport va jusqu'au bout du calcul",
+                  abs(_fin_serie - _fin_modele) < 1e-9,
+                  f"serie {_fin_serie:.2f} h pour un modele a {_fin_modele:.2f} h")
 
     # --- DES APPORTS A BASES DE TEMPS DIFFERENTES -------------------------
     #
