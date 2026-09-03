@@ -1953,12 +1953,20 @@ def produire_livrables_finaux(resultat, modele, dossier_sortie,
         [float(np.max(h[g])) for h, g in zip(hydrogrammes, dans_fenetre)],
         [float(np.trapezoid(h[g], t_a[g])) * 3.6
          for h, t_a, g in zip(hydrogrammes, temps_apports, dans_fenetre)])
+    # LA SERIE, et pas seulement son pic et son volume : c'est elle qu'on
+    # rejoue dans un autre modele et qu'on superpose a la cible. Chaque apport
+    # est coupe a SA fenetre, la meme que celle du pic et du volume ci-dessus
+    # — une feuille qui irait plus loin ne donnerait pas le volume annonce.
+    th = liv.tableau_hydrogrammes_apports(
+        apports, [t_a[g] for t_a, g in zip(temps_apports, dans_fenetre)],
+        [h[g] for h, g in zip(hydrogrammes, dans_fenetre)])
     je = liv.journal_essais([
         dict(apport=a.nom_apport, **essai)
         for a in resultat.apports for essai in a.historique])
 
     xlsx = liv.exporter_excel(dossier / "tableaux_calage.xlsx",
-                             Tableau_de_bord=tb, Apports=ta, Journal=je)
+                             Tableau_de_bord=tb, Apports=ta,
+                             Hydrogrammes_apports=th, Journal=je)
     liv.synthese("Calage des apports — note de synthèse", sections,
                 resultat.diagnostics_finaux, dossier / "synthese.md",
                 alertes_chaine=resultat.alertes_chaine)
@@ -2389,6 +2397,45 @@ if __name__ == "__main__":
                   for i, p in enumerate(pics_modele)),
               "  ".join(f"{ap_final.loc[i, 'Pic injecte (m3/s)']:.1f}"
                         f"/{p:.1f}" for i, p in enumerate(pics_modele)))
+
+    # --- LA SERIE RETENUE, ET PAS SEULEMENT SON PIC -----------------------
+    #
+    # Le classeur ne portait que des INDICATEURS AGREGES : une ligne par
+    # apport, pic et volume. L'hydrogramme lui-meme ne vivait que dans une
+    # figure et dans le fichier unsteady du modele — ni verifiable ligne a
+    # ligne, ni reutilisable hors HEC-RAS. La feuille en donne la serie, dans
+    # la meme forme que la feuille « Cibles » du classeur de saisie.
+    print("\n--- LE CLASSEUR PORTE LES HYDROGRAMMES RETENUS ---")
+    _hy = pd.read_excel(dossier_rapport / "tableaux_calage.xlsx",
+                        sheet_name="Hydrogrammes_apports")
+    controler("une colonne de temps et une colonne par apport",
+              list(_hy.columns) == ["Temps_h"]
+              + [f"Apport_{a}" for a in apports],
+              " | ".join(map(str, _hy.columns)))
+    controler("le temps est strictement croissant",
+              bool((_hy["Temps_h"].diff().dropna() > 0).all()),
+              f"{len(_hy)} pas de {_hy['Temps_h'].iloc[0]:.2f} a "
+              f"{_hy['Temps_h'].iloc[-1]:.2f} h")
+    # LA MEME VALEUR QUE LE MODELE, pas une valeur plausible : c'est tout
+    # l'interet d'exporter la serie plutot que de la redessiner.
+    controler("chaque colonne porte le pic de son apport dans le modele",
+              all(abs(float(_hy[f"Apport_{a.nom_apport}"].max()) - p) < 0.02
+                  for a, p in zip(resultat.apports, pics_modele)),
+              "  ".join(f"{float(_hy[f'Apport_{a.nom_apport}'].max()):.1f}/{p:.1f}"
+                        for a, p in zip(resultat.apports, pics_modele)))
+    # BASES HETEROGENES : les colonnes s'alignent sur l'union des instants, et
+    # la ou un apport n'a pas de valeur la cellule reste VIDE. Y interpoler
+    # ecrirait un debit que le calcul n'a jamais recu.
+    _hy_het = pd.read_excel(_dossier_het / "tableaux_calage.xlsx",
+                            sheet_name="Hydrogrammes_apports")
+    # Chaque apport s'arretant a SA fenetre, les colonnes n'ont pas la meme
+    # hauteur : il DOIT rester des cellules vides. Zero trou signifierait
+    # qu'on a prolonge ou interpole quelque part.
+    controler("sur des bases heterogenes, les trous restent vides",
+              bool(_hy_het.isna().any().any())
+              and len(_hy_het.columns) == len(apports) + 1,
+              f"{len(_hy_het)} lignes, {len(_hy_het.columns)} colonnes, "
+              f"{int(_hy_het.isna().sum().sum())} cellule(s) vide(s)")
 
     # Depart volontairement faux, comme dans un vrai test a blanc.
     print("\n--- DEPART FAUSSE (x0,6), comme au test a blanc T4 ---")

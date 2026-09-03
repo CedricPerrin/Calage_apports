@@ -169,11 +169,12 @@ try:
                  "figure_atteinte", "figure_profil_longitudinal",
                  "figure_profil_en_long", "figure_apports_retenus",
                  "tableau_de_bord", "tableau_apports", "tableau_geometrie",
+                 "tableau_hydrogrammes_apports",
                  "journal_essais", "exporter_excel", "synthese",
                  "donnees_comparaison"]
     absentes = [f for f in attendues if not hasattr(livrables, f)]
     controler("module livrables.py importable", not absentes,
-              "6 figures + 4 tableaux + export Excel + synthese"
+              "6 figures + 5 tableaux + export Excel + synthese"
               if not absentes else ", ".join(absentes))
 except Exception as e:
     controler("module livrables.py importable", False, str(e))

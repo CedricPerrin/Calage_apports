@@ -524,6 +524,52 @@ def tableau_apports(noms_apports, facteurs, pics, volumes):
     })
 
 
+def tableau_hydrogrammes_apports(noms_apports, temps_par_apport,
+                                 hydrogrammes):
+    """
+    Hydrogrammes d'apport RETENUS : une colonne de temps, une colonne par
+    apport — la forme exacte de la feuille « Cibles » du classeur de saisie,
+    pour que les deux se superposent d'un coup d'oeil.
+
+    tableau_apports() ne livre que le pic et le volume ; la SERIE elle-meme ne
+    figurait dans aucun tableau, seulement dans la figure apports_retenus.png
+    et dans le fichier unsteady du modele. Elle n'etait donc ni verifiable
+    ligne a ligne, ni reutilisable hors HEC-RAS.
+
+    CHAQUE APPORT PORTE SA PROPRE BASE DE TEMPS, et c'est la raison d'etre du
+    parametre « temps_par_apport ». Releve en production : douze apports au
+    meme pas de 6 min, comptant 256, 321, 811 ou 1 001 valeurs, parce que
+    chaque bloc conserve SA duree. Les colonnes sont donc alignees sur
+    l'UNION des instants, et la ou un apport n'a pas de valeur la cellule
+    reste VIDE : interpoler ou prolonger y ecrirait un debit que le calcul
+    n'a jamais recu.
+
+    Debits arrondis au millieme de m3/s : le fichier unsteady stocke ses
+    hydrogrammes sur un champ de huit caracteres, et l'arrondi divise par
+    trois le poids de la feuille sans rien perdre de ce que le modele a
+    reellement recu.
+    """
+    if not (len(noms_apports) == len(temps_par_apport) == len(hydrogrammes)):
+        raise ValueError(
+            f"{len(noms_apports)} apport(s) pour {len(temps_par_apport)} "
+            f"base(s) de temps et {len(hydrogrammes)} hydrogramme(s) : les "
+            f"colonnes porteraient le nom d'un apport et les debits d'un "
+            f"autre.")
+
+    colonnes = []
+    for nom, t, q in zip(noms_apports, temps_par_apport, hydrogrammes):
+        # Index arrondi au millieme d'heure (3,6 s) : deux bases construites
+        # separement different au 1e-16 et fabriqueraient deux lignes la ou il
+        # n'y a qu'un instant.
+        colonnes.append(pd.Series(
+            np.round(np.asarray(q, dtype=float), 3),
+            index=np.round(np.asarray(t, dtype=float), 3),
+            name=f"Apport_{nom}"))
+    table = pd.concat(colonnes, axis=1).sort_index()
+    table.insert(0, "Temps_h", table.index)
+    return table.reset_index(drop=True)
+
+
 def journal_essais(enregistrements):
     """
     Journal complet de tous les essais, toutes sections confondues.
