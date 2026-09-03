@@ -2794,6 +2794,40 @@ class DialogueParametrage(QDialog):
             minuteur.start()
 
     def _dossier_suivi(self):
+        """
+        Dossier ou le calage ecrit son suivi.
+
+        LE SUIVI SUIT LE CLASSEUR, PAS L'ONGLET 3. C'est le classeur que le
+        pont lit pour savoir ou ecrire (Dossier_sortie, Sous_dossier_suivi) ;
+        l'onglet 3 ne dit que ou COMPOSER le prochain paquet. Les deux
+        divergent des qu'on reprend le classeur d'un calcul precedent
+        (onglet 4) : le calage partait dans un dossier, le suivi en
+        regardait un autre, et restait muet devant un calcul qui tournait —
+        « Aucun calage suivi », 0 %, pendant que le journal avancait
+        (03/09/2026 : un second paquet venait d'etre compose ailleurs).
+
+        Le classeur est relu quand il change — chemin ou date —, pas toutes
+        les deux secondes : il est le plus souvent sur un partage reseau.
+        Sans classeur, l'onglet 3 reste la seule indication.
+        """
+        classeur = str(self.classeur) if self.classeur else ""
+        if classeur:
+            try:
+                cle = (classeur, os.path.getmtime(classeur))
+            except OSError:
+                cle = None
+            if cle is not None:
+                cache = getattr(self, "_suivi_du_classeur", None)
+                if cache is None or cache[0] != cle:
+                    try:
+                        dossier = noyau.dossier_suivi_du_classeur(classeur)
+                    except Exception as e:                  # noqa: BLE001
+                        journaliser("Dossier de suivi du classeur", e)
+                        dossier = None
+                    cache = (cle, dossier)
+                    self._suivi_du_classeur = cache
+                if cache[1] is not None:
+                    return cache[1]
         racine = self.edit_dossier_sortie.text().strip()
         if not racine:
             return None
@@ -2873,10 +2907,15 @@ class DialogueParametrage(QDialog):
         etat = noyau.lire_avancement(dossier) if dossier else None
 
         if etat is None:
+            # LE DOSSIER SURVEILLE EST NOMME : un suivi muet parce qu'il
+            # regardait le mauvais dossier ne se distinguait en rien d'un
+            # calage pas encore parti.
             self._banniere(
                 ISL_ARDOISE_CLAIR, "Aucun calage suivi", glyphe="·",
                 detail="Le suivi apparaît ici dès que le calage écrit son "
-                       "premier état, quelques secondes après le lancement.")
+                       "premier état, quelques secondes après le lancement."
+                       + (f"<br>Dossier surveillé : {dossier}" if dossier
+                          else ""))
             self.barre_suivi.setValue(0)
             self.ruban_apports.actualiser([], None)
             self.courbe_suivi.actualiser(None)

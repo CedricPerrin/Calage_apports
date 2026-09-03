@@ -867,10 +867,27 @@ verifier("les rangs nommes designent le bon onglet",
 # ONGLET SUIVI. Ce qui compte n'est pas qu'il s'affiche, mais qu'il SACHE
 # DIRE ce qui se passe : en cours, terminé, ou interrompu. Le reproche fait au
 # suivi etait justement qu'un calcul s'arretait sans donner de nouvelles.
-_suivi = Path(ESSAI) / "suivi_essai"
-_suivi.mkdir(parents=True, exist_ok=True)
-dlg.edit_dossier_sortie.setText(str(ESSAI))
+#
+# LE SUIVI SUIT LE CLASSEUR, PAS L'ONGLET 3 (03/09/2026). Le pont ecrit le
+# suivi la ou le classeur le dit (Dossier_sortie, Sous_dossier_suivi) ; la
+# fenetre lisait les champs de l'onglet 3, qui ne disent que ou composer le
+# PROCHAIN paquet. Un classeur repris d'un calcul precedent (onglet 4) et
+# lance pendant que l'onglet 3 designait un autre dossier laissait le suivi
+# muet devant un calage qui tournait. Ici l'onglet 3 designe donc EXPRES un
+# autre dossier que celui du classeur compose : le suivi doit l'ignorer.
+_suivi = Path(ESSAI) / "suivi"                   # ce que le classeur dit
+dlg.edit_dossier_sortie.setText(str(ESSAI / "un_autre_dossier"))
 dlg.edit_sous_dossier_suivi.setText("suivi_essai")
+verifier("suivi : le dossier surveille est celui du classeur, pas celui de l'onglet 3",
+         dlg._dossier_suivi() == _suivi, f"{dlg._dossier_suivi()}")
+# Sans classeur — rien n'a encore ete compose ni repris —, l'onglet 3 reste
+# la seule indication, et le suivi y revient.
+_classeur_garde, dlg.classeur = dlg.classeur, None
+verifier("suivi : sans classeur, le dossier surveille revient a l'onglet 3",
+         dlg._dossier_suivi() == ESSAI / "un_autre_dossier" / "suivi_essai",
+         f"{dlg._dossier_suivi()}")
+dlg.classeur = _classeur_garde
+_suivi.mkdir(parents=True, exist_ok=True)
 
 
 def _ecrire_etat(**surcharges):
@@ -945,6 +962,11 @@ verifier("suivi : sans etat, rien n'est invente",
          "aucun calage" in dlg.label_suivi_banniere.text().lower()
          and dlg.table_suivi.rowCount() == 0,
          dlg.label_suivi_banniere.text()[:80])
+# ET LA BANNIERE DIT OU ELLE REGARDE. Un suivi muet parce qu'il regardait le
+# mauvais dossier ne se distinguait en rien d'un calage pas encore parti.
+verifier("suivi : sans etat, la banniere nomme le dossier qu'elle surveille",
+         str(_suivi) in dlg.label_suivi_banniere.text(),
+         dlg.label_suivi_banniere.text()[-100:])
 
 # LES JAUGES JUGENT SUR LES TOLERANCES DE L'ETUDE, pas sur des defauts. Figees
 # a 2 %, elles coloraient en rouge des valeurs qu'une etude a 5 % admet.

@@ -30,7 +30,8 @@ CE QUI EST EPROUVE
   - test_plugin_qgis.py sous le Python de QGIS (3.44.8 / Qt 5.15.13).
     149 CONTROLES, 0 ECHEC LE 01/09 AU SOIR — premier passage complet, sur une
     copie de CETTE_TEST1 (plan p03). Les six correctifs du 30/08 sont donc
-    desormais exerces SOUS QGIS.
+    desormais exerces SOUS QGIS. 152 CONTROLES LE 03/09 AU SOIR : trois de
+    plus, sur le dossier que l'onglet Suivi surveille (5.7, fin).
     IL LUI FAUT UN MODELE PORTANT DES RESULTATS : sans .pXX.hdf, huit
     controles echouent en cascade — ce n'est pas une regression.
     IL LUI FAUT AUSSI L'INTERPRETEUR HEC-RAS. Sur ce poste le greffon ne le
@@ -49,9 +50,11 @@ CE QUI EST EPROUVE
   - LES QUINZE BANCS SONT VERTS : les treize suites ci-dessus, plus
     faire_zip.py et essai_garde_fou_archive.py. Repasses le 03/09, apres les
     cinq correctifs et le prefixe de scenario (section 5.7).
-  - GREFFON EN 0.6.1. Son archive ne se comporte plus comme la 0.5.0 : les
-    livrables ont change (5.7), le classeur porte un parametre de plus, et le
-    bouton « Installer… » complete un environnement reutilise (5.7, fin).
+  - GREFFON EN 0.6.2. Son archive ne se comporte plus comme la 0.5.0 : les
+    livrables ont change (5.7), le classeur porte un parametre de plus, le
+    bouton « Installer… » complete un environnement reutilise, et l'onglet
+    Suivi regarde le dossier du CLASSEUR LANCE, plus celui de l'onglet 3
+    (5.7, fin).
 
 CINQ DEFAUTS DES LIVRABLES, TROUVES SUR LES DEUX CALAGES TERMINES (03/09)
   Les deux calages etaient CONFORMES, et leurs livrables INCOMPLETS. Detail
@@ -1638,6 +1641,32 @@ long a Ardanavy — attrape dix secondes avant, et non quatorze heures apres.
   deux fois, la seconde avec exactement « xarray ».
   EN ATTENDANT LA 0.6.1 SUR CE POSTE : taper la commande pip que le message
   donne, puis « Designer… » l'interpreteur.
+
+LE SUIVI REGARDAIT LE MAUVAIS DOSSIER (03/09, 19 h 30, Ardanavy Q100 V2). Le
+calage tournait — ARD06 valide en deux essais, ARD07 en cours au journal — et
+l'onglet Suivi disait « Aucun calage suivi », 0 %. Le lancement part de
+SELF.CLASSEUR, que « Reprendre un classeur d'un calcul precedent… » (onglet
+4) peut pointer n'importe ou ; le suivi lisait les champs de l'ONGLET 3, qui
+ne disent que ou composer le PROCHAIN paquet.
+  CHRONOLOGIE DU DISQUE : paquet compose dans V2 a 15 h 00, cibles saisies
+  (copie a 15 h 01) ; second paquet compose dans V3 a 15 h 26, classeur
+  VIERGE (13 Ko, sans cibles) ; a 15 h 29 le classeur V2 est reecrit (les
+  reglages de lancement) et le journal s'ouvre dans V2. Entre les deux, la
+  seule voie qui mene self.classeur de V3 a V2 est la reprise du classeur
+  (onglet 4). Le calage a ecrit dans V2 ; l'onglet 3 disait V3 ; le suivi
+  regardait V3.
+  LE PONT N'A JAMAIS EU CE DOUTE : il ecrit le suivi la ou LE CLASSEUR le dit
+  (Dossier_sortie, Sous_dossier_suivi). Le correctif (0.6.2) donne la meme
+  regle a la fenetre : noyau.dossier_suivi_du_classeur(), relu quand le
+  classeur change — chemin ou date —, pas toutes les deux secondes : il est
+  sur un partage reseau. Sans classeur, l'onglet 3 reste la seule indication.
+  ET LA BANNIERE « AUCUN CALAGE SUIVI » NOMME LE DOSSIER QU'ELLE SURVEILLE :
+  un suivi muet parce qu'il regardait ailleurs ne se distinguait en rien d'un
+  calage pas encore parti.
+  PREUVE : la suite QGIS fait designer a l'onglet 3 un AUTRE dossier que celui
+  du classeur compose. Sur le greffon d'avant, 16 controles du suivi echouent
+  et la suite s'arrete (table vide) ; apres, 152 controles passent. Banc 11
+  du noyau pour la regle seule.
 
 5.4  CE QUE LES CAS REELS ONT APPRIS, ENSEMBLE
 --------------------------------------------------------------------------

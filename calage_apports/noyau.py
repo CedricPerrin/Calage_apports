@@ -1630,6 +1630,33 @@ def chemins_du_classeur(chemin_classeur):
     }
 
 
+def dossier_suivi_du_classeur(chemin_classeur):
+    """
+    Dossier ou le calage lance sur ce classeur ecrit son suivi.
+
+    LA MEME REGLE QUE LE PONT, et aucune autre : « Dossier_sortie » de la
+    feuille Parametres, sinon le dossier du classeur ; puis
+    « Sous_dossier_suivi », sinon « suivi » (pont_hecras, commande caler).
+
+    C'est ce que l'onglet de suivi doit regarder. Le classeur dit ou le
+    calage ecrit ; l'onglet 3 de la fenetre ne dit que ou COMPOSER le
+    prochain paquet — et les deux divergent des qu'on reprend le classeur
+    d'un calcul precedent.
+    """
+    import pandas as pd
+
+    chemin_classeur = Path(chemin_classeur)
+    par = pd.read_excel(chemin_classeur, sheet_name="Parametres")
+    valeurs = dict(zip(par["Parametre"], par["Valeur"]))
+
+    def texte(cle, defaut=""):
+        v = valeurs.get(cle)
+        return defaut if v is None or pd.isna(v) else str(v).strip()
+
+    racine = Path(texte("Dossier_sortie") or chemin_classeur.parent)
+    return racine / texte("Sous_dossier_suivi", "suivi")
+
+
 def pk_pour_affichage(chemin_shp_lignes, chemin_shp_axe, sens="amont_aval"):
     """
     Calcule les PK d'une couche pour les afficher dans QGIS. C'est ce que le
@@ -2492,6 +2519,38 @@ if __name__ == "__main__":
         f"le message renvoie encore au bouton « Installer… » : {message_i}")
     print("   complement pose : pip install xarray, apres le lot")
     print("   message d'echec : nomme xarray et la commande, sans renvoyer au bouton")
+
+    print("\n11. LE SUIVI SE LIT DANS LE CLASSEUR  (03/09/2026)")
+    # Un calage lance sur le classeur d'un calcul precedent ecrivait son suivi
+    # la ou CE classeur le dit ; la fenetre regardait les champs de l'onglet 3,
+    # qui designaient le dossier du DERNIER paquet compose. Le suivi restait
+    # muet devant un calage qui tournait. La regle est celle du pont.
+    import pandas as pd
+    bac_s = Path(tempfile.mkdtemp(prefix="calage_suivi_"))
+    try:
+        ailleurs = bac_s / "sortie_du_classeur"
+        classeur_s = bac_s / "compose_ici" / "donnees_calage.xlsx"
+        classeur_s.parent.mkdir()
+        pd.DataFrame({"Parametre": ["Nom_projet", "Dossier_sortie",
+                                    "Sous_dossier_suivi"],
+                      "Valeur": ["Essai", str(ailleurs), "suivi_q100"]}
+                     ).to_excel(classeur_s, sheet_name="Parametres", index=False)
+        trouve = dossier_suivi_du_classeur(classeur_s)
+        assert trouve == ailleurs / "suivi_q100", (
+            f"le suivi doit suivre Dossier_sortie et Sous_dossier_suivi du "
+            f"classeur — rendu : {trouve}")
+        print(f"   classeur compose dans {classeur_s.parent.name}, "
+              f"suivi dans {trouve.parent.name}/{trouve.name} : c'est le classeur qui a parle")
+
+        # Sans ces deux cles — classeur d'une version anterieure —, la regle
+        # du pont vaut aussi : le dossier du classeur, sous-dossier « suivi ».
+        pd.DataFrame({"Parametre": ["Nom_projet"], "Valeur": ["Essai"]}
+                     ).to_excel(classeur_s, sheet_name="Parametres", index=False)
+        trouve = dossier_suivi_du_classeur(classeur_s)
+        assert trouve == classeur_s.parent / "suivi", trouve
+        print("   sans Dossier_sortie : le dossier du classeur, sous-dossier « suivi »")
+    finally:
+        shutil.rmtree(bac_s, ignore_errors=True)
 
     print("\nNoyau operationnel. Le plugin ne fait qu'appeler ces fonctions.")
     print("=" * 72)

@@ -48,7 +48,7 @@ passerait.
 plans — neuf), § 5.7 (les cinq défauts, mesurés), § 6 (le verdict de volume,
 à trancher).
 
-**15 bancs verts, 149 contrôles QGIS verts, greffon en 0.6.0.**
+**15 bancs verts, 152 contrôles QGIS verts, greffon en 0.6.2.**
 
 ### Ce que le relevé des dossiers a montré
 
@@ -123,6 +123,17 @@ n'avait pas complété : pip `--upgrade` (*only-if-needed*) ne re-résout pas le
 dépendances d'un paquet déjà présent. **0.6.1** : l'installeur pose ce que la
 sonde nomme puis revérifie, et son message ne renvoie plus au bouton. Banc 10,
 sans téléchargement ; il échoue sur le code d'avant (pip lancé une fois).
+
+### Le suivi regardait le mauvais dossier
+
+Le calage Ardanavy Q100 V2 tournait (ARD06 validé, ARD07 en cours) et
+l'onglet Suivi affichait « Aucun calage suivi ». Le lancement part de
+`self.classeur` — que « Reprendre un classeur… » (onglet 4) peut pointer
+n'importe où ; le suivi lisait les champs de l'**onglet 3**, qui ne disent
+que où composer le prochain paquet. **0.6.2** : le suivi lit le dossier dans
+le classeur (`noyau.dossier_suivi_du_classeur`, la règle du pont), et la
+bannière nomme le dossier surveillé. Suite QGIS : l'onglet 3 désigne exprès
+un autre dossier — 16 contrôles échouent avant, 152 passent après.
 
 ## Nuit du 1er au 2 septembre 2026 — le critère reposait sur une mesure fausse
 
@@ -1713,7 +1724,7 @@ for m in calage criteres suivi livrables controle_donnees geometrie \
 "$PY" essai_garde_fou_archive.py       # doit finir sur « TOUT PASSE »
 ```
 
-**Plugin, sous l'interpréteur QGIS — 149 contrôles.** Trois conditions, et
+**Plugin, sous l'interpréteur QGIS — 152 contrôles.** Trois conditions, et
 aucune n'est facultative :
 
 - `--modele` doit désigner une **COPIE** : la suite MODIFIE la géométrie du

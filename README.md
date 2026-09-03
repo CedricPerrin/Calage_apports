@@ -55,7 +55,7 @@ l'installation (voir plus bas).
 | [src/creer_template.py](src/creer_template.py) / [src/style_classeur.py](src/style_classeur.py) | Fabrication et mise en forme du classeur de saisie |
 | [src/faire_zip.py](src/faire_zip.py) | Construit `calage_apports.zip`, l'archive d'installation du plugin |
 | [src/essai_garde_fou_archive.py](src/essai_garde_fou_archive.py) | Essai **adverse** : injecte trois fautes dans l'archive et vérifie qu'elles sont refusées |
-| [src/test_plugin_qgis.py](src/test_plugin_qgis.py) | Suite du plugin (149 contrôles), à lancer sous l'interpréteur de QGIS et sur une **copie** d'un modèle |
+| [src/test_plugin_qgis.py](src/test_plugin_qgis.py) | Suite du plugin (152 contrôles), à lancer sous l'interpréteur de QGIS et sur une **copie** d'un modèle |
 | `src/figures_note/` | Reconstruction de la note méthodologique : contenu, figures, assemblage du `.docx` |
 | [methodologie_calage_amont_aval.docx](methodologie_calage_amont_aval.docx) | Note méthodologique (mode opératoire, méthode générale, application HEC-RAS/QGIS, livrables) |
 | `calage_apports/` | Plugin QGIS — voir son propre [LISEZMOI.md](calage_apports/LISEZMOI.md) (installation, tests, contraintes d'environnement) |

@@ -14,7 +14,7 @@ onglets — l'ordre des onglets est celui des décisions.
 | 2. Profil en long | axe hydraulique — PK et profil — et précision attendue sur le volume et sur le débit de pointe |
 | 3. Résultats | dossiers de sortie et de suivi, relecture d'un hydrogramme calculé (export CSV), résumé de la configuration |
 | 4. Lancer | appariement apport → section, cibles restant à saisir, reprise d'un classeur d'un calcul précédent, premier apport à caler, **préfixe de scénario** (« Q100 » : sans lui, caler le Q10 après le Q100 sur le même modèle efface les plans du Q100), **lancement du calage** en arrière-plan |
-| 5. Suivi | où en est le calcul : apport en cours, essai, atteinte du volume, de la pointe et de la forme, courbes cible et section, temps restant. Se rafraîchit tout seul tant qu'il est affiché |
+| 5. Suivi | où en est le calcul : apport en cours, essai, atteinte du volume, de la pointe et de la forme, courbes cible et section, temps restant. Se rafraîchit tout seul tant qu'il est affiché. Le dossier surveillé est celui que désigne le **classeur lancé** — pas celui de l'onglet 3 — et la bannière le nomme |
 | Aide | mode opératoire, pièges connus, et diagnostic de l'environnement |
 
 Le bouton **Composer et contrôler**, permanent en bas de la fenêtre, écrit les
@@ -210,6 +210,8 @@ la cible, pointes de 98,1 à 101,7 %, formes de 97,1 à 100,0 %.
 
 Le même jour, la suite du plugin (`test_plugin_qgis.py`) est passée pour la
 première fois de bout en bout sous QGIS : **149 contrôles, aucun échec**.
+Le 3 septembre, **152** : trois de plus sur le dossier que l'onglet Suivi
+surveille — celui du classeur lancé, et non celui de l'onglet 3 (0.6.2).
 
 > Ce que ces deux calages n'ont PAS rencontré : un volume plancher, un apport
 > refusé, un modèle incohérent. Les garde-fous qui traitent ces cas n'ont donc
