@@ -47,6 +47,9 @@ passerait.
 **Par quoi reprendre :** `STATUT.txt` § 1 (les deux calages), § 2.2 ter et
 § 5.5 (le décalage), § 6 (points ouverts).
 
+> **Où sont les résultats** (déplacés le 03/09) : `<modèle>\3-Apports\<MODÈLE>_Apports_Q100`.
+> Les **modèles**, eux, n'ont pas bougé.
+
 **Ardanavy Q100 s'est terminé le 02/09 à 0 h 34, CONFORME** — six apports sur
 six, un ou deux essais chacun, 14 h 29, bilan de masse 0,011 %, zéro incident.
 Premier calage complet et conforme de la chaîne corrigée.

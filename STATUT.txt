@@ -51,19 +51,24 @@ CE QUI EST EPROUVE
     apres les correctifs et les coupes du 31/08 (section 5.3 ter).
 
 LES DEUX CALAGES SONT TERMINES ET CONFORMES — RELEVE DU 02/09 A 16 H 25
+  LEURS SORTIES ONT DEMENAGE LE 03/09 : elles vivent desormais sous
+  « <modele>\3-Apports\<MODELE>_Apports_Q100 ». LES MODELES, EUX, N'ONT PAS
+  BOUGE — les chemins de plans cites plus bas (Ardanavy.p04, p10, ARAN.u24)
+  restent valides.
   ARDANAVY Q100 — TERMINE LE 02/09 A 0 H 34, CONFORME. Six apports sur six, un
   ou deux essais chacun, 14 h 29 en tout. Volumes 97,7 a 100,7 %, pointes 98,2
   a 101,7 %, formes 99,1 a 100,0 %, bilan de masse 0,011 %, zero incident.
   C'EST LE PREMIER CALAGE COMPLET ET CONFORME DE LA CHAINE CORRIGEE : lance le
   01/09 a 10:05 avec le zip de 09:55 (commit 6964bd9), il est le premier
   passage en production du correctif d'unites, de l'horodatage et de l'alerte
-  de couverture. Sorties sur T:\...\1-ARDANAVY\Apports\Q100. Ses Dt
+  de couverture. Sorties sur T:\...\1-ARDANAVY\3-Apports\ARDANAVY_Apports_Q100.
+  Ses Dt
   corrigent la section 5.5.
   SUHIHANDIA V3 — TERMINE LE 02/09 A 10 H 41, CONFORME. Douze apports sur
   douze, DIX EN UN SEUL ESSAI. Volumes 99,9 a 102,1 %, pointes 98,1 a 100,0 %,
   formes 97,1 a 100,0 %, bilan de masse 0,367 %, zero incident. 46 h 07 en
   tout, du 31/08 12:33 au 02/09 10:41. Sorties sur
-  T:\...\Suhihandia_v7\HEC_RAS_v7_Suhihandia\Sortie-V3.
+  T:\...\2-ARAN-SUHIHANDIA\3-Apports\SUHIHANDIA_Apports_Q100.
   IL A TOURNE AVEC LA CHAINE D'AVANT LES CORRECTIFS DU 31/08 AU SOIR : ses
   douze fenetres commencent TOUTES a 0,00 h — la signature du bug d'unites.
   Elles sont surdimensionnees, ses resultats restent valides mais couteux :
@@ -400,6 +405,14 @@ CE QUE CELA CHANGE POUR NOTRE 5 %.
   DEGRADE le bilan (1,12 -> 1,39 %, § 5.3), alors que c'est le remede que la
   litterature de praticiens propose en premier. HEC, lui, ne le propose pas :
   il renvoie au maillage, aux conditions limites et aux tolerances 2D.
+
+LE SEUIL RESTE A 5 %, ET ON N'ESSAIE PLUS DE LE FONDER — decision utilisateur
+du 03/09/2026. La recherche ci-dessus a etabli qu'il n'y a RIEN a quoi
+l'adosser : ni l'USACE ni le cadre francais ne publient de seuil. Continuer a
+chercher reviendrait a fabriquer une justification apres coup pour une valeur
+qui fait son travail — arreter le calage sur une erreur du solveur, sans
+l'arreter au hasard des calculs. Ce paragraphe garde ce qui a ete trouve : il
+dit ce que le seuil EST et ce qu'il n'est PAS, et cela suffit.
 Le bilan du dernier calcul est publie dans avancement.json
 (suivi.noter_bilan_masse) et affiche sous les jauges du greffon.
 
@@ -1589,20 +1602,6 @@ A FAIRE, PAR ORDRE DE PRIORITE
   classeur d'iterations, la version de ras-commander, et la moitie du
   bornement a la fenetre. Un point ouvert ne se perime pas tout seul : il
   reste ecrit tel qu'il a ete pose, et le code, lui, avance.
-  - PORTER DANS LA NOTE CE QUE LES SOURCES DISENT DU BILAN DE MASSE. La
-    recherche est faite (§ 2, sous le seuil) et son resultat est une ABSENCE :
-    personne ne publie de seuil, ni l'USACE ni le cadre francais. Reste a
-    l'ECRIRE dans la note, et a en tirer les deux consequences :
-      1. dire que le 5 % est un critere de COMPARABILITE et non de qualite du
-         modele, pour qu'il ne soit pas relu comme une caution ;
-      2. decider si un bilan a 1 % — un a deux ordres de grandeur au-dessus de
-         ce que HEC appelle « very low » — doit etre REMONTE au client comme
-         une observation sur le modele, distincte du verdict de calage. La
-         chaine publie deja la valeur (avancement.json, jauges du greffon) ;
-         elle n'en dit rien.
-    CE QUI N'A PAS ETE TROUVE, et qu'il faudrait chercher ailleurs qu'en
-    ligne : un critere chiffre dans le referentiel FFRP / SHF, ou dans un SOP
-    d'ingenierie. Les recherches n'ont rendu que du qualitatif.
   - VERIFIER LA NOTE A L'OEIL. Elle a ete reconstruite le 01/09 (V15, 25
     pages, 8 334 mots, 22 tableaux, 8 figures) : § 1.4 porte la regle de
     couverture, § 1.6 un h3 sur la duree ajustee, § 2.3 la reecriture de
