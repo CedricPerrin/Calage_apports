@@ -337,18 +337,46 @@ def controler_geometrie(chemin_template):
         anomalies.append((ERREUR, f"feuille Correspondance illisible : {e}"))
         return anomalies, None
 
+    noms_absents = []
     for declares, presents, libelle in [
         (noms_sections, set(g_sec["nom"]), "section de controle"),
         (noms_apports, set(g_app["nom"]), "ligne d'injection"),
     ]:
         absents = [n for n in declares if n not in presents]
         if absents:
+            noms_absents += absents
             anomalies.append((
                 ERREUR,
                 f"{libelle}(s) declaree(s) dans le template mais absente(s) du "
                 f"shapefile : {absents} (presentes : {sorted(presents)})"))
 
-    if axe is None or any(n == ERREUR for n, _ in anomalies):
+    # CE QUI EMPECHE UN PK, DIT EN CLAIR — et non plus deduit de la gravite
+    # GENERALE du controle SIG. Un PK est une projection metrique sur l'axe,
+    # indexee par le nom : il lui faut l'axe, une projection metrique, et tous
+    # les noms declares presents UNE SEULE FOIS. Rien d'autre.
+    #   LA SORTIE PRECEDENTE — « des qu'une anomalie ERREUR traine, quelle
+    #   qu'elle soit » — supprimait le tableau pour des defauts qui ne
+    #   deplacent aucun PK. Mesure en production : sur un calage CONFORME de
+    #   douze apports, une ligne d'injection de 94 cm, signalee « de longueur
+    #   quasi nulle », a fait disparaitre le profil en long ET les pentes
+    #   locales deduites, derriere un « PK indisponibles » qui ne nommait
+    #   rien. L'anomalie reste dite, au meme niveau ; elle n'efface plus les PK.
+    #   UN NOM EN DOUBLON, LUI, BLOQUE VRAIMENT : dict(zip(...)) garderait la
+    #   derniere occurrence en silence, et le profil placerait la section au
+    #   mauvais PK.
+    doublons = sorted({n for g in (g_sec, g_app)
+                       for n in g["nom"][g["nom"].duplicated()]})
+    if axe is None or noms_absents or doublons:
+        raisons = ["axe hydraulique indisponible"] if axe is None else []
+        if noms_absents:
+            raisons.append(f"noms declares absents des shapefiles : "
+                           f"{noms_absents}")
+        if doublons:
+            raisons.append(f"noms en doublon dans les shapefiles : {doublons}")
+        anomalies.append((
+            AVERTISSEMENT,
+            f"PK non calculables ({' ; '.join(raisons)}) : ni ordre declare "
+            f"verifie, ni profil en long, ni pente locale deduite."))
         return anomalies, None
 
     # --- PK et coherence geographique -------------------------------------
@@ -724,6 +752,57 @@ if __name__ == "__main__":
     template_sig(t_ordre, ["S1", "S3", "S2", "S4"])
     afficher(controler_geometrie(t_ordre)[0],
              "\nOrdre declare S1, S3, S2, S4 alors que S2 precede S3")
+
+    # --- UNE ERREUR SANS RAPPORT AVEC LES PK NE DOIT PLUS LES EFFACER -----
+    #
+    # Mesure en production : sur un calage CONFORME de douze apports, une
+    # ligne d'injection de 94 cm — signalee « de longueur quasi nulle », ce
+    # qui est juste — a fait disparaitre le tableau des PK, et avec lui le
+    # profil en long et les pentes locales deduites. La porte testait la
+    # GRAVITE GENERALE du controle SIG, pas les conditions du PK.
+    dossier_court = Path(tempfile.gettempdir()) / "calage_shp_test_court"
+    dossier_court.mkdir(exist_ok=True)
+    # Le troisieme apport mesure 94 cm : assez pour lever l'ERREUR, pas assez
+    # pour deplacer un PK — il se projette sur l'axe comme les autres.
+    _geoms = [transversale(x, 250) for x in (200, 2100, 4300, 6600)]
+    _geoms[2] = LineString([(500000 + 4300, 6200000 + 0.0),
+                            (500000 + 4300, 6200000 + 0.94)])
+    gpd.GeoDataFrame({"Nom": noms_a}, geometry=_geoms,
+                     crs=CRS).to_file(dossier_court / "apports.shp")
+    t_court = dossier_court / "template_sig_court.xlsx"
+    template_sig(t_court, noms_s)
+    _p = pd.read_excel(t_court, sheet_name="Parametres")
+    _p.loc[_p["Parametre"] == "Fichier_SHP_Apports", "Valeur"] = str(
+        dossier_court / "apports.shp")
+    with pd.ExcelWriter(t_court, engine="openpyxl", mode="a",
+                        if_sheet_exists="replace") as w:
+        _p.to_excel(w, sheet_name="Parametres", index=False)
+    _anos, _tab = controler_geometrie(t_court)
+
+    # CE MODULE N'AVAIT AUCUNE ASSERTION : son auto-test se contentait
+    # d'afficher, donc « il passe » ne voulait dire que « il n'a pas plante ».
+    # Ces deux controles-la, eux, doivent pouvoir ECHOUER.
+    _echecs_pk = []
+
+    def _verifier(libelle, condition, detail=""):
+        print(f"   [{'OK' if condition else 'ECHEC'}] {libelle}"
+              + (f"  ->  {detail}" if detail else ""))
+        if not condition:
+            _echecs_pk.append(libelle)
+
+    print("\nUne ERREUR sans rapport avec les PK ne doit plus les effacer")
+    print("-----------------------------------------------------------")
+    # LE NIVEAU, PAS SEULEMENT LE TEXTE. Degrader cette anomalie en
+    # AVERTISSEMENT rouvrirait la porte d'origine et ferait verdir ce banc
+    # sans que rien ne soit corrige : on exige donc ERREUR.
+    _verifier("la ligne d'injection de 94 cm reste signalee en ERREUR",
+              any(n == ERREUR and "quasi nulle" in m for n, m in _anos),
+              " | ".join(m[:60] for n, m in _anos if n == ERREUR)[:140])
+    _verifier("et les PK sont malgre tout calcules",
+              _tab is not None and len(_tab) > 0,
+              "tableau rendu" if _tab is not None else "AUCUN TABLEAU")
+    if _echecs_pk:
+        raise SystemExit(f"{len(_echecs_pk)} ECHEC(S) : {_echecs_pk}")
 
     print("\nAnomalies que ce cas doit faire remonter :")
     for att in [
