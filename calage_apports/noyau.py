@@ -716,7 +716,24 @@ def verifier_interpreteur(chemin):
         "    manquants = [m for m in manquants if not m.startswith('win32')]\n"
         "if manquants:\n"
         "    print('MANQUANTS ' + ' '.join(manquants)); sys.exit(3)\n"
-        "import ras_commander, h5py\n"
+        # IMPORTER CE QU'ON APPELLE, PAS SEULEMENT CE QU'ON NOMME.
+        # PAQUETS_HECRAS enumere ce que LA CHAINE importe ; ras-commander a
+        # ses propres dependances, qu'on ne peut pas suivre a la main sans
+        # diverger a la premiere version. find_spec sur nos dix noms rendait
+        # donc une liste VIDE sur un interpreteur prive de xarray — que
+        # ras-commander exige pour HdfResultsMesh, seule voie du profil en
+        # long. Et sur une ras-commander qui charge .hdf paresseusement,
+        # « import ras_commander » passait AUSSI : le calage tournait 14 h,
+        # et seule la figure mourait — « profil en long de synthese : non
+        # calculable (ModuleNotFoundError: No module named 'xarray') »,
+        # releve en production le 02/09/2026.
+        # UN ModuleNotFoundError REPART PAR LE CANAL DES MANQUANTS : c'est le
+        # seul message qui donne la commande pip, donc le seul utilisable.
+        "try:\n"
+        "    import h5py, ras_commander\n"
+        "    from ras_commander import HdfResultsMesh\n"
+        "except ModuleNotFoundError as manque:\n"
+        "    print('MANQUANTS ' + (manque.name or '?')); sys.exit(3)\n"
         "print(f'python {sys.version_info.major}.{sys.version_info.minor}"
         ".{sys.version_info.micro}, ras-commander "
         "{ras_commander.__version__}, h5py {h5py.__version__}')")
@@ -735,7 +752,12 @@ def verifier_interpreteur(chemin):
         return False, f"{type(e).__name__}: {e}"
     if acheve.returncode == 3 and "MANQUANTS" in (acheve.stdout or ""):
         absents = acheve.stdout.split("MANQUANTS", 1)[1].split()
-        pip = " ".join(p for i, p in PAQUETS_HECRAS if i in absents)
+        # UN MANQUANT PEUT NE PAS ETRE DES NOTRES — xarray arrive par
+        # ras-commander. A defaut de nom pip connu, le nom d'import fait une
+        # commande juste ; le taire rendrait « pip install » sans rien
+        # derriere.
+        connus = dict(PAQUETS_HECRAS)
+        pip = " ".join(connus.get(a, a) for a in absents)
         return False, (
             f"module(s) absent(s) de cet interpreteur : "
             f"{', '.join(absents)}.\n\nLe pont en a besoin des la premiere "
@@ -1891,6 +1913,17 @@ def lancer_calage(chemin_classeur):
     horodatage = time.strftime("%Y%m%d_%H%M%S")
     journal = chemin_classeur.parent / f"calage_{horodatage}.log"
 
+    # DIX SECONDES CONTRE QUATORZE HEURES. restaurer_interpreteur() ne
+    # verifie au demarrage de QGIS que l'EXISTENCE du fichier — a dessein,
+    # pour ne pas retarder l'ouverture. Un interpreteur declare bon un jour
+    # etait donc cru sur parole indefiniment, et un module disparu depuis ne
+    # se decouvrait qu'a la fin du calage, dans la figure qui en a besoin.
+    # Ici, et ici seulement, le sous-processus est negligeable devant ce
+    # qu'il protege.
+    ok, motif = verifier_interpreteur(interpreteur)
+    if not ok:
+        raise RuntimeError(f"interpreteur HEC-RAS inutilisable : {motif}")
+
     commande = [str(interpreteur), str(chaine / "pont_hecras.py"),
                 "caler", "--template", str(chemin_classeur)]
     drapeaux = 0
@@ -2264,5 +2297,70 @@ if __name__ == "__main__":
     print(f"   chaine retenue apres essais : {trouver_chaine()}")
 
     print("\n" + "=" * 72)
-    print("Noyau operationnel. Le plugin ne fait qu'appeler ces fonctions.")
+    print("\n9. UN MANQUE QUI N'EST PAS DANS NOTRE LISTE  (xarray)")
+    # Production, 02/09/2026 : calage conforme apres 14 h, puis « profil en
+    # long de synthese : non calculable (ModuleNotFoundError: No module named
+    # 'xarray') ». xarray n'est a nous NI par l'import NI par la liste : c'est
+    # ras-commander qui l'exige pour HdfResultsMesh. find_spec sur les dix
+    # noms de PAQUETS_HECRAS ne pouvait pas le voir ; et sur une ras-commander
+    # qui charge .hdf paresseusement, « import ras_commander » ne le voyait
+    # pas non plus. L'interpreteur etait ACCEPTE.
+    # AUCUN TELECHARGEMENT : « venv --without-pip » et des modules factices.
+    bac_x = Path(tempfile.mkdtemp(prefix="calage_xarray_"))
+
+    def interpreteur_sans_xarray(nom, paresseux):
+        """
+        Faux interpreteur : les modules de PAQUETS_HECRAS sont la, une
+        ras_commander factice exige xarray pour HdfResultsMesh, et xarray est
+        ABSENT. « paresseux » reproduit une ras-commander qui ne charge .hdf
+        qu'a la demande — la seule forme ou le calage va jusqu'au bout avant
+        de buter sur la figure.
+        """
+        cible = bac_x / nom
+        subprocess.run([sys.executable, "-m", "venv", "--without-pip",
+                        str(cible)], check=True, capture_output=True)
+        paquets = cible / "Lib" / "site-packages"
+        for module in (i for i, _ in PAQUETS_HECRAS if i != "ras_commander"):
+            (paquets / f"{module}.py").write_text("__version__ = '0.0'\n",
+                                                  encoding="utf-8")
+        rc = paquets / "ras_commander"
+        (rc / "hdf").mkdir(parents=True)
+        (rc / "hdf" / "__init__.py").write_text(
+            "from .HdfResultsMesh import HdfResultsMesh\n", encoding="utf-8")
+        (rc / "hdf" / "HdfResultsMesh.py").write_text(
+            "import xarray as xr\n\n\nclass HdfResultsMesh:\n    pass\n",
+            encoding="utf-8")
+        (rc / "__init__.py").write_text(
+            ("__version__ = '0.99.0'\n"
+             "_TARDIFS = {'HdfResultsMesh'}\n"
+             "def __getattr__(n):\n"
+             "    if n in _TARDIFS:\n"
+             "        from .hdf import HdfResultsMesh\n"
+             "        return HdfResultsMesh\n"
+             "    raise AttributeError(n)\n")
+            if paresseux else
+            ("__version__ = '0.99.1'\n"
+             "from .hdf import HdfResultsMesh\n"), encoding="utf-8")
+        return cible / "Scripts" / "python.exe"
+
+    try:
+        for nom_cas, tardif in (("chargement paresseux de .hdf", True),
+                                ("chargement immediat de .hdf", False)):
+            faux = interpreteur_sans_xarray(
+                "paresseux" if tardif else "immediat", tardif)
+            ok_x, msg_x = verifier_interpreteur(faux)
+            assert not ok_x, (
+                f"un interpreteur sans xarray doit etre REFUSE "
+                f"({nom_cas}) — rendu : {msg_x}")
+            # LE REFUS NE SUFFIT PAS : il doit NOMMER le module et donner la
+            # commande. Un « ModuleNotFoundError » brut n'apprend a personne
+            # quoi installer.
+            assert "xarray" in msg_x and "pip install" in msg_x, (
+                f"le refus doit nommer xarray et la commande pip "
+                f"({nom_cas}) — rendu : {msg_x}")
+            print(f"   {nom_cas} -> refuse, et la commande pip est donnee")
+    finally:
+        shutil.rmtree(bac_x, ignore_errors=True)
+
+    print("\nNoyau operationnel. Le plugin ne fait qu'appeler ces fonctions.")
     print("=" * 72)

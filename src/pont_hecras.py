@@ -1599,6 +1599,12 @@ def commande_caler(args):
 
     print(f"Calage : {len(apports)} apport(s), plan de reference "
          f"{plan_reference}", flush=True)
+    # QUEL PYTHON A TOURNE. Un calage de 14 h s'est termine sur « No module
+    # named 'xarray' » alors que l'interpreteur verifie par le projet le porte
+    # depuis juillet : il avait tourne sur un AUTRE python — ras-commander
+    # 0.99.2 au journal, 0.99.1 dans le venv du projet — et rien dans le
+    # journal ne disait lequel. Une ligne, et l'on sait quoi corriger.
+    print(f"Interpreteur : {sys.executable}", flush=True)
     resultat = caler(pilote, apports, sections, cibles, config, suivi=suivi,
                      journal=_dire_horodate,
                      etape_reference=etape_reference)
