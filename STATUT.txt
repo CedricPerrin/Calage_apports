@@ -50,11 +50,21 @@ CE QUI EST EPROUVE
   - LES QUINZE BANCS SONT VERTS : les treize suites ci-dessus, plus
     faire_zip.py et essai_garde_fou_archive.py. Repasses le 03/09, apres les
     cinq correctifs et le prefixe de scenario (section 5.7).
-  - GREFFON EN 0.6.2. Son archive ne se comporte plus comme la 0.5.0 : les
+  - GREFFON EN 0.6.3. Son archive ne se comporte plus comme la 0.5.0 : les
     livrables ont change (5.7), le classeur porte un parametre de plus, le
-    bouton « Installer… » complete un environnement reutilise, et l'onglet
+    bouton « Installer… » complete un environnement reutilise, l'onglet
     Suivi regarde le dossier du CLASSEUR LANCE, plus celui de l'onglet 3
-    (5.7, fin).
+    (5.7, fin), et la coherence du decalage se juge A LA FIN, sur les Dt
+    retenus (2.2 ter).
+
+UN TROISIEME CALAGE COMPLET (03-04/09) : ARDANAVY Q100, REFAIT DE ZERO.
+  6/6 CONFORME en 16 h 49, 11 calculs, livrables COMPLETS au premier passage
+  — profil en long, feuille Hydrogrammes_apports, figures entieres, plan
+  final « Q100-avec apports », prefixe sur tous les plans. Detail en 5.7
+  (fin). Deux lecons : le critere de coherence du decalage TIRAIT SUR LA
+  LECTURE FAUSSE — corrige, 2.2 ter — et le verdict de volume a son chiffre
+  reproductible (6.).
+
 
 CINQ DEFAUTS DES LIVRABLES, TROUVES SUR LES DEUX CALAGES TERMINES (03/09)
   Les deux calages etaient CONFORMES, et leurs livrables INCOMPLETS. Detail
@@ -361,10 +371,30 @@ volume. Ce que l'etendue interroge est le POSITIONNEMENT TEMPOREL des
 hydrogrammes d'apport livres — un apport cale sur une cible decalee de 4,3 h
 reproduit sa forme, a 4,3 h pres, et le decalage n'est pas le meme partout.
 
-NE COUTE AUCUNE SIMULATION, et c'est tout l'interet : les pics cibles viennent
-du classeur, ceux du modele du calcul de reference, qui a lieu de toute facon.
-Sur le calage du 31/08 la mesure aurait ete disponible 2 h 23 apres le
-lancement au lieu de 25 h ; sur le second modele, 1 h 22 apres.
+SUR QUEL ETAT DU MODELE — LE TROISIEME CALAGE A TRANCHE (04/09/2026). Le code
+mesurait le critere sur le calcul de REFERENCE, tous apports a zero, pour le
+rendre 1 h 22 apres le lancement. C'est exactement la lecture que ce paragraphe
+declare fausse : sections aval affamees, derive fabriquee par le rang. Les
+chiffres « ARDANAVY 1,8 h, aucune alerte » ci-dessus avaient ete calcules
+APRES COUP sur les Dt retenus ; en production, le critere n'avait jamais
+tourne sur ce modele (absent du journal du 01/09). Sa premiere sortie reelle,
+le 03/09 a 16 h 54 : « DERIVE de 7,2 h... +2,33 h par section » — les valeurs
+a apports nuls, au centieme —, portee au journal, a la reponse JSON et a la
+NOTE DE SYNTHESE livree, sur un modele qui ne derive pas.
+  DEPUIS : caler() recueille, apport par apport, le Dt RETENU et la fenetre
+  jugee — ceux que la correction emploie — et juge A LA FIN
+  (calage._coherence_points). Sur ce run : Dt -1,7 / -0,9 / -1,8 / -1,4 /
+  -0,6 / 0,0, etendue 1,8 h, fenetres 15,5 h en mediane, seuil 2,3 h : AUCUNE
+  alerte, comme le tableau ci-dessus. Suhihandia (6,6 h) alerterait toujours.
+  On perd la mesure precoce ; elle etait fausse. _coherence_decalage, qui
+  mesure depuis des series, ne sert plus qu'au banc.
+  BANC : sur le modele fictif, la ligne « coherence » doit sortir APRES la
+  verification finale et son etendue etre celle des Dt retenus au journal —
+  sur le code d'avant elle sortait avant le premier apport ; et les six Dt
+  reels ci-dessus ne levent rien, la ou des fenetres de 8 h leveraient.
+  LA NOTE DE SYNTHESE DU RUN V2 PORTE LA RESERVE FAUSSE (« Reserves sur
+  l'ensemble du calage ») : a regenerer par reconstruire_livrables.py si ce
+  dossier est livre.
 
 CINQ GARDE-FOUS :
   - QUATRE APPORTS AU MINIMUM : une derive sur deux ou trois n'a pas de sens ;
@@ -1668,6 +1698,36 @@ ne disent que ou composer le PROCHAIN paquet.
   et la suite s'arrete (table vide) ; apres, 152 controles passent. Banc 11
   du noyau pour la regle seule.
 
+LE TROISIEME CALAGE COMPLET — ARDANAVY Q100, REFAIT DE ZERO AVEC LA 0.6.1
+(lance le 03/09 a 15 h 29, termine le 04/09 a 8 h 18 : 16 h 49, 11 calculs).
+  6/6 CONFORME. Deux essais pour ARD06, ARD07, ARD08 et ARD11 — pointe courte
+  au premier (97,3 / 94,1 / 97,8 / 102,9 %), rattrapee au second — ; UN SEUL
+  pour ARD09 et ARD10. Volumes 96,6 a 101,0 %, pointes 98,2 a 101,6 %, formes
+  99,2 a 100,0 %. Bilan de masse 0,011 %. Un essai dure 1 h 10 a 1 h 50.
+  ARD11 REJOUE LE 01/09 A LA DECIMALE : essai 1 a 82,8 / 102,9 / 86,9 %
+  (87,3 / 102,9 / 84,4 le 01/09), correction au pic +19,9 m3/s les deux fois,
+  essai 2 valide les deux fois. Cas de FORME connu et reproductible : cible
+  large centree a 16 h, residuel amont a 91 % de la cible arrivant tard et
+  etale, deficit injecte d'un bloc qui fait un pic etroit a 14,3 h. Seule
+  difference : le Dt fige, +1,00 h le 01/09, 0,00 h ici — la recherche des
+  pics bornee a la fenetre (02/09) a bouge la mesure d'une heure, la fenetre
+  jugee avec elle (5,5-20,7 puis 4,5-19,7 h), sans effet sur l'essai.
+  LES LIVRABLES SONT COMPLETS AU PREMIER PASSAGE, pour la premiere fois :
+  15 fichiers, profil en long (738 points, PK 0-18 423 m), tableaux_calage.xlsx
+  avec ses quatre feuilles dont Hydrogrammes_apports (300 lignes, six
+  colonnes), figures de comparaison montrant la crue entiere (6-37 h), note de
+  synthese. Le prefixe est sur les sept plans (« Q100-sans apport »,
+  « Q100-Apport_ARDxx »), le plan final s'appelle « Q100-avec apports » (p08
+  retitre, u08 aussi), et les deux plans du 01/09 (p04, p11) sont restes en
+  place — la chaine saute les numeros pris.
+  CE QUE CE RUN A REVELE, deux defauts hors chaine de calcul : l'onglet Suivi
+  regardait le mauvais dossier (ci-dessus, 0.6.2) ; et le critere de
+  coherence du decalage a tire sur la lecture a apports nuls, jusque dans la
+  note livree (2.2 ter, 0.6.3).
+  ET LE VERDICT DE VOLUME A SON CHIFFRE REPRODUCTIBLE : ARD11 rend 100,3 % sur
+  la fenetre jugee et 111,7 % sur la crue entiere — 0,5 hm3 de trop dans la
+  decrue, hors fenetre —, contre 111,8 % le 01/09 (6.).
+
 5.4  CE QUE LES CAS REELS ONT APPRIS, ENSEMBLE
 --------------------------------------------------------------------------
   - CALER LA SECTION ET DETERMINER L'APPORT SONT DEUX QUESTIONS DISTINCTES.
@@ -1953,6 +2013,11 @@ A TRANCHER
       A TRANCHER PAR L'UTILISATEUR, PAS PAR LE CODE : elargir la fenetre a la
     crue changerait des verdicts deja rendus. La FIGURE, elle, montre desormais
     la crue entiere (5.7) : l'ecart se voit, il ne se juge pas encore.
+      LE CHIFFRE EST REPRODUCTIBLE (04/09, run V2, calage refait de zero) :
+    ARD11 rend 100,3 % sur la fenetre 4,5-19,7 h et 111,7 % sur la crue
+    entiere, 0,5 hm3 de trop dans la decrue — 111,8 % le 01/09. Meme modele,
+    memes cibles, deux calages independants : ce n'est pas un accident de
+    run, c'est la fenetre.
   - FAUT-IL REFUSER DE CALER UN APPORT DONT LA PART TOMBE SOUS UN SEUIL ?
     La chaine ALERTE avant de calculer, puis continue. La reponse est
     methodologique : caler la SECTION reste legitime, c'est publier l'APPORT

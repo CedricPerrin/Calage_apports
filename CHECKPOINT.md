@@ -42,6 +42,39 @@ fournir. Le garde-fou n'est donc pas muet — mais il ne surveille rien de réel
 Avant de committer depuis un clone neuf, se rappeler qu'un nom de client
 passerait.
 
+## Session du 4 septembre 2026 — le troisième calage, et ce qu'il a révélé
+
+**Par quoi reprendre :** `STATUT.txt` § 1 (état courant), § 2.2 ter (le
+critère de cohérence se juge à la fin — corrigé), § 5.7 fin (le troisième
+calage, mesuré), § 6 (le verdict de volume, chiffre reproductible).
+
+**15 bancs verts, 152 contrôles QGIS verts, greffon en 0.6.3.**
+
+### Ardanavy Q100, refait de zéro avec la 0.6.1 : 6/6 conforme en 16 h 49
+
+Livrables **complets au premier passage** : profil en long, feuille
+`Hydrogrammes_apports`, figures entières, plan final « Q100-avec apports »,
+préfixe sur les sept plans. ARD11 rejoue le 01/09 à la décimale (cas de forme,
+validé au second essai). Volume : ARD11 à 100,3 % sur la fenêtre jugée,
+**111,7 % sur la crue entière** — 111,8 % le 01/09. Reproductible : c'est la
+fenêtre (§ 6, à trancher par l'utilisateur).
+
+### Le critère de cohérence tirait sur la lecture fausse — 0.6.3
+
+`_coherence_decalage` se mesurait sur le **calcul de référence**, tous apports
+à zéro : l'état que § 2.2 ter déclare faux depuis le 02/09 (sections aval
+affamées). Première sortie réelle le 03/09 : « DÉRIVE de 7,2 h » sur un modèle
+qui, calé, s'étend sur 1,8 h — réserve portée jusque dans `synthese.md`.
+Désormais `caler()` recueille le Δt **retenu** et la fenêtre de chaque apport
+et juge **à la fin** (`_coherence_points`). Banc : la ligne « cohérence » sort
+après la vérification finale, son étendue est celle des Δt retenus ; échoue
+sur le code d'avant. La note du run V2 est à régénérer
+(`reconstruire_livrables.py`) si le dossier est livré.
+
+### L'onglet Suivi regardait le mauvais dossier — 0.6.2
+
+Voir la session du 3 septembre ci-dessous (correctif fait le 3 au soir).
+
 ## Session du 3 septembre 2026 — deux calages conformes, deux jeux de livrables incomplets
 
 **Par quoi reprendre :** `STATUT.txt` § 1 (état courant), § 2.5 (titres des

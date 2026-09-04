@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.6.2
+version=0.6.3
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,14 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,KGE,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.6.2 — L'onglet Suivi suit le classeur lancé, pas l'onglet 3.
+changelog=0.6.3 — La cohérence du décalage se juge à la fin, sur les Δt retenus.
+    L'alerte « le décalage DÉRIVE le long de l'axe » se mesurait sur le calcul
+    de référence, tous apports à zéro — l'état où les sections aval sont
+    affamées et où la dérive grandit avec le rang. Sur un modèle qui ne
+    dérive pas (1,8 h une fois calé), elle a porté une réserve pour 7,2 h
+    jusque dans la note de synthèse livrée. Elle se juge désormais à la fin
+    du calage, sur les Δt que la correction a employés, apport par apport.
+    0.6.2 — L'onglet Suivi suit le classeur lancé, pas l'onglet 3.
     Le suivi lisait « Dossier de sortie » et « Sous-dossier — suivi » de
     l'onglet 3, qui ne disent que où composer le PROCHAIN paquet ; le calage,
     lui, écrit là où le classeur le dit. Reprendre le classeur d'un calcul

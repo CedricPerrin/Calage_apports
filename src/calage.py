@@ -1014,15 +1014,17 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
         cibles, residuels_reference, config,
         dire if config.ajuster_duree else (lambda *a, **k: None))
 
-    # ICI ET PAS PLUS TARD. La coherence du decalage se mesure sur le calcul de
-    # reference, donc AVANT les heures d'apports : sur le calage du 31/08 elle
-    # aurait ete disponible 2 h 23 apres le lancement, au lieu de 25 h. Elle ne
-    # coute aucune simulation — voir _coherence_decalage.
-    _alerte_axe = _sans_interrompre(_coherence_decalage, cibles,
-                                    residuels_reference, config, dire)
-    if _alerte_axe:
-        resultat.alertes_chaine.append(_alerte_axe)
-        dire(f"    ATTENTION — {_alerte_axe}")
+    # A LA FIN, PAS ICI. La coherence du decalage se mesurait sur le calcul de
+    # reference — « disponible 2 h 23 apres le lancement au lieu de 25 h ».
+    # Mais a l'etat de reference les sections aval sont AFFAMEES : tout ce
+    # qui devrait venir de l'amont manque, leur pic arrive de plus en plus
+    # tard, et la mesure fabrique une derive qui grandit avec le rang (etabli
+    # le 02/09/2026 ; le 04/09, sur un modele qui ne derive pas — etendue
+    # 1,8 h une fois cale —, ce critere a livre au client une reserve pour
+    # 7,2 h). Le seul Dt qui vaille est celui que la correction emploie :
+    # mesure apport par apport, l'amont deja cale, puis fige. On le recueille
+    # ici, on juge a la fin — voir _coherence_points.
+    points_axe = []
 
     for i, (apport, section) in enumerate(zip(apports, sections)):
         temps_cible, debit_cible = cibles[i]
@@ -1153,6 +1155,15 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
                      f"la serie")
             else:
                 bornes_fenetre = None
+
+            # POUR LA COHERENCE DU DECALAGE LE LONG DE L'AXE, jugee a la fin
+            # du calage : le Dt RETENU et la fenetre jugee, tels que la
+            # correction les emploie — voir _coherence_points.
+            if bornes_fenetre is not None:
+                points_axe.append((
+                    float(temps_cible[int(np.nanargmax(debit_cible))]),
+                    float(decalage_zero),
+                    float(bornes_fenetre[1]) - float(bornes_fenetre[0])))
 
             # LE CLIQUET : JUSQU'OU CE CALAGE PEUT-IL DESCENDRE ?
             #
@@ -1571,6 +1582,14 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
         _conclure(modele, titre_etape(ETAPE_AVEC_APPORTS, config.prefixe_etape),
                   dire)
 
+    # --- coherence du decalage le long de l'axe : A LA FIN, SUR LES Dt RETENUS
+    # Quel que soit le verdict : un calage arrete en chemin a quand meme ses
+    # Dt, et quatre suffisent. Non bloquante, comme toute alerte de chaine.
+    _alerte_axe = _sans_interrompre(_coherence_points, points_axe, dire)
+    if _alerte_axe:
+        resultat.alertes_chaine.append(_alerte_axe)
+        dire(f"    ATTENTION — {_alerte_axe}")
+
     resultat.duree_s = time.time() - debut
     if suivi is not None:
         _sans_interrompre(suivi.terminer)
@@ -1625,6 +1644,8 @@ def _sans_interrompre(fonction, *arguments):
 # modele :
 #     modele A, 8 apports : etendue 4,4 h   pente -0,70   r -0,98   -> alertait
 #     modele B, 6 apports : etendue 7,0 h   pente +0,99   r +0,73   -> NON
+#     (lecture a apports NULS — fausse comme mesure du modele, voir la
+#     docstring de _coherence_decalage ; cale, ce modele s'etend sur 1,8 h)
 # Le modele B a la pente LA PLUS FORTE et la derive LA PLUS GRANDE, et passait
 # quand meme, parce que sa derive n'est pas monotone (-0,70, +0,40, -1,10,
 # +2,30, +3,40, +5,90) et que le r restait sous 0,9. LE « ET » SUR LA
@@ -1686,10 +1707,14 @@ def _coherence_decalage(cibles, residuels, config, dire):
     Les deux divergent, en sens contraire. C'est bien la VARIATION qui est le
     signal, pas le signe ni la valeur moyenne.
 
-    NE COUTE AUCUNE SIMULATION, et c'est tout l'interet : les pics cibles
-    viennent du classeur, ceux du modele du calcul de reference, qui a lieu de
-    toute facon. Sur un calage de 25 h la mesure est disponible des la fin de
-    la reference — 1 h 22 apres le lancement sur le modele B.
+    SUR QUEL ETAT DU MODELE — c'est la lecon du 04/09/2026. Cette fonction
+    mesurait Dt sur le calcul de REFERENCE, tous apports a zero, pour rendre
+    l'alerte 1 h 22 apres le lancement. Mais a cet etat les sections aval
+    sont affamees, leur pic arrive de plus en plus tard, et la derive mesuree
+    grandit avec le rang : les 7,0 h du « modele B » ci-dessus sont cette
+    lecture-la — le meme modele, une fois cale, s'etend sur 1,8 h et ne
+    derive pas. caler() juge donc A LA FIN, sur les Dt RETENUS apport par
+    apport (_coherence_points) ; cette fonction ne sert plus qu'au banc.
 
     CE QU'ELLE NE REMET PAS EN CAUSE : les sections restent calees, a 99-101 %
     de volume. Ce que l'etendue interroge est le POSITIONNEMENT TEMPOREL des
@@ -1726,7 +1751,19 @@ def _coherence_decalage(cibles, residuels, config, dire):
             continue
         points.append((float(t_c[int(np.nanargmax(q_c))]), dt,
                        float(f1) - float(f0)))
+    return _coherence_points(points, dire)
 
+
+def _coherence_points(points, dire):
+    """
+    Le critere lui-meme, sur des points deja mesures : (heure du pic cible,
+    Dt retenu, largeur de la fenetre jugee), un par apport, en heures.
+
+    C'EST LUI QUE caler() APPELLE, A LA FIN, avec les Dt que la correction a
+    employes — mesures apport par apport, l'amont deja cale, puis figes.
+    _coherence_decalage() les recalcule depuis des series ; il ne sert plus
+    qu'au banc, sur les deux signatures qu'il conserve.
+    """
     # QUATRE APPORTS AU MOINS. Une derive sur deux ou trois sections n'a pas
     # de sens, et une alerte fondee sur elle serait du bruit.
     if len(points) < 4:
@@ -3368,6 +3405,64 @@ if __name__ == "__main__":
     controler("ResultatCalage porte le canal des alertes de chaine",
               isinstance(ResultatCalage().alertes_chaine, list)
               and ResultatCalage().alertes_chaine == [])
+
+    # --- JUGEE A LA FIN, SUR LES Dt RETENUS (04/09/2026) --------------------
+    # Le critere s'evaluait sur le calcul de reference, tous apports a zero :
+    # sections aval affamees, derive fabriquee par le rang. Sur un modele qui
+    # ne derive pas (etendue 1,8 h une fois cale) il a livre une reserve pour
+    # 7,2 h. Ici : la ligne « coherence » doit sortir APRES la verification
+    # finale, et son etendue doit etre celle des Dt RETENUS au journal.
+    import re as _re
+    _m11 = ModeleFictif(apports, sections, temps, formes)
+    for _a, _f in zip(apports, facteurs_vrais):
+        _m11.appliquer_facteur(_a, _f)
+    _cib11 = [_m11.lire_section(s) for s in sections]
+    _m11.preparer()
+    _dits11 = []
+    caler(_m11, apports, sections, _cib11, Configuration(nb_max_essais=8),
+          journal=_dits11.append)
+    _lignes11 = [str(l) for l in _dits11]
+    _i_coh = next((k for k, l in enumerate(_lignes11)
+                   if "coherence du decalage" in l), None)
+    _i_verif = next((k for k, l in enumerate(_lignes11)
+                     if "Verification globale finale" in l), None)
+    _i_premier = next((k for k, l in enumerate(_lignes11)
+                       if "decalage retenu" in l), None)
+    controler("la coherence du decalage est jugee APRES la verification finale",
+              _i_coh is not None and _i_verif is not None and _i_coh > _i_verif,
+              f"coherence a la ligne {_i_coh}, verification a {_i_verif}, "
+              f"premier « decalage retenu » a {_i_premier}")
+    _retenus = [float(m.group(1)) for l in _lignes11
+                for m in [_re.search(r"decalage retenu ([+-]\d+\.\d+) h", l)]
+                if m]
+    _etendue_dite = next(
+        (float(m.group(1)) for l in _lignes11
+         for m in [_re.search(r"s'etend sur (\d+\.\d+) h", l)] if m), None)
+    controler("et son etendue est celle des Dt RETENUS, pas d'une relecture",
+              len(_retenus) == len(apports) and _etendue_dite is not None
+              and abs(_etendue_dite - (max(_retenus) - min(_retenus))) < 0.051,
+              f"retenus {_retenus} ; dit : {_etendue_dite} h")
+
+    # --- LE TROISIEME CALAGE REEL, SUR SES Dt RETENUS (04/09/2026) -----------
+    # Six apports d'un modele de production : pics cibles du classeur, Dt
+    # retenus et fenetres jugees releves au journal. Etendue 1,8 h pour des
+    # fenetres de 15,5 h en mediane : AUCUNE alerte — la ou la lecture a
+    # apports nuls annoncait 7,2 h.
+    _pics_r = [11.0, 12.5, 14.5, 15.5, 15.5, 16.0]
+    _dt_r = [-1.7, -0.9, -1.8, -1.4, -0.6, 0.0]
+    _larg_r = [22.6, 13.8, 27.2, 15.8, 14.9, 15.2]
+    _dits_r = []
+    _al_r = _coherence_points(list(zip(_pics_r, _dt_r, _larg_r)),
+                              _dits_r.append)
+    controler("le troisieme calage reel, sur ses Dt retenus : aucune alerte",
+              _al_r is None and bool(_dits_r)
+              and "s'etend sur 1.8 h" in _dits_r[0]
+              and "fenetre de 15.5 h" in _dits_r[0],
+              (_al_r or (_dits_r[0].strip()[95:185] if _dits_r
+                         else "rien dit"))[:90])
+    controler("mais la meme etendue sur des crues courtes alerterait",
+              _coherence_points([(p, d, 8.0) for p, d in zip(_pics_r, _dt_r)],
+                                lambda *a, **k: None) is not None)
 
     print()
     if echecs:

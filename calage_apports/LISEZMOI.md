@@ -213,6 +213,12 @@ première fois de bout en bout sous QGIS : **149 contrôles, aucun échec**.
 Le 3 septembre, **152** : trois de plus sur le dossier que l'onglet Suivi
 surveille — celui du classeur lancé, et non celui de l'onglet 3 (0.6.2).
 
+**Le 4 septembre, un troisième calage est allé à son terme**, conforme, six
+apports en 16 h 49 — et, pour la première fois, avec des livrables complets
+au premier passage. Il a aussi montré que l'alerte de cohérence du décalage
+se mesurait sur le mauvais état du modèle ; elle se juge désormais à la fin,
+sur les décalages retenus (0.6.3).
+
 > Ce que ces deux calages n'ont PAS rencontré : un volume plancher, un apport
 > refusé, un modèle incohérent. Les garde-fous qui traitent ces cas n'ont donc
 > été éprouvés qu'au banc.
