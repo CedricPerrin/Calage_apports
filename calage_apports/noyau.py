@@ -1355,7 +1355,9 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
                 f"saisies, mais pas de colonne « Temps_h » (en-tete A1) : "
                 f"{_entetes_dits(entetes)}. Recomposer les effacerait. "
                 f"Retablir la ligne d'en-tete — « Temps_h », puis une colonne "
-                f"par section — puis recomposer. Le classeur est inchange.")
+                f"par section — puis RELANCER LA COMPOSITION : le classeur "
+                f"n'est pas touche, mais la geometrie et les couches viennent "
+                f"d'etre reecrites, et la composition s'arrete ici.")
 
     if cibles_existantes is not None and "Temps_h" in cibles_existantes.columns:
         # Meme grille de temps qu'auparavant ; seules les colonnes de section
@@ -2198,8 +2200,6 @@ if __name__ == "__main__":
         print("\n   PK calcules :")
         print("   " + tableau.to_string(index=False).replace("\n", "\n   "))
 
-    import datetime
-
     print("\n4 bis. PROLONGATION DES CIBLES PAR DES ZEROS")
     # LE GESTE QUE LE PRE-VOL RECLAME. Un hydrogramme cible qui s'arrete avant
     # la fin de la simulation fait refuser le calcul par HEC-RAS ; le
@@ -2263,6 +2263,8 @@ if __name__ == "__main__":
         _dit = "aucune erreur"
     except ValueError as e:
         _dit = str(e)
+    except Exception as e:                                  # noqa: BLE001
+        _dit = f"{type(e).__name__}: {e}"
     _libelle = ("sans colonne Temps_h, l'etat des cibles refuse et nomme "
                 "l'en-tete trouve")
     _ok = "Temps_h" in _dit and "Temps (h)" in _dit
@@ -2312,7 +2314,7 @@ if __name__ == "__main__":
     # saisis » (04/09/2026). Le geste naturel apres le nouveau message
     # d'etat_cibles est justement de recomposer.
     _dossier2 = dossier / "recomposition"
-    _dossier2.mkdir(exist_ok=True)
+    _dossier2.mkdir(parents=True, exist_ok=True)
     _cl2 = _dossier2 / NOMS_FICHIERS["classeur"]
     _wb = openpyxl.Workbook()
     _fc = _wb.active
@@ -2328,9 +2330,13 @@ if __name__ == "__main__":
         _dit = str(e)
     _reste = pd.read_excel(_cl2, sheet_name="Cibles")
     _libelle = "recomposer sans en-tete Temps_h refuse et laisse la saisie intacte"
-    _ok = ("Temps_h" in _dit and "\u00b6" in _dit
-           and list(_reste["Cible_S1"]) == [10.0 + _i for _i in range(6)])
-    print(f"   [{'OK' if _ok else 'ECHEC'}] {_libelle}  ->  {_dit[:80]}")
+    # LA PRESERVATION EN PREMIER : sur le code d'avant, « Temps_h in _dit »
+    # court-circuitait et la ligne d'ECHEC ne disait que « aucune erreur »,
+    # sans jamais montrer la saisie detruite qui justifie le garde-fou.
+    _garde = int(_reste[["Cible_S1", "Cible_S2"]].notna().sum().sum())
+    _ok = (_garde == 12 and "Temps_h" in _dit and "\u00b6" in _dit)
+    print(f"   [{'OK' if _ok else 'ECHEC'}] {_libelle}  ->  "
+          f"{_garde} valeurs restantes sur 12 ; {_dit[:60]}")
     assert _ok, _libelle
     _cl2.unlink(missing_ok=True)
 
@@ -2340,6 +2346,10 @@ if __name__ == "__main__":
     # 1970. Le compte « deux instants » etait donc satisfait, le calage
     # partait, et le pont mourait sur une allocation de 536 Gio dans
     # reechantillonner (relecture adverse du 04/09/2026).
+    # « as _dt » ET PAS « import datetime » : noyau.py importe la CLASSE
+    # datetime (ligne 22), qu'un import du MODULE recouvrirait — tout ce qui
+    # suit et appelle datetime.fromtimestamp() casserait alors, en silence.
+    import datetime as _dt
     _wb = openpyxl.Workbook()
     _fe = _wb.active
     _fe.title = "Correspondance"
@@ -2349,13 +2359,15 @@ if __name__ == "__main__":
     _fc = _wb.create_sheet("Cibles")
     _fc.append(["Temps_h", "Cible_S1"])
     for _i in range(3):
-        _fc.append([datetime.datetime(2020, 1, 1, _i), 10.0 * _i])
+        _fc.append([_dt.datetime(2020, 1, 1, _i), 10.0 * _i])
     _wb.save(_cl)
     try:
         etat_cibles(_cl)
         _dit = "aucune erreur"
     except ValueError as e:
         _dit = str(e)
+    except Exception as e:                                  # noqa: BLE001
+        _dit = f"{type(e).__name__}: {e}"
     _libelle = "une colonne de temps en DATES est refusee, pas comptee"
     _ok = "date" in _dit.lower() and "heures" in _dit.lower()
     print(f"   [{'OK' if _ok else 'ECHEC'}] {_libelle}  ->  {_dit[:100]}")
@@ -2371,7 +2383,7 @@ if __name__ == "__main__":
     for _cas, _entetes in (("ligne 1 recouverte", ["t (h)", "Q_S1", "Q_S2"]),
                            ("ligne 1 supprimee", [0.0, 10.0, 20.0])):
         _dossier3 = dossier / ("recomposition_" + _cas.replace(" ", "_"))
-        _dossier3.mkdir(exist_ok=True)
+        _dossier3.mkdir(parents=True, exist_ok=True)
         _cl3 = _dossier3 / NOMS_FICHIERS["classeur"]
         _wb = openpyxl.Workbook()
         _fc = _wb.active

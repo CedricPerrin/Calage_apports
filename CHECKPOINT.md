@@ -48,7 +48,7 @@ passerait.
 critère de cohérence se juge à la fin — corrigé), § 5.7 fin (le troisième
 calage, mesuré), § 6 (le verdict de volume, chiffre reproductible).
 
-**15 bancs verts, greffon en 0.6.5.** Les 152 contrôles QGIS datent du
+**15 bancs verts, greffon en 0.6.6.** Les 152 contrôles QGIS datent du
 03/09 : `plugin.py` a changé le 04/09, ils sont à repasser.
 
 ### Ardanavy Q100, refait de zéro avec la 0.6.1 : 6/6 conforme en 16 h 49
@@ -97,7 +97,9 @@ le pont mourait sur une allocation de 536 Gio ; le refus de recomposer
 cherchait sa preuve dans les en-têtes « Cible_ », **la ligne même que
 l'accident détruit** ; et « Lancer quand même » proposait un calage que la
 chaîne refuse de toute façon. Sept bancs au total, échec avant / succès
-après. Détail : `STATUT.txt` § 5.7, fin.
+après. Un second tour a encore trouvé deux affichages qui mentaient et une
+mine dans le banc lui-même (`import datetime` recouvrant la classe
+`datetime`) — 0.6.6. Détail : `STATUT.txt` § 5.7, fin.
 
 ### L'onglet Suivi regardait le mauvais dossier — 0.6.2
 

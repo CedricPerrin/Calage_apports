@@ -3519,7 +3519,14 @@ class DialogueParametrage(QDialog):
         try:
             etat = noyau.etat_cibles(self.classeur)
         except Exception as e:
+            # LE CLASSEUR REPRIS S'AFFICHE MEME QUAND SON ETAT EST ILLISIBLE.
+            # Un simple « return » laissait les deux etiquettes sur le CLASSEUR
+            # PRECEDENT — chemin et « 6/6 renseignee(s) » — alors que
+            # self.classeur pointait deja le nouveau : un affichage qui ment.
+            # Meme conduite que _maj_onglet_validation, plus bas.
             journaliser("État des cibles après contrôle", e)
+            self.label_validation_classeur.setText(str(self.classeur))
+            self.label_validation_cibles.setText(f"(illisible : {e})")
             return
         self.label_validation_classeur.setText(str(self.classeur))
         manquantes = etat.get("manquantes") or []
