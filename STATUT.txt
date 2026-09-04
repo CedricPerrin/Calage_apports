@@ -50,13 +50,17 @@ CE QUI EST EPROUVE
   - LES QUINZE BANCS SONT VERTS : les treize suites ci-dessus, plus
     faire_zip.py et essai_garde_fou_archive.py. Repasses le 04/09, apres le
     garde-fou de la colonne de temps (section 5.7, fin).
-  - GREFFON EN 0.6.4. Son archive ne se comporte plus comme la 0.5.0 : les
+  - GREFFON EN 0.6.5. Son archive ne se comporte plus comme la 0.5.0 : les
     livrables ont change (5.7), le classeur porte un parametre de plus, le
     bouton « Installer… » complete un environnement reutilise, l'onglet
     Suivi regarde le dossier du CLASSEUR LANCE, plus celui de l'onglet 3
     (5.7, fin), la coherence du decalage se juge A LA FIN, sur les Dt
-    retenus (2.2 ter), et un classeur sans colonne de temps est REFUSE
-    AVANT le lancement, en nommant l'en-tete trouve (5.7, fin).
+    retenus (2.2 ter), et un classeur dont la base de temps est absente,
+    vide ou EN DATES est REFUSE AVANT le lancement (5.7, fin).
+  - LA SUITE QGIS N'A PAS ETE REJOUEE DEPUIS LE 03/09. plugin.py a change
+    le 04/09 (le lancement refuse au lieu de proposer, 5.7 fin) : les 152
+    controles sont a repasser au prochain accès au poste QGIS. Le reste du
+    correctif est hors plugin.py et couvert par les bancs.
 
 UN TROISIEME CALAGE COMPLET (03-04/09) : ARDANAVY Q100, REFAIT DE ZERO.
   6/6 CONFORME en 16 h 49, 11 calculs, livrables COMPLETS au premier passage
@@ -1765,10 +1769,42 @@ rend None, to_numeric() un scalaire.
   message dit quel en-tete retablir. Ce defaut etait ANTERIEUR au 04/09 :
   toute recomposition sur une feuille Cibles illisible l'a toujours
   effacee.
+  ET LA RELECTURE ADVERSE A REFUTE TROIS FOIS CE PREMIER CORRECTIF (0.6.5,
+  chaque point reproduit par execution avant d'etre corrige) :
+    1. DES DATES NE SONT PAS DES HEURES. pd.to_numeric ne rend NaN que sur
+       du TEXTE : sur une colonne de dates Excel — la facon la plus
+       courante de coller une chronique, la colonne date/heure part avec
+       le debit — il rend les microsecondes depuis 1970. Le compte « deux
+       instants » etait satisfait, le greffon annoncait « renseignee », et
+       le pont mourait dans reechantillonner sur une allocation de
+       536 Gio : le mode de defaillance meme que la 0.6.4 pretendait
+       supprimer. Les deux cotes refusent desormais une colonne de dates.
+    2. LE GARDE-FOU DE RECOMPOSITION CHERCHAIT SA PREUVE DANS LA LIGNE
+       ABIMEE. Il exigeait un en-tete « Cible_ » non vide — or « Temps_h »
+       et les « Cible_ » vivent dans la MEME ligne 1. Ligne supprimee,
+       triee avec les donnees, ou recouverte par un bloc colle avec ses
+       propres titres : aucun refus, 418 lignes reecrites vides, sous un
+       « 0 erreur(s) ». Ce sont desormais les VALEURS de la zone de saisie
+       (le temps puis une colonne par cible, PAR POSITION) qui disent
+       qu'il y a quelque chose a perdre ; l'apercu des pics est au-dela.
+    3. « LANCER QUAND MEME (LES APPORTS CONCERNES SERONT IGNORES) ? » EST
+       FAUX. commande_caler REFUSE tout le classeur des qu'une seule cible
+       manque : repondre oui annoncait « Calage lance (PID …) », l'onglet
+       Suivi restait a « Aucun calage suivi » pour toujours, et le refus ne
+       vivait que dans le journal de lancement — la mise en scene meme du
+       04/09. Le greffon REFUSE desormais, en disant que la chaine n'ignore
+       rien. C'EST LE SEUL POINT QUI TOUCHE plugin.py : les 152 controles
+       QGIS sont a repasser.
+  ET LE MESSAGE D'EN-TETES EST BORNE a douze noms : une ligne 1 ayant recu
+  un hydrogramme colle en travers en portait 418, soit 3 431 caracteres sur
+  une seule ligne dans une boite de dialogue. Mesure : 216 caracteres.
   CE QUI RESTE : le lancement n'exige toujours pas un controle vert. Choix
   tenu (5.4 : un garde-fou qui parle au bon endroit vaut mieux qu'un
   prealable qu'on apprend a sauter) ; ici le bon endroit etait
-  etat_cibles().
+  etat_cibles(). ET LA REGLE PARTAGEE EST UN PLANCHER, PAS UNE VALIDATION :
+  deux instants identiques ou decroissants passent des deux cotes, la
+  stricte croissance restant du ressort de controle_donnees (non exige au
+  lancement).
 
 5.4  CE QUE LES CAS REELS ONT APPRIS, ENSEMBLE
 --------------------------------------------------------------------------

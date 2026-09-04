@@ -1403,7 +1403,16 @@ def _cibles_depuis_classeur(chemin_template, journal=None):
     if "Temps_h" not in cib.columns:
         raise ValueError(
             f"la feuille Cibles n'a pas de colonne « Temps_h » (en-tete A1). "
-            f"En-tetes trouves : {[str(c) for c in cib.columns]}")
+            f"En-tetes trouves : {[str(c) for c in cib.columns][:12]}"
+            + (f" … et {len(cib.columns) - 12} autres"
+               if len(cib.columns) > 12 else ""))
+    # DES DATES NE SONT PAS DES HEURES : to_numeric rend les microsecondes
+    # depuis 1970, et reechantillonner tentait alors d'allouer 536 Gio.
+    if pd.api.types.is_datetime64_any_dtype(cib["Temps_h"]):
+        raise ValueError(
+            "la colonne « Temps_h » de la feuille Cibles contient des DATES. "
+            "Le calage attend des heures decimales comptees depuis le debut "
+            "de la simulation (0 ; 0,5 ; 1 …).")
     temps = pd.to_numeric(cib["Temps_h"], errors="coerce").to_numpy(dtype=float)
 
     apports, sections, cibles, manquantes = [], [], [], []
@@ -1934,6 +1943,32 @@ def commande_autotest(args):
     verifier("sans colonne Temps_h, le lecteur nomme l'en-tete attendu et "
              "celui trouve",
              "Temps_h" in _dit and "Temps (h)" in _dit, _dit[:100])
+
+    # UNE COLONNE DE TEMPS EN DATES NON PLUS. to_numeric rend les
+    # microsecondes depuis 1970 sur une colonne de dates : le calage partait
+    # et mourait plus loin, dans reechantillonner, sur une allocation de
+    # 536 Gio (relecture adverse du 04/09/2026).
+    import datetime as _dt
+    _dates = Path(tempfile.gettempdir()) / "_essai_cibles_dates.xlsx"
+    with pd.ExcelWriter(_dates) as w:
+        pd.DataFrame({
+            "Ordre": [1], "Nom_Apport (BC line)": ["A1"],
+            "Nom_Section (reference line)": ["SC1"], "Nom_Cible": ["C1"],
+        }).to_excel(w, sheet_name="Correspondance", index=False)
+        pd.DataFrame({"Temps_h": [_dt.datetime(2020, 1, 1, _h)
+                                  for _h in range(3)],
+                      "C1": [0, 10, 0]}).to_excel(w, sheet_name="Cibles",
+                                                  index=False)
+    try:
+        _cibles_depuis_classeur(_dates)
+        _dit = "aucune erreur"
+    except ValueError as e:
+        _dit = str(e)
+    except Exception as e:
+        _dit = f"{type(e).__name__}: {e}"
+    _dates.unlink(missing_ok=True)
+    verifier("une colonne de temps en dates est refusee, pas convertie",
+             "date" in _dit.lower() and "heures" in _dit.lower(), _dit[:100])
 
     # Pas horaire, comme un HSMF colle tel quel : c'est le cas courant que la
     # normalisation doit corriger avant tout calage.

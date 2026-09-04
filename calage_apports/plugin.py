@@ -3566,19 +3566,28 @@ class DialogueParametrage(QDialog):
                 f"classeur : {e}\n\nLe calage n'est pas lancé — il serait "
                 f"parti sur un réglage autre que celui affiché.")
             return
+        # UN REFUS, PAS UNE QUESTION. « Lancer quand même (les apports
+        # concernés seront ignorés) ? » etait faux : la chaine REFUSE tout le
+        # classeur des qu'une seule cible manque (pont_hecras, commande_caler).
+        # Repondre oui annoncait « Calage lancé (PID …) », l'onglet Suivi
+        # restait a « Aucun calage suivi » pour toujours, et le refus ne vivait
+        # que dans le journal de lancement — la mise en scene meme du
+        # 04/09/2026.
         if etat["manquantes"]:
-            with sans_sablier(self):
-                reponse = QMessageBox.question(
-                    self, "Hydrogrammes cibles incomplets",
-                    f"{len(etat['manquantes'])} section(s) sans hydrogramme "
-                    f"cible exploitable : {', '.join(etat['manquantes'])}.\n\n"
-                    f"Le calage sur ces apports ne peut pas démarrer sans "
-                    f"cible. Lancer quand même (les apports concernés seront "
-                    f"ignorés) ?",
-                    QMessageBox.StandardButton.Yes
-                    | QMessageBox.StandardButton.No)
-            if reponse != QMessageBox.StandardButton.Yes:
-                return
+            # Une boite que l'on LIT, et la methode s'arrete apres : le sablier
+            # se retire, il ne se suspend pas (convention rendre_la_main).
+            rendre_la_main(self)
+            QMessageBox.warning(
+                self, "Hydrogrammes cibles incomplets",
+                f"{len(etat['manquantes'])} section(s) sur {etat['total']} "
+                f"sans hydrogramme cible exploitable : "
+                f"{', '.join(etat['manquantes'])}.\n\n"
+                f"Le calage n'est pas lancé : la chaîne refuse un classeur "
+                f"incomplet, elle n'ignore pas les apports concernés. "
+                f"Compléter la feuille « Cibles » — une colonne « Temps_h » "
+                f"et au moins deux instants en face des débits — puis "
+                f"relancer.")
+            return
         try:
             info = noyau.lancer_calage(self.classeur)
         except Exception as e:

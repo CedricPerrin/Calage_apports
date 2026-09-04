@@ -1338,19 +1338,24 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
     # collees sont retrouvees sous l'en-tete « Temps_h » ; sans lui, la
     # branche suivante reecrivait la feuille VIDE, sans un mot — le geste
     # naturel apres le refus d'etat_cibles etant justement de recomposer
-    # (04/09/2026, six colonnes de 418 lignes). Colonnes « Cible_ » : la
-    # convention de saisie de la feuille, celle que prolonger_cibles emploie.
-    if (cibles_existantes is not None
-            and "Temps_h" not in cibles_existantes.columns
-            and any(str(c).startswith("Cible_")
-                    and cibles_existantes[c].notna().any()
-                    for c in cibles_existantes.columns)):
-        raise ValueError(
-            f"la feuille Cibles de {chemin.name} porte des hydrogrammes "
-            f"saisis, mais pas de colonne « Temps_h » (en-tete A1) : "
-            f"{[str(c) for c in cibles_existantes.columns]}. Recomposer les "
-            f"effacerait. Retablir l'en-tete « Temps_h » dans le classeur, "
-            f"puis recomposer. Le classeur est inchange.")
+    # (04/09/2026, six colonnes de 418 lignes).
+    # LA PREUVE SE CHERCHE SOUS LA LIGNE 1, PAS DEDANS. Un premier correctif
+    # exigeait un en-tete « Cible_ » non vide — or « Temps_h » et les
+    # « Cible_ » vivent dans la MEME ligne : ligne supprimee, triee avec les
+    # donnees, ou recouverte par un bloc colle avec ses propres titres, le
+    # detecteur partait avec elle. Ce sont les VALEURS de la zone de saisie
+    # (le temps puis une colonne par cible, par POSITION) qui disent qu'il y
+    # a quelque chose a perdre ; l'apercu des pics est au-dela, intact.
+    if cibles_existantes is not None and "Temps_h" not in cibles_existantes.columns:
+        zone = cibles_existantes.iloc[:, :1 + len(noms_cibles)]
+        if int(zone.notna().sum().sum()) > 0:
+            entetes = [str(c) for c in cibles_existantes.columns]
+            raise ValueError(
+                f"la feuille Cibles de {chemin.name} porte des valeurs "
+                f"saisies, mais pas de colonne « Temps_h » (en-tete A1) : "
+                f"{_entetes_dits(entetes)}. Recomposer les effacerait. "
+                f"Retablir la ligne d'en-tete — « Temps_h », puis une colonne "
+                f"par section — puis recomposer. Le classeur est inchange.")
 
     if cibles_existantes is not None and "Temps_h" in cibles_existantes.columns:
         # Meme grille de temps qu'auparavant ; seules les colonnes de section
@@ -1429,6 +1434,19 @@ def processus_vivant(pid):
     return str(pid) in (sortie.stdout or "")
 
 
+def _entetes_dits(entetes, maximum=12):
+    """
+    Les en-tetes trouves, pour un message d'erreur — BORNES. Une feuille dont
+    la ligne 1 a recu un hydrogramme colle en travers en porte des centaines,
+    et le message part tel quel dans une boite de dialogue (mesure : 3 431
+    caracteres sur une ligne).
+    """
+    entetes = [str(e) for e in entetes]
+    if len(entetes) <= maximum:
+        return str(entetes)
+    return f"{entetes[:maximum]} … et {len(entetes) - maximum} autres"
+
+
 def etat_cibles(chemin_classeur):
     """
     Combien d'hydrogrammes cibles restent a saisir dans le classeur : c'est
@@ -1459,8 +1477,18 @@ def etat_cibles(chemin_classeur):
     if "Temps_h" not in cibles.columns:
         raise ValueError(
             f"la feuille Cibles n'a pas de colonne « Temps_h » (en-tete A1). "
-            f"En-tetes trouves : {[str(c) for c in cibles.columns]}. Le calage "
+            f"En-tetes trouves : {_entetes_dits(cibles.columns)}. Le calage "
             f"n'est pas lance.")
+
+    # DES DATES NE SONT PAS DES HEURES. pd.to_numeric ne rend NaN que sur du
+    # texte : sur une colonne de DATES il rend les microsecondes depuis 1970,
+    # le compte « deux instants » etait satisfait, et le pont mourait plus
+    # loin sur une allocation de 536 Gio (relecture adverse du 04/09/2026).
+    if pd.api.types.is_datetime64_any_dtype(cibles["Temps_h"]):
+        raise ValueError(
+            "la colonne « Temps_h » de la feuille Cibles contient des DATES. "
+            "Le calage attend des heures decimales comptees depuis le debut "
+            "de la simulation (0 ; 0,5 ; 1 …). Le calage n'est pas lance.")
 
     temps_ok = pd.to_numeric(cibles["Temps_h"], errors="coerce").notna()
     manquantes = []
@@ -2170,6 +2198,8 @@ if __name__ == "__main__":
         print("\n   PK calcules :")
         print("   " + tableau.to_string(index=False).replace("\n", "\n   "))
 
+    import datetime
+
     print("\n4 bis. PROLONGATION DES CIBLES PAR DES ZEROS")
     # LE GESTE QUE LE PRE-VOL RECLAME. Un hydrogramme cible qui s'arrete avant
     # la fin de la simulation fait refuser le calcul par HEC-RAS ; le
@@ -2303,6 +2333,65 @@ if __name__ == "__main__":
     print(f"   [{'OK' if _ok else 'ECHEC'}] {_libelle}  ->  {_dit[:80]}")
     assert _ok, _libelle
     _cl2.unlink(missing_ok=True)
+
+    # UNE COLONNE DE TEMPS EN DATES NE PASSE PAS. pd.to_numeric ne rend NaN
+    # que sur du texte : sur une colonne de DATES Excel — la facon la plus
+    # courante de coller une chronique — il rend les microsecondes depuis
+    # 1970. Le compte « deux instants » etait donc satisfait, le calage
+    # partait, et le pont mourait sur une allocation de 536 Gio dans
+    # reechantillonner (relecture adverse du 04/09/2026).
+    _wb = openpyxl.Workbook()
+    _fe = _wb.active
+    _fe.title = "Correspondance"
+    _fe.append(["Ordre", "Nom_Apport (BC line)",
+                "Nom_Section (reference line)", "Nom_Cible"])
+    _fe.append([1, "A1", "S1", "Cible_S1"])
+    _fc = _wb.create_sheet("Cibles")
+    _fc.append(["Temps_h", "Cible_S1"])
+    for _i in range(3):
+        _fc.append([datetime.datetime(2020, 1, 1, _i), 10.0 * _i])
+    _wb.save(_cl)
+    try:
+        etat_cibles(_cl)
+        _dit = "aucune erreur"
+    except ValueError as e:
+        _dit = str(e)
+    _libelle = "une colonne de temps en DATES est refusee, pas comptee"
+    _ok = "date" in _dit.lower() and "heures" in _dit.lower()
+    print(f"   [{'OK' if _ok else 'ECHEC'}] {_libelle}  ->  {_dit[:100]}")
+    assert _ok, _libelle
+    _cl.unlink(missing_ok=True)
+
+    # ET LE GARDE-FOU DE RECOMPOSITION NE CHERCHE PLUS SA PREUVE DANS LA LIGNE
+    # ABIMEE. Il exigeait un en-tete « Cible_ » non vide — or « Temps_h » et
+    # les « Cible_ » vivent dans la MEME ligne 1 : ligne supprimee, triee avec
+    # les donnees, ou recouverte par un bloc colle avec ses propres titres, le
+    # detecteur partait avec elle et la feuille etait reecrite VIDE. Ce sont
+    # les VALEURS sous la ligne 1 qui disent qu'il y a quelque chose a perdre.
+    for _cas, _entetes in (("ligne 1 recouverte", ["t (h)", "Q_S1", "Q_S2"]),
+                           ("ligne 1 supprimee", [0.0, 10.0, 20.0])):
+        _dossier3 = dossier / ("recomposition_" + _cas.replace(" ", "_"))
+        _dossier3.mkdir(exist_ok=True)
+        _cl3 = _dossier3 / NOMS_FICHIERS["classeur"]
+        _wb = openpyxl.Workbook()
+        _fc = _wb.active
+        _fc.title = "Cibles"
+        _fc.append(_entetes)
+        for _i in range(6):
+            _fc.append([0.25 * _i, 10.0 + _i, 20.0 + _i])
+        _wb.save(_cl3)
+        try:
+            preparer_classeur(_dossier3, [("A1", "S1"), ("A2", "S2")], {})
+            _dit = "aucune erreur"
+        except ValueError as e:
+            _dit = str(e)
+        _reste = pd.read_excel(_cl3, sheet_name="Cibles")
+        _valeurs = int(_reste.iloc[:, :3].notna().sum().sum())
+        _libelle = f"recomposer avec la {_cas} refuse et garde la saisie"
+        _ok = "Temps_h" in _dit and _valeurs >= 18
+        print(f"   [{'OK' if _ok else 'ECHEC'}] {_libelle}  ->  "
+              f"{_valeurs} valeurs restantes ; {_dit[:60]}")
+        assert _ok, _libelle
 
     print("\n4 ter. EMPLACEMENT DE L'ENVIRONNEMENT HEC-RAS")
     # CE QU'IL FAUT EPROUVER ICI : que le bouton « Installer… » ait TOUJOURS

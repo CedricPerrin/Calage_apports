@@ -48,7 +48,8 @@ passerait.
 critère de cohérence se juge à la fin — corrigé), § 5.7 fin (le troisième
 calage, mesuré), § 6 (le verdict de volume, chiffre reproductible).
 
-**15 bancs verts, 152 contrôles QGIS verts, greffon en 0.6.4.**
+**15 bancs verts, greffon en 0.6.5.** Les 152 contrôles QGIS datent du
+03/09 : `plugin.py` a changé le 04/09, ils sont à repasser.
 
 ### Ardanavy Q100, refait de zéro avec la 0.6.1 : 6/6 conforme en 16 h 49
 
@@ -87,9 +88,16 @@ Cibles vide**, sans un mot : 418 lignes sur six colonnes, mesuré sur copie.
 `preparer_classeur()` ne retrouvait la saisie que sous l'en-tête
 « Temps_h ». Défaut **antérieur** au 04/09. La recomposition est désormais
 refusée quand la feuille porte des colonnes « Cible_ » non vides sans
-colonne de temps. Quatre bancs, échec avant / succès après. Détail :
-`STATUT.txt` § 5.7, fin. La suite QGIS n'a pas été rejouée : `plugin.py`
-n'est pas touché.
+colonne de temps.
+
+**Une relecture adverse a ensuite réfuté ce correctif trois fois** (0.6.5),
+chaque point reproduit par exécution : une colonne `Temps_h` en **dates**
+Excel passait le garde-fou (pandas rend des microsecondes, pas des NaN) et
+le pont mourait sur une allocation de 536 Gio ; le refus de recomposer
+cherchait sa preuve dans les en-têtes « Cible_ », **la ligne même que
+l'accident détruit** ; et « Lancer quand même » proposait un calage que la
+chaîne refuse de toute façon. Sept bancs au total, échec avant / succès
+après. Détail : `STATUT.txt` § 5.7, fin.
 
 ### L'onglet Suivi regardait le mauvais dossier — 0.6.2
 

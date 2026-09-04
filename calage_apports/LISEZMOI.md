@@ -229,6 +229,14 @@ sait pas relire est refusé : la composition la réécrivait vide, sans un mot,
 alors que le plugin promet à l'écran qu'elle préserve les hydrogrammes déjà
 saisis (0.6.4).
 
+Une relecture adverse a réfuté ce premier correctif trois fois (0.6.5) : une
+colonne de temps remplie de **dates** le passait — et le calcul mourait plus
+loin en réclamant 536 Gio de mémoire ; le refus de recomposer cherchait sa
+preuve dans la ligne d'en-tête, c'est-à-dire dans ce que l'accident détruit ;
+et « Lancer quand même » proposait un calage que la chaîne refuse de toute
+façon. Ce dernier point touche la fenêtre : **les 152 contrôles sous QGIS sont
+à repasser.**
+
 > Ce que ces deux calages n'ont PAS rencontré : un volume plancher, un apport
 > refusé, un modèle incohérent. Les garde-fous qui traitent ces cas n'ont donc
 > été éprouvés qu'au banc.

@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.6.4
+version=0.6.5
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,18 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,KGE,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.6.4 — Un classeur sans colonne de temps est refusé AVANT le lancement.
+changelog=0.6.5 — Trois voies contournaient encore les garde-fous de la 0.6.4.
+    Une colonne « Temps_h » remplie de DATES Excel passait : pandas les
+    convertit en microsecondes depuis 1970, jamais en NaN, le calage
+    partait et mourait en arrière-plan sur une allocation de 536 Gio.
+    Le refus de recomposer cherchait sa preuve dans les en-têtes
+    « Cible_ », c'est-à-dire dans la ligne même que l'accident détruit :
+    ligne 1 supprimée ou recouverte, la saisie disparaissait comme avant ;
+    ce sont désormais les VALEURS sous la ligne 1 qui la protègent. Et
+    « Lancer quand même (les apports concernés seront ignorés) ? » était
+    faux — la chaîne refuse tout le classeur dès qu'une cible manque : le
+    plugin refuse au lieu de proposer.
+    0.6.4 — Un classeur sans colonne de temps est refusé AVANT le lancement.
     Un classeur dont l'en-tête A1 de la feuille Cibles avait été remplacé,
     et dont la colonne de temps était vide sous six colonnes de débit
     pleines, partait en calage : le pont plantait en arrière-plan, hors de
