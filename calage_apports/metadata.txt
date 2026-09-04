@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.6.3
+version=0.6.4
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,20 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,KGE,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.6.3 — La cohérence du décalage se juge à la fin, sur les Δt retenus.
+changelog=0.6.4 — Un classeur sans colonne de temps est refusé AVANT le lancement.
+    Un classeur dont l'en-tête A1 de la feuille Cibles avait été remplacé,
+    et dont la colonne de temps était vide sous six colonnes de débit
+    pleines, partait en calage : le pont plantait en arrière-plan, hors de
+    vue, sur « 'numpy.float64' object has no attribute 'to_numpy' ». Le
+    greffon refuse désormais de lancer, en nommant l'en-tête trouvé à la
+    place de « Temps_h » ; et une cible n'est tenue pour renseignée que si
+    elle a deux instants numériques en face de deux débits — la règle du
+    pont, qui porte le même garde-fou pour l'appel direct. Et recomposer
+    par-dessus une feuille Cibles qu'on ne sait pas relire est refusé :
+    la composition la réécrivait vide, sans un mot — 418 lignes sur six
+    colonnes, mesuré — alors que le plugin promet à l'écran que
+    recomposer préserve les hydrogrammes déjà saisis.
+    0.6.3 — La cohérence du décalage se juge à la fin, sur les Δt retenus.
     L'alerte « le décalage DÉRIVE le long de l'axe » se mesurait sur le calcul
     de référence, tous apports à zéro — l'état où les sections aval sont
     affamées et où la dérive grandit avec le rang. Sur un modèle qui ne

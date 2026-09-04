@@ -1396,7 +1396,15 @@ def _cibles_depuis_classeur(chemin_template, journal=None):
     corr = corr.dropna(subset=[col_ordre, col_apport, col_section, col_cible]
                        ).sort_values(col_ordre)
 
-    temps = pd.to_numeric(cib.get("Temps_h"), errors="coerce").to_numpy(dtype=float)
+    # LA COLONNE DU TEMPS, NOMMEE, OU RIEN. Sans elle cib.get() rend None et
+    # to_numeric() un scalaire : « 'numpy.float64' object has no attribute
+    # 'to_numpy' », en arriere-plan, au lancement (04/09/2026 — un en-tete A1
+    # remplace). Dire l'en-tete attendu et ceux trouves, c'est dire ou corriger.
+    if "Temps_h" not in cib.columns:
+        raise ValueError(
+            f"la feuille Cibles n'a pas de colonne « Temps_h » (en-tete A1). "
+            f"En-tetes trouves : {[str(c) for c in cib.columns]}")
+    temps = pd.to_numeric(cib["Temps_h"], errors="coerce").to_numpy(dtype=float)
 
     apports, sections, cibles, manquantes = [], [], [], []
     for _, ligne in corr.iterrows():
@@ -1901,6 +1909,31 @@ def commande_autotest(args):
         _, _, lues, _ = _cibles_depuis_classeur(classeur, journal=lignes.append)
         classeur.unlink(missing_ok=True)
         return lues[0], lignes
+
+    # SANS COLONNE Temps_h, LE DIRE (04/09/2026). Un classeur dont l'en-tete A1
+    # avait ete remplace faisait planter le pont au lancement, en arriere-plan,
+    # sur « 'numpy.float64' object has no attribute 'to_numpy' » : cib.get()
+    # rend None, to_numeric() un scalaire. La cause doit se lire, et l'en-tete
+    # trouve a la place aussi — c'est lui qu'il faut corriger.
+    _sans_temps = Path(tempfile.gettempdir()) / "_essai_cibles_sans_temps.xlsx"
+    with pd.ExcelWriter(_sans_temps) as w:
+        pd.DataFrame({
+            "Ordre": [1], "Nom_Apport (BC line)": ["A1"],
+            "Nom_Section (reference line)": ["SC1"], "Nom_Cible": ["C1"],
+        }).to_excel(w, sheet_name="Correspondance", index=False)
+        pd.DataFrame({"Temps (h)": [0, 1, 2], "C1": [0, 10, 0]}
+                    ).to_excel(w, sheet_name="Cibles", index=False)
+    try:
+        _cibles_depuis_classeur(_sans_temps)
+        _dit = "aucune erreur"
+    except ValueError as e:
+        _dit = str(e)
+    except Exception as e:
+        _dit = f"{type(e).__name__}: {e}"
+    _sans_temps.unlink(missing_ok=True)
+    verifier("sans colonne Temps_h, le lecteur nomme l'en-tete attendu et "
+             "celui trouve",
+             "Temps_h" in _dit and "Temps (h)" in _dit, _dit[:100])
 
     # Pas horaire, comme un HSMF colle tel quel : c'est le cas courant que la
     # normalisation doit corriger avant tout calage.

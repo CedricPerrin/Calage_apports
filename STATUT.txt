@@ -48,14 +48,15 @@ CE QUI EST EPROUVE
   - LA DUREE AJUSTEE A CHAQUE APPORT a tourne en production le 31/08 : la
     fenetre reduite est bien ecrite dans le fichier plan (section 5.3 bis).
   - LES QUINZE BANCS SONT VERTS : les treize suites ci-dessus, plus
-    faire_zip.py et essai_garde_fou_archive.py. Repasses le 03/09, apres les
-    cinq correctifs et le prefixe de scenario (section 5.7).
-  - GREFFON EN 0.6.3. Son archive ne se comporte plus comme la 0.5.0 : les
+    faire_zip.py et essai_garde_fou_archive.py. Repasses le 04/09, apres le
+    garde-fou de la colonne de temps (section 5.7, fin).
+  - GREFFON EN 0.6.4. Son archive ne se comporte plus comme la 0.5.0 : les
     livrables ont change (5.7), le classeur porte un parametre de plus, le
     bouton « Installer… » complete un environnement reutilise, l'onglet
     Suivi regarde le dossier du CLASSEUR LANCE, plus celui de l'onglet 3
-    (5.7, fin), et la coherence du decalage se juge A LA FIN, sur les Dt
-    retenus (2.2 ter).
+    (5.7, fin), la coherence du decalage se juge A LA FIN, sur les Dt
+    retenus (2.2 ter), et un classeur sans colonne de temps est REFUSE
+    AVANT le lancement, en nommant l'en-tete trouve (5.7, fin).
 
 UN TROISIEME CALAGE COMPLET (03-04/09) : ARDANAVY Q100, REFAIT DE ZERO.
   6/6 CONFORME en 16 h 49, 11 calculs, livrables COMPLETS au premier passage
@@ -1728,6 +1729,47 @@ LE TROISIEME CALAGE COMPLET — ARDANAVY Q100, REFAIT DE ZERO AVEC LA 0.6.1
   la fenetre jugee et 111,7 % sur la crue entiere — 0,5 hm3 de trop dans la
   decrue, hors fenetre —, contre 111,8 % le 01/09 (6.).
 
+UN CLASSEUR SANS COLONNE DE TEMPS EST PARTI EN CALAGE (04/09, 9 h 30,
+Ardanavy Q20 V1 — premier lancement depuis un autre poste). Feuille Cibles :
+l'en-tete A1 remplace par un caractere isole (U+00B6, un pied-de-mouche) au
+lieu de « Temps_h », et la colonne de temps VIDE sous lui — un seul 0 en A2 —
+face a six colonnes de debit pleines (418 lignes). Le greffon a lance ; le
+pont a plante en arriere-plan, hors de vue : « AttributeError:
+'numpy.float64' object has no attribute 'to_numpy' » — cib.get("Temps_h")
+rend None, to_numeric() un scalaire.
+  DEUX GARDES LAISSAIENT PASSER. etat_cibles(), que le greffon consulte juste
+  avant de partir, tenait une cible pour renseignee des qu'une valeur de
+  debit etait non vide : six sur six. Et le controle (bouton « Controler »),
+  qui aurait dit « colonne 'Temps_h' absente », n'est pas exige au
+  lancement.
+  LE CORRECTIF (0.6.4) : etat_cibles() refuse un classeur sans colonne
+  « Temps_h » en nommant l'en-tete trouve a la place — c'est lui qu'il faut
+  corriger — et ne tient une cible pour renseignee que si elle a deux
+  instants numeriques en face de deux debits numeriques, LA REGLE DU PONT
+  (_cibles_depuis_classeur). Sans cette seconde regle, l'en-tete corrige, ce
+  classeur serait reparti et aurait ete refuse une seconde fois en
+  arriere-plan, pour « six cibles inexploitables ». Le greffon dit desormais
+  « 0 / 6 renseignee(s) » et « completer la feuille Cibles » avant tout
+  lancement. Le pont porte le meme garde-fou d'en-tete pour l'appel direct.
+  PREUVE : quatre bancs (pont section 4, noyau 4 bis) qui echouent sur le
+  code d'avant — l'AttributeError meme, « 2 renseignees » sur une colonne de
+  temps vide, la saisie effacee par la recomposition — et passent apres.
+  ET LE GESTE NATUREL APRES CE REFUS DETRUISAIT LA SAISIE. Prevenu que A1
+  est faux, on recompose — et preparer_classeur() ne retrouvait les cibles
+  deja collees que sous l'en-tete « Temps_h » : sans lui, la feuille etait
+  REECRITE VIDE, sans un mot, alors que le greffon promet a l'ecran que
+  « recomposer plus tard preserve les hydrogrammes deja saisis ». MESURE
+  SUR COPIE : 418 lignes sur six colonnes, effacees. La recomposition est
+  desormais REFUSEE quand la feuille porte des colonnes « Cible_ » non
+  vides sans colonne « Temps_h » — le classeur est laisse intact, et le
+  message dit quel en-tete retablir. Ce defaut etait ANTERIEUR au 04/09 :
+  toute recomposition sur une feuille Cibles illisible l'a toujours
+  effacee.
+  CE QUI RESTE : le lancement n'exige toujours pas un controle vert. Choix
+  tenu (5.4 : un garde-fou qui parle au bon endroit vaut mieux qu'un
+  prealable qu'on apprend a sauter) ; ici le bon endroit etait
+  etat_cibles().
+
 5.4  CE QUE LES CAS REELS ONT APPRIS, ENSEMBLE
 --------------------------------------------------------------------------
   - CALER LA SECTION ET DETERMINER L'APPORT SONT DEUX QUESTIONS DISTINCTES.
@@ -1906,6 +1948,13 @@ dates fictives au 1er janvier.
 ================================================================================
 
 A FOURNIR PAR L'UTILISATEUR
+  - LA COLONNE DE TEMPS DES CIBLES Q20. Le classeur source du dossier
+    d'apports porte six hydrogrammes complets (418 lignes) mais UN SEUL
+    instant : la colonne Temps_h est vide sous son en-tete. Le classeur du
+    Q20 (5.7, fin) a ete vide le 04/09 a 9 h 47 par une recomposition, la
+    saisie survit dans le source. Coller les 418 instants — le Q100 emploie
+    0 a 208,5 h au pas de 0,5 h sur le meme nombre de lignes —, puis
+    recomposer. Le greffon refuse de lancer sans (5.7, fin).
   - les hydrogrammes cibles (HSMF) des affaires a venir ;
   - la confirmation qu'il n'y a pas de boucle hydraulique (hypothese d'ordre
     total, § 1.2 de la note).
@@ -1915,10 +1964,19 @@ A FAIRE, PAR ORDRE DE PRIORITE
     long contenu MESURE dans des plans qu'HEC-RAS a ecrits et calcules ; le
     champ est probablement a 64. L'essai tient en trois gestes (§ 2.5) et
     demande HEC-RAS ouvert — donc l'utilisateur.
-  - EPROUVER LE PREFIXE ET LE PLAN FINAL SUR UN CALAGE REEL. Tout est au banc
-    (calage, pilote, controle_donnees, 149 controles QGIS), rien n'a encore
-    tourne sur un modele client : le prochain calage lance avec « Q100 » dira
-    si le gestionnaire de plans HEC-RAS rend bien ce que le § 2.5 annonce.
+  - L'ONGLET 4 SE TAIT QUAND L'ETAT DES CIBLES EST ILLISIBLE.
+    _maj_onglet_validation_depuis_classeur() (plugin.py, apres « Reprendre
+    un classeur… ») avale l'exception d'etat_cibles dans le journal de QGIS
+    et RETOURNE : les deux etiquettes gardent le texte de l'etat precedent.
+    Les deux autres appels, eux, parlent — « (illisible : …) » a l'onglet
+    Lancer, une boite critique au lancement — et le compte rendu de
+    controle affiche juste avant porte deja « colonne 'Temps_h' absente ».
+    Correctif a une ligne (copier la conduite de l'onglet Lancer), MAIS il
+    touche plugin.py : il demande de rejouer les 152 controles sous QGIS,
+    donc le poste, une copie de modele et l'interpreteur HEC-RAS.
+  (LE PREFIXE ET LE PLAN FINAL SONT EPROUVES depuis le 04/09 : le troisieme
+  calage a porte « Q100 » sur ses sept plans et rendu « Q100-avec apports »,
+  sans toucher aux plans du 01/09 — 5.7, fin.)
   VERIFIER CHAQUE POINT DANS LE CODE AVANT DE LE TRAITER. Trois des points de
   cette liste etaient deja faits quand on les a repris le 01/09 au soir — le
   classeur d'iterations, la version de ras-commander, et la moitie du

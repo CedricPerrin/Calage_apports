@@ -48,7 +48,7 @@ passerait.
 critère de cohérence se juge à la fin — corrigé), § 5.7 fin (le troisième
 calage, mesuré), § 6 (le verdict de volume, chiffre reproductible).
 
-**15 bancs verts, 152 contrôles QGIS verts, greffon en 0.6.3.**
+**15 bancs verts, 152 contrôles QGIS verts, greffon en 0.6.4.**
 
 ### Ardanavy Q100, refait de zéro avec la 0.6.1 : 6/6 conforme en 16 h 49
 
@@ -70,6 +70,26 @@ et juge **à la fin** (`_coherence_points`). Banc : la ligne « cohérence » so
 après la vérification finale, son étendue est celle des Δt retenus ; échoue
 sur le code d'avant. La note du run V2 est à régénérer
 (`reconstruire_livrables.py`) si le dossier est livré.
+
+### Un classeur sans colonne de temps est parti en calage — 0.6.4
+
+Premier lancement depuis un autre poste (Ardanavy Q20 V1) : feuille Cibles
+avec l'en-tête A1 remplacé par un caractère isolé et la colonne de temps
+vide sous six colonnes de débit pleines. Le pont a planté en arrière-plan
+(`'numpy.float64' object has no attribute 'to_numpy'`). `etat_cibles()`, que
+le greffon consulte avant de lancer, refuse désormais un classeur sans
+colonne « Temps_h » en nommant l'en-tête trouvé, et ne tient une cible pour
+renseignée que si elle a deux instants numériques en face de deux débits —
+la règle du pont, qui porte le même garde-fou.
+
+Et le geste naturel après ce refus — recomposer — **réécrivait la feuille
+Cibles vide**, sans un mot : 418 lignes sur six colonnes, mesuré sur copie.
+`preparer_classeur()` ne retrouvait la saisie que sous l'en-tête
+« Temps_h ». Défaut **antérieur** au 04/09. La recomposition est désormais
+refusée quand la feuille porte des colonnes « Cible_ » non vides sans
+colonne de temps. Quatre bancs, échec avant / succès après. Détail :
+`STATUT.txt` § 5.7, fin. La suite QGIS n'a pas été rejouée : `plugin.py`
+n'est pas touché.
 
 ### L'onglet Suivi regardait le mauvais dossier — 0.6.2
 

@@ -219,6 +219,16 @@ au premier passage. Il a aussi montré que l'alerte de cohérence du décalage
 se mesurait sur le mauvais état du modèle ; elle se juge désormais à la fin,
 sur les décalages retenus (0.6.3).
 
+Le même jour, le premier lancement depuis un autre poste a montré qu'un
+classeur dont la feuille Cibles n'avait plus de colonne « Temps_h » — et
+aucun instant sous elle — partait en calage et plantait en arrière-plan. Le
+plugin le refuse désormais avant de lancer, en nommant l'en-tête trouvé à la
+place ; une cible ne compte comme renseignée que si elle a deux instants en
+face de deux débits. Et recomposer par-dessus une feuille Cibles qu'on ne
+sait pas relire est refusé : la composition la réécrivait vide, sans un mot,
+alors que le plugin promet à l'écran qu'elle préserve les hydrogrammes déjà
+saisis (0.6.4).
+
 > Ce que ces deux calages n'ont PAS rencontré : un volume plancher, un apport
 > refusé, un modèle incohérent. Les garde-fous qui traitent ces cas n'ont donc
 > été éprouvés qu'au banc.

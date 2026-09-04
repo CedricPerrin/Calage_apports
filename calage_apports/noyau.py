@@ -1334,6 +1334,24 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
         "Pente_m_par_m": colonne_pente,
     })
 
+    # UNE SAISIE QU'ON NE SAIT PAS RELIRE NE S'EFFACE PAS. Les cibles deja
+    # collees sont retrouvees sous l'en-tete « Temps_h » ; sans lui, la
+    # branche suivante reecrivait la feuille VIDE, sans un mot — le geste
+    # naturel apres le refus d'etat_cibles etant justement de recomposer
+    # (04/09/2026, six colonnes de 418 lignes). Colonnes « Cible_ » : la
+    # convention de saisie de la feuille, celle que prolonger_cibles emploie.
+    if (cibles_existantes is not None
+            and "Temps_h" not in cibles_existantes.columns
+            and any(str(c).startswith("Cible_")
+                    and cibles_existantes[c].notna().any()
+                    for c in cibles_existantes.columns)):
+        raise ValueError(
+            f"la feuille Cibles de {chemin.name} porte des hydrogrammes "
+            f"saisis, mais pas de colonne « Temps_h » (en-tete A1) : "
+            f"{[str(c) for c in cibles_existantes.columns]}. Recomposer les "
+            f"effacerait. Retablir l'en-tete « Temps_h » dans le classeur, "
+            f"puis recomposer. Le classeur est inchange.")
+
     if cibles_existantes is not None and "Temps_h" in cibles_existantes.columns:
         # Meme grille de temps qu'auparavant ; seules les colonnes de section
         # sont reconciliees avec la liste courante.
@@ -1417,9 +1435,13 @@ def etat_cibles(chemin_classeur):
     l'information qui guide l'etape suivante — completer la feuille Cibles —
     avant de lancer le calage.
 
-    Une cible est consideree renseignee des qu'elle comporte au moins une
-    valeur non vide ; controle_donnees.py verifie deja separement qu'un
-    hydrogramme partiel ou incoherent est signale.
+    Une cible est RENSEIGNEE quand elle est exploitable au sens du pont
+    (_cibles_depuis_classeur) : au moins deux instants numeriques de Temps_h
+    en face de deux debits numeriques. « Au moins une valeur non vide »
+    laissait partir un classeur aux six colonnes de debit pleines et a la
+    colonne de temps vide (04/09/2026) — refuse ensuite en arriere-plan.
+    controle_donnees.py verifie separement qu'un hydrogramme partiel ou
+    incoherent est signale.
 
     Retourne {"total", "renseignees", "manquantes": [noms de section]}.
     """
@@ -1430,11 +1452,24 @@ def etat_cibles(chemin_classeur):
     col_section = next(c for c in corr.columns if c.startswith("Nom_Section"))
     col_cible = next(c for c in corr.columns if c.startswith("Nom_Cible"))
 
+    # LA COLONNE DU TEMPS D'ABORD : le greffon appelle cette fonction juste
+    # avant de lancer le calage. Sans « Temps_h » en A1 le pont plantait en
+    # arriere-plan, hors de vue (04/09/2026). Refuser ici, en nommant l'en-tete
+    # trouve a la place — c'est lui qu'il faut corriger.
+    if "Temps_h" not in cibles.columns:
+        raise ValueError(
+            f"la feuille Cibles n'a pas de colonne « Temps_h » (en-tete A1). "
+            f"En-tetes trouves : {[str(c) for c in cibles.columns]}. Le calage "
+            f"n'est pas lance.")
+
+    temps_ok = pd.to_numeric(cibles["Temps_h"], errors="coerce").notna()
     manquantes = []
     for _, ligne in corr.dropna(subset=[col_section, col_cible]).iterrows():
         nom_cible = str(ligne[col_cible])
-        renseignee = (nom_cible in cibles.columns
-                      and cibles[nom_cible].notna().any())
+        renseignee = (
+            nom_cible in cibles.columns
+            and int((temps_ok & pd.to_numeric(cibles[nom_cible], errors="coerce"
+                                              ).notna()).sum()) >= 2)
         if not renseignee:
             manquantes.append(str(ligne[col_section]))
 
@@ -2177,6 +2212,97 @@ if __name__ == "__main__":
               + (f"  ->  {_detail[0]}" if _detail else ""))
         assert _ok, _libelle
     _cl.unlink(missing_ok=True)
+
+    # ET LE LANCEMENT REFUSE UN CLASSEUR SANS COLONNE Temps_h (04/09/2026).
+    # etat_cibles() est ce que le greffon consulte juste avant de partir. Il
+    # laissait passer un en-tete A1 remplace ; le pont plantait ensuite en
+    # arriere-plan, hors de vue, sur un scalaire. Refuser ICI, et nommer
+    # l'en-tete trouve : c'est lui qu'il faut corriger.
+    _wb = openpyxl.Workbook()
+    _fe = _wb.active
+    _fe.title = "Correspondance"
+    _fe.append(["Ordre", "Nom_Apport (BC line)",
+                "Nom_Section (reference line)", "Nom_Cible"])
+    _fe.append([1, "A1", "S1", "Cible_S1"])
+    _fc = _wb.create_sheet("Cibles")
+    _fc.append(["Temps (h)", "Cible_S1"])
+    _fc.append([0.0, 10.0])
+    _wb.save(_cl)
+    try:
+        etat_cibles(_cl)
+        _dit = "aucune erreur"
+    except ValueError as e:
+        _dit = str(e)
+    _libelle = ("sans colonne Temps_h, l'etat des cibles refuse et nomme "
+                "l'en-tete trouve")
+    _ok = "Temps_h" in _dit and "Temps (h)" in _dit
+    print(f"   [{'OK' if _ok else 'ECHEC'}] {_libelle}  ->  {_dit[:100]}")
+    assert _ok, _libelle
+    _cl.unlink(missing_ok=True)
+
+    # ET UNE COLONNE DE TEMPS VIDE SOUS SON EN-TETE NE RENSEIGNE RIEN. Le meme
+    # classeur du 04/09 avait six colonnes de debit pleines (418 lignes) et UN
+    # SEUL instant : six cibles « renseignees » pour le greffon, six
+    # « inexploitables » pour le pont, qui l'aurait dit en arriere-plan apres
+    # l'en-tete corrige. Meme regle des deux cotes : deux instants numeriques
+    # en face de deux debits numeriques (_cibles_depuis_classeur).
+    _wb = openpyxl.Workbook()
+    _fe = _wb.active
+    _fe.title = "Correspondance"
+    _fe.append(["Ordre", "Nom_Apport (BC line)",
+                "Nom_Section (reference line)", "Nom_Cible"])
+    _fe.append([1, "A1", "S1", "Cible_S1"])
+    _fe.append([2, "A2", "S2", "Cible_S2"])
+    _fc = _wb.create_sheet("Cibles")
+    _fc.append(["Temps_h", "Cible_S1", "Cible_S2"])
+    _fc.append([0.0, 0.0, 0.0])
+    for _i in range(1, 6):
+        _fc.append([None, 10.0 * _i, 5.0 * _i])       # temps VIDE, debits pleins
+    _wb.save(_cl)
+    _etat = etat_cibles(_cl)
+    _libelle = "une colonne de temps vide rend les cibles non renseignees"
+    _ok = _etat["manquantes"] == ["S1", "S2"] and _etat["renseignees"] == 0
+    print(f"   [{'OK' if _ok else 'ECHEC'}] {_libelle}  ->  {_etat}")
+    assert _ok, _libelle
+    for _i in range(1, 6):                              # les instants, et tout va
+        _fc.cell(row=_i + 2, column=1, value=0.25 * _i)
+    _wb.save(_cl)
+    _etat = etat_cibles(_cl)
+    _libelle = "avec ses instants, la meme feuille renseigne les deux cibles"
+    _ok = _etat["manquantes"] == [] and _etat["renseignees"] == 2
+    print(f"   [{'OK' if _ok else 'ECHEC'}] {_libelle}  ->  {_etat}")
+    assert _ok, _libelle
+    _cl.unlink(missing_ok=True)
+
+    # ET RECOMPOSER N'EFFACE PAS UNE SAISIE QU'ON NE SAIT PAS RELIRE.
+    # preparer_classeur() preserve les cibles deja collees en les cherchant
+    # sous l'en-tete « Temps_h » ; sans lui, la feuille etait REECRITE VIDE,
+    # sans un mot — six colonnes de 418 lignes, et le greffon qui promet a
+    # l'ecran que « recomposer plus tard preserve les hydrogrammes deja
+    # saisis » (04/09/2026). Le geste naturel apres le nouveau message
+    # d'etat_cibles est justement de recomposer.
+    _dossier2 = dossier / "recomposition"
+    _dossier2.mkdir(exist_ok=True)
+    _cl2 = _dossier2 / NOMS_FICHIERS["classeur"]
+    _wb = openpyxl.Workbook()
+    _fc = _wb.active
+    _fc.title = "Cibles"
+    _fc.append(["\u00b6", "Cible_S1", "Cible_S2"])       # en-tete A1 remplace
+    for _i in range(6):
+        _fc.append([None, 10.0 + _i, 20.0 + _i])
+    _wb.save(_cl2)
+    try:
+        preparer_classeur(_dossier2, [("A1", "S1"), ("A2", "S2")], {})
+        _dit = "aucune erreur"
+    except ValueError as e:
+        _dit = str(e)
+    _reste = pd.read_excel(_cl2, sheet_name="Cibles")
+    _libelle = "recomposer sans en-tete Temps_h refuse et laisse la saisie intacte"
+    _ok = ("Temps_h" in _dit and "\u00b6" in _dit
+           and list(_reste["Cible_S1"]) == [10.0 + _i for _i in range(6)])
+    print(f"   [{'OK' if _ok else 'ECHEC'}] {_libelle}  ->  {_dit[:80]}")
+    assert _ok, _libelle
+    _cl2.unlink(missing_ok=True)
 
     print("\n4 ter. EMPLACEMENT DE L'ENVIRONNEMENT HEC-RAS")
     # CE QU'IL FAUT EPROUVER ICI : que le bouton « Installer… » ait TOUJOURS
