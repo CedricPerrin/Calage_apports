@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.6.6
+version=0.6.7
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,24 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,KGE,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.6.6 — Ce que le second tour de relecture a trouvé.
+changelog=0.6.7 — L'installation, pour qui ne sait pas où est Python.
+    Le seul chemin de récupération quand l'interpréteur manque proposait
+    de le DÉSIGNER — c'est-à-dire d'ouvrir un sélecteur de fichier sur le
+    poste où il n'y a précisément rien à désigner. Il propose désormais
+    « Installer… », qui cherche les Python présents, en propose un, crée
+    l'environnement et le vérifie.
+    Et il donnait une commande pip à DEUX paquets quand la vérification en
+    exige onze : la suivre à la lettre fabriquait un environnement que le
+    greffon refusait ensuite. Le texte vient maintenant de la même liste
+    que la vérification, et un banc interdit qu'une seconde réapparaisse.
+    Un Python installé hors du disque C: était invisible : la lecture de
+    « py -0p » cherchait la sous-chaîne « c: » et laissait tomber la ligne
+    sans un mot. La recherche accepte toute lettre de lecteur et les
+    chemins UNC, part des dossiers de programmes que Windows déclare
+    lui-même, et parcourt le PATH en entier.
+    L'aide s'ouvre sur une section « Première utilisation », et un
+    emplacement manquant dit le geste qui le comble.
+    0.6.6 — Ce que le second tour de relecture a trouvé.
     Après « Reprendre un classeur d'un calcul précédent… » sur un classeur
     dont l'état est illisible, l'onglet 4 gardait le chemin ET le
     « 6/6 renseignée(s) » du classeur PRÉCÉDENT : un affichage qui ment,

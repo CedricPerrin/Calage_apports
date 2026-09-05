@@ -318,6 +318,42 @@ PAQUETS_HECRAS = (
 )
 
 
+def commande_pip_hecras(interpreteur=None):
+    r"""
+    La commande pip qui pose TOUT ce que le pont exige, en un seul texte.
+
+    ELLE SE DEDUIT DE PAQUETS_HECRAS, ET NE SE RECOPIE NULLE PART. L'aide du
+    greffon et son message « interpreteur introuvable » annonçaient
+    « pip install "ras-commander>=0.99" h5py » — deux paquets, quand la
+    verification en exige onze plus xarray. Qui suivait l'aide a la lettre
+    fabriquait donc un environnement que le greffon REFUSAIT ensuite, et
+    devait recommencer sur la foi du message d'echec. C'est exactement la
+    divergence entre deux listes que PAQUETS_HECRAS existe pour empecher : la
+    liste avait ete unifiee dans le code le 31/08/2026, pas dans les textes.
+
+    interpreteur : le python.exe a employer. Sans lui, « python » — pour une
+    invite ou l'environnement est deja actif.
+    """
+    paquets = " ".join(f'"{pip}"' if any(c in pip for c in "<>=") else pip
+                       for _, pip in PAQUETS_HECRAS)
+    tete = f'"{interpreteur}"' if interpreteur else "python"
+    return f"{tete} -m pip install {paquets}"
+
+
+def recette_installation_manuelle():
+    r"""
+    Les deux commandes a taper pour se passer du bouton « Installer… ».
+
+    Elle reste offerte parce qu'un poste d'entreprise interdit parfois a QGIS
+    de sortir sur PyPI alors qu'une invite de commandes le peut. Elle n'est
+    PAS le chemin recommande : le bouton fait la meme chose, verifie le
+    resultat, et retient l'emplacement.
+    """
+    venv = r"%USERPROFILE%\venv-hecras"
+    return (f"python -m venv {venv}",
+            commande_pip_hecras(rf"{venv}\Scripts\python.exe"))
+
+
 def interpreteur_hecras():
     """
     Interpreteur capable d'importer ras-commander, ou None. Recherche, dans
@@ -490,8 +526,90 @@ def _python_utilisable(chemin):
     return version if version >= PYTHON_MINIMUM else None
 
 
+# UNE LIGNE DE « py -0p », ET N'IMPORTE QUEL DISQUE. Le lecteur precedent
+# cherchait la sous-chaine « c: » et laissait tomber la ligne quand il ne la
+# trouvait pas : un Python installe sur D: — cas ordinaire d'un poste
+# d'entreprise dont le disque systeme est petit — etait donc INVISIBLE, sans
+# un mot. Le motif accepte desormais toute lettre de lecteur, et un chemin
+# UNC (\\serveur\partage\...), qu'un profil itinerant peut porter.
+# « pythonw.exe » est ECARTE : il n'a pas de sortie standard, si bien que la
+# sonde de _python_utilisable ne lit rien et le rejette de toute facon — un
+# sous-processus de 20 s depense pour rien.
+_CHEMIN_PY = re.compile(r"([A-Za-z]:\\[^\r\n]*?python(?!w)\w*\.exe"
+                        r"|\\\\[^\r\n]*?python(?!w)\w*\.exe)", re.IGNORECASE)
+
+# COMBIEN DE CANDIDATS ON ACCEPTE DE SONDER. Chaque candidat coute un
+# sous-processus, borne a 20 s : une liste sans plafond ferait attendre des
+# minutes devant une boite de dialogue. L'ordre etant deja « le plus probable
+# d'abord » (l'interpreteur qui nous execute, puis le lanceur py, puis les
+# emplacements connus, puis le PATH), ce qui tombe est la queue.
+MAXIMUM_CANDIDATS = 40
+
+
+def _chemin_dans_ligne_py(ligne):
+    r"""
+    Chemin d'interpreteur contenu dans une ligne de « py -0p », ou None.
+
+    Le lanceur ecrit « -V:3.13 * <chemin> », et « -3.11-64 <chemin> » dans
+    ses versions plus anciennes. Le chemin est la seule partie qu'on lise, et
+    il peut contenir des espaces : on le reconnait a sa forme, pas a sa
+    position dans la ligne.
+    """
+    trouve = _CHEMIN_PY.search(ligne or "")
+    return trouve.group(1).strip('" ') if trouve else None
+
+
+def _racines_recherche():
+    r"""
+    Racines sous lesquelles chercher Python, sur CE poste.
+
+    TROIS FAMILLES, ET AUCUNE N'EST ECRITE EN DUR :
+      - les dossiers de programmes que Windows declare lui-meme
+        (%ProgramFiles%, %ProgramW6432%, %ProgramFiles(x86)%), qui ne sont pas
+        toujours « C:\Program Files » — ni sur un poste dont le systeme est
+        sur un autre disque, ni sur une installation redirigee ;
+      - %LOCALAPPDATA%, ou l'installeur de python.org pose par defaut ;
+      - la racine de chaque disque fixe, pour QGIS et OSGeo4W qu'on installe
+        volontiers hors des dossiers de programmes.
+
+    A: ET B: SONT ECARTES : ce sont les lettres historiques des lecteurs de
+    disquettes, et les interroger reveille un materiel absent.
+    """
+    racines, vus = [], set()
+
+    def ajouter(brut):
+        if not brut:
+            return
+        chemin = Path(str(brut))
+        cle = str(chemin).lower()
+        if cle not in vus:
+            vus.add(cle)
+            racines.append(chemin)
+
+    for variable in ("ProgramFiles", "ProgramW6432", "ProgramFiles(x86)",
+                     "LOCALAPPDATA"):
+        ajouter(os.environ.get(variable))
+
+    if os.name == "nt":
+        for lettre in "CDEFGHIJKLMNOPQRSTUVWXYZ":
+            racine = Path(f"{lettre}:\\")
+            try:
+                if racine.is_dir():
+                    ajouter(racine)
+            except OSError:
+                # Un lecteur reseau deconnecte leve plutot que de rendre
+                # False : il n'est pas candidat, il ne doit pas etre fatal.
+                continue
+    return racines
+
+
 def _emplacements_python():
-    r"""Chemins a essayer, sans garantie : c'est _python_utilisable qui tranche."""
+    r"""
+    Chemins a essayer, sans garantie : c'est _python_utilisable qui tranche.
+
+    LE PLUS PROBABLE D'ABORD, parce que la liste est plafonnee
+    (MAXIMUM_CANDIDATS) et que chaque candidat coute un sous-processus.
+    """
     vus, candidats = set(), []
 
     def ajouter(p):
@@ -515,31 +633,43 @@ def _emplacements_python():
         sortie = subprocess.run(["py", "-0p"], capture_output=True, text=True,
                                 encoding="utf-8", errors="replace", timeout=20)
         for ligne in (sortie.stdout or "").splitlines():
-            morceau = ligne.strip()
-            if "python.exe" in morceau.lower():
-                ajouter(morceau[morceau.lower().index("c:"):].strip('" ')
-                        if "c:" in morceau.lower() else None)
+            ajouter(_chemin_dans_ligne_py(ligne))
     except Exception:                                        # noqa: BLE001
         pass
 
-    for motif in (
-            r"%LOCALAPPDATA%\Programs\Python\Python3*\python.exe",
-            r"C:\Python3*\python.exe",
-            r"C:\Program Files\Python3*\python.exe",
-            # QGIS et OSGeo4W : DEUX niveaux, « QGIS\LTR\apps » comme
-            # « QGIS 3.34\apps ». Motifs bornes plutot qu'un parcours
-            # recursif, qui prendrait des secondes sur Program Files.
-            r"C:\Program Files\QGIS*\apps\Python3*\python.exe",
-            r"C:\Program Files\QGIS*\*\apps\Python3*\python.exe",
-            r"C:\OSGeo4W*\apps\Python3*\python.exe",
-    ):
-        import glob as _glob
-        for trouve in _glob.glob(os.path.expandvars(motif)):
-            ajouter(trouve)
+    # QGIS et OSGeo4W : DEUX niveaux, « QGIS\LTR\apps » comme
+    # « QGIS 3.34\apps ». Motifs bornes plutot qu'un parcours recursif, qui
+    # prendrait des secondes sur un dossier de programmes.
+    import glob as _glob
+    for racine in _racines_recherche():
+        for motif in (r"Programs\Python\Python3*\python.exe",
+                      r"Python3*\python.exe",
+                      r"QGIS*\apps\Python3*\python.exe",
+                      r"QGIS*\*\apps\Python3*\python.exe",
+                      r"OSGeo4W*\apps\Python3*\python.exe"):
+            try:
+                for trouve in _glob.glob(str(racine / motif)):
+                    ajouter(trouve)
+            except OSError:
+                continue
 
+    # LE PATH EN ENTIER, PAS SEULEMENT SON PREMIER NOM. shutil.which s'arrete
+    # au premier trouve, et sur un poste ou un leurre WindowsApps precede la
+    # vraie installation, ce premier est justement celui qui ne demarre pas
+    # (_LEURRES l'ecarte ensuite, et il ne restait alors plus rien).
+    for dossier in os.environ.get("PATH", "").split(os.pathsep):
+        if not dossier.strip():
+            continue
+        for nom in ("python.exe", "python3.exe", "python", "python3"):
+            chemin = Path(dossier.strip('" ')) / nom
+            try:
+                if chemin.is_file():
+                    ajouter(chemin)
+            except OSError:
+                continue
     for nom in ("python", "python3", "py"):
         ajouter(shutil.which(nom))
-    return candidats
+    return candidats[:MAXIMUM_CANDIDATS]
 
 
 def _origine_python(chemin):
@@ -2519,6 +2649,94 @@ if __name__ == "__main__":
     finally:
         _dossier_chaine = _garde
         DOSSIER_EMBARQUE = _garde_emb
+
+    print("\n4 quinquies. TROUVER PYTHON SUR UN POSTE QUELCONQUE")
+    # CE QUI SE JOUE ICI : le neophyte qui ne sait pas ou est Python. Le
+    # greffon le cherche pour lui, et ne doit pas le manquer sur un poste
+    # ordinaire — un disque systeme autre que C:, un dossier de programmes
+    # redirige, un chemin qui contient des espaces.
+    for _ligne, _attendu in [
+            (r" -V:3.13 *        C:\Users\x\Python313\python.exe",
+             r"C:\Users\x\Python313\python.exe"),
+            # LE DEFAUT CORRIGE : la lecture cherchait « c: » et laissait
+            # tomber la ligne sans un mot. Un poste dont le disque systeme
+            # est petit installe volontiers Python sur D:.
+            (r" -V:3.12          D:\Python312\python.exe",
+             r"D:\Python312\python.exe"),
+            (r" -V:3.11          C:\Program Files\Python 3.11\python.exe",
+             r"C:\Program Files\Python 3.11\python.exe"),
+            (r" -3.11-64        E:\Py\python.exe", r"E:\Py\python.exe"),
+            (r" -V:3.13         \\serveur\part\Python313\python.exe",
+             r"\\serveur\part\Python313\python.exe"),
+            ("Installed Pythons found by py Launcher", None),
+            # pythonw n'ecrit rien sur la sortie standard : le sonder coute
+            # un sous-processus pour un rejet certain.
+            (r" -V:3.13          C:\Py\pythonw.exe", None)]:
+        _lu = _chemin_dans_ligne_py(_ligne)
+        print(f"   [{'OK' if _lu == _attendu else 'ECHEC'}] py -0p : "
+              f"{_ligne.strip()[:44]:44s} -> {_lu}")
+        assert _lu == _attendu, (_ligne, _lu, _attendu)
+
+    # LES RACINES SONT WINDOWS PAR NATURE : %ProgramFiles% et les lettres de
+    # lecteur n'ont pas d'equivalent ailleurs. Hors Windows, ce qu'on exige
+    # est qu'elle rende une liste sans lever — le PATH prend le relais.
+    _racines = _racines_recherche()
+    _attendu_racines = bool(_racines) if os.name == "nt" else True
+    print(f"   [{'OK' if _attendu_racines else 'ECHEC'}] des racines de "
+          f"recherche sont proposees  ->  {len(_racines)} sur ce poste "
+          f"({'Windows' if os.name == 'nt' else 'hors Windows : le PATH suffit'})")
+    assert _attendu_racines
+    assert all(isinstance(r, Path) for r in _racines)
+    _emplacements = _emplacements_python()
+    _cles = [str(e).lower() for e in _emplacements]
+    print(f"   [{'OK' if len(_cles) == len(set(_cles)) else 'ECHEC'}] "
+          f"aucun emplacement propose deux fois  ->  {len(_cles)} chemins")
+    assert len(_cles) == len(set(_cles))
+    print(f"   [{'OK' if len(_emplacements) <= MAXIMUM_CANDIDATS else 'ECHEC'}]"
+          f" la liste est plafonnee : sonder coute un sous-processus  ->  "
+          f"{len(_emplacements)} <= {MAXIMUM_CANDIDATS}")
+    assert len(_emplacements) <= MAXIMUM_CANDIDATS
+
+    print("\n4 sexies. CE QU'ON DIT D'INSTALLER EST CE QU'ON EXIGE")
+    # LE DEFAUT : l'aide et le message « interpreteur introuvable » nommaient
+    # DEUX paquets, la verification en exige onze. Suivre l'aide a la lettre
+    # fabriquait un environnement refuse. Une liste ecrite deux fois finit
+    # toujours par diverger — il n'y en a plus qu'une, PAQUETS_HECRAS, et ce
+    # banc interdit qu'une seconde reapparaisse dans un texte distribue.
+    _commande = commande_pip_hecras()
+    _oublies = [pip.split(">")[0].split("=")[0]
+                for _, pip in PAQUETS_HECRAS
+                if pip.split(">")[0].split("=")[0] not in _commande]
+    print(f"   [{'OK' if not _oublies else 'ECHEC'}] la commande pip nomme "
+          f"les {len(PAQUETS_HECRAS)} paquets exiges  ->  "
+          f"{'aucun oubli' if not _oublies else _oublies}")
+    assert not _oublies, _oublies
+    _venv, _pip = recette_installation_manuelle()
+    print(f"   [{'OK' if '-m venv' in _venv and '-m pip install' in _pip else 'ECHEC'}]"
+          f" la recette manuelle cree l'environnement PUIS le peuple")
+    assert "-m venv" in _venv and "-m pip install" in _pip
+
+    # DEUX GARDE-FOUS, PARCE QUE LA LISTE COURTE POUVAIT SE RECOMPOSER.
+    # Chercher le texte litteral ne suffisait pas : plugin.py l'ecrivait en
+    # trois morceaux de f-string, invisibles a une recherche de sous-chaine.
+    # On interdit donc a plugin.py de composer QUELQUE commande pip que ce
+    # soit — la seule source est commande_pip_hecras() — et au LISEZMOI de
+    # porter l'ancienne liste.
+    _greffon = Path(__file__).resolve().parent
+    _fautifs = []
+    _source_plugin = (_greffon / "plugin.py").read_text(encoding="utf-8") \
+        if (_greffon / "plugin.py").is_file() else ""
+    for _marque in ("-m pip install", "ras-commander>="):
+        if _marque in _source_plugin:
+            _fautifs.append(f"plugin.py compose lui-meme « {_marque} »")
+    _lisezmoi = _greffon / "LISEZMOI.md"
+    if _lisezmoi.is_file() and 'install "ras-commander>=0.99" h5py' \
+            in _lisezmoi.read_text(encoding="utf-8"):
+        _fautifs.append("LISEZMOI.md porte la liste courte")
+    print(f"   [{'OK' if not _fautifs else 'ECHEC'}] aucun texte distribue "
+          f"n'annonce ni ne recompose la liste courte  ->  "
+          f"{'aucun' if not _fautifs else _fautifs}")
+    assert not _fautifs, _fautifs
 
     print("\n5. PK POUR AFFICHAGE DANS QGIS")
     affichage = pk_pour_affichage(chemins["sections"], chemins["axe"])

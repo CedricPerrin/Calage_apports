@@ -42,6 +42,27 @@ fournir. Le garde-fou n'est donc pas muet — mais il ne surveille rien de réel
 Avant de committer depuis un clone neuf, se rappeler qu'un nom de client
 passerait.
 
+## Session du 5 septembre 2026 (suite) — installer sans savoir où est Python
+
+**Greffon en 0.6.7.** Trois défauts, chacun prouvé puis fermé par un banc.
+
+| défaut | preuve | correctif |
+|---|---|---|
+| Le seul chemin de récupération proposait de **désigner**, jamais d'**installer** | `plugin.py:_diagnostic` ouvrait un sélecteur de fichier sur le poste où il n'y a rien à désigner | boîte à trois boutons, **Installer…** par défaut |
+| Commande pip à **2 paquets** quand la vérification en exige **11** (+ xarray) | `PAQUETS_HECRAS` vs le texte de l'aide et du diagnostic | `noyau.commande_pip_hecras()` — une seule source, et un banc interdit qu'une seconde reparaisse |
+| Un Python hors du disque **C:** était invisible | `morceau[morceau.lower().index("c:"):]` — la ligne était abandonnée sans un mot | `_chemin_dans_ligne_py()` : toute lettre de lecteur, chemins UNC |
+
+**Ce qui n'a pas changé, et ne devait pas** : `interpreteur_hecras()`. La règle
+« un interpréteur trouvé quelque part serait employé sans qu'on sache d'où il
+vient » tient — la recherche **propose**, l'utilisateur **désigne**.
+
+**Bancs du noyau 4 quinquies et 4 sexies**, 13 contrôles neufs, 37 verts en
+tout. Le banc s'arrête toujours en section 9 sur ce clone : elle fabrique un
+venv à l'arborescence Windows.
+
+**Les 152 contrôles QGIS sont à repasser** : `plugin.py` a changé deux fois
+(04/09, puis 05/09).
+
 ## Session du 5 septembre 2026 — la fenêtre jugée dit enfin ce qu'elle exclut
 
 **Par quoi reprendre :** `STATUT.txt` § 2.2 bis (la troisième perte, et
