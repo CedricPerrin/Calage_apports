@@ -55,21 +55,36 @@ l'installation (voir plus bas).
 | [src/creer_template.py](src/creer_template.py) / [src/style_classeur.py](src/style_classeur.py) | Fabrication et mise en forme du classeur de saisie |
 | [src/faire_zip.py](src/faire_zip.py) | Construit `calage_apports.zip`, l'archive d'installation du plugin |
 | [src/essai_garde_fou_archive.py](src/essai_garde_fou_archive.py) | Essai **adverse** : injecte trois fautes dans l'archive et vérifie qu'elles sont refusées |
-| [src/test_plugin_qgis.py](src/test_plugin_qgis.py) | Suite du plugin (152 contrôles), à lancer sous l'interpréteur de QGIS et sur une **copie** d'un modèle |
+| [src/test_plugin_qgis.py](src/test_plugin_qgis.py) | Suite du plugin (152 contrôles au 03/09), à lancer sous l'interpréteur de QGIS et sur une **copie** d'un modèle — la suite **modifie** la géométrie de celui qu'on lui donne |
 | `src/figures_note/` | Reconstruction de la note méthodologique : contenu, figures, assemblage du `.docx` |
 | [methodologie_calage_amont_aval.docx](methodologie_calage_amont_aval.docx) | Note méthodologique (mode opératoire, méthode générale, application HEC-RAS/QGIS, livrables) |
 | `calage_apports/` | Plugin QGIS — voir son propre [LISEZMOI.md](calage_apports/LISEZMOI.md) (installation, tests, contraintes d'environnement) |
 | `livrables_exemple/` | Sortie d'exemple produite par `python livrables.py` — régénérée à chaque exécution, **absente d'un dépôt fraîchement cloné** (hors suivi git depuis le 31/08/2026) |
+| [src/reference_calage_fictif.json](src/reference_calage_fictif.json) | Sortie figée d'un calage complet sur `ModeleFictif` — le test de caractérisation de `caler()` la compare à chaque passage du banc. **Ne pas modifier à la main** : `python calage.py --figer-reference` la réécrit quand le changement est voulu |
+| [AUDIT.md](AUDIT.md) | Audit de complexité du 5 septembre 2026 — constats mesurés, ce qu'il ne faut **pas** simplifier, et le plan par lots |
 | `charte/` | Identité graphique ISL Ingénierie |
 | `docs/` | Notes de travail annexes |
 | `_arquivo/` | Versions obsolètes de documents, hors du chemin de lecture normal |
 
 ## État du projet
 
-**Deux calages multi-apports sont allés à leur terme, conformes, le 2 septembre
-2026** — six apports sur six et douze sur douze, dix-huit apports en tout,
-zéro incident. Seize d'entre eux ont convergé en un ou deux essais. Ce qu'ils
-ont appris est en section 5.6 de `STATUT.txt`.
+**Trois calages multi-apports sont allés à leur terme, conformes** — six, douze
+et six apports, **vingt-quatre en tout**, zéro incident. La plupart ont convergé
+en un ou deux essais. Ce qu'ils ont appris est aux sections 5.6 et 5.7 de
+`STATUT.txt`.
+
+**Plugin QGIS en 0.7.0.** Ses six onglets suivent l'ordre des décisions :
+Modèle, Objectifs et précision, Résultats, Lancer, Suivi, Aide et
+configuration.
+
+**Ce qui reste à faire est dans `AUDIT.md` § 7** — le lot 5, et lui seul :
+`_sections_derivees` (petit, local), puis `caler()`, 699 lignes pour une
+complexité cyclomatique de 81. Ce second point ne se touche qu'à l'abri du test
+de caractérisation, qui existe depuis le 5 septembre.
+
+**Ce qui reste à vérifier au poste** : les **152 contrôles** de
+`test_plugin_qgis.py`. Ils datent du 3 septembre, et `plugin.py` a changé
+plusieurs fois depuis.
 
 [STATUT.txt](STATUT.txt) porte l'état courant et les règles en vigueur —
 c'est la référence à jour, plus fiable que ce README pour le détail.
