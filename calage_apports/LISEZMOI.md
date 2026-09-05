@@ -10,12 +10,12 @@ onglets — l'ordre des onglets est celui des décisions.
 
 | Onglet | Rôle |
 |---|---|
-| 1. Modèle | projet HEC-RAS, plan de référence, zone 2D, fenêtre de simulation. Charge les sections, injections et emprises **existantes** en couches **éditables**, et écrit dans le `.gXX` celles qu'on y dessine (sauvegarde horodatée) |
-| 2. Profil en long | axe hydraulique — PK et profil — et précision attendue sur le volume et sur le débit de pointe |
+| 1. Modèle | projet HEC-RAS, plan de référence, zone 2D, fenêtre de simulation, **axe hydraulique**. Charge les sections, injections et emprises **existantes** en couches **éditables**, et écrit dans le `.gXX` celles qu'on y dessine (sauvegarde horodatée) |
+| 2. Objectifs et précision | ce qu'on vise et avec quoi : précision attendue sur le volume et sur le débit de pointe, nombre maximal d'essais, et le **classeur** où se saisissent les hydrogrammes cibles (ouverture, reprise d'un calcul précédent, pente des apports) |
 | 3. Résultats | dossiers de sortie et de suivi, relecture d'un hydrogramme calculé (export CSV), résumé de la configuration |
-| 4. Lancer | appariement apport → section, cibles restant à saisir, reprise d'un classeur d'un calcul précédent, premier apport à caler, **préfixe de scénario** (« Q100 » : sans lui, caler le Q10 après le Q100 sur le même modèle efface les plans du Q100), **lancement du calage** en arrière-plan |
+| 4. Lancer | appariement apport → section, état des cibles, premier apport à caler, **préfixe de scénario** (« Q100 » : sans lui, caler le Q10 après le Q100 sur le même modèle efface les plans du Q100), **lancement du calage** en arrière-plan |
 | 5. Suivi | où en est le calcul : apport en cours, essai, atteinte du volume, de la pointe et de la forme, courbes cible et section, temps restant. Se rafraîchit tout seul tant qu'il est affiché. Le dossier surveillé est celui que désigne le **classeur lancé** — pas celui de l'onglet 3 — et la bannière le nomme |
-| Aide | mode opératoire, pièges connus, et diagnostic de l'environnement |
+| Aide et configuration | mode opératoire, pièges connus, et les deux emplacements du poste — chaîne de calage et interpréteur HEC-RAS |
 
 Le bouton **Composer et contrôler**, permanent en bas de la fenêtre, écrit les
 shapefiles normalisés et un classeur **pré-rempli**, puis lance tous les

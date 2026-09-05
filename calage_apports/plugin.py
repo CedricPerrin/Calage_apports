@@ -507,6 +507,10 @@ QDialog {{ font-family: {POLICE_ISL}; }}
    (voir __init__). Une feuille de style ne change que le rendu,
    pas le calcul de largeur : Qt mesurait les libelles en maigre puis les
    dessinait en gras, et « 2. Profil en long » se retrouvait rogne.
+   A SURVEILLER : les libelles ont RALLONGE le 05/09/2026 — « 2. Objectifs et
+   precision » et « Aide et configuration » remplacent « 2. Profil en long »
+   et « Aide », soit vingt-cinq caracteres de plus sur la barre. Si elle se
+   met a defiler sur un ecran etroit, c'est ici qu'il faut raccourcir.
    Styliser un onglet fait par ailleurs basculer Qt sur le modele de boite ;
    le remplissage est donc fixe ici, sinon le libelle colle aux bords. */
 QTabWidget::pane {{
@@ -1219,7 +1223,8 @@ tout : compter 3 à 5 calculs par apport.</li>
 
 <h3>Le déroulement, onglet par onglet</h3>
 <ol>
-<li><b>Onglet 1 — Modèle.</b> Dossier du projet, plan de référence, puis
+<li><b>Onglet 1 — Modèle.</b> Dossier du projet, plan de référence, axe
+hydraulique, puis
 <i>Charger les couches du modèle</i> : sections, injections et maillage
 s'affichent sur la carte. Y dessiner les sections de contrôle qui manquent —
 sans elles, le calage n'a aucun endroit où lire un débit. Elles sont écrites
@@ -1228,13 +1233,14 @@ reçoit du même coup son hydrogramme dans le fichier Unsteady&nbsp;Flow, sinon
 il n'apporterait rien. La fenêtre de simulation n'est à corriger que si
 l'Unsteady&nbsp;Flow retenu couvre une <b>autre période</b> que le plan de
 référence.</li>
-<li><b>Onglet 2 — Axe hydraulique.</b> Une polyligne unique, de l'amont vers
-l'aval, en projection métrique : elle donne les PK et le profil en long. Puis
-la précision attendue.</li>
+<li><b>Onglet 2 — Objectifs et précision.</b> Ce qu'on vise, et avec quoi :
+la précision attendue sur le volume et sur le débit de pointe, puis le
+classeur — c'est dans sa feuille <i>Cibles</i> que se saisissent les
+hydrogrammes visés, une colonne par section.</li>
 <li><b>Onglet 3 — Résultats.</b> Dossier de résultats et dossier de suivi.</li>
-<li><b>Onglet 4 — Lancer.</b> Renseigner les cibles dans le classeur, choisir
-le premier apport à caler, puis lancer. Le calage tourne en arrière-plan :
-QGIS reste utilisable.</li>
+<li><b>Onglet 4 — Lancer.</b> Vérifier l'appariement et l'état des cibles,
+choisir le premier apport à caler, puis lancer. Le calage tourne en
+arrière-plan : QGIS reste utilisable.</li>
 <li><b>Onglet 5 — Suivi.</b> Où en est le calcul, apport par apport, rafraîchi
 tout seul. C'est là qu'on revient pendant les heures que dure un calage.</li>
 </ol>
@@ -1272,7 +1278,8 @@ exigences, satisfaites <b>en même temps</b> :</p>
 <li><b>Forme</b> — concordance d'au moins 97&nbsp;%, <i>après</i> recalage
 temporel.</li>
 </ul>
-<p>Les deux premières tolérances se règlent <b>à l'onglet 2</b> ; à défaut
+<p>Les deux premières tolérances se règlent à l'onglet <b>2 — Objectifs et
+précision</b> ; à défaut
 elles valent 5&nbsp;% sur le volume et 2&nbsp;% sur la pointe. Une bande large
 n'est pas neutre : un essai peut s'y arrêter alors que la méthode irait plus
 loin. Mesuré sur un cas de recette — à ±5&nbsp;% sur la pointe, deux sections
@@ -1475,19 +1482,22 @@ class DialogueParametrage(QDialog):
     Fenetre unique, en six onglets, dans l'ordre ou les choix se prennent.
 
       1. Modèle — projet, plan de reference, geometrie et Unsteady Flow (ceux
-         du plan ou d'autres), zone 2D, fenetre de simulation. Y CHARGE LES
-         COUCHES EXISTANTES de la geometrie en couches QGIS EDITABLES, pretes
-         a etre dessinees ou completees par-dessus.
-      2. Profil en long — l'axe hydraulique (PK et profil) et la precision
-         attendue.
+         du plan ou d'autres), zone 2D, fenetre de simulation, axe
+         hydraulique. Y CHARGE LES COUCHES EXISTANTES de la geometrie en
+         couches QGIS EDITABLES, pretes a etre dessinees ou completees
+         par-dessus.
+      2. Objectifs et précision — ce qu'on vise et avec quoi : la precision
+         attendue sur le volume et la pointe, et le classeur ou se saisissent
+         les hydrogrammes cibles.
       3. Résultats — ou ecrire le paquet, les resultats finaux et le suivi.
-      4. Lancer — ce que la derniere composition a produit, combien de cibles
-         restent a saisir, les apports a determiner et le lancement.
+      4. Lancer — ce que la derniere composition a produit, l'etat des
+         cibles, les apports a determiner et le lancement.
          Recomposer au fil de l'ajustement des couches est le cas NORMAL : les
          cibles saisies a la main sont preservees d'une composition a l'autre.
       5. Suivi — ou en est le calcul, rafraichi tout seul tant que cet onglet
          est affiche.
-      6. Aide — mode operatoire et diagnostic de l'environnement.
+      Aide et configuration — mode operatoire, pieges connus, et les deux
+         emplacements du poste.
 
     Le bouton « Composer et contrôler », permanent en bas de la fenetre,
     ECRIT D'ABORD les couches de l'onglet 1 dans la geometrie HEC-RAS —
@@ -1541,23 +1551,25 @@ class DialogueParametrage(QDialog):
         # premier onglet. Le detail passe en infobulle, ou il ne coute rien.
         for page, titre, infobulle in (
             (self._onglet_modele(), "1. Modèle",
-             "Projet HEC-RAS, plan de référence, zone 2D, chargement des "
-             "couches existantes et écriture des nouveaux objets."),
-            (self._onglet_profil(), "2. Profil en long",
-             "Axe hydraulique, sens, PK d'origine, précision attendue et "
-             "nombre maximal d'essais."),
+             "Projet HEC-RAS, plan de référence, zone 2D, axe hydraulique, "
+             "chargement des couches existantes et écriture des nouveaux "
+             "objets."),
+            (self._onglet_objectifs(), "2. Objectifs et précision",
+             "Précision attendue sur le volume et la pointe, nombre maximal "
+             "d'essais, et le classeur où se saisissent les hydrogrammes "
+             "cibles."),
             (self._onglet_resultats(), "3. Résultats",
              "Dossiers de sortie et de suivi, relecture d'un hydrogramme "
              "déjà calculé, résumé de la configuration."),
             (self._onglet_validation(), "4. Lancer",
-             "Correspondance sections / injections, hydrogrammes cibles "
-             "restant à saisir, apports à déterminer et lancement du calage."),
+             "Correspondance sections / injections, état des hydrogrammes "
+             "cibles, apports à déterminer et lancement du calage."),
             (self._onglet_suivi(), "5. Suivi",
              "Où en est le calage : apport en cours, essai, avancement, "
              "temps restant, et ce qui s'est passé quand il s'arrête."),
-            (self._onglet_aide(), "Aide",
-             "Mode opératoire, pièges connus et diagnostic de "
-             "l'environnement."),
+            (self._onglet_aide(), "Aide et configuration",
+             "Mode opératoire, pièges connus, et les deux emplacements du "
+             "poste — chaîne de calage et interpréteur HEC-RAS."),
         ):
             zone = QScrollArea()
             zone.setWidgetResizable(True)
@@ -1855,15 +1867,21 @@ class DialogueParametrage(QDialog):
         # La pente de la ligne d'energie n'est PLUS saisie ici : elle depend de
         # chaque apport, pas du lot. A la creation, la valeur provisoire
         # ci-dessous suffit — le calage la remplace par celle du classeur, ou
-        # a defaut par la pente locale du fond (onglet 2, « Paramètres du
-        # calage »).
+        # a defaut par la pente locale du fond.
         f3b.addRow(texte_aide(
             "Un apport créé reçoit son hydrogramme dans l'Unsteady Flow, et "
-            "sa pente vient du classeur ou du profil en long (onglet 2)."))
+            "sa pente vient du classeur (onglet 2) ou du profil en long."))
 
         self.label_ecriture = texte_etat()
         f3b.addRow(self.label_ecriture)
         v.addWidget(groupe_ecrire)
+
+        # L'AXE EST UN OBJET DU MODELE, pas un objectif. Il vivait a l'onglet
+        # « 2. Profil en long », a cote de la precision attendue, avec
+        # laquelle il n'a rien a voir : l'un se dessine sur la carte comme les
+        # sections et les injections, l'autre se decide devant un tableau. Il
+        # rejoint donc les couches, ou il se trace.
+        v.addWidget(self._groupe_axe())
 
         v.addStretch(1)
         return page
@@ -2210,13 +2228,18 @@ class DialogueParametrage(QDialog):
                 if reponse.get("en_attente_pretraitement") else ""))
         self._maj_resume()
 
-    # --- Onglet 2 : Profil en long et parametres ----------------------------
+    # --- Onglet 2 : Objectifs et precision -----------------------------------
 
-    def _onglet_profil(self):
-        page = QWidget()
-        v = QVBoxLayout(page)
-        v.setSpacing(10)
+    # --- Groupes deplacables ------------------------------------------------
+    #
+    # CHAQUE GROUPE EST BATI PAR SA PROPRE METHODE, et l'onglet ne fait que
+    # les assembler. Ils ont deja change d'onglet une fois — l'axe est passe
+    # au « 1. Modele », le classeur aux « Objectifs » — et ils rechangeront :
+    # l'ordre des onglets suit celui des decisions, qui s'affine a l'usage.
+    # Les garder soudes a leur onglet obligeait a deplacer cent lignes de
+    # widgets a chaque fois, avec le risque que cela porte.
 
+    def _groupe_axe(self):
         groupe_axe = QGroupBox("Axe hydraulique")
         groupe_axe.setToolTip(
             "Une polyligne unique, dessinée de l'amont vers l'aval, en "
@@ -2246,8 +2269,9 @@ class DialogueParametrage(QDialog):
         # figurait AUSSI en clair sous le formulaire, mot pour mot : deux
         # exemplaires d'une meme phrase se lisent comme deux consignes, et on
         # cherche en quoi elles different.
-        v.addWidget(groupe_axe)
+        return groupe_axe
 
+    def _groupe_precision(self):
         groupe_param = QGroupBox("Précision attendue")
         f2 = formulaire(groupe_param)
         # La PRECISION ATTENDUE se saisit, en pourcentage : c'est ce que
@@ -2322,8 +2346,66 @@ class DialogueParametrage(QDialog):
         # l'onglet 4, dans le groupe « Classeur » — c'est la qu'on ouvre le
         # fichier ou elle se lit et se corrige, et une consigne loin de son
         # objet ne se suit pas.
-        v.addWidget(groupe_param)
+        return groupe_param
 
+    def _groupe_classeur(self):
+        groupe_actions = QGroupBox("Classeur")
+        v_classeur = QVBoxLayout(groupe_actions)
+        v_classeur.setSpacing(8)
+        ligne_classeur = QHBoxLayout()
+        ligne_classeur.setSpacing(8)
+        bouton_ouvrir = QPushButton("Ouvrir le classeur…")
+        bouton_ouvrir.setToolTip(
+            "C'est dans sa feuille Cibles que se saisissent les hydrogrammes "
+            "visés, une colonne par section.")
+        bouton_ouvrir.clicked.connect(self._ouvrir_classeur)
+        ligne_classeur.addWidget(bouton_ouvrir)
+        bouton_recontroler = QPushButton(
+            "Reprendre un classeur d'un calcul précédent…")
+        bouton_recontroler.setToolTip(
+            "Rejoue tous les contrôles sur un classeur composé lors d'une "
+            "autre session, sans rien recomposer. Les chemins des shapefiles "
+            "sont relus dans le classeur lui-même.")
+        bouton_recontroler.clicked.connect(self._recontroler_classeur)
+        ligne_classeur.addWidget(bouton_recontroler)
+        ligne_classeur.addStretch(1)
+        v_classeur.addLayout(ligne_classeur)
+
+        # HYPOTHESE SUR LA PENTE, dite a cote du bouton qui ouvre le fichier
+        # ou elle se corrige. Elle est desormais PRE-REMPLIE a la composition,
+        # d'ou « à ajuster si besoin » : ce n'est plus une case vide a
+        # comprendre, c'est une valeur proposee qu'on peut refuser.
+        v_classeur.addWidget(texte_aide(
+            "<b>Pente des apports</b> — colonne « Pente_m_par_m », feuille "
+            "Correspondance. <b>Pré-remplie</b> à la composition : pente "
+            "moyenne du fond sur ±200 m autour de l'injection, majorée de "
+            "20 %. À ajuster si besoin — une valeur saisie n'est jamais "
+            "écrasée par une recomposition.",
+            "HEC-RAS s'en sert pour répartir le débit entre les mailles que "
+            "la ligne recoupe. Une pente sous-estimée concentre l'injection "
+            "au lieu de l'étaler : la majoration va dans le sens de la "
+            "prudence. Elle dépend du tronçon, d'où la saisie par apport.\n"
+            "Laissée vide — profil trop court ou géométrie non prétraitée — "
+            "le calage la déduit lui-même, comme avant."))
+        return groupe_actions
+
+    # --- Onglet 2 : Objectifs et precision -----------------------------------
+
+    def _onglet_objectifs(self):
+        """
+        CE QU'ON VISE, ET AVEC QUOI. La precision attendue et le classeur ou
+        se saisissent les hydrogrammes cibles : deux faces d'une meme
+        decision, qui vivaient dans deux onglets differents — la precision au
+        « 2. Profil en long », le classeur au « 4. Lancer ».
+        """
+        page = QWidget()
+        v = QVBoxLayout(page)
+        v.setSpacing(10)
+
+
+
+        v.addWidget(self._groupe_precision())
+        v.addWidget(self._groupe_classeur())
         v.addStretch(1)
         return page
 
@@ -2587,45 +2669,6 @@ class DialogueParametrage(QDialog):
             "apparaître ici l'étape suivante.")
         v.addWidget(self.label_prochaine_etape)
 
-        groupe_actions = QGroupBox("Classeur")
-        v_classeur = QVBoxLayout(groupe_actions)
-        v_classeur.setSpacing(8)
-        ligne_classeur = QHBoxLayout()
-        ligne_classeur.setSpacing(8)
-        bouton_ouvrir = QPushButton("Ouvrir le classeur…")
-        bouton_ouvrir.setToolTip(
-            "C'est dans sa feuille Cibles que se saisissent les hydrogrammes "
-            "visés, une colonne par section.")
-        bouton_ouvrir.clicked.connect(self._ouvrir_classeur)
-        ligne_classeur.addWidget(bouton_ouvrir)
-        bouton_recontroler = QPushButton(
-            "Reprendre un classeur d'un calcul précédent…")
-        bouton_recontroler.setToolTip(
-            "Rejoue tous les contrôles sur un classeur composé lors d'une "
-            "autre session, sans rien recomposer. Les chemins des shapefiles "
-            "sont relus dans le classeur lui-même.")
-        bouton_recontroler.clicked.connect(self._recontroler_classeur)
-        ligne_classeur.addWidget(bouton_recontroler)
-        ligne_classeur.addStretch(1)
-        v_classeur.addLayout(ligne_classeur)
-
-        # HYPOTHESE SUR LA PENTE, dite a cote du bouton qui ouvre le fichier
-        # ou elle se corrige. Elle est desormais PRE-REMPLIE a la composition,
-        # d'ou « à ajuster si besoin » : ce n'est plus une case vide a
-        # comprendre, c'est une valeur proposee qu'on peut refuser.
-        v_classeur.addWidget(texte_aide(
-            "<b>Pente des apports</b> — colonne « Pente_m_par_m », feuille "
-            "Correspondance. <b>Pré-remplie</b> à la composition : pente "
-            "moyenne du fond sur ±200 m autour de l'injection, majorée de "
-            "20 %. À ajuster si besoin — une valeur saisie n'est jamais "
-            "écrasée par une recomposition.",
-            "HEC-RAS s'en sert pour répartir le débit entre les mailles que "
-            "la ligne recoupe. Une pente sous-estimée concentre l'injection "
-            "au lieu de l'étaler : la majoration va dans le sens de la "
-            "prudence. Elle dépend du tronçon, d'où la saisie par apport.\n"
-            "Laissée vide — profil trop court ou géométrie non prétraitée — "
-            "le calage la déduit lui-même, comme avant."))
-        v.addWidget(groupe_actions)
 
         # LE CHOIX DU PREMIER APPORT PRECEDE LE BOUTON QU'IL REGLE. Il figurait
         # sous lui : on decidait de reprendre a mi-parcours apres avoir lance

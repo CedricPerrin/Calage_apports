@@ -343,7 +343,7 @@ controler("test des actions du plugin",
 try:
     _source_plugin = (RACINE / "calage_apports" / "plugin.py").read_text(
         encoding="utf-8")
-    _attendus = ["class DialogueParametrage", "_onglet_modele", "_onglet_profil",
+    _attendus = ["class DialogueParametrage", "_onglet_modele", "_onglet_objectifs",
                 "_onglet_resultats", "_onglet_validation",
                 "_charger_couches_modele", "_composer_et_controler"]
     _manquants = [a for a in _attendus if a not in _source_plugin]

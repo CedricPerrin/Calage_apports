@@ -82,6 +82,21 @@ CE QUI EST EPROUVE
     style_classeur.py » sortait 0 sans un mot. Et creer_template.py n'ecrit
     plus dans le depot : son banc construit en dossier temporaire, seul
     « --publier » regenere le template livre.
+  - LES ONGLETS SUIVENT L'ORDRE DES DECISIONS — 0.7.0, 05/09. L'axe
+    hydraulique rejoint « 1. Modele » : c'est un objet du modele, qu'on
+    dessine sur la carte comme les sections, pas un objectif. L'onglet 2
+    devient « Objectifs et precision » et accueille le CLASSEUR, jusqu'ici au
+    fond de « Lancer » — la precision visee et les hydrogrammes cibles sont
+    deux faces d'une meme decision. « Lancer » ne porte plus que le
+    lancement. « Aide » devient « Aide et configuration ».
+      LES TROIS GROUPES DEPLACES SONT DESORMAIS DES METHODES (_groupe_axe,
+    _groupe_precision, _groupe_classeur) et l'onglet ne fait que les
+    assembler : ils ont deja change d'onglet une fois et rechangeront.
+      A SURVEILLER A L'ECRAN : les libelles ont rallonge de vingt-cinq
+    caracteres au total. Si la barre d'onglets se met a defiler sur un ecran
+    etroit, raccourcir — le commentaire de la feuille de style le dit.
+      LE CONTROLE DE verification_environnement LIT LES TITRES DANS plugin.py
+    depuis le lot 2 : il a suivi le renommage sans qu'on y touche.
   - CE QUE LA FENETRE JUGEE LAISSE DEHORS EST MESURE ET DIT depuis le
     05/09 : deux nombres de plus au Diagnostic et une reserve NON bloquante
     quand le verdict et la serie entiere divergent sur la bande (2.2 bis).
