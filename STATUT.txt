@@ -62,10 +62,34 @@ CE QUI EST EPROUVE
     quand le verdict et la serie entiere divergent sur la bande (2.2 bis).
     DIRE, SANS JUGER — aucun verdict deja rendu ne bouge. Hors greffon : la
     suite QGIS n'est pas concernee.
+  - L'INSTALLATION EST ACCESSIBLE A QUI NE SAIT PAS OU EST PYTHON — 0.6.7,
+    05/09. Trois defauts, chacun avec un banc :
+      1. le seul chemin de recuperation quand l'interpreteur manque
+         proposait de le DESIGNER, jamais de l'INSTALLER — un selecteur de
+         fichier sur le poste ou il n'y a rien a designer ;
+      2. il donnait une commande pip a DEUX paquets quand la verification
+         en exige ONZE (plus xarray) : la suivre a la lettre fabriquait un
+         environnement REFUSE ensuite. La liste avait ete unifiee dans le
+         code le 31/08, pas dans les textes ;
+      3. un Python hors du disque C: etait INVISIBLE : la lecture de
+         « py -0p » cherchait la sous-chaine « c: » et laissait tomber la
+         ligne sans un mot.
+    La recherche accepte desormais toute lettre de lecteur et les chemins
+    UNC, part des dossiers de programmes que Windows declare lui-meme
+    (%ProgramFiles%, %ProgramW6432%, %LOCALAPPDATA%) et de la racine de
+    chaque disque fixe, et parcourt le PATH EN ENTIER — plafonnee a 40
+    candidats, chacun coutant un sous-processus. Bancs du noyau 4 quinquies
+    et 4 sexies, 13 controles, 37 verts en tout.
+    RIEN N'EST DEVINE POUR AUTANT : la regle « un interpreteur trouve
+    quelque part serait employe sans qu'on sache d'ou il vient » tient. La
+    recherche PROPOSE, l'utilisateur DESIGNE, et interpreteur_hecras() est
+    inchangee.
   - LA SUITE QGIS N'A PAS ETE REJOUEE DEPUIS LE 03/09. plugin.py a change
-    le 04/09 (le lancement refuse au lieu de proposer, 5.7 fin) : les 152
-    controles sont a repasser au prochain accès au poste QGIS. Le reste du
-    correctif est hors plugin.py et couvert par les bancs.
+    le 04/09 (le lancement refuse au lieu de proposer, 5.7 fin) PUIS le
+    05/09 (l'aide, le diagnostic qui propose d'installer, l'ordre des
+    boutons, les etiquettes) : les 152 controles sont a repasser au
+    prochain accès au poste QGIS. Le reste des deux correctifs est hors
+    plugin.py et couvert par les bancs.
 
 UN TROISIEME CALAGE COMPLET (03-04/09) : ARDANAVY Q100, REFAIT DE ZERO.
   6/6 CONFORME en 16 h 49, 11 calculs, livrables COMPLETS au premier passage

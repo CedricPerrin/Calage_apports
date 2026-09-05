@@ -105,17 +105,22 @@ l'ordre : dossier désigné à l'exécution, variable `CALAGE_PYTHON`, puis un
 `.venv` voisin de la chaîne. Rien au-delà : un interpréteur deviné « quelque
 part » serait employé sans que personne ne sache d'où il vient.
 
-**Si vous n'en avez pas encore** — c'est le cas sur un poste neuf :
+**Si vous n'en avez pas encore** — c'est le cas sur un poste neuf.
+*Aide → **Installer…*** le fait de bout en bout : il cherche les Python
+présents sur le poste, propose le meilleur, crée l'environnement, y pose les
+paquets et vérifie le résultat. **Il n'y a rien à savoir sur l'emplacement de
+Python** : c'est précisément ce que le bouton résout.
 
-```bat
-python -m venv %USERPROFILE%\venv-hecras
-%USERPROFILE%\venv-hecras\Scripts\python.exe -m pip install "ras-commander>=0.99" h5py
-```
+La version de `ras-commander` est **vérifiée** : les versions antérieures à
+0.99 bornent mal les tableaux d'hydrogramme, et un apport y serait tronqué
+sans message.
 
-puis le désigner dans *Aide → Vérifier l'environnement*, qui le retient d'une
-session à l'autre. La version de `ras-commander` est **vérifiée** : les
-versions antérieures à 0.99 bornent mal les tableaux d'hydrogramme, et un
-apport y serait tronqué sans message.
+*À la main*, si le poste interdit à QGIS de sortir sur PyPI alors qu'une
+invite de commandes le peut : **la commande exacte est donnée par *Aide →
+Vérifier l'environnement***, qui la construit à partir de la liste que le
+greffon exige réellement. Ne pas la recopier ici — elle compte une dizaine de
+paquets et a déjà divergé une fois, un environnement bâti sur une liste courte
+étant ensuite refusé.
 
 Le bouton **Installer…** réutilise un environnement déjà présent plutôt que de
 l'effacer — et le **complète** : pip ne re-résout pas les dépendances d'un

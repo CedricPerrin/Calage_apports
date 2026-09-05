@@ -1178,6 +1178,35 @@ AIDE_HTML = """
 injectés dans un modèle 2D HEC-RAS pour que le débit calculé à chaque section
 de contrôle reproduise un hydrogramme cible.</p>
 
+<h3>Première utilisation — ce qu'il faut installer</h3>
+<p><b>Vous n'avez pas besoin de savoir où Python est installé sur ce poste, ni
+même s'il l'est.</b> Ouvrir <i>Paramètres du poste</i>, au bas de cet onglet,
+et cliquer <b>Vérifier l'environnement</b> : il dit ce qui manque et propose
+de le poser. Deux choses, et deux seulement :</p>
+<ol>
+<li>La <b>chaîne de calage</b>. Elle est <i>embarquée dans l'extension</i> :
+si le plugin vient de son archive, elle est déjà là et rien n'est à faire.</li>
+<li>L'<b>interpréteur HEC-RAS</b>, un Python séparé de celui de QGIS. S'il
+manque, le bouton <b>Installer…</b> fait tout : il cherche les Python présents
+sur le poste, propose le meilleur, crée l'environnement, y pose la dizaine de
+paquets nécessaires, puis <i>vérifie</i> le résultat. Compter plusieurs
+centaines de Mo et quelques minutes, pendant lesquelles QGIS reste figé.</li>
+</ol>
+<p><b>Et s'il n'y a aucun Python sur le poste ?</b> Le diagnostic le dit au
+lieu d'ouvrir un sélecteur de fichier devant lequel on n'a rien à répondre :
+installer Python 3.9 ou plus depuis <tt>python.org</tt> en cochant <i>Add
+python.exe to PATH</i>, puis relancer QGIS. Le Python livré <i>avec QGIS</i>
+convient également, et le bouton le propose de lui-même.</p>
+<p>Les <tt>python.exe</tt> de <tt>WindowsApps</tt> n'en sont pas : ce sont des
+fichiers vides qui affichent « Python was not found ». Ils occupent le PATH
+sans rien exécuter, et le plugin les écarte.</p>
+<p><i>Pourquoi un second Python ?</i> QGIS et HEC-RAS ne peuvent pas partager
+la même bibliothèque HDF5 : dans le processus de QGIS, <tt>import h5py</tt>
+échoue, et <tt>ras-commander</tt> en dépend. Le calage tourne donc dans un
+interpréteur à part. C'est une contrainte mesurée, pas un choix.</p>
+<p>Ces deux emplacements sont <b>retenus d'une session à l'autre</b> : cette
+étape ne se refait pas.</p>
+
 <h3>À trancher avant de commencer</h3>
 <ul>
 <li><b>Ordre amont → aval strict ?</b> La méthode ne s'applique pas à un
@@ -1313,13 +1342,11 @@ ne peuvent pas partager la même bibliothèque HDF5.</li>
 </ul>
 
 <h3>Sur un autre poste</h3>
-<p>Deux emplacements, cherchés tout seuls ; le groupe <i>Paramètres du
-poste</i> ci-dessous ne sert que s'ils restent introuvables : la <b>chaîne de
-calage</b> (le dossier de <tt>pont_hecras.py</tt>) et l'<b>interpréteur
-HEC-RAS</b> (un <tt>python.exe</tt> disposant de ras-commander et h5py,
-vérifié au moment où on le désigne). Ni QGIS ni HEC-RAS n'ont à être
-désignés — le premier exécute le plugin, le second est lancé par
-ras-commander d'après la version lue dans le modèle.</p>
+<p>Rien de plus que la <i>première utilisation</i> ci-dessus : les deux mêmes
+emplacements, cherchés tout seuls, et le groupe <i>Paramètres du poste</i> pour
+le cas contraire. Ni QGIS ni HEC-RAS n'ont à être désignés — le premier exécute
+le plugin, le second est lancé par ras-commander d'après la version lue dans le
+modèle.</p>
 
 <p><i>Hypothèses de validité, justification des tolérances et livrables :
 note méthodologique « methodologie_calage_amont_aval.docx », dans le dossier
@@ -3163,14 +3190,17 @@ class DialogueParametrage(QDialog):
         # console — ce que le message d'erreur décrivait sans le faire.
         bouton_installer = QPushButton("Installer…")
         bouton_installer.setToolTip(
-            "Crée un environnement Python à côté de la chaîne de calage et y "
-            "installe ras-commander et h5py. À utiliser sur un poste où "
-            "aucun interpréteur convenable n'existe encore.")
+            "Cherche les Python présents sur ce poste, en propose un, crée "
+            "l'environnement HEC-RAS et y installe tout ce qu'il faut, puis "
+            "le vérifie. Il n'y a pas besoin de savoir où Python est "
+            "installé — c'est ce que ce bouton résout.")
         bouton_installer.clicked.connect(self._installer_interpreteur)
+        # « INSTALLER » AVANT « DESIGNER », parce que c'est le geste de celui
+        # qui n'a rien : designer suppose de savoir ou chercher, installer non.
         ligne_interp = QHBoxLayout()
         ligne_interp.addWidget(self.label_interpreteur, 1)
-        ligne_interp.addWidget(bouton_interp)
         ligne_interp.addWidget(bouton_installer)
+        ligne_interp.addWidget(bouton_interp)
         fp.addRow("Interpréteur HEC-RAS :", ligne_interp)
 
         bouton = QPushButton("Vérifier l'environnement")
@@ -3186,15 +3216,23 @@ class DialogueParametrage(QDialog):
         return page
 
     def _maj_parametres_poste(self):
-        """Reflete l'etat courant des deux emplacements."""
+        """
+        Reflete l'etat courant des deux emplacements.
+
+        UN MANQUE DIT LE GESTE QUI LE COMBLE. « introuvable » en rouge est
+        un constat, pas une consigne : celui qui decouvre le greffon y lit un
+        defaut sans savoir lequel des trois boutons de la ligne le concerne.
+        """
         chaine = noyau.trouver_chaine()
         self.label_chaine.setText(
             str(chaine) if chaine
-            else f"<span style='color:{ISL_ROUGE}'>introuvable</span>")
+            else f"<span style='color:{ISL_ROUGE}'>introuvable</span> — "
+                 f"la désigner ci-contre")
         interp = noyau.interpreteur_hecras()
         self.label_interpreteur.setText(
             str(interp) if interp
-            else f"<span style='color:{ISL_ROUGE}'>introuvable</span>")
+            else f"<span style='color:{ISL_ROUGE}'>introuvable</span> — "
+                 f"cliquer « Installer… », qui trouvera Python tout seul")
 
     def _choisir_chaine(self):
         dossier = QFileDialog.getExistingDirectory(
@@ -3383,24 +3421,51 @@ class DialogueParametrage(QDialog):
                 self._choisir_chaine()
 
         if noyau.interpreteur_hecras() is None:
-            reponse = QMessageBox.question(
-                self, "Interpréteur HEC-RAS introuvable",
-                "Aucun interpréteur capable de piloter HEC-RAS n'a été "
-                "trouvé.\n\nIl faut un python.exe SÉPARÉ de celui de QGIS, "
-                "disposant de ras-commander et h5py. QGIS ne peut pas s'en "
-                "charger : sa bibliothèque HDF5 entre en conflit avec celle "
-                "de h5py.\n\n"
-                "Si vous n'en avez pas encore, dans une invite de commandes :\n\n"
-                "    python -m venv %USERPROFILE%\\venv-hecras\n"
-                "    %USERPROFILE%\\venv-hecras\\Scripts\\python.exe -m pip "
-                f"install \"ras-commander>="
-                f"{'.'.join(str(n) for n in noyau.RAS_COMMANDER_MINIMUM)}\" "
-                "h5py\n\n"
-                "puis désigner ici %USERPROFILE%\\venv-hecras\\Scripts\\"
-                "python.exe.\n\n"
-                "Le désigner maintenant ?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-            if reponse == QMessageBox.StandardButton.Yes:
+            # LE CHEMIN DE SORTIE EST « INSTALLER », PAS « DESIGNER ».
+            #
+            # Ce message ne proposait QUE de designer, c'est-a-dire d'ouvrir
+            # un selecteur de fichier — sur le poste ou l'interpreteur manque,
+            # il n'y a precisement rien a y designer. Le bouton « Installer… »
+            # existe pour ce cas exact, et le seul chemin de recuperation du
+            # greffon ne le mentionnait pas.
+            #
+            # ET LA RECETTE MANUELLE VIENT DU NOYAU. Elle etait ecrite ici, a
+            # DEUX paquets, quand la verification en exige onze : la suivre a
+            # la lettre fabriquait un environnement que le greffon refusait
+            # ensuite. Elle passe en detail replie — c'est l'issue de secours
+            # d'un poste dont la sortie PyPI est fermee a QGIS, pas la voie
+            # recommandee.
+            boite = QMessageBox(self)
+            boite.setIcon(QMessageBox.Icon.Question)
+            boite.setWindowTitle("Interpréteur HEC-RAS introuvable")
+            boite.setText(
+                "Le calage a besoin d'un Python séparé de celui de QGIS, et "
+                "il n'y en a pas encore sur ce poste.")
+            boite.setInformativeText(
+                "« Installer » s'en charge de bout en bout : il cherche les "
+                "Python présents sur le poste, propose le meilleur, crée "
+                "l'environnement et vérifie le résultat.\n\nVous n'avez pas "
+                "besoin de savoir où Python est installé.\n\nQGIS ne peut "
+                "pas piloter HEC-RAS lui-même : sa bibliothèque HDF5 entre en "
+                "conflit avec celle de h5py.")
+            boite.setDetailedText(
+                "À la main — seulement si ce poste interdit à QGIS de sortir "
+                "sur PyPI :\n\n    "
+                + "\n    ".join(noyau.recette_installation_manuelle())
+                + "\n\npuis désigner ici %USERPROFILE%\\venv-hecras\\"
+                  "Scripts\\python.exe.")
+            bouton_poser = boite.addButton(
+                "Installer…", QMessageBox.ButtonRole.AcceptRole)
+            bouton_designer = boite.addButton(
+                "J'en ai déjà un : le désigner…",
+                QMessageBox.ButtonRole.ActionRole)
+            boite.addButton("Plus tard", QMessageBox.ButtonRole.RejectRole)
+            boite.setDefaultButton(bouton_poser)
+            rendre_redimensionnable(boite, largeur=700, hauteur=160)
+            boite.exec()
+            if boite.clickedButton() is bouton_poser:
+                self._installer_interpreteur()
+            elif boite.clickedButton() is bouton_designer:
                 self._choisir_interpreteur()
 
         disponible, messages = noyau.chaine_disponible()
