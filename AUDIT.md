@@ -132,7 +132,7 @@ Contrôles effectivement rendus, mesurés sur ce clone :
 hors du dépôt. Il n'existe donc **aucun test de non-régression numérique
 rejouable sans le poste**. Confiance 5.
 
-### A.5 Dérive documentaire
+### A.5 Dérive documentaire — ✅ **traitée au lot 2**
 
 Confiance 5 sur les trois constats — chacun est une citation.
 
@@ -697,13 +697,19 @@ les bancs de `controle_donnees`, `elaguer_projet`, `noyau`,
 > rend **les deux mêmes** constats qu'avant le lot — le P0 du § 3, intact : aucun
 > nom indéfini n'a été introduit.
 
-### Lot 2 — dérive documentaire *(risque nul, aucun code exécutable)*
+### Lot 2 — dérive documentaire — ✅ **FAIT**
 
 `src/verification_environnement.py` (deux textes), `STATUT.txt` § 6 (retirer le
 point clos), `CHECKPOINT.md`. **4 fichiers.**
 **Vérification** : `python verification_environnement.py`, lecture à l'œil.
 **Terminé quand** : plus aucun texte n'affirme « un seul apport calé », ni
 « 4 onglets ».
+
+> **Résultat, 5 septembre 2026.** `grep` sur tout le dépôt : plus aucune
+> occurrence, hors ce document. Le contrôle rend désormais
+> `[ OK ] fenetre a 6 onglets presente dans plugin.py -> 1. Modèle / 2. Profil
+> en long / 3. Résultats / 4. Lancer / 5. Suivi / Aide`, **titres lus dans
+> `plugin.py`** et non recopiés.
 
 ### Lot 3 — les bancs qui manquent — ✅ **FAIT**
 
