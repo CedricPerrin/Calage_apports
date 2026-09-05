@@ -879,8 +879,15 @@ verifier("les rangs nommes designent le bon onglet",
 _suivi = Path(ESSAI) / "suivi"                   # ce que le classeur dit
 dlg.edit_dossier_sortie.setText(str(ESSAI / "un_autre_dossier"))
 dlg.edit_sous_dossier_suivi.setText("suivi_essai")
-verifier("suivi : le dossier surveille est celui du classeur, pas celui de l'onglet 3",
-         dlg._dossier_suivi() == _suivi, f"{dlg._dossier_suivi()}")
+if dlg.classeur:
+    verifier("suivi : le dossier surveille est celui du classeur, pas celui "
+             "de l'onglet 3",
+             dlg._dossier_suivi() == _suivi, f"{dlg._dossier_suivi()}")
+else:
+    # Ce controle-ci demande vraiment un classeur : sans modele, il n'y a pas
+    # deux dossiers concurrents, donc rien a departager. L'annoncer plutot que
+    # de le rendre rouge.
+    print("   ignore : aucun classeur compose (aucun modele declare)")
 # Sans classeur — rien n'a encore ete compose ni repris —, l'onglet 3 reste
 # la seule indication, et le suivi y revient.
 _classeur_garde, dlg.classeur = dlg.classeur, None
@@ -888,7 +895,24 @@ verifier("suivi : sans classeur, le dossier surveille revient a l'onglet 3",
          dlg._dossier_suivi() == ESSAI / "un_autre_dossier" / "suivi_essai",
          f"{dlg._dossier_suivi()}")
 dlg.classeur = _classeur_garde
-_suivi.mkdir(parents=True, exist_ok=True)
+
+
+def _dossier_etat():
+    """
+    Le dossier que la FENETRE surveille — jamais un chemin fige.
+
+    Avec un modele, c'est celui du classeur, donc _suivi. SANS modele, aucun
+    classeur n'est compose et la fenetre se replie legitimement sur l'onglet 3
+    (voir le controle ci-dessus). Deposer et effacer l'etat ailleurs qu'ou elle
+    regarde rendait alors rouges QUINZE controles de rendu qui ne demandent
+    pourtant aucun modele, puis faisait planter la suite entiere sur un
+    table_suivi vide. Les deux chemins coincident des qu'un modele est fourni :
+    passer par ici ne relache aucun controle.
+    """
+    return Path(dlg._dossier_suivi() or _suivi)
+
+
+_dossier_etat().mkdir(parents=True, exist_ok=True)
 
 
 def _ecrire_etat(**surcharges):
@@ -913,7 +937,9 @@ def _ecrire_etat(**surcharges):
                  "pic_pct": None, "forme_pct": None, "duree_s": 0,
                  "motif": ""}]}
     etat.update(surcharges)
-    (_suivi / "avancement.json").write_text(
+    dossier = _dossier_etat()          # la ou la fenetre regarde, cf. sa docstring
+    dossier.mkdir(parents=True, exist_ok=True)
+    (dossier / "avancement.json").write_text(
         json.dumps(etat, ensure_ascii=False), encoding="utf-8")
 
 
@@ -957,7 +983,7 @@ verifier("suivi : un calage mort est annonce INTERROMPU",
          "interrompu" in dlg.label_suivi_banniere.text().lower(),
          dlg.label_suivi_banniere.text()[:90])
 
-(_suivi / "avancement.json").unlink()
+(_dossier_etat() / "avancement.json").unlink()
 dlg._rafraichir_suivi()
 verifier("suivi : sans etat, rien n'est invente",
          "aucun calage" in dlg.label_suivi_banniere.text().lower()
@@ -966,7 +992,7 @@ verifier("suivi : sans etat, rien n'est invente",
 # ET LA BANNIERE DIT OU ELLE REGARDE. Un suivi muet parce qu'il regardait le
 # mauvais dossier ne se distinguait en rien d'un calage pas encore parti.
 verifier("suivi : sans etat, la banniere nomme le dossier qu'elle surveille",
-         str(_suivi) in dlg.label_suivi_banniere.text(),
+         str(_dossier_etat()) in dlg.label_suivi_banniere.text(),
          dlg.label_suivi_banniere.text()[-100:])
 
 # LES JAUGES JUGENT SUR LES TOLERANCES DE L'ETUDE, pas sur des defauts. Figees
