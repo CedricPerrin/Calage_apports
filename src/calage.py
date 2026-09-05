@@ -723,9 +723,23 @@ def fenetre_injection(temps, ecart, seuil_bas=0.005, seuil_haut=0.99,
     t0_impose / tf_impose : bornes fixees a la main, en heures. Elles
     REMPLACENT la detection, qui n'est qu'une proposition.
 
-    `volume_reference` (le volume de la cible) et `perte_max` (la part de ce
-    volume qu'on accepte de laisser hors fenetre) bordent les deux seuils :
-    ils ne peuvent qu'ELARGIR la fenetre, jamais la retrecir.
+    `volume_reference` (le volume de la cible) et `perte_max` bordent les deux
+    seuils : ils ne peuvent qu'ELARGIR la fenetre, jamais la retrecir.
+
+    CE QU'ILS BORNENT EST LE DEFICIT LAISSE DEHORS, PAS LE VOLUME — et ce
+    docstring a annonce le second pendant un mois. Les deux termes du min()
+    plus bas se comparent en m3, mais l'un est une part du DEFICIT cumule et
+    l'autre une part du VOLUME DE LA CIBLE ; le premier est presque toujours
+    le plus petit, si bien que le second ne mord jamais. Mesure du 03/09/2026
+    sur ARD10 : 25 % du volume de crue hors fenetre la ou le commentaire
+    promettait 2,5 %.
+      LE CORRIGER ICI REVIENDRAIT A ELARGIR LA FENETRE JUGEE, donc a rendre
+    non conformes des apports qu'aucune valeur d'apport ne pourrait sauver —
+    un apport ne sait qu'ajouter du debit, et ce qui deborde hors fenetre est
+    un EXCEDENT (invariant 11). Ce qui reste dehors est donc MESURE ET DIT,
+    jamais juge : voir Diagnostic.rapport_volume_serie et part_cible_jugee,
+    et la reserve non bloquante que criteres.diagnostiquer leve quand les
+    deux lectures divergent.
 
     Retourne (t0, tf) en heures. Sur un ecart vide, nul ou entierement
     negatif, rend la fenetre COMPLETE : mieux vaut ne rien restreindre que
