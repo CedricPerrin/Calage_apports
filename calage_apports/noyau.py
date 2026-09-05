@@ -1695,6 +1695,31 @@ def apports_du_classeur(chemin_classeur):
             for _, l in corr.dropna(subset=[col_apport, col_section]).iterrows()]
 
 
+def lire_parametres(chemin_classeur):
+    """
+    Feuille Parametres d'un classeur, en dictionnaire {cle: valeur}.
+
+    Les valeurs vides d'Excel arrivent en NaN chez pandas : elles sont
+    rendues None, pour qu'un appelant puisse ecrire « if valeur is None »
+    sans importer pandas.
+
+    SERT A REMPLIR LA FENETRE DEPUIS UN CLASSEUR REPRIS. Sans elle, « Reprendre
+    un classeur d'un calcul precedent… » laissait les objectifs de precision
+    sur les valeurs par defaut de la fenetre : reprendre un classeur cale a
+    +/-2 % puis lancer l'aurait DESSERRE a 5 % sans un mot, des lors que le
+    lancement reecrit ces parametres (voir plugin, _lancer_calage).
+
+    Deux autres fonctions de ce module relisent deja cette feuille a la main
+    (chemins_du_classeur, dossier_suivi_du_classeur) ; elles pourraient
+    l'adopter, mais la seconde porte la regle du pont et n'a pas ete touchee.
+    """
+    import pandas as pd
+
+    par = pd.read_excel(chemin_classeur, sheet_name="Parametres")
+    return {str(c).strip(): (None if v is None or pd.isna(v) else v)
+            for c, v in zip(par["Parametre"], par["Valeur"])}
+
+
 def ecrire_parametre(chemin_classeur, cle, valeur):
     """
     Ecrit une valeur dans la feuille Parametres d'un classeur existant.
