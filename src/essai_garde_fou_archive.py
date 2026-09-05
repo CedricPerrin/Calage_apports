@@ -63,6 +63,14 @@ FAUTES = [
      "\n# essai : " + str(PROJET) + "\n"),
     ("nom d'affaire ou identifiant de cas d'essai",
      f"\n# essai : mesure faite sur {_mots[0]}\n"),
+    # LA FAUTE QUI EST DEJA ARRIVEE. « re » a ete employe dans
+    # pont_hecras.py sans y etre importe, sous un « except Exception » qui
+    # rendait le NameError sous la forme d'un probleme d'environnement : le
+    # repli des pentes y a perdu un echelon pendant des semaines. Un module
+    # qui s'importe et se compile ne prouve rien — la faute n'apparait qu'a
+    # l'execution de cette branche-la, et elle etait attrapee.
+    ("import oublie : un nom lu sans avoir jamais ete lie",
+     "\n_ESSAI_IMPORT_OUBLIE = essai_module_jamais_importe.valeur\n"),
 ]
 
 sauvegarde = CIBLE.read_text(encoding="utf-8")

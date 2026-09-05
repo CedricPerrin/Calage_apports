@@ -24,6 +24,7 @@ directement dans le zip.
 Usage :  python faire_zip.py
 """
 import ast
+import builtins
 import re
 import time
 import zipfile
@@ -108,6 +109,82 @@ def imports_locaux(module, connus):
         elif isinstance(noeud, ast.ImportFrom) and noeud.level == 0 and noeud.module:
             trouves.add(noeud.module.split(".")[0])
     return trouves & connus
+
+
+# Dunders que Python pose lui-meme dans tout module : ils sont lus sans
+# jamais avoir ete ecrits.
+_DUNDERS_MODULE = frozenset((
+    "__file__", "__name__", "__doc__", "__package__", "__spec__",
+    "__loader__", "__builtins__", "__debug__"))
+
+
+def _noms_lies(arbre):
+    """Tout ce qu'un fichier LIE, a n'importe quelle portee."""
+    lies = set()
+    for n in ast.walk(arbre):
+        if isinstance(n, ast.Import):
+            lies |= {(a.asname or a.name).split(".")[0] for a in n.names}
+        elif isinstance(n, ast.ImportFrom):
+            lies |= {a.asname or a.name for a in n.names}
+        elif isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef,
+                            ast.ClassDef)):
+            lies.add(n.name)
+            arguments = getattr(n, "args", None)
+            if arguments is not None:
+                lies |= _noms_arguments(arguments)
+        elif isinstance(n, ast.Lambda):
+            lies |= _noms_arguments(n.args)
+        elif isinstance(n, ast.Name) and isinstance(n.ctx, (ast.Store, ast.Del)):
+            lies.add(n.id)
+        elif isinstance(n, ast.ExceptHandler) and n.name:
+            lies.add(n.name)
+        elif isinstance(n, (ast.Global, ast.Nonlocal)):
+            lies.update(n.names)
+    return lies
+
+
+def _noms_arguments(arguments):
+    """Noms de tous les parametres d'une signature, forme par forme."""
+    tous = (list(arguments.posonlyargs) + list(arguments.args)
+            + list(arguments.kwonlyargs)
+            + ([arguments.vararg] if arguments.vararg else [])
+            + ([arguments.kwarg] if arguments.kwarg else []))
+    return {a.arg for a in tous}
+
+
+def noms_jamais_lies(source):
+    """
+    Noms LUS par ce fichier sans y avoir jamais ete lies : {nom: [lignes]}.
+
+    POURQUOI CE CONTROLE EXISTE. « re » a ete employe dans pont_hecras.py sans
+    y etre importe, a l'interieur d'un « except Exception » qui rendait le
+    NameError sous la forme d'un probleme d'environnement. Le repli des pentes
+    y a perdu un echelon sans que rien ne le dise, pendant des semaines. Un
+    module qui s'importe et se compile ne prouve rien : la faute n'apparait
+    qu'a l'execution de CETTE branche-la, et elle etait attrapee.
+
+    DELIBEREMENT AVEUGLE AUX PORTEES. On rassemble ce que le fichier lie
+    N'IMPORTE OU, puis on signale ce qui n'y figure pas. Cela ne voit donc PAS
+    un nom lie dans une fonction et lu dans une autre — ce n'est pas un
+    verificateur de portees, et ne pretend pas l'etre. En echange, il ne rend
+    aucun faux positif, ce qui est la seule facon qu'un garde-fou d'archive
+    soit cru : mesure du 05/09/2026 sur les 25 800 lignes du projet, une seule
+    sortie, la vraie.
+
+    Rend None sur un fichier portant « from x import * » : on ne peut alors
+    rien affirmer, et affirmer quand meme serait pire que se taire.
+    """
+    arbre = ast.parse(source)
+    if any(isinstance(n, ast.ImportFrom) and any(a.name == "*" for a in n.names)
+           for n in ast.walk(arbre)):
+        return None
+    connus = _noms_lies(arbre) | set(dir(builtins)) | _DUNDERS_MODULE
+    inconnus = {}
+    for n in ast.walk(arbre):
+        if (isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load)
+                and n.id not in connus):
+            inconnus.setdefault(n.id, []).append(n.lineno)
+    return inconnus
 
 
 def modules_chaine():
@@ -272,6 +349,20 @@ if __name__ == "__main__":
                 for mot in sorted(set(affaires.findall(texte))):
                     echecs.append(f"nom d'affaire ou de cas d'essai dans "
                                   f"{nom} : « {mot} »")
+            # UN NOM LU SANS AVOIR ETE LIE — voir noms_jamais_lies(). Un
+            # « import » oublie ne fait echouer ni l'import du module, ni sa
+            # compilation : il attend la branche qui l'emploie, et un
+            # « except » large le deguise en panne d'environnement.
+            if nom.endswith(".py"):
+                try:
+                    inconnus = noms_jamais_lies(texte)
+                except SyntaxError as e:
+                    echecs.append(f"{nom} ne compile pas : {e}")
+                    inconnus = None
+                for inconnu, lignes in sorted((inconnus or {}).items()):
+                    echecs.append(
+                        f"nom jamais lie dans {nom} : « {inconnu} » lu ligne(s) "
+                        f"{', '.join(str(l) for l in lignes)} — import oublie ?")
 
     print()
     if echecs:

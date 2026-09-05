@@ -42,6 +42,39 @@ fournir. Le garde-fou n'est donc pas muet — mais il ne surveille rien de réel
 Avant de committer depuis un clone neuf, se rappeler qu'un nom de client
 passerait.
 
+## Session du 5 septembre 2026 (fin) — la pente déduite n'avait jamais tourné
+
+**Greffon en 0.6.8.** Le lot 1 puis le lot 3 de `AUDIT.md`, et le défaut que
+l'audit avait trouvé.
+
+### Le P0, et le garde-fou qui l'aurait attrapé
+
+`re` était employé dans `pont_hecras._pentes_deduites` **sans y être importé**,
+sous un `except Exception` qui rendait le `NameError` comme un problème
+d'environnement. Le repli des pentes — *classeur, puis pente locale du fond,
+puis rien* — avait **deux échelons sur trois** ; un apport dont la case
+`Pente_m_par_m` est vide gardait la pente déjà en place, soit **1 %** pour une
+injection créée par le greffon.
+
+`faire_zip.noms_jamais_lies()` refuse désormais tout nom lu sans avoir jamais
+été lié dans son fichier. **Aveugle aux portées, donc sans aucun faux positif**
+sur les 25 800 lignes — la seule façon qu'un garde-fou d'archive soit cru. Le
+banc adverse injecte la faute en troisième position.
+
+> **Reste à trancher, et il faut les journaux.** La ligne
+> `pente : deduction impossible` se cherche dans `calage_<horodatage>.log`, à
+> côté du classeur. Si elle y est, des apports ont tourné à 1 % et leurs
+> livrables sont à reprendre. Sinon, l'impact en production est **nul**.
+
+### Le reste des deux lots
+
+`style_classeur.py` a enfin un banc — **13 contrôles** ; il était compté parmi
+les quinze verts et n'en portait aucun. `creer_template.py` n'écrit plus dans
+le dépôt (`--publier` pour le template livré). Un contrôle du banc du noyau
+dont la condition était `<Path> or True` porte enfin le prédicat qu'il vérifie.
+Et `maille_globale`, que `ruff` donnait pour mort, s'est révélé être une
+**sonde** : l'appel est gardé, seul le nom est parti.
+
 ## Session du 5 septembre 2026 (suite) — installer sans savoir où est Python
 
 **Greffon en 0.6.7.** Trois défauts, chacun prouvé puis fermé par un banc.
