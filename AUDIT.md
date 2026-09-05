@@ -380,6 +380,37 @@ refactor ici sans test de caractérisation numérique est un pari.
 
 **Test à écrire d'abord** — voir § 6.
 
+> #### ✅ Engagé le 5 septembre 2026 — deux extractions sur trois
+>
+> Le test de caractérisation existant, l'objection ci-dessus est levée. Deux
+> des trois étapes nommées sont sorties, en **déplacement pur** — aucune
+> opération flottante touchée, aucun ordre changé — avec le banc relancé et
+> la caractérisation `identique` après chacune :
+>
+> | étape | fonction | commit |
+> |---|---|---|
+> | étape 7 | `_signaler_coherence_amont()` | `9efddcc` |
+> | vérification globale finale | `_verifier_globalement()` | `43db3f1` |
+>
+> **`caler()` : 699 → 622 lignes.**
+>
+> **La troisième — « journalisation d'itération » — n'est PAS extraite, et
+> c'est une décision mesurée, pas un reste.** Le bloc (`calage.py:1312-1333`)
+> lit **quinze variables locales** — `essais`, `diag`, `config`, `dire`,
+> `suivi`, `i`, `temps_cible`, `debit_cible`, `temps_residuel`, `residuel`,
+> `decalage_zero`, `temps_calcule`, `debit_calcule`, `courant`,
+> `volume_initial` — et doit rendre `atteint`. Une fonction à quinze
+> paramètres se lit plus mal que le bloc en place : l'extraction irait contre
+> le but qu'elle poursuit.
+>
+> Ce que ce constat déplace : le poids de `caler()` ne tient pas à des étapes
+> mal rangées — les deux qui l'étaient sont sorties sans peine — mais à
+> **l'étendue de l'état que porte le corps de la boucle par apport**. Le
+> réduire demande de regrouper cet état, donc un changement de conception, et
+> non plus un déplacement. C'est le même chantier que l'idée V2 « calage
+> simultané » (`docs/idees_V2_plugin.md` § 1), qui réécrit cette boucle de
+> toute façon. **À traiter là, ou pas du tout** — pas en troisième extraction.
+
 ---
 
 #### P1-5 · `_sections_derivees` fait disparaître une section de l'alerte d'étape 7 — ✅ **corrigé au lot 5, le 5 septembre 2026**
@@ -771,12 +802,19 @@ décision sur les trois calages livrés est écrite dans `STATUT.txt`.
 le test de caractérisation du § 6 n° 1** — qui **existe depuis le 5 septembre
 2026**. Le préalable est donc levé : le filet est tendu.
 
-**P1-5 est fait** (5 septembre 2026). **P1-4 — `caler()`, 699 lignes,
-complexité 81 — reste à engager**, et c'est la moitié lourde du lot : extraire
-les étapes déjà nommées dans les commentaires en fonctions privées, sans
-changer une seule opération flottante ni leur ordre. Le banc doit être relancé
-**avant** d'y toucher, et la ligne à surveiller est la caractérisation : elle
-seule voit une trajectoire déplacée.
+**Lot 5 mené le 5 septembre 2026.** P1-5 corrigé ; P1-4 engagé et **clos par
+une décision, pas par un abandon** :
+
+- `_sections_derivees` rend `(derives, illisibles)`, l'étape 7 nomme ce
+  qu'elle n'a pas pu relire (`bc60fbb`) ;
+- `_signaler_coherence_amont()` et `_verifier_globalement()` sortent de
+  `caler()`, en déplacement pur (`9efddcc`, `43db3f1`) — **699 → 622 lignes** ;
+- la troisième extraction que l'audit envisageait est **écartée sur mesure** :
+  quinze variables locales à passer. Voir le constat P1-4.
+
+**Ce qui reste de `caler()` ne relève plus de l'extraction** mais de l'étendue
+de l'état porté par la boucle par apport — c'est-à-dire du chantier « calage
+simultané » (`docs/idees_V2_plugin.md` § 1), qui réécrit cette boucle.
 
 ---
 
