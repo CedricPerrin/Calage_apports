@@ -58,6 +58,21 @@ import os
 
 FICHIERS_CHAINE = ("criteres.py", "geometrie.py", "controle_donnees.py",
                    "livrables.py", "pont_hecras.py")
+# CHAQUE SOUS-PROCESSUS OUVRIRAIT UNE CONSOLE, ET ELLE PASSE DEVANT QGIS.
+#
+# Le greffon en lance beaucoup : la sonde d'interpreteur, le lanceur « py »,
+# JUSQU'A QUARANTE essais de python.exe quand « Installer… » cherche une base,
+# pip pendant plusieurs minutes, et le pont a chaque operation sur le modele.
+# Sans ce drapeau, chacun fait clignoter une fenetre noire au premier plan —
+# et celle de pip reste ouverte tout du long, masquant la fenetre du greffon.
+# pilote_hecras.py le posait deja sur ses deux appels ; nulle part ailleurs.
+#
+# IL EST INCOMPATIBLE AVEC DETACHED_PROCESS, et ce n'est pas un detail :
+# Windows refuse la creation du processus (ERROR_INVALID_PARAMETER) si les
+# deux sont combines. lancer_calage() emploie DETACHED_PROCESS, qui prive
+# DEJA le calage de console — il ne doit donc PAS y ajouter celui-ci.
+SANS_FENETRE = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
 VARIABLE_CHAINE = "CALAGE_CHAINE"
 DOSSIER_EMBARQUE = Path(__file__).resolve().parent / "chaine"
 
@@ -512,7 +527,7 @@ def _python_utilisable(chemin):
             [str(chemin), "-c",
              "import venv, sys; print('%d.%d.%d' % sys.version_info[:3])"],
             capture_output=True, text=True, encoding="utf-8",
-            errors="replace", timeout=20)
+            errors="replace", timeout=20, creationflags=SANS_FENETRE)
     except Exception:                                        # noqa: BLE001
         return None
     if sortie.returncode != 0:
@@ -632,7 +647,8 @@ def _emplacements_python():
     # Le lanceur « py » sait enumerer ce qui est installe.
     try:
         sortie = subprocess.run(["py", "-0p"], capture_output=True, text=True,
-                                encoding="utf-8", errors="replace", timeout=20)
+                                encoding="utf-8", errors="replace", timeout=20,
+                                creationflags=SANS_FENETRE)
         for ligne in (sortie.stdout or "").splitlines():
             ajouter(_chemin_dans_ligne_py(ligne))
     except Exception:                                        # noqa: BLE001
@@ -744,7 +760,8 @@ def installer_interpreteur(python_base, journal=None):
             subprocess.run([str(python_base), "-m", "venv", str(cible)],
                            check=True, capture_output=True, text=True,
                            encoding="utf-8", errors="replace", timeout=600,
-                           env=environnement_propre(python_base))
+                           env=environnement_propre(python_base),
+                           creationflags=SANS_FENETRE)
         except Exception as e:                               # noqa: BLE001
             sortie = getattr(e, "stderr", "") or ""
             return None, f"création de l'environnement impossible : {e}\n{sortie}"
@@ -783,7 +800,8 @@ def installer_interpreteur(python_base, journal=None):
             # D'ou « installation terminee » suivi de « onze modules
             # absents », deux fois de suite. Releve sur un poste neuf le
             # 05/09/2026, a la premiere installation reelle du bouton.
-            env=environnement_propre(interpreteur))
+            env=environnement_propre(interpreteur),
+            creationflags=SANS_FENETRE)
     except Exception as e:                                   # noqa: BLE001
         return None, f"installation impossible : {e}"
     if resultat.returncode != 0:
@@ -814,7 +832,8 @@ def installer_interpreteur(python_base, journal=None):
                 [str(interpreteur), "-m", "pip", "install", *complement],
                 capture_output=True, text=True, encoding="utf-8",
                 errors="replace", timeout=1800,
-                env=environnement_propre(interpreteur))
+                env=environnement_propre(interpreteur),
+                creationflags=SANS_FENETRE)
         except Exception as e:                               # noqa: BLE001
             return None, f"installation du complement impossible : {e}"
         if resultat.returncode != 0:
@@ -906,7 +925,8 @@ def _sonder_interpreteur(chemin):
         return subprocess.run(
             [str(chemin), "-c", code], capture_output=True, text=True,
             encoding="utf-8", errors="replace",
-            timeout=90, env=environnement_propre(chemin)), None
+            timeout=90, env=environnement_propre(chemin),
+            creationflags=SANS_FENETRE), None
     except Exception as e:                                   # noqa: BLE001
         return None, f"{type(e).__name__}: {e}"
 
@@ -1106,7 +1126,8 @@ def appeler_pont(*arguments, delai=300):
     try:
         acheve = subprocess.run(commande, capture_output=True, text=True,
                                 timeout=delai, encoding="utf-8", errors="replace",
-                                env=environnement_propre(interpreteur))
+                                env=environnement_propre(interpreteur),
+                                creationflags=SANS_FENETRE)
     except subprocess.TimeoutExpired:
         raise RuntimeError(f"delai depasse ({delai} s) : {' '.join(arguments[:2])}")
 
@@ -2733,6 +2754,13 @@ if __name__ == "__main__":
     # 05/09/2026, a la premiere installation reelle du bouton.
     #   LE CONTROLE PORTE SUR LE CODE, faute de pouvoir installer pour de vrai
     # dans un banc — ce serait plusieurs centaines de Mo a chaque passage.
+    # « creationflags » AUTANT QUE « env » : sans lui, chaque appel fait
+    # clignoter une console noire devant la fenetre du greffon — quarante fois
+    # de suite quand « Installer… » cherche un python de base, et pendant
+    # plusieurs minutes quand pip travaille. Le drapeau lui-meme differe selon
+    # l'appel : SANS_FENETRE pour les appels synchrones, DETACHED_PROCESS pour
+    # le calage detache, et les deux sont INCOMPATIBLES. Ce qu'on exige ici est
+    # donc que la question ait ete posee, pas qu'une valeur precise soit la.
     _source_noyau = Path(__file__).resolve().read_text(encoding="utf-8")
     _arbre = ast.parse(_source_noyau)
     _nus = []
@@ -2747,11 +2775,14 @@ if __name__ == "__main__":
             _cible = getattr(_n.func, "attr", None)
             if _cible != "run" or getattr(_n.func.value, "id", "") != "subprocess":
                 continue
-            if not any(k.arg == "env" for k in _n.keywords):
-                _nus.append(f"{_f.name} l. {_n.lineno}")
-    print(f"   [{'OK' if not _nus else 'ECHEC'}] aucun subprocess.run sans "
-          f"« env= » dans les fonctions lancees depuis QGIS  ->  "
-          f"{'aucun' if not _nus else _nus}")
+            _cles = {k.arg for k in _n.keywords}
+            for _exige in ("env", "creationflags"):
+                if _exige not in _cles:
+                    _nus.append(f"{_f.name} l. {_n.lineno} : « {_exige}= » "
+                                f"manquant")
+    print(f"   [{'OK' if not _nus else 'ECHEC'}] tout sous-processus lance "
+          f"depuis QGIS porte « env= » ET « creationflags= »  ->  "
+          f"{'aucun manque' if not _nus else _nus}")
     assert not _nus, _nus
 
     print("\n4 sexies. CE QU'ON DIT D'INSTALLER EST CE QU'ON EXIGE")
