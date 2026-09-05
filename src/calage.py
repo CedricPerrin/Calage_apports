@@ -1484,43 +1484,10 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
 
         # --- etape 7 : coherence des sections amont -----------------------
         if config.controle_amont and i > 0:
-            fenetres_amont = [a.fenetre_principale for a in resultat.apports[:i]]
-            # UNE SEULE EVALUATION, ET C'EST TOUT CE QU'ON PEUT EN TIRER.
-            #
-            # Ce controle etait ecrit comme une boucle de « reprises », qui
-            # rappelait _sections_derivees jusqu'a reprises_max. Or cette
-            # fonction est une RELECTURE PURE du dernier calcul : aucun calcul
-            # HEC-RAS n'intervient entre deux tours, les entrees sont
-            # identiques, le verdict aussi. La boucle ne pouvait donc rien
-            # changer — elle imprimait « reprise 1/2 » puis « reprise 2/2 »
-            # avant le meme resultat, ce qui donnait a lire une chaine en
-            # train de corriger quelque chose alors qu'elle relisait deux fois
-            # la meme chose. Constate sur le calage du 07-08/08/2026, ou les
-            # deux lignes sont apparues a chacun des sept apports.
-            #
-            # Rattraper reellement une derive amont demanderait de reprendre
-            # l'apport concerne, donc un calcul de plusieurs heures, et de
-            # relancer toute la sequence aval derriere lui. C'est une decision
-            # d'ingenieur, pas un automatisme : la chaine SIGNALE, et laisse
-            # decider.
-            derives, illisibles = _sections_derivees(
-                modele, sections[:i], cibles[:i], config, fenetres_amont)
-            # DIRE QU'ON N'A PAS PU REGARDER. Sans cette ligne, une section
-            # que le modele refuse de rendre disparaissait de l'examen, et le
-            # silence qui suivait se lisait comme « rien n'a derive ».
-            if illisibles:
-                dire(f"    AVERTISSEMENT : en aval de « {apport} », les "
-                     f"sections deja calees {[s for s, _ in illisibles]} "
-                     f"n'ont PAS pu etre relues — leur derive n'a donc pas "
-                     f"ete verifiee ici. "
-                     + " ; ".join(f"{s} — {m}" for s, m in illisibles))
-            if derives:
-                dire(f"    AVERTISSEMENT : en aval de « {apport} », les "
-                     f"sections deja calees {[s for s, _ in derives]} sont "
-                     f"sorties de tolerance. Le remous du nouvel apport les a "
-                     f"deplacees. Les reprendre suppose de relancer la "
-                     f"sequence a partir de la premiere d'entre elles ; rien "
-                     f"n'est repris automatiquement.")
+            _signaler_coherence_amont(
+                modele, sections[:i], cibles[:i],
+                [a.fenetre_principale for a in resultat.apports[:i]],
+                config, apport, dire)
 
     # --- etape finale : verification globale -------------------------------
     if all(a.valide for a in resultat.apports) and \
@@ -1617,6 +1584,49 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
     if suivi is not None:
         _sans_interrompre(suivi.terminer)
     return resultat
+
+
+def _signaler_coherence_amont(modele, sections_amont, cibles_amont,
+                              fenetres_amont, config, apport, dire):
+    """
+    Etape 7 : le remous du nouvel apport a-t-il deplace les sections deja
+    calees ? Relit, SIGNALE, et ne reprend rien.
+
+    UNE SEULE EVALUATION, ET C'EST TOUT CE QU'ON PEUT EN TIRER.
+
+    Ce controle etait ecrit comme une boucle de « reprises », qui rappelait
+    _sections_derivees jusqu'a reprises_max. Or cette fonction est une
+    RELECTURE PURE du dernier calcul : aucun calcul HEC-RAS n'intervient entre
+    deux tours, les entrees sont identiques, le verdict aussi. La boucle ne
+    pouvait donc rien changer — elle imprimait « reprise 1/2 » puis
+    « reprise 2/2 » avant le meme resultat, ce qui donnait a lire une chaine
+    en train de corriger quelque chose alors qu'elle relisait deux fois la
+    meme chose. Constate sur le calage du 07-08/08/2026, ou les deux lignes
+    sont apparues a chacun des sept apports.
+
+    Rattraper reellement une derive amont demanderait de reprendre l'apport
+    concerne, donc un calcul de plusieurs heures, et de relancer toute la
+    sequence aval derriere lui. C'est une decision d'ingenieur, pas un
+    automatisme : la chaine SIGNALE, et laisse decider.
+    """
+    derives, illisibles = _sections_derivees(
+        modele, sections_amont, cibles_amont, config, fenetres_amont)
+    # DIRE QU'ON N'A PAS PU REGARDER. Sans cette ligne, une section que le
+    # modele refuse de rendre disparaissait de l'examen, et le silence qui
+    # suivait se lisait comme « rien n'a derive ».
+    if illisibles:
+        dire(f"    AVERTISSEMENT : en aval de « {apport} », les "
+             f"sections deja calees {[s for s, _ in illisibles]} "
+             f"n'ont PAS pu etre relues — leur derive n'a donc pas "
+             f"ete verifiee ici. "
+             + " ; ".join(f"{s} — {m}" for s, m in illisibles))
+    if derives:
+        dire(f"    AVERTISSEMENT : en aval de « {apport} », les "
+             f"sections deja calees {[s for s, _ in derives]} sont "
+             f"sorties de tolerance. Le remous du nouvel apport les a "
+             f"deplacees. Les reprendre suppose de relancer la "
+             f"sequence a partir de la premiere d'entre elles ; rien "
+             f"n'est repris automatiquement.")
 
 
 def _sections_derivees(modele, sections, cibles, config, fenetres=None):
