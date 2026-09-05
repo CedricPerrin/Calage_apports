@@ -642,13 +642,23 @@ s'importe sous le nom `docx`, listé en `DEP001`). Le correctif P0-1 est
 
 ## 6. Tests manquants à écrire avant les lots risqués
 
-1. **Test de caractérisation numérique de `caler()`** — indispensable avant
-   **tout** travail sur `calage.py` (P1-4, et *a fortiori* l'idée V2 « calage
-   simultané »). Forme : le `ModeleFictif` du banc, un calage complet, et la
-   **sortie figée dans un fichier de référence versionné** — apports finaux,
-   diagnostics, Δt retenus — comparée avec une **tolérance explicite**
-   (`rtol=1e-9` sur les débits, `atol=1e-6 h` sur les décalages). Aujourd'hui
-   les 120 contrôles vérifient des propriétés, jamais une trajectoire.
+1. ✅ **ÉCRIT le 5 septembre 2026** — Test de caractérisation numérique de
+   `caler()`, dans le banc de `calage.py`, contre
+   `src/reference_calage_fictif.json` (36 ko, versionné). Il réutilise le
+   calage que le banc mène déjà : **aucun calcul de plus**.
+   Ce qu'il fige : `nb_calculs`, `conforme`, le motif, et par apport le nombre
+   d'essais, le **hydrogramme injecté en entier** (400 points) et tous les
+   nombres du `Diagnostic`. Tolérances **`rtol=1e-9`** sur les débits,
+   **`atol=1e-6 h`** sur les décalages et les bornes de fenêtre.
+   Ce qu'il ne fige pas, et pourquoi : ni les durées (horloge), ni
+   l'historique par essai (il porte des mesures de temps).
+   **Mesuré dans les deux sens** : un apport déplacé de **0,1 %** — que les
+   120 contrôles de bande laissent tous passer — produit **1 215 écarts** et
+   fait échouer le banc ; un Δt décalé de `1e-7 h` passe, de `1e-3 h` échoue.
+   La référence porte le socle qui l'a produite (Python, numpy, système) : un
+   écart au dernier chiffre y est rapporté comme tel, et non comme une
+   régression. Quand le changement est **voulu** :
+   `python calage.py --figer-reference`, puis relire le diff.
 2. **Test de non-régression des pentes** (avant P0-1) : `_pentes_deduites` sur
    un projet factice, sans `NameError`, avec la pente attendue.
 3. **Garde-fou statique dans `faire_zip.py`** : refuser l'archive si un module
@@ -751,7 +761,9 @@ décision sur les trois calages livrés est écrite dans `STATUT.txt`.
 ### Lot 5 — P1-5 puis, seulement ensuite, P1-4
 
 `_sections_derivees` d'abord (petit, local). **`caler()` ne se touche pas avant
-le test de caractérisation du § 6 n° 1.**
+le test de caractérisation du § 6 n° 1** — qui **existe depuis le 5 septembre
+2026**. Le préalable est donc levé : le filet est tendu, le lot reste à
+engager.
 
 ---
 

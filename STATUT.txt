@@ -62,6 +62,21 @@ CE QUI EST EPROUVE
     nom lu sans avoir jamais ete lie dans son fichier : c'est la faute qui
     l'avait laisse passer, et le banc adverse l'injecte pour verifier qu'elle
     est refusee. Mesure : aucun faux positif sur les 25 800 lignes du projet.
+  - caler() EST DESORMAIS SOUS TEST DE CARACTERISATION (05/09). Les 120
+    controles de calage.py verifiaient des BANDES — « volume a mieux que
+    5 % » — jamais une TRAJECTOIRE : un remaniement pouvait deplacer tous les
+    apports de 3 % sans qu'aucun ne bronche. Le banc compare desormais la
+    sortie complete du calage fictif a src/reference_calage_fictif.json
+    (36 ko, versionne) : nb_calculs, essais par apport, hydrogramme injecte
+    en entier, et tous les nombres des diagnostics. rtol=1e-9 sur les debits,
+    atol=1e-6 h sur les decalages. Mesure : un apport deplace de 0,1 % rend
+    1 215 ecarts et fait echouer le banc.
+      IL NE COUTE AUCUN CALCUL : il relit le calage que le banc menait deja.
+      QUAND LE CHANGEMENT EST VOULU : « python calage.py --figer-reference »
+    reecrit la reference. Le refuser sans ce geste explicite est tout
+    l'interet — une reference qui se met a jour seule ne prouve rien.
+      C'EST LE PREALABLE DE TOUT TRAVAIL SUR caler() (699 lignes, complexite
+    81) et, a plus forte raison, du calage simultane de docs/idees_V2.
   - STYLE_CLASSEUR.PY A ENFIN UN BANC — treize controles, 05/09. Il etait
     compte parmi les bancs verts ici meme et n'en portait AUCUN : « python
     style_classeur.py » sortait 0 sans un mot. Et creer_template.py n'ecrit

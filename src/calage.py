@@ -3478,6 +3478,179 @@ if __name__ == "__main__":
               _coherence_points([(p, d, 8.0) for p, d in zip(_pics_r, _dt_r)],
                                 lambda *a, **k: None) is not None)
 
+    # -----------------------------------------------------------------------
+    # TEST DE CARACTERISATION — la TRAJECTOIRE, et non plus des proprietes.
+    #
+    # POURQUOI IL EXISTE. Tous les controles ci-dessus verifient des BANDES :
+    # « volume a mieux que 5 % », « conforme », « tous les apports valides ».
+    # Une bande ne voit pas un decalage. Un remaniement de caler() peut
+    # deplacer tous les apports de 3 %, ou faire converger en trois essais au
+    # lieu de deux, sans qu'aucun d'eux ne bronche — 97 %, c'est toujours
+    # « mieux que 5 % ». Or caler() pese 699 lignes pour une complexite
+    # cyclomatique de 81, et le depot ne porte AUCUN modele HEC-RAS : le seul
+    # test qui touche un vrai modele exige le poste et une copie de 166 Mo.
+    #
+    # CE TEST NE DIT PAS CE QUE LE CODE DEVRAIT FAIRE. Il enregistre ce qu'il
+    # FAIT, dans un fichier de reference versionne, et refuse toute
+    # difference. C'est le filet a tendre AVANT de decouper caler(), et a
+    # fortiori avant le calage simultane de docs/idees_V2_plugin.md, qui
+    # reecrit ce coeur entierement.
+    #
+    # QUAND LE CHANGEMENT EST VOULU : « python calage.py --figer-reference »
+    # reecrit le fichier. Le refuser sans ce geste explicite est tout
+    # l'interet — une reference qui se met a jour toute seule ne prouve rien.
+    #
+    # CE QU'IL NE FIGE PAS, ET POURQUOI : ni les durees (horloge), ni
+    # l'historique par essai (il porte des mesures de temps). « nb_calculs »
+    # et le nombre d'essais par apport suffisent a epingler le chemin de
+    # recherche ; les hydrogrammes et les diagnostics epinglent les nombres.
+    # -----------------------------------------------------------------------
+    print("\n--- CARACTERISATION : la trajectoire, pas la bande ---")
+    import json
+    import platform
+
+    REFERENCE = Path(__file__).resolve().parent / "reference_calage_fictif.json"
+    RTOL_DEBIT = 1e-9      # debits, volumes, rapports : relatif
+    ATOL_HEURE = 1e-6      # decalages et bornes de fenetre : absolu, en heures
+
+    def _diag_fige(d):
+        """Ce qu'on retient d'un Diagnostic : des nombres, et rien d'autre."""
+        if d is None:
+            return None
+        return {
+            "rapport_volume": float(d.rapport_volume),
+            "rapport_pic": float(d.rapport_pic),
+            "r": float(d.r),
+            "kge": float(d.kge),
+            "alpha": float(d.alpha),
+            "beta": float(d.beta),
+            "decalage_h": float(d.decalage_h),
+            "fenetre": (None if d.fenetre is None
+                        else [float(d.fenetre[0]), float(d.fenetre[1])]),
+            "rapport_volume_serie": (None if d.rapport_volume_serie is None
+                                     else float(d.rapport_volume_serie)),
+            "part_cible_jugee": (None if d.part_cible_jugee is None
+                                 else float(d.part_cible_jugee)),
+            "converge": bool(d.converge),
+            "alertes": list(d.alertes),
+        }
+
+    trajectoire = {
+        "_a_propos": (
+            "Test de caracterisation de caler() sur ModeleFictif. NE PAS "
+            "MODIFIER A LA MAIN : « python calage.py --figer-reference » le "
+            "reecrit quand le changement de comportement est VOULU."),
+        "_produit_par": {
+            "python": platform.python_version(),
+            "numpy": np.__version__,
+            "systeme": platform.system(),
+        },
+        "nb_calculs": int(resultat.nb_calculs),
+        "conforme": bool(resultat.conforme),
+        "motif": resultat.motif,
+        "alertes_chaine": list(getattr(resultat, "alertes_chaine", []) or []),
+        "apports": [{
+            "nom_apport": a.nom_apport,
+            "nom_section": a.nom_section,
+            "valide": bool(a.valide),
+            "essais": int(a.essais),
+            "motif": a.motif,
+            "facteur": float(a.facteur),
+            # L'HYDROGRAMME INJECTE EST LE LIVRABLE du calage : c'est lui qui
+            # part dans l'unsteady, et c'est donc lui qu'un remaniement ne
+            # doit pas deplacer.
+            "hydrogramme": [float(v) for v in
+                            modele.formes[a.nom_apport]
+                            * modele.facteurs[a.nom_apport]],
+            "diagnostic": _diag_fige(a.diagnostic),
+        } for a in resultat.apports],
+        "diagnostics_finaux": [_diag_fige(d)
+                               for d in resultat.diagnostics_finaux],
+    }
+
+    if "--figer-reference" in sys.argv:
+        REFERENCE.write_text(
+            json.dumps(trajectoire, indent=1, ensure_ascii=False) + "\n",
+            encoding="utf-8")
+        print(f"   REFERENCE REECRITE : {REFERENCE.name} "
+              f"({REFERENCE.stat().st_size / 1024:.1f} ko)")
+        print("   Relire le diff avant de committer : il dit exactement ce "
+              "que le changement a deplace.")
+    elif not REFERENCE.is_file():
+        controler("fichier de reference present", False,
+                  f"{REFERENCE.name} absent — le creer par "
+                  f"« python calage.py --figer-reference »")
+    else:
+        _attendu = json.loads(REFERENCE.read_text(encoding="utf-8"))
+        _ecarts = []
+
+        def _comparer(chemin, obtenu, attendu):
+            """Compare deux valeurs de meme forme et accumule les ecarts."""
+            if isinstance(attendu, dict):
+                for cle in sorted(set(attendu) | set(obtenu or {})):
+                    if cle.startswith("_"):
+                        continue
+                    if cle not in (obtenu or {}) or cle not in attendu:
+                        _ecarts.append(f"{chemin}.{cle} : present d'un seul cote")
+                        continue
+                    _comparer(f"{chemin}.{cle}", obtenu[cle], attendu[cle])
+            elif isinstance(attendu, list) and not isinstance(obtenu, str):
+                if len(obtenu) != len(attendu):
+                    _ecarts.append(f"{chemin} : {len(obtenu)} valeur(s) au "
+                                   f"lieu de {len(attendu)}")
+                    return
+                for i, (o, a_) in enumerate(zip(obtenu, attendu)):
+                    _comparer(f"{chemin}[{i}]", o, a_)
+            elif isinstance(attendu, bool) or isinstance(obtenu, bool):
+                if bool(obtenu) != bool(attendu):
+                    _ecarts.append(f"{chemin} : {obtenu} au lieu de {attendu}")
+            elif isinstance(attendu, (int, float)) and attendu is not None:
+                # LES HEURES SE COMPARENT EN ABSOLU, LE RESTE EN RELATIF. Un
+                # decalage nul ne peut pas se juger en relatif, et 1e-6 h
+                # vaut 4 millisecondes : bien en deca du pas de recalage.
+                if chemin.endswith("decalage_h") or ".fenetre[" in chemin:
+                    if abs(float(obtenu) - float(attendu)) > ATOL_HEURE:
+                        _ecarts.append(f"{chemin} : {obtenu:+.9f} h au lieu de "
+                                       f"{attendu:+.9f} h")
+                elif not np.isclose(float(obtenu), float(attendu),
+                                    rtol=RTOL_DEBIT, atol=0.0,
+                                    equal_nan=True):
+                    _ecarts.append(f"{chemin} : {obtenu!r} au lieu de "
+                                   f"{attendu!r}")
+            elif obtenu != attendu:
+                _ecarts.append(f"{chemin} : {obtenu!r} au lieu de {attendu!r}")
+
+        _comparer("", trajectoire, _attendu)
+        _meme_socle = (_attendu.get("_produit_par", {}).get("numpy")
+                       == np.__version__
+                       and _attendu.get("_produit_par", {}).get("systeme")
+                       == platform.system())
+        controler(
+            f"la trajectoire est celle de la reference "
+            f"(rtol={RTOL_DEBIT:g} sur les debits, atol={ATOL_HEURE:g} h "
+            f"sur les decalages)",
+            not _ecarts,
+            "identique" if not _ecarts else
+            f"{len(_ecarts)} ecart(s), dont : " + " | ".join(_ecarts[:3]))
+        if _ecarts and not _meme_socle:
+            # UN ECART N'EST PAS FORCEMENT UNE REGRESSION. La reference porte
+            # le socle qui l'a produite : le dire evite de chercher dans le
+            # code une derive qui vient de la bibliotheque.
+            print(f"   NOTE : reference produite sous numpy "
+                  f"{_attendu.get('_produit_par', {}).get('numpy')} / "
+                  f"{_attendu.get('_produit_par', {}).get('systeme')}, ici "
+                  f"numpy {np.__version__} / {platform.system()}. Un ecart au "
+                  f"dernier chiffre significatif peut venir de la, pas du "
+                  f"code — relire les ecarts avant de conclure.")
+        if _ecarts:
+            print(f"   Les {len(_ecarts)} ecart(s), en entier :")
+            for _e in _ecarts[:40]:
+                print(f"      {_e}")
+            if len(_ecarts) > 40:
+                print(f"      … et {len(_ecarts) - 40} autre(s)")
+            print("   Si le changement est VOULU : "
+                  "« python calage.py --figer-reference », puis relire le diff.")
+
     print()
     if echecs:
         print(f"   {len(echecs)} CONTROLE(S) EN ECHEC : {echecs}")
