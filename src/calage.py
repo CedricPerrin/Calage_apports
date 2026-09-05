@@ -1503,8 +1503,17 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
             # relancer toute la sequence aval derriere lui. C'est une decision
             # d'ingenieur, pas un automatisme : la chaine SIGNALE, et laisse
             # decider.
-            derives = _sections_derivees(modele, sections[:i], cibles[:i],
-                                         config, fenetres_amont)
+            derives, illisibles = _sections_derivees(
+                modele, sections[:i], cibles[:i], config, fenetres_amont)
+            # DIRE QU'ON N'A PAS PU REGARDER. Sans cette ligne, une section
+            # que le modele refuse de rendre disparaissait de l'examen, et le
+            # silence qui suivait se lisait comme « rien n'a derive ».
+            if illisibles:
+                dire(f"    AVERTISSEMENT : en aval de « {apport} », les "
+                     f"sections deja calees {[s for s, _ in illisibles]} "
+                     f"n'ont PAS pu etre relues — leur derive n'a donc pas "
+                     f"ete verifiee ici. "
+                     + " ; ".join(f"{s} — {m}" for s, m in illisibles))
             if derives:
                 dire(f"    AVERTISSEMENT : en aval de « {apport} », les "
                      f"sections deja calees {[s for s, _ in derives]} sont "
@@ -1619,14 +1628,26 @@ def _sections_derivees(modele, sections, cibles, config, fenetres=None):
     l'evenement principal detectee pour cette section lors de son propre
     calage (ResultatApport.fenetre_principale). Sans elle (None), chaque
     section est jugee sur sa fenetre commune entiere.
+
+    Rend (derives, illisibles).
+
+    UNE SECTION QU'ON NE SAIT PAS LIRE N'EST PAS UNE SECTION QUI VA BIEN.
+    Elle sortait de la liste sans un mot : l'appelant n'avait plus aucun
+    moyen de distinguer « aucune section amont n'a derive » de « je n'ai pas
+    pu regarder », et il annoncait le premier. Elle est desormais RAPPORTEE,
+    et jamais bloquante — le verdict, lui, ne se joue pas ici : la
+    verification globale finale relit toutes les sections SANS try, et une
+    lecture impossible y remonte.
     """
     if fenetres is None:
         fenetres = [None] * len(sections)
     derives = []
+    illisibles = []
     for section, (t_c, q_c), fenetre in zip(sections, cibles, fenetres):
         try:
             t_s, q_s = modele.lire_section(section)
-        except Exception:
+        except Exception as erreur:
+            illisibles.append((section, f"{type(erreur).__name__}: {erreur}"))
             continue
         d = diagnostiquer(t_c, q_c, t_s, q_s,
                           tolerance_volume=config.tolerance_beta,
@@ -1635,7 +1656,7 @@ def _sections_derivees(modele, sections, cibles, config, fenetres=None):
                           fenetre=fenetre)
         if not d.converge:
             derives.append((section, d))
-    return derives
+    return derives, illisibles
 
 
 def _sans_interrompre(fonction, *arguments):
@@ -2953,6 +2974,38 @@ if __name__ == "__main__":
     controler("elle est NOMMEE, et l'arret ne coute qu'un calcul",
               "Section_absente" in r3d.motif and r3d.nb_calculs == 1,
               f"{r3d.nb_calculs} calcul(s)")
+
+    print("\n--- UNE SECTION AMONT ILLISIBLE EST NOMMEE, PAS AVALEE ---")
+    # L'etape 7 relit les sections deja calees pour voir si le remous du
+    # nouvel apport les a deplacees. Celle qu'on ne savait pas lire sortait
+    # de la liste sur un « except Exception: continue » muet : l'appelant
+    # n'avait plus de quoi distinguer « aucune section n'a derive » de « je
+    # n'ai pas pu regarder », et il annoncait le premier. Le banc d'avant ne
+    # pouvait pas voir la difference — la fonction ne rendait qu'une liste.
+    class ModeleSectionMuette(ModeleFictif):
+        """Une section amont refuse de se laisser relire ; les autres non."""
+
+        def lire_section(self, nom_section):
+            if nom_section == sections[0]:
+                raise RuntimeError("fichier de resultats verrouille")
+            return super().lire_section(nom_section)
+
+    modele3e = ModeleSectionMuette(apports, sections, temps, formes)
+    derives3e, illisibles3e = _sections_derivees(
+        modele3e, sections[:3], cibles[:3], Configuration())
+    controler("la section illisible est RAPPORTEE, pas ignoree",
+              [s for s, _ in illisibles3e] == [sections[0]],
+              f"illisibles : {[s for s, _ in illisibles3e]}")
+    controler("elle porte la raison de son echec",
+              bool(illisibles3e) and "verrouille" in illisibles3e[0][1],
+              illisibles3e[0][1] if illisibles3e else "aucune raison")
+    controler("les sections lisibles restent examinees",
+              all(s != sections[0] for s, _ in derives3e),
+              f"{len(derives3e)} derive(s) parmi 2 sections lisibles")
+    controler("aucune illisible quand toutes se lisent",
+              _sections_derivees(modele, sections[:3], cibles[:3],
+                                 Configuration())[1] == [],
+              "liste vide")
 
     print("\n--- DECALAGE NON IDENTIFIABLE ---")
     # Aucun decalage ne se lit sur une serie qui ne bouge pas. Le balayage

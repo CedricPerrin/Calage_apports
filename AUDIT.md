@@ -382,13 +382,20 @@ refactor ici sans test de caractérisation numérique est un pari.
 
 ---
 
-#### P1-5 · `_sections_derivees` fait disparaître une section de l'alerte d'étape 7
+#### P1-5 · `_sections_derivees` fait disparaître une section de l'alerte d'étape 7 — ✅ **corrigé au lot 5, le 5 septembre 2026**
 
 | | |
 |---|---|
 | **Sévérité** | P1 |
 | **Fichier** | `src/calage.py:1626-1630` |
 | **Certitude** | **CERTAIN** |
+
+**Corrigé.** `_sections_derivees` rend désormais `(derives, illisibles)` : la
+section qu'on ne sait pas lire est collectée avec la raison de son échec, et
+l'étape 7 la **nomme** au journal — « n'ont PAS pu être relues, leur dérive
+n'a donc pas été vérifiée ici ». Aucun blocage, comme prévu. Quatre contrôles
+au banc de `calage.py` ; le test de caractérisation reste `identique`, le
+correctif ne déplace aucune trajectoire.
 
 **Preuve, verbatim :**
 
@@ -762,8 +769,14 @@ décision sur les trois calages livrés est écrite dans `STATUT.txt`.
 
 `_sections_derivees` d'abord (petit, local). **`caler()` ne se touche pas avant
 le test de caractérisation du § 6 n° 1** — qui **existe depuis le 5 septembre
-2026**. Le préalable est donc levé : le filet est tendu, le lot reste à
-engager.
+2026**. Le préalable est donc levé : le filet est tendu.
+
+**P1-5 est fait** (5 septembre 2026). **P1-4 — `caler()`, 699 lignes,
+complexité 81 — reste à engager**, et c'est la moitié lourde du lot : extraire
+les étapes déjà nommées dans les commentaires en fonctions privées, sans
+changer une seule opération flottante ni leur ordre. Le banc doit être relancé
+**avant** d'y toucher, et la ligne à surveiller est la caractérisation : elle
+seule voit une trajectoire déplacée.
 
 ---
 
