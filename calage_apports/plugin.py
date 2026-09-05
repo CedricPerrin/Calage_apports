@@ -2355,6 +2355,12 @@ class DialogueParametrage(QDialog):
 
         self.edit_sous_dossier_suivi = QLineEdit("suivi")
         self.edit_sous_dossier_suivi.textChanged.connect(self._maj_resume)
+        # CHANGER CE CHAMP DOIT SE VOIR TOUT DE SUITE. Sans ce reveil,
+        # l'onglet 5 gardait le dossier de la derniere visite jusqu'a la
+        # reouverture de QGIS : on corrigeait le sous-dossier et le suivi
+        # continuait de regarder l'ancien, sans rien dire.
+        for _champ in (self.edit_dossier_sortie, self.edit_sous_dossier_suivi):
+            _champ.textChanged.connect(self._oublier_dossier_suivi)
         f.addRow("Sous-dossier — suivi :", self.edit_sous_dossier_suivi)
         f.addRow(texte_aide(
             "L'avancement se lit à l'onglet 5 pendant le calcul. Ce dossier "
@@ -2861,6 +2867,43 @@ class DialogueParametrage(QDialog):
         return (Path(racine)
                 / (self.edit_sous_dossier_suivi.text().strip() or "suivi"))
 
+    def _oublier_dossier_suivi(self, *_):
+        """
+        Le dossier surveille est a recalculer, et l'onglet 5 a redessiner.
+
+        Appele quand les champs de l'onglet 3 changent. Defensif a dessein :
+        il peut se declencher pendant la construction de la fenetre, avant que
+        l'onglet 5 n'existe.
+        """
+        self._suivi_du_classeur = None
+        if getattr(self, "label_suivi_banniere", None) is None:
+            return
+        if self.onglets.currentIndex() == ONGLET_SUIVI:
+            self._rafraichir_suivi()
+
+    def _origine_dossier_suivi(self):
+        """
+        D'ou vient le dossier surveille : « classeur » ou « onglet 3 ».
+
+        LE CLASSEUR GAGNE, ET C'EST VOULU (0.6.2) : c'est lui que le calage
+        lance a lu, et regarder ailleurs afficherait « aucun calage suivi »
+        pendant qu'il tourne. Mais ce choix DEROUTE quand l'onglet 3 en
+        designe un autre — on corrige un champ et rien ne bouge. La banniere
+        le dit donc, au lieu de laisser deviner.
+        """
+        if not self.classeur:
+            return "onglet 3"
+        cache = getattr(self, "_suivi_du_classeur", None)
+        return "classeur" if cache and cache[1] is not None else "onglet 3"
+
+    def _dossier_suivi_de_l_onglet_3(self):
+        """Ce que les champs de l'onglet 3 designent, ou None."""
+        racine = self.edit_dossier_sortie.text().strip()
+        if not racine:
+            return None
+        return (Path(racine)
+                / (self.edit_sous_dossier_suivi.text().strip() or "suivi"))
+
     def _ouvrir_dossier_suivi(self):
         dossier = self._dossier_suivi()
         if dossier is None or not dossier.is_dir():
@@ -2881,6 +2924,23 @@ class DialogueParametrage(QDialog):
                 "premier essai.")
             return
         os.startfile(str(figure))  # noqa: S606
+
+    def _detail_desaccord_suivi(self, dossier):
+        """
+        Dit que l'onglet 3 designe un AUTRE dossier, quand c'est le cas.
+
+        C'est la seule facon de rendre comprehensible la regle « le classeur
+        gagne » : sans ce mot, on corrige le champ de l'onglet 3, le suivi ne
+        bouge pas, et rien n'explique pourquoi.
+        """
+        if dossier is None or self._origine_dossier_suivi() != "classeur":
+            return ""
+        autre = self._dossier_suivi_de_l_onglet_3()
+        if autre is None or Path(autre) == Path(dossier):
+            return ""
+        return (f"<br>L'onglet 3 en désigne un autre — <i>{autre}</i> — qui "
+                f"n'est pas surveillé : c'est le classeur lancé qui fait foi. "
+                f"Recomposer le paquet pour que les deux s'accordent.")
 
     def _banniere(self, couleur, titre, detail="", glyphe=""):
         """
@@ -2941,8 +3001,9 @@ class DialogueParametrage(QDialog):
                 ISL_ARDOISE_CLAIR, "Aucun calage suivi", glyphe="·",
                 detail="Le suivi apparaît ici dès que le calage écrit son "
                        "premier état, quelques secondes après le lancement."
-                       + (f"<br>Dossier surveillé : {dossier}" if dossier
-                          else ""))
+                       + (f"<br>Dossier surveillé ({self._origine_dossier_suivi()}) "
+                          f": {dossier}" if dossier else "")
+                       + self._detail_desaccord_suivi(dossier))
             self.barre_suivi.setValue(0)
             self.ruban_apports.actualiser([], None)
             self.courbe_suivi.actualiser(None)
@@ -3578,9 +3639,41 @@ class DialogueParametrage(QDialog):
              "Premier apport de la liste : le calage part du calcul de "
              "référence « sans apport », comme sans ce réglage.")
 
+    def _appliquer_objectifs_du_classeur(self, classeur):
+        """
+        Remet les objectifs de precision de la fenetre sur ceux du classeur.
+
+        LA MOITIE INDISPENSABLE DE L'ECRITURE AU LANCEMENT. Le lancement ecrit
+        desormais ces quatre valeurs dans le classeur : sans cette lecture,
+        reprendre un classeur cale a +/-2 % puis lancer l'aurait DESSERRE a la
+        valeur par defaut de la fenetre, sans un mot.
+
+        Ne leve jamais : un classeur illisible se signale ailleurs, et les
+        objectifs ne sont pas ce qui doit faire echouer sa reprise.
+        """
+        try:
+            parametres = noyau.lire_parametres(classeur)
+        except Exception as e:                              # noqa: BLE001
+            journaliser("Objectifs de précision du classeur repris", e)
+            return
+        for cle, widget in (("Tolerance_volume_pct", self.spin_tol_volume),
+                            ("Tolerance_pic_pct", self.spin_tol_pic),
+                            ("Bilan_masse_max_pct", self.spin_bilan_masse),
+                            ("Nb_max_iterations_par_apport",
+                             self.spin_nb_max_essais)):
+            valeur = parametres.get(cle)
+            if valeur is None:
+                continue
+            try:
+                widget.setValue(type(widget.value())(valeur))
+            except (TypeError, ValueError):
+                continue
+
     def _maj_onglet_validation_depuis_classeur(self):
         """Rafraichit l'onglet 4 apres un controle sur classeur existant."""
         self._remplir_premier_apport()
+        if self.classeur:
+            self._appliquer_objectifs_du_classeur(self.classeur)
         try:
             etat = noyau.etat_cibles(self.classeur)
         except Exception as e:
@@ -3630,10 +3723,27 @@ class DialogueParametrage(QDialog):
             noyau.ecrire_parametre(
                 self.classeur, "Prefixe_scenario",
                 self.edit_prefixe_scenario.text().strip())
+            # ET LES OBJECTIFS DE PRECISION, POUR LA MEME RAISON. Ils ne
+            # partaient dans le classeur qu'a la COMPOSITION : les resserrer
+            # ensuite n'avait aucun effet, la chaine lisant le classeur et non
+            # la fenetre. On voyait « +/-2 % » a l'ecran et le calage
+            # s'arretait a 5 %.
+            #   L'INVERSE EST TOUT AUSSI VRAI, et c'est pourquoi la fenetre se
+            # remplit DEPUIS le classeur quand on en reprend un
+            # (_appliquer_objectifs_du_classeur) : sans cela, reprendre un
+            # classeur cale a +/-2 % puis lancer l'aurait desserre a 5 % en
+            # silence. Les deux moities vont ensemble.
+            for cle, valeur in (
+                    ("Tolerance_volume_pct", self.spin_tol_volume.value()),
+                    ("Tolerance_pic_pct", self.spin_tol_pic.value()),
+                    ("Bilan_masse_max_pct", self.spin_bilan_masse.value()),
+                    ("Nb_max_iterations_par_apport",
+                     self.spin_nb_max_essais.value())):
+                noyau.ecrire_parametre(self.classeur, cle, valeur)
         except Exception as e:
             journaliser("Écriture des paramètres de lancement", e)
             QMessageBox.critical(
-                self, "Premier apport / préfixe de scénario",
+                self, "Réglages de lancement",
                 f"Les réglages de lancement n'ont pas pu être écrits dans le "
                 f"classeur : {e}\n\nLe calage n'est pas lancé — il serait "
                 f"parti sur un réglage autre que celui affiché.")
