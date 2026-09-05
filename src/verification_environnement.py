@@ -229,7 +229,13 @@ hecras = Path(r"C:\Program Files (x86)\HEC\HEC-RAS\7.0.1\Ras.exe")
 controler("HEC-RAS 7.0.1 installe", hecras.exists(), str(hecras))
 
 try:
-    import ras_commander
+    # L'IMPORT EST LE CONTROLE, pas une dependance de ce qui suit — d'ou la
+    # derogation en bout de ligne. md.version() ne lit que des metadonnees :
+    # elle reussit sur un paquet pose mais incapable de se charger (DLL
+    # manquante, version de Python incompatible). Charger reellement le
+    # module est la seule preuve qui vaille ici, et son echec part par le
+    # meme « except » que le reste.
+    import ras_commander                                     # noqa: F401
     installee = md.version("ras-commander")
     lue = _version_ras_commander(f"ras-commander {installee}")
     # « lue is None » vaut « je ne sais pas », et laisse passer : meme regle

@@ -2580,10 +2580,16 @@ if __name__ == "__main__":
             print("   (une chaine est trouvee automatiquement : controle ignore)")
         # L'ENVIRONNEMENT INSTALLE DOIT SE RETROUVER SEUL a la session
         # suivante, sans QSettings : sinon un profil QGIS neuf le perdrait.
-        print(f"   [{'OK' if _donnees / 'Scripts' / 'python.exe' or True else ''}]"
+        # LA CONDITION AFFICHEE EST CELLE QU'ON VERIFIE. Elle valait
+        # « <Path> or True » : toujours vraie, donc « [OK] » quoi qu'il
+        # arrive. Seul l'assert controlait quelque chose, et la ligne au-
+        # dessus de lui mentait.
+        _hors_greffon = (DOSSIER_EMBARQUE.parent
+                         not in dossier_donnees_greffon().parents)
+        print(f"   [{'OK' if _hors_greffon else 'ECHEC'}]"
               f" le dossier de donnees est hors du greffon  ->  "
               f"{dossier_donnees_greffon()}")
-        assert DOSSIER_EMBARQUE.parent not in dossier_donnees_greffon().parents
+        assert _hors_greffon
 
         # --- 4 quater. LE GREFFON CHERCHE LES PYTHON TOUT SEUL -------------
         print("\n4 quater. Recherche des Python utilisables")

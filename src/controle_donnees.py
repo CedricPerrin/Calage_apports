@@ -640,13 +640,23 @@ def controler_contre_modele(chemin_template, chemin_geometrie_hdf=None):
     # globale serait beaucoup trop severe en bordure de domaine, ou se
     # trouvent precisement les conditions limites.
     try:
-        maille_globale = geo.taille_maille(chemin_geometrie_hdf, zone_declaree)
+        # SONDE, ET NON UNE VALEUR : son resultat ne sert a rien, son ECHEC
+        # si. Elle etablit que la taille de maille est lisible pour cette zone
+        # AVANT qu'on ne confie « tolerance » a
+        # geo.controler_contre_maillage, qui l'appelle par geometrie et SANS
+        # protection (« admis = tolerance_m(g) »). Sans elle, un
+        # maillage illisible ne donnerait plus tolerance=None — le repli
+        # prevu, ou le controle se contente de RAPPORTER la distance — mais
+        # une exception remontee au milieu du controle.
+        #   Elle portait un nom, « maille_globale », que personne ne lisait :
+        # ruff le signalait en F841 et l'effacer aurait emporte la sonde avec.
+        geo.taille_maille(chemin_geometrie_hdf, zone_declaree)
 
         def tolerance(g):
             return TOLERANCE_EN_MAILLES * geo.taille_maille(
                 chemin_geometrie_hdf, zone_declaree, geometrie=g)
     except Exception:
-        maille_globale = tolerance = None
+        tolerance = None
 
     g_sec, _ = geo.lignes_depuis_modele(chemin_geometrie_hdf)
     if len(g_sec):
