@@ -1492,62 +1492,7 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
     # --- etape finale : verification globale -------------------------------
     if all(a.valide for a in resultat.apports) and \
             len(resultat.apports) == len(apports):
-        # AUCUN CALCUL SUPPLEMENTAIRE ICI, et c'est licite : on n'arrive dans
-        # cette passe que si TOUS les apports sont valides, ce qui exclut
-        # qu'un seul ait ete remis a un essai anterieur. Le dernier calcul
-        # porte donc le jeu d'apports definitif, et le relire suffit.
-        dire("\n=== Verification globale finale ===")
-        for section, (t_c, q_c), a in zip(sections, cibles, resultat.apports):
-            t_s, q_s = modele.lire_section(section)
-            d = diagnostiquer(t_c, q_c, t_s, q_s,
-                              tolerance_volume=config.tolerance_beta,
-                              tolerance_pic=config.tolerance_pic,
-                              r_min=config.r_min,
-                              fenetre=a.fenetre_principale)
-            resultat.diagnostics_finaux.append(d)
-            # SERIES PRESENTEES DANS LE RAPPORT : ENTIERES, telles que le
-            # modele les rend.
-            #
-            # ELLES ETAIENT COUPEES A LA FENETRE JUGEE, et c'etait un doublon
-            # nuisible. livrables.figure_comparaison cadre DEJA toute seule,
-            # sur la crue significative (_fenetre_crue : 2 % du pic, plus une
-            # demi-heure) — c'est ce qui donne a la figure de SUIVI son
-            # cadrage juste, puisqu'elle, recoit les series entieres. Deux
-            # mecanismes pour la meme intention, et le plus grossier gagnait
-            # dans ce qui part au client.
-            #   MESURE sur un apport reel : coupees, les series ne permettent
-            #   qu'un cadrage 6,50-20,70 h, alors que la crue court jusqu'a
-            #   37 h et que le calcul y redescend a 1,9 % de son pic. La
-            #   figure finale montrait donc MOINS que la figure de suivi, avec
-            #   la meme legende — et cachait toute la decrue.
-            #   CE QUI EST JUGE N'A PAS CHANGE : diagnostiquer() recoit
-            #   toujours la fenetre, et c'est lui qui prononce. Seule la
-            #   PRESENTATION cesse d'etre amputee.
-            resultat.series_finales.append((t_c, q_c, t_s, q_s))
-            dire(f"    {section:24s} volume {100 * d.rapport_volume:5.1f} %  "
-                 f"pointe {100 * d.rapport_pic:5.1f} %  "
-                 f"{'conforme' if d.converge else 'NON CONFORME'}")
-        resultat.conforme = all(d.converge for d in resultat.diagnostics_finaux)
-        if not resultat.conforme:
-            # LE MOTIF DIT CE QUI A ECHOUE, ET OU. Il annoncait autrefois une
-            # « derive » quelle que soit la cause : sur un calage dont tous
-            # les apports avaient ete valides un par un, cela envoyait
-            # chercher un remous inexistant alors que la cause etait ailleurs.
-            bloquees = [(s, d) for s, d in zip(sections,
-                                               resultat.diagnostics_finaux)
-                        if d.alertes_bloquantes]
-            derivees = [s for s, d in zip(sections, resultat.diagnostics_finaux)
-                        if not d.converge and not d.alertes_bloquantes]
-            causes = []
-            if derivees:
-                causes.append(
-                    f"derive a la verification globale sur {derivees} : "
-                    f"relancer une passe sequentielle amont -> aval, jamais "
-                    f"une optimisation globale simultanee")
-            for section, d in bloquees:
-                causes.append(f"« {section} » : "
-                              + " ; ".join(d.alertes_bloquantes))
-            resultat.motif = ". ".join(causes) + "."
+        _verifier_globalement(modele, sections, cibles, config, resultat, dire)
 
         # --- L'ETAT FINAL PORTE ENFIN UN NOM QUI LE DIT ----------------------
         #
@@ -1584,6 +1529,70 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
     if suivi is not None:
         _sans_interrompre(suivi.terminer)
     return resultat
+
+
+def _verifier_globalement(modele, sections, cibles, config, resultat, dire):
+    """
+    Etape finale : relit TOUTES les sections sur le dernier calcul, prononce
+    la conformite, et dit ce qui a echoue et ou. Ecrit dans resultat.
+
+    AUCUN CALCUL SUPPLEMENTAIRE ICI, et c'est licite : on n'arrive dans cette
+    passe que si TOUS les apports sont valides, ce qui exclut qu'un seul ait
+    ete remis a un essai anterieur. Le dernier calcul porte donc le jeu
+    d'apports definitif, et le relire suffit.
+    """
+    dire("\n=== Verification globale finale ===")
+    for section, (t_c, q_c), a in zip(sections, cibles, resultat.apports):
+        t_s, q_s = modele.lire_section(section)
+        d = diagnostiquer(t_c, q_c, t_s, q_s,
+                          tolerance_volume=config.tolerance_beta,
+                          tolerance_pic=config.tolerance_pic,
+                          r_min=config.r_min,
+                          fenetre=a.fenetre_principale)
+        resultat.diagnostics_finaux.append(d)
+        # SERIES PRESENTEES DANS LE RAPPORT : ENTIERES, telles que le modele
+        # les rend.
+        #
+        # ELLES ETAIENT COUPEES A LA FENETRE JUGEE, et c'etait un doublon
+        # nuisible. livrables.figure_comparaison cadre DEJA toute seule, sur
+        # la crue significative (_fenetre_crue : 2 % du pic, plus une
+        # demi-heure) — c'est ce qui donne a la figure de SUIVI son cadrage
+        # juste, puisqu'elle, recoit les series entieres. Deux mecanismes
+        # pour la meme intention, et le plus grossier gagnait dans ce qui
+        # part au client.
+        #   MESURE sur un apport reel : coupees, les series ne permettent
+        #   qu'un cadrage 6,50-20,70 h, alors que la crue court jusqu'a 37 h
+        #   et que le calcul y redescend a 1,9 % de son pic. La figure finale
+        #   montrait donc MOINS que la figure de suivi, avec la meme legende
+        #   — et cachait toute la decrue.
+        #   CE QUI EST JUGE N'A PAS CHANGE : diagnostiquer() recoit toujours
+        #   la fenetre, et c'est lui qui prononce. Seule la PRESENTATION
+        #   cesse d'etre amputee.
+        resultat.series_finales.append((t_c, q_c, t_s, q_s))
+        dire(f"    {section:24s} volume {100 * d.rapport_volume:5.1f} %  "
+             f"pointe {100 * d.rapport_pic:5.1f} %  "
+             f"{'conforme' if d.converge else 'NON CONFORME'}")
+    resultat.conforme = all(d.converge for d in resultat.diagnostics_finaux)
+    if not resultat.conforme:
+        # LE MOTIF DIT CE QUI A ECHOUE, ET OU. Il annoncait autrefois une
+        # « derive » quelle que soit la cause : sur un calage dont tous les
+        # apports avaient ete valides un par un, cela envoyait chercher un
+        # remous inexistant alors que la cause etait ailleurs.
+        bloquees = [(s, d) for s, d in zip(sections,
+                                           resultat.diagnostics_finaux)
+                    if d.alertes_bloquantes]
+        derivees = [s for s, d in zip(sections, resultat.diagnostics_finaux)
+                    if not d.converge and not d.alertes_bloquantes]
+        causes = []
+        if derivees:
+            causes.append(
+                f"derive a la verification globale sur {derivees} : "
+                f"relancer une passe sequentielle amont -> aval, jamais "
+                f"une optimisation globale simultanee")
+        for section, d in bloquees:
+            causes.append(f"« {section} » : "
+                          + " ; ".join(d.alertes_bloquantes))
+        resultat.motif = ". ".join(causes) + "."
 
 
 def _signaler_coherence_amont(modele, sections_amont, cibles_amont,
