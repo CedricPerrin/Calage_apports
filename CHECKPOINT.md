@@ -88,6 +88,20 @@ banc adverse injecte la faute en troisième position.
 > côté du classeur. Si elle y est, des apports ont tourné à 1 % et leurs
 > livrables sont à reprendre. Sinon, l'impact en production est **nul**.
 
+### Le filet avant `caler()`
+
+Les 120 contrôles de `calage.py` vérifiaient des **bandes**, jamais une
+**trajectoire** : un remaniement pouvait déplacer tous les apports de 3 % sans
+qu'aucun ne bronche. Le banc compare désormais la sortie complète du calage
+fictif à `src/reference_calage_fictif.json` — `rtol=1e-9` sur les débits,
+`atol=1e-6 h` sur les décalages.
+
+**Mesuré** : 0,1 % de déplacement → **1 215 écarts**, banc rouge. Δt de
+`1e-7 h` → passe ; `1e-3 h` → échoue. `--figer-reference` réécrit la référence
+quand le changement est voulu.
+
+C'est le préalable que `AUDIT.md` posait au lot 5. Il est levé.
+
 ### Le reste des deux lots
 
 `style_classeur.py` a enfin un banc — **13 contrôles** ; il était compté parmi
