@@ -12,6 +12,58 @@ ce fichier ne dit que **où on en est** et **par quoi reprendre**.
 > sections sont conservées comme récit, **pas comme référence**.
 > **`STATUT.txt` fait foi.**
 
+## ▶ Reprendre ici — état au 5 septembre 2026, 21 h
+
+Tout le travail de la journée vit sur la branche
+**`claude/connaissance-des-md-qjbpro`**, 13 commits, PR **#1** (brouillon).
+`main` n'a pas bougé.
+
+```bash
+git fetch origin
+git checkout claude/connaissance-des-md-qjbpro
+```
+
+**Greffon en 0.7.0.** Bancs sur un clone Linux : `calage` 121 · `criteres` 66 ·
+`suivi` 48 · `verification_environnement` 39 · `noyau` 38 · `geometrie` 26 ·
+`livrables` 16 · `style_classeur` 13 · `controle_donnees` 6 ·
+`faire_zip` « archive conforme ». `ruff F401/F841/F821` : **zéro**.
+
+### Ce qui a été fait aujourd'hui
+
+| | |
+|---|---|
+| La fenêtre jugée **dit** ce qu'elle exclut, sans le juger | § 2.2 bis de `STATUT.txt` |
+| L'installation, pour qui ne sait pas où est Python | 0.6.7 |
+| **`AUDIT.md`** — audit de complexité outillé, cinq lots | lots **1, 2, 3 et 4 faits** |
+| `caler()` sous **test de caractérisation** | `src/reference_calage_fictif.json` |
+| « Installer… » n'installait rien et sortait en succès | 0.6.9 |
+| Six améliorations d'interface | 0.7.0 |
+
+### Ce qui reste, et rien d'autre
+
+1. **Les 152 contrôles QGIS**, au poste — ils datent du 03/09 et `plugin.py` a
+   beaucoup changé. Exigent une **copie** de modèle et `CALAGE_PYTHON`.
+2. **Lot 5** d'`AUDIT.md` § 7 : `_sections_derivees` (petit), puis `caler()`
+   — 699 lignes, complexité 81. **Non engagé.** Le test de caractérisation qui
+   le protège existe désormais.
+3. **Recherche d'ergonomie** demandée après le lot 5, notamment le placement du
+   bouton **« Composer et contrôler »** : permanent en bas de la fenêtre, sans
+   lien visible avec l'onglet où l'on se trouve — on ne comprend pas quand
+   cliquer dessus.
+4. Vérifier à l'écran que la **barre d'onglets ne défile pas** : les libellés
+   ont rallongé de 25 caractères en 0.7.0.
+
+### Deux questions déjà tranchées, pour ne pas les rouvrir
+
+- **Le repli cassé des pentes n'a jamais été emprunté** — les journaux des trois
+  calages ne portent pas `pente : deduction impossible`. Aucun livrable à
+  reprendre. Le défaut était **latent**, et il est corrigé.
+- **La réserve de périmètre du volume énonce un périmètre, elle ne dénonce pas
+  un défaut** : elle se lève aussi sur une mini-crue exclue à bon droit, et
+  c'est assumé (les séparer demanderait un seuil non mesuré).
+
+---
+
 ## Reprendre depuis GitHub, sans le poste de travail
 
 Le dépôt porte le code, `STATUT.txt`, ce fichier, la note et le template.
