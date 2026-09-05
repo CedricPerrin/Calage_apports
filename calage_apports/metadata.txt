@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.6.8
+version=0.6.9
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,21 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,KGE,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.6.8 — La pente déduite du fond n'avait jamais fonctionné.
+changelog=0.6.9 — « Installer… » n'installait rien, et sortait en succès.
+    Les trois sous-processus de l'installeur — « python -m venv » et les
+    deux « pip install » — étaient les SEULS du greffon à transmettre
+    l'environnement de QGIS. Or son PYTHONPATH et son PYTHONHOME pointent
+    SA bibliothèque, qui livre déjà numpy, pandas, scipy, matplotlib,
+    openpyxl, geopandas, shapely et pyproj : huit des onze paquets. pip les
+    voyait sur sys.path, les tenait pour « already satisfied », ne les
+    posait pas dans l'environnement créé, et rendait 0. La vérification,
+    elle, lisait l'environnement RÉEL et les déclarait tous absents — d'où
+    « installation terminée » suivi de « onze modules absents », deux fois
+    de suite. Relevé sur un poste neuf à la première installation réelle du
+    bouton, qui n'avait jamais été menée à bout nulle part.
+    Un banc interdit désormais qu'un sous-processus lancé depuis QGIS
+    reparaisse sans environnement assaini.
+    0.6.8 — La pente déduite du fond n'avait jamais fonctionné.
     « re » était employé dans pont_hecras.py sans y être importé, à
     l'intérieur d'un « except Exception » qui rendait le NameError sous la
     forme d'un problème d'environnement. Le repli des pentes — colonne du

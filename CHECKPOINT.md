@@ -42,6 +42,50 @@ fournir. Le garde-fou n'est donc pas muet — mais il ne surveille rien de réel
 Avant de committer depuis un clone neuf, se rappeler qu'un nom de client
 passerait.
 
+## Session du 5 septembre 2026 (soir) — « Installer… » n'installait rien
+
+**Greffon en 0.6.9.** Le bouton a tourné pour la première fois sur un poste
+neuf, et il a révélé son défaut — celui que `STATUT.txt` annonçait depuis des
+semaines sous « CE QUI N'A JAMAIS TOURNÉ ».
+
+### Le symptôme, tel qu'il s'affiche
+
+```
+Installation de 11 paquets (ras-commander>=0.99, h5py, numpy…)
+Installation terminée, vérification…
+Il manque encore ras-commander>=0.99, h5py, numpy, pandas, scipy, …
+Complément installé, vérification…
+environnement cree, mais inutilisable : module(s) absent(s) : …
+```
+
+Onze sur onze, après **deux** passages de pip qui rendent tous deux **0**.
+
+### La cause
+
+Les trois sous-processus de l'installeur — `python -m venv` et les deux
+`pip install` — étaient **les seuls du greffon** à transmettre l'environnement
+de QGIS.
+
+| appel | `env=environnement_propre()` avant | après |
+|---|---|---|
+| `_sonder_interpreteur` | ✅ | ✅ |
+| `appeler_pont` | ✅ | ✅ |
+| `lancer_calage` | ✅ | ✅ |
+| **les trois de l'installeur** | ❌ | ✅ |
+
+Le `PYTHONPATH` et le `PYTHONHOME` de QGIS pointent **sa** bibliothèque, qui
+livre déjà **huit des onze paquets**. pip les voyait sur `sys.path`, les tenait
+pour *already satisfied*, ne les posait pas dans le venv, et sortait en succès.
+La sonde, correctement assainie, lisait le venv réel — vide.
+
+**Banc 4 sexies bis** : aucun `subprocess.run` sans `env=` dans les fonctions
+lancées depuis QGIS. Il échoue sur le code d'avant
+(`installer_interpreteur l. 813`).
+
+> **Non éprouvé** : l'installation complète *après* ce correctif. Le poste du
+> 05/09 a fini par aboutir en relançant le bouton, avec le code d'**avant** —
+> et la cause de ce succès au second essai n'est pas établie.
+
 ## Session du 5 septembre 2026 (fin) — trois lots de l'audit
 
 Lots **1, 2 et 3** de `AUDIT.md` sont faits. Greffon en **0.6.8**.
