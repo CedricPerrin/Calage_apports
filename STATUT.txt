@@ -2162,12 +2162,19 @@ A FAIRE, PAR ORDRE DE PRIORITE
     le greffon. L'import est pose, et un garde-fou d'archive refuse desormais
     tout nom lu sans avoir jamais ete lie dans son fichier (faire_zip,
     noms_jamais_lies ; faute injectee par essai_garde_fou_archive).
-      RESTE A TRANCHER, ET IL FAUT LES JOURNAUX : les trois calages livres
-    ont-ils emprunte ce repli ? La ligne « pente : deduction impossible » se
-    cherche dans « calage_<horodatage>.log », a cote du classeur. Si elle y
-    est, des apports ont tourne a 1 % au lieu de leur pente locale, et les
-    livrables concernes sont a reprendre. Si elle n'y est pas, la colonne du
-    classeur a toujours ete remplie et l'impact en production est NUL.
+      TRANCHE LE 05/09 : L'IMPACT EN PRODUCTION EST NUL. Les journaux des
+    trois calages ont ete releves par l'utilisateur — la ligne « pente :
+    deduction impossible » n'y figure PAS. La colonne Pente_m_par_m a donc
+    toujours ete pre-remplie par la composition, le premier echelon du repli
+    a suffi a chaque fois, et le second — celui qui etait casse — n'a jamais
+    ete emprunte. AUCUN LIVRABLE N'EST A REPRENDRE : les pentes appliquees
+    aux dix-huit puis six apports sont bien les pentes locales.
+      LE DEFAUT ETAIT DONC LATENT, et il ne l'est plus : il aurait mordu au
+    premier apport dont la case reste vide, cas que noyau.preparer_classeur
+    prevoit explicitement (« c'est le cas ou le profil ne couvre pas
+    l'apport »). C'est aussi ce qui rend le garde-fou d'archive plus utile
+    que le correctif lui-meme : un import oublie sous un except large peut
+    dormir des semaines sans qu'aucun calage ne le revele.
     LE RESTE DU POINT DU 01/09, INCHANGE : PENTE_APPORT_DEFAUT = 0,01 est bien en
     dur (plugin.py), mais il ne survit pas au calage : la colonne
     Pente_m_par_m du classeur est DEJA pre-remplie avec la pente locale

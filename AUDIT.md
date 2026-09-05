@@ -755,23 +755,28 @@ le test de caractérisation du § 6 n° 1.**
 
 ---
 
-## 8. Question, avant tout lot
-
-Une seule, et elle commande le lot 4 :
+## 8. La question qui commandait le lot 4 — ✅ **tranchée le 5 septembre 2026**
 
 > **Les journaux des trois calages livrés portent-ils la ligne
 > `pente : deduction impossible (NameError: name 're' is not defined)` ?**
 >
-> - **Oui** → des apports ont tourné avec une pente de 1 % au lieu de la pente
->   locale. Il faut décider si les livrables sont à refaire.
-> - **Non** → la colonne `Pente_m_par_m` a toujours été remplie par la
->   composition, l'impact en production est **nul**, et P0-1 est un défaut
->   latent qu'on corrige tranquillement.
->
-> **Non déterminable depuis cette session** : les journaux vivent sur le
-> partage réseau des modèles. La ligne se cherche dans
-> `calage_<horodatage>.log`, à côté du classeur :
-> `Select-String -Path "T:\...\*\3-Apports\*\calage_*.log" -Pattern "pente"`.
+> **Non.** Relevé par l'utilisateur sur les journaux des trois calages.
+
+**Ce que cela règle.** La colonne `Pente_m_par_m` a toujours été pré-remplie
+par la composition : le **premier** échelon du repli a suffi à chaque fois, et
+le second — celui qui était cassé — n'a jamais été emprunté. **Aucun livrable
+n'est à reprendre** ; les pentes appliquées aux 24 apports sont bien les pentes
+locales.
+
+**Ce que cela ne règle pas.** Le défaut était **latent**, pas inoffensif : il
+aurait mordu au premier apport dont la case reste vide — cas que
+`noyau.preparer_classeur` prévoit explicitement (*« c'est le cas où le profil
+ne couvre pas l'apport »*). Il est corrigé.
+
+**Et c'est l'argument du garde-fou.** Un import oublié sous un `except` large
+peut dormir des semaines sans qu'aucun calage ne le révèle : ni l'import du
+module, ni sa compilation, ni trois calages complets de 77 heures cumulées ne
+l'ont fait sortir. Seul un contrôle qui lit le code le voyait.
 
 > ### Ce que le lot 3 a tranché, et ce qu'il n'a pas tranché
 >
