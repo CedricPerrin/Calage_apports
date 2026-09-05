@@ -51,8 +51,13 @@ DERIVES_PLAN = (".p{n}", ".p{n}.hdf", ".p{n}.tmp.hdf", ".p{n}.snapshot.hdf",
 def processus_hecras():
     """Processus HEC-RAS en cours. Vide si aucun, None si on ne sait pas."""
     try:
+        # SANS FENETRE, comme les deux appels jumeaux de pilote_hecras.py :
+        # ce module tourne pendant un calage, et chaque « tasklist » ferait
+        # clignoter une console noire au premier plan.
         sortie = subprocess.run(["tasklist", "/NH"], capture_output=True,
-                                text=True, timeout=10)
+                                text=True, timeout=10,
+                                creationflags=getattr(
+                                    subprocess, "CREATE_NO_WINDOW", 0))
     except (OSError, subprocess.SubprocessError):
         return None
     return sorted({ligne.split()[0] for ligne in (sortie.stdout or "").splitlines()
