@@ -13,6 +13,7 @@ import importlib
 import importlib.metadata as md
 import os
 import shutil
+import re
 import sys
 from pathlib import Path
 
@@ -346,12 +347,22 @@ try:
                 "_onglet_resultats", "_onglet_validation",
                 "_charger_couches_modele", "_composer_et_controler"]
     _manquants = [a for a in _attendus if a not in _source_plugin]
-    controler("fenetre a 4 onglets presente dans plugin.py", not _manquants,
-              "Modele HEC-RAS / Profil en long / Resultats et suivi / "
-              "Validation" if not _manquants else f"absents : {_manquants}",
+    # LES ONGLETS SE LISENT DANS plugin.py, ILS NE SE RECOPIENT PLUS ICI.
+    # Ce controle s'intitulait « fenetre a 4 onglets » et annonçait « Modele
+    # HEC-RAS / Profil en long / Resultats et suivi / Validation » : la
+    # fenetre en compte SIX depuis longtemps, et le libelle avait vieilli sans
+    # que rien ne le dise — il ne verifiait de toute facon que la presence de
+    # sept symboles, jamais des onglets. Meme regle que noyau.PAQUETS_HECRAS
+    # ou style_classeur.ENTETE_PIC : une source unique, jamais deux ecritures
+    # de la meme chose.
+    _titres = re.findall(r'self\._onglet_\w+\(\),\s*"([^"]+)"', _source_plugin)
+    controler(f"fenetre a {len(_titres) or '?'} onglets presente dans plugin.py",
+              not _manquants and bool(_titres),
+              " / ".join(_titres) if not _manquants and _titres
+              else f"absents : {_manquants or 'aucun titre d onglet lisible'}",
               bloquant=False)
 except Exception as e:
-    controler("fenetre a 4 onglets presente dans plugin.py", False, str(e),
+    controler("fenetre du greffon presente dans plugin.py", False, str(e),
               bloquant=False)
 
 # Le pont doit repondre : c'est la seule preuve qui compte.
@@ -464,8 +475,21 @@ print("     relecture des deux. Les pieges rencontres et les defauts corriges")
 print("     a cette occasion sont listes dans STATUT.txt, et chacun est fige")
 print("     par un test.")
 print("\nRESTE A EPROUVER :")
-print("   - une chaine de PLUSIEURS apports d'affilee, avec de vraies cibles :")
-print("     seul un apport unique a ete cale de bout en bout sur cas reel.")
+# CE TEXTE A ETE VRAI, ET IL A CESSE DE L'ETRE SANS QUE PERSONNE NE LE
+# REECRIVE. Il annonçait « seul un apport unique a ete cale de bout en bout »
+# alors que TROIS calages multi-apports etaient alles a leur terme, conformes
+# — 24 apports en tout. C'est le premier outil que le README fait lancer a un
+# nouvel arrivant : il y lisait que la chaine n'avait jamais enchaine deux
+# apports. L'etat courant vit dans STATUT.txt section 1, et c'est lui qui fait
+# foi ; ce qui suit ne dit que ce qui MANQUE encore.
+print("   - le bouton « Installer l'environnement Python HEC-RAS » n'est alle")
+print("     jusqu'au bout sur aucun poste : seul son refus d'un python")
+print("     inexistant est couvert par un banc.")
+print("   - les garde-fous du volume plancher, de l'apport refuse et du modele")
+print("     incoherent n'ont ete eprouves QU'AU BANC : aucun des trois calages")
+print("     reels ne les a rencontres.")
+print("   (trois calages multi-apports ont abouti, conformes — 24 apports,")
+print("    zero incident. Detail et mesures : STATUT.txt sections 1 et 5.)")
 print("\nRESTE A CODER :")
 print("   - la couche de pilotage TELEMAC-2D si ce code doit etre utilise")
 print("=" * 72)

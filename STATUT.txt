@@ -2087,16 +2087,12 @@ A FAIRE, PAR ORDRE DE PRIORITE
     long contenu MESURE dans des plans qu'HEC-RAS a ecrits et calcules ; le
     champ est probablement a 64. L'essai tient en trois gestes (§ 2.5) et
     demande HEC-RAS ouvert — donc l'utilisateur.
-  - L'ONGLET 4 SE TAIT QUAND L'ETAT DES CIBLES EST ILLISIBLE.
-    _maj_onglet_validation_depuis_classeur() (plugin.py, apres « Reprendre
-    un classeur… ») avale l'exception d'etat_cibles dans le journal de QGIS
-    et RETOURNE : les deux etiquettes gardent le texte de l'etat precedent.
-    Les deux autres appels, eux, parlent — « (illisible : …) » a l'onglet
-    Lancer, une boite critique au lancement — et le compte rendu de
-    controle affiche juste avant porte deja « colonne 'Temps_h' absente ».
-    Correctif a une ligne (copier la conduite de l'onglet Lancer), MAIS il
-    touche plugin.py : il demande de rejouer les 152 controles sous QGIS,
-    donc le poste, une copie de modele et l'interpreteur HEC-RAS.
+  (L'ONGLET 4 QUI SE TAISAIT SUR UN ETAT DE CIBLES ILLISIBLE EST FAIT
+  depuis la 0.6.6, constate dans le code le 05/09 : le except de
+  _maj_onglet_validation_depuis_classeur journalise, affiche le classeur
+  repris et « (illisible : …) », comme son jumeau. Ce point est reste ecrit
+  ici apres avoir ete traite — exactement ce dont la consigne ci-dessous
+  prevenait.)
   (LE PREFIXE ET LE PLAN FINAL SONT EPROUVES depuis le 04/09 : le troisieme
   calage a porte « Q100 » sur ses sept plans et rendu « Q100-avec apports »,
   sans toucher aux plans du 01/09 — 5.7, fin.)

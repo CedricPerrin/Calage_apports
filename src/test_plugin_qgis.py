@@ -315,7 +315,8 @@ verifier("initGui : une seule entree de menu", len(iface.menus) == 1,
          f"{len(iface.menus)} action(s)")
 
 # ---------------------------------------------------------------------------
-# ACTION 1 — fenetre de parametrage a 4 onglets.
+# ACTION 1 — fenetre de parametrage (six onglets depuis la 0.5.0 ; le
+#            commentaire en annonçait quatre).
 #
 # PluginCalage.composer() ouvre un QDialog reel et appelle .exec() : en tete
 # headless, un .exec() reel ouvre une boucle d'evenements MODALE qui attend

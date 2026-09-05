@@ -42,6 +42,28 @@ fournir. Le garde-fou n'est donc pas muet — mais il ne surveille rien de réel
 Avant de committer depuis un clone neuf, se rappeler qu'un nom de client
 passerait.
 
+## Session du 5 septembre 2026 (fin) — trois lots de l'audit
+
+Lots **1, 2 et 3** de `AUDIT.md` sont faits. Greffon en **0.6.8**.
+
+### Lot 2 — la dérive documentaire, dans l'outil d'accueil
+
+`verification_environnement.py` est le premier outil que le README fait
+lancer. Il annonçait :
+
+| il disait | la réalité |
+|---|---|
+| `fenetre a 4 onglets` + quatre noms | **six** onglets, et il ne vérifiait que sept symboles |
+| `RESTE A EPROUVER : seul un apport unique a ete cale de bout en bout` | **trois** calages multi-apports conformes, 24 apports |
+
+Les titres se **lisent désormais dans `plugin.py`** — même règle que
+`PAQUETS_HECRAS` ou `ENTETE_PIC` : une source unique. Et « RESTE A ÉPROUVER »
+ne liste plus que ce qui manque vraiment (le bouton *Installer…*, et les trois
+garde-fous jamais rencontrés en réel).
+
+`STATUT.txt` § 6 portait comme ouvert un point **fait depuis la 0.6.6** —
+l'onglet 4 qui se taisait. Retiré, en disant qu'il l'a été.
+
 ## Session du 5 septembre 2026 (fin) — la pente déduite n'avait jamais tourné
 
 **Greffon en 0.6.8.** Le lot 1 puis le lot 3 de `AUDIT.md`, et le défaut que
