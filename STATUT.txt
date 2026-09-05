@@ -57,6 +57,11 @@ CE QUI EST EPROUVE
     (5.7, fin), la coherence du decalage se juge A LA FIN, sur les Dt
     retenus (2.2 ter), et un classeur dont la base de temps est absente,
     vide ou EN DATES est REFUSE AVANT le lancement (5.7, fin).
+  - CE QUE LA FENETRE JUGEE LAISSE DEHORS EST MESURE ET DIT depuis le
+    05/09 : deux nombres de plus au Diagnostic et une reserve NON bloquante
+    quand le verdict et la serie entiere divergent sur la bande (2.2 bis).
+    DIRE, SANS JUGER — aucun verdict deja rendu ne bouge. Hors greffon : la
+    suite QGIS n'est pas concernee.
   - LA SUITE QGIS N'A PAS ETE REJOUEE DEPUIS LE 03/09. plugin.py a change
     le 04/09 (le lancement refuse au lieu de proposer, 5.7 fin) : les 152
     controles sont a repasser au prochain accès au poste QGIS. Le reste du
@@ -238,7 +243,7 @@ exposee : c'est une valeur, pas un reglage). Elle ne coute aucun calcul.
 
 2.2 bis  CE QUI MANQUE A LA FENETRE JUGEE EST TOUJOURS DIT
 --------------------------------------------------------------------------
-Deux pertes possibles, deux traitements, et il ne faut pas les confondre.
+Trois pertes possibles, trois traitements, et il ne faut pas les confondre.
 
 LA FENETRE JUGEE N'EST PAS ENTIEREMENT SIMULEE — la seule qui compte.
 criteres.diagnostiquer chiffre les heures manquantes DES LE PREMIER DIXIEME
@@ -268,6 +273,38 @@ perd 1,5 h de marge_duree_h — AUCUNE fenetre jugee n'est tronquee.
   A NE PAS CONFONDRE avec le manque de 3 h annonce le 31/08 au matin : celui-la
   etait un artefact du melange d'unites (section 5.3 ter), ou tf valait 81,5 h
   sur le dernier apport. Corrige, il n'y a plus de fenetre tronquee.
+
+CE QUI EST HORS DE LA FENETRE EST MESURE, ET DIT — DEPUIS LE 05/09/2026.
+La troisieme perte, et la seule que la chaine ne puisse PAS corriger.
+criteres.diagnostiquer porte desormais deux nombres de plus des qu'une
+fenetre restreint le jugement :
+  rapport_volume_serie   le MEME rapport de volume, pris sur toute la fenetre
+                         commune aux deux series
+  part_cible_jugee       la part du volume de la cible que la fenetre retient
+Une reserve NON bloquante se leve quand les deux lectures divergent sur la
+bande — verdict dedans, serie dehors. Elle ne se leve pas quand le verdict est
+DEJA hors bande : il le dit lui-meme, et la boucle travaille dessus.
+  POURQUOI ON NE JUGE PAS SUR CE NOMBRE. Un apport ne sait qu'AJOUTER du
+  debit. La ou le modele depasse deja la cible, aucune valeur d'apport ne le
+  corrige : juger sur la serie entiere poserait une cible impossible PAR
+  CONSTRUCTION, que la boucle epuiserait en essais sans que rien ne dise
+  pourquoi. C'est exactement l'invariant 11, pris par l'autre bout.
+  ELLE ENONCE UN PERIMETRE, ELLE NE DENONCE PAS UN DEFAUT, et c'est ce qui
+  regle le cas ou on la croirait abusive : une mini-crue anterieure exclue A
+  BON DROIT la leve aussi. Les separer demanderait un seuil d'amplitude que
+  personne n'a mesure — le SIGNE de l'ecart n'y suffit pas, verifie au banc :
+  dans les deux cas l'excedent touche le bord de la fenetre. Et l'enonce reste
+  vrai des deux cotes : au § 7 du banc, le modele double la mini-crue, et le
+  verdict ne le voit pas davantage. Decision utilisateur du 05/09/2026.
+  BANC : criteres.py § 7 ter, qui rejoue ARD11 en miniature — verdict 101,0 %
+  sur la fenetre, 116,7 % sur la serie, 92 % du volume retenu, reserve levee,
+  converge=True. Il echoue sur le code d'avant (le champ n'existe pas).
+  ET LE GARDE-FOU QUI PRETENDAIT BORNER CETTE PERTE EST NOMME POUR CE QU'IL
+  EST : perte_max borne le DEFICIT laisse dehors, pas le VOLUME. Le docstring
+  de calage.fenetre_injection annoncait le second ; il dit desormais le
+  premier, et renvoie a la reserve ci-dessus. Le code, lui, n'a pas bouge :
+  le corriger reviendrait a elargir la fenetre jugee, donc a rendre non
+  conformes des apports qu'aucun apport ne pourrait sauver.
 
 2.2 ter  LA COHERENCE DU DECALAGE LE LONG DE L'AXE
 --------------------------------------------------------------------------
@@ -2123,6 +2160,20 @@ A TRANCHER
       A TRANCHER PAR L'UTILISATEUR, PAS PAR LE CODE : elargir la fenetre a la
     crue changerait des verdicts deja rendus. La FIGURE, elle, montre desormais
     la crue entiere (5.7) : l'ecart se voit, il ne se juge pas encore.
+      DEPUIS LE 05/09/2026, IL SE CHIFFRE AUSSI. Decision utilisateur : DIRE,
+    SANS JUGER. Le Diagnostic porte le rapport de volume sur toute la serie et
+    la part du volume que la fenetre retient, et une reserve NON bloquante les
+    nomme quand les deux lectures divergent — journal, colonne « Alertes » du
+    classeur, note de synthese. Regle complete en 2.2 bis.
+      AUCUN VERDICT DEJA RENDU NE BOUGE : c'est le point de la decision. Ce
+    qui reste ouvert est le meme qu'avant — faut-il un jour elargir la fenetre
+    au volume plutot qu'au deficit ? — mais on ne le tranchera plus a l'aveugle :
+    le prochain calage rendra le chiffre, apport par apport, dans ses livrables.
+      ET LE CHEMIN DU CODE EST BALISE si la reponse devient oui : perte_max,
+    dans calage.fenetre_injection, est le terme qui devrait porter cette
+    borne — il borne aujourd'hui le DEFICIT exclu, et son docstring le dit
+    depuis le 05/09 (il annoncait le volume). Le changer elargirait tf, donc
+    allongerait aussi les durees simulees (2.6).
       LE CHIFFRE EST REPRODUCTIBLE (04/09, run V2, calage refait de zero) :
     ARD11 rend 100,3 % sur la fenetre 4,5-19,7 h et 111,7 % sur la crue
     entiere, 0,5 hm3 de trop dans la decrue — 111,8 % le 01/09. Meme modele,

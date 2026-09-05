@@ -329,6 +329,29 @@ class Diagnostic:
     # parametre). Conservee ici pour que le resume (et tout ce qui lit un
     # Diagnostic) puisse dire QUELLE periode a ete jugee.
     fenetre: tuple = None
+    # CE QUE LE VERDICT NE VOIT PAS — mesure, jamais jugement.
+    #
+    # « rapport_volume » porte sur la seule fenetre jugee. La ou cette fenetre
+    # coupe, le modele peut DEPASSER la cible sans que rien ne le dise :
+    # fenetre_injection() ferme quand 99 % du DEFICIT est couvert, et un
+    # excedent ne compte pas dans un deficit — il est donc exclu PAR
+    # CONSTRUCTION, pas par accident de reglage. Mesure du 03/09/2026 sur
+    # Ardanavy, refaite le 04/09 sur un calage independant : 100,3 % sur la
+    # fenetre 4,5-19,7 h, 111,7 % sur la serie entiere, 0,5 hm3 de trop dans
+    # la decrue.
+    #
+    # « rapport_volume_serie » est le meme rapport pris sur toute la fenetre
+    # commune aux deux series, et « part_cible_jugee » la part du volume de la
+    # cible que la fenetre retient. Tous deux None quand aucune fenetre n'a
+    # ete fournie : il n'y a alors rien qui reste dehors.
+    #
+    # CES DEUX NOMBRES NE SONT PAS DES CRITERES, et la reserve qui les porte
+    # ENONCE UN PERIMETRE plutot qu'elle ne denonce un defaut : elle se leve
+    # aussi bien quand la fenetre coupe dans la decrue que quand elle exclut,
+    # a bon droit, une mini-crue anterieure. C'est assume — dans les deux cas
+    # le verdict ignore un volume, et celui qui le lit doit savoir lequel.
+    rapport_volume_serie: float = None
+    part_cible_jugee: float = None
 
     @property
     def converge(self):
@@ -442,6 +465,14 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
     celui qu'on cale), ni sur le volume, ni sur l'alerte de couverture (dont
     la reference — la duree de « la cible » — redevient la duree de
     l'evenement, et non celle de toute la donnee d'entree fournie).
+
+    ET CE QUI RESTE DEHORS EST MESURE, SANS ETRE JUGE. Le Diagnostic porte
+    alors « rapport_volume_serie » (le meme rapport de volume, pris sur toute
+    la fenetre commune) et « part_cible_jugee » (la part du volume de la cible
+    que la fenetre retient). Une reserve NON bloquante se leve quand ces deux
+    lectures ne disent pas la meme chose : verdict dans la bande, serie
+    dehors. Voir les champs eux-memes pour ce qui rend ce cas structurel, et
+    pourquoi la boucle ne peut pas s'en saisir.
     """
     c_a, s_a, decalage_h = recaler(
         temps_cible, debit_cible, temps_calcule, debit_calcule, pas_h,
@@ -551,6 +582,32 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
                              debut_v + avance, fin_v + retard, pas_h)
         vol_cible = volume(temps_cible, debit_cible,
                            debut_v - retard, fin_v - avance, pas_h)
+    rapport_vol = (vol_calcule / vol_cible if vol_cible else float("nan"))
+
+    # CE QUE LA FENETRE LAISSE DEHORS — MESURE, PAS VERDICT.
+    #
+    # Le meme rapport de volume, pris sur toute la fenetre commune aux deux
+    # series : c'est la grandeur que le verdict n'a PAS regardee. Elle se
+    # calcule exactement comme celle du verdict — memes bornes decalees de la
+    # meme part — pour que les deux soient comparables ligne a ligne.
+    #
+    # ON NE JUGE PAS SUR ELLE, et ce n'est pas une prudence de facade : un
+    # apport ne sait qu'AJOUTER du debit. La ou le modele depasse deja la
+    # cible, aucune valeur d'apport ne le corrige — juger sur ce nombre
+    # poserait une cible impossible par construction, que la boucle epuiserait
+    # en essais sans que rien ne dise pourquoi (invariant 11).
+    rapport_volume_serie = part_cible_jugee = None
+    if fenetre is not None and np.isfinite(vol_cible):
+        debut_s, fin_s = fenetre_commune(temps_cible, temps_calcule)
+        if (np.isfinite(debut_s)
+                and (fin_s + retard) - (debut_s + avance) > 0):
+            vol_calcule_s = volume(temps_calcule, debit_calcule,
+                                   debut_s + avance, fin_s + retard, pas_h)
+            vol_cible_s = volume(temps_cible, debit_cible,
+                                 debut_s - retard, fin_s - avance, pas_h)
+            if vol_cible_s:
+                rapport_volume_serie = vol_calcule_s / vol_cible_s
+                part_cible_jugee = vol_cible / vol_cible_s
 
     # DEUX FAMILLES — voir Diagnostic.converge pour la ligne de partage.
     # « alertes » porte tout ce qui est signale ; « bloquantes » le seul
@@ -605,15 +662,51 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
             f"couverture) : le verdict porte sur un evenement incomplet. Le "
             f"rapport de volume ne peut PAS le reveler, cible et calcul etant "
             f"integres sur le meme intervalle rogne")
+
+    # LE VERDICT DE VOLUME TIENT, ET LA SERIE ENTIERE LE DEMENT.
+    #
+    # ELLE ENONCE UN PERIMETRE, ELLE NE DENONCE PAS UN DEFAUT — et c'est ce
+    # qui regle le seul cas ou l'on pourrait la croire abusive : celui d'une
+    # mini-crue anterieure que la fenetre exclut A BON DROIT (§ 7 du banc).
+    # La distinguer d'une fenetre qui coupe dans la decrue (§ 7 ter) demande
+    # un seuil d'amplitude que personne n'a mesure — le signe de l'ecart n'y
+    # suffit pas, verifie : dans les deux cas l'excedent touche le bord de la
+    # fenetre. Or l'enonce reste VRAI et utile dans les deux : au § 7 le
+    # modele double la mini-crue, et le verdict ne le voit pas davantage.
+    #
+    # ELLE NE SE LEVE PAS QUAND LE VERDICT EST DEJA HORS BANDE : il le dit
+    # alors lui-meme et la boucle travaille dessus ; ajouter un second
+    # pourcentage a chaque essai n'apprendrait rien et apprendrait a ignorer
+    # la colonne « Alertes ». Le NOMBRE, lui, est porte par le Diagnostic dans
+    # tous les cas.
+    #
+    # NON BLOQUANTE, comme celle de la couverture : ce qu'elle signale n'est
+    # pas une comparaison invalide, c'est une comparaison dont il faut
+    # connaitre le perimetre.
+    if (rapport_volume_serie is not None and part_cible_jugee is not None
+            and np.isfinite(rapport_vol) and np.isfinite(rapport_volume_serie)
+            and abs(rapport_vol - 1.0) <= tolerance_volume
+            and abs(rapport_volume_serie - 1.0) > tolerance_volume):
+        alertes.append(
+            f"PERIMETRE DU VERDICT : le volume est juge sur la fenetre "
+            f"{f0:.1f}-{f1:.1f} h, qui retient "
+            f"{100 * part_cible_jugee:.0f} % du volume de la cible. Sur "
+            f"toute la serie le rapport vaut "
+            f"{100 * rapport_volume_serie:.1f} %, hors de la bande "
+            f"+/-{100 * tolerance_volume:.0f} %. Ce qui est dehors n'est pas "
+            f"juge, et ne peut pas l'etre ici : un apport ne sait qu'ajouter "
+            f"du debit, un excedent hors fenetre se corrige en amont")
     alertes.extend(bloquantes)
 
     return Diagnostic(
         kge=valeur, r=r, alpha=alpha, beta=beta, decalage_h=decalage_h,
         rapport_pic=pic_calcule / pic_cible if pic_cible else float("nan"),
-        rapport_volume=vol_calcule / vol_cible if vol_cible else float("nan"),
+        rapport_volume=rapport_vol,
         alertes=alertes, alertes_bloquantes=bloquantes,
         tolerance_volume=tolerance_volume, tolerance_pic=tolerance_pic,
         r_min=r_min, fenetre=fenetre,
+        rapport_volume_serie=rapport_volume_serie,
+        part_cible_jugee=part_cible_jugee,
     )
 
 
@@ -956,6 +1049,71 @@ if __name__ == "__main__":
               abs(recaler(_t7b, _cible7b, _t7b, _calc7b,
                           fenetre=(30.0, 30.05))[2] - _sans7b.decalage_h) < 1e-9,
               "repli sur la serie entiere")
+
+    print("\n--- 7 ter. Ce que la fenetre laisse dehors est MESURE, pas juge ---")
+    # LE CAS D'ARDANAVY, EN MINIATURE. La fenetre jugee ferme dans la DECRUE,
+    # parce que fenetre_injection() la clot quand 99 % du DEFICIT est couvert
+    # et qu'un excedent ne compte pas dans un deficit. Le modele deverse
+    # ensuite plus que la cible : le verdict reste a 100 %, la serie entiere
+    # dement. Mesure reelle du 03 et du 04/09/2026 : ARD11 rend 100,3 % sur
+    # 4,5-19,7 h et 111,7 % sur la crue entiere, deux calages independants.
+    _t7t = np.linspace(0.0, 48.0, 481)
+    _cible7t = hydrogramme(_t7t, pic=100.0, t_pic=6.0, forme=3.0)
+    # Meme crue, meme pointe, mais une decrue qui ne redescend pas : le modele
+    # garde du debit la ou la cible est retombee. Rien qu'un apport puisse
+    # corriger — il ne sait qu'ajouter.
+    _calc7t = _cible7t + 12.0 * np.exp(-((_t7t - 22.0) / 7.0) ** 2)
+    _fen7t = (0.5, 14.0)     # la ou 99 % du deficit est couvert : avant l'excedent
+    _d7t = diagnostiquer(_t7t, _cible7t, _t7t, _calc7t,
+                         tolerance_volume=0.05, fenetre=_fen7t)
+    _verifier("le verdict de volume, lui, tient dans la bande",
+              abs(_d7t.rapport_volume - 1.0) <= 0.05,
+              f"{100 * _d7t.rapport_volume:.1f} % sur la fenetre jugee")
+    _verifier("la serie entiere est MESUREE, et elle sort de la bande",
+              _d7t.rapport_volume_serie is not None
+              and _d7t.rapport_volume_serie > 1.05,
+              f"{100 * _d7t.rapport_volume_serie:.1f} % sur toute la serie")
+    _verifier("la part du volume cible que la fenetre retient est chiffree",
+              _d7t.part_cible_jugee is not None
+              and 0.0 < _d7t.part_cible_jugee < 1.0,
+              f"{100 * _d7t.part_cible_jugee:.0f} % du volume de la cible")
+    _verifier("une reserve le DIT, en nommant les deux lectures",
+              any("toute la serie" in a for a in _d7t.alertes),
+              " ; ".join(_d7t.alertes) or "aucune alerte")
+    _verifier("elle ne BLOQUE pas : un excedent hors fenetre se corrige en "
+              "amont, pas par cet apport",
+              _d7t.converge and not _d7t.alertes_bloquantes,
+              f"converge={_d7t.converge}")
+    # ET ELLE SE TAIT QUAND LES DEUX LECTURES CONCORDENT : une reserve qui se
+    # leve sur un calage sain apprend a etre ignoree.
+    _d7t_sain = diagnostiquer(_t7t, _cible7t, _t7t, _cible7t,
+                              tolerance_volume=0.05, fenetre=_fen7t)
+    _verifier("sur un calage exact, aucune reserve et les deux lectures "
+              "concordent",
+              not _d7t_sain.alertes
+              and abs(_d7t_sain.rapport_volume_serie - 1.0) < 1e-6,
+              f"{100 * _d7t_sain.rapport_volume_serie:.1f} % sur la serie")
+    _verifier("sans fenetre, il n'y a rien dehors : les deux nombres sont None",
+              diagnostiquer(_t7t, _cible7t, _t7t, _calc7t
+                            ).rapport_volume_serie is None)
+    # ET ELLE SE LEVE AUSSI SUR LE § 7, DELIBEREMENT. La mini-crue anterieure
+    # y est exclue A BON DROIT, et la serie entiere sort neanmoins de la
+    # bande : l'enonce reste vrai — le modele double cette mini-crue, et le
+    # verdict ne le voit pas. Les separer demanderait un seuil d'amplitude
+    # non mesure ; le signe de l'ecart n'y suffit pas, l'excedent touchant le
+    # bord de la fenetre DANS LES DEUX CAS. Decision du 05/09/2026 : la
+    # reserve enonce un PERIMETRE, elle ne denonce pas un defaut.
+    _verifier("le meme enonce se leve sur une mini-crue exclue a bon droit "
+              "(§ 7) — perimetre, pas defaut",
+              _avec_fen.rapport_volume_serie is not None
+              and any("PERIMETRE" in a for a in _avec_fen.alertes),
+              f"fenetre {100 * _avec_fen.rapport_volume:.1f} %, "
+              f"serie {100 * _avec_fen.rapport_volume_serie:.1f} %")
+    _verifier("un verdict DEJA hors bande n'y ajoute pas un second "
+              "pourcentage",
+              not any("PERIMETRE" in a for a in diagnostiquer(
+                  _t7t, _cible7t, _t7t, 1.30 * _calc7t,
+                  tolerance_volume=0.05, fenetre=_fen7t).alertes))
 
     print("\n--- 8. Tolerance de volume par defaut ---")
     # Le defaut precedent (0,5 %) rendait certains modeles hors d'atteinte par

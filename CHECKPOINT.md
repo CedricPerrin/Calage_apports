@@ -42,6 +42,64 @@ fournir. Le garde-fou n'est donc pas muet — mais il ne surveille rien de réel
 Avant de committer depuis un clone neuf, se rappeler qu'un nom de client
 passerait.
 
+## Session du 5 septembre 2026 — la fenêtre jugée dit enfin ce qu'elle exclut
+
+**Par quoi reprendre :** `STATUT.txt` § 2.2 bis (la troisième perte, et
+pourquoi elle ne se corrige pas dans la boucle), § 6 (le verdict de volume —
+le point reste ouvert, mais il se chiffre désormais).
+
+**Bancs verts sur ce clone** : `calage`, `criteres`, `suivi`, `livrables`,
+`style_classeur`, `creer_template`, `faire_zip`. Les autres demandent `h5py`,
+`geopandas` ou Windows — voir « Ce qui ne sera PAS disponible hors du poste »
+plus haut. **La suite QGIS n'est pas concernée** : rien n'a bougé dans
+`plugin.py`.
+
+### Le défaut, et pourquoi il était structurel
+
+`fenetre_injection` ferme `tf` à 99 % du **déficit** cumulé. Là où le modèle
+**dépasse** déjà la cible, l'écart est négatif : il n'entre pas dans ce cumul,
+donc la fenêtre se ferme juste avant l'excédent, qui se trouve exclu **par
+construction** — pas par accident de réglage. D'où ARD11 : 100,3 % sur la
+fenêtre, 111,7 % sur la crue, mesuré deux fois sur deux calages indépendants.
+
+Et le garde-fou censé borner cette perte est **inerte** : `exclu_haut =
+min(1 % du déficit, 2,5 % du volume cible)` retient toujours le premier terme,
+plus petit d'un ordre de grandeur. Son docstring annonçait le volume ; il
+bornait le déficit. Corrigé — **le texte, pas le code**.
+
+### Ce qui a été fait : dire, sans juger
+
+Décision utilisateur. `Diagnostic` porte deux nombres de plus dès qu'une
+fenêtre restreint le jugement — `rapport_volume_serie` et `part_cible_jugee` —
+et une **réserve non bloquante** les nomme quand les deux lectures divergent
+sur la bande. Elle atteint le journal, la colonne « Alertes » du classeur et la
+note de synthèse sans qu'aucun de ces trois n'ait été touché.
+
+**Aucun verdict déjà rendu ne bouge**, et c'est le point : élargir la fenêtre
+rendrait non conformes des apports qu'**aucune valeur d'apport ne peut
+sauver** — un apport ne sait qu'ajouter du débit (invariant 11, pris par
+l'autre bout).
+
+### La réserve énonce un périmètre, elle ne dénonce pas un défaut
+
+Elle se lève **aussi** sur une mini-crue antérieure exclue à bon droit. Les
+séparer demanderait un seuil d'amplitude que personne n'a mesuré : le **signe**
+de l'écart n'y suffit pas — vérifié, l'excédent touche le bord de la fenêtre
+dans les deux cas. L'énoncé reste vrai des deux côtés, donc il est gardé tel
+quel (décision du 05/09).
+
+Banc `criteres.py` § 7 ter — ARD11 en miniature : verdict 101,0 %, série
+116,7 %, 92 % du volume retenu, `converge=True`. **Il échoue sur le code
+d'avant.**
+
+### Un banc rouge sur ce clone, et ce n'est pas une régression
+
+`essai_garde_fou_archive.py` : « chemin du poste de développement : LAISSE
+PASSER ». Le contrôle cherche des chemins **Windows** (`X:\…`) ; ce clone est
+sous Linux, la faute injectée est un chemin POSIX et le motif ne la voit pas.
+**Reproduit à l'identique sur `HEAD` avant toute modification.** À reprendre
+sur le poste, où il est vert.
+
 ## Session du 4 septembre 2026 — le troisième calage, et ce qu'il a révélé
 
 **Par quoi reprendre :** `STATUT.txt` § 1 (état courant), § 2.2 ter (le
