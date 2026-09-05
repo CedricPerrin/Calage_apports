@@ -1227,11 +1227,23 @@ import faire_zip                                              # noqa: E402
 _MOTS = faire_zip.mots_d_affaires()
 _AFFAIRES = (re.compile("|".join(re.escape(_m) for _m in _MOTS), re.IGNORECASE)
              if _MOTS else None)
-for _fichier in sorted(Path(mod_plugin.__file__).parent.glob("*.py")):
-    _trouves = sorted(set(_AFFAIRES.findall(
-        _fichier.read_text(encoding="utf-8"))))
-    verifier(f"aucun nom d'affaire ni de cas d'essai dans {_fichier.name}",
-             not _trouves, ", ".join(_trouves[:4]) or "aucun")
+_a_scruter = sorted(Path(mod_plugin.__file__).parent.glob("*.py"))
+if _AFFAIRES is None:
+    # AUCUNE LISTE, DONC AUCUN CONTROLE — mais on le DIT. mots_d_affaires()
+    # lit un fichier .affaires qui n'est pas versionne (seul .affaires.exemple
+    # l'est) : il est absent de tout poste neuf. Le « else None » ci-dessus
+    # montre que ce cas etait prevu ; findall etait pourtant appele dessus, et
+    # emportait la suite entiere sur un AttributeError. Un garde-fou qui
+    # PLANTE faute de sa liste est pire que muet : il fait croire a une panne
+    # du greffon la ou il manque un fichier de configuration.
+    print(f"   ignore : aucun mot d'affaire declare (fichier .affaires "
+          f"absent) — {len(_a_scruter)} controles non joues")
+else:
+    for _fichier in _a_scruter:
+        _trouves = sorted(set(_AFFAIRES.findall(
+            _fichier.read_text(encoding="utf-8"))))
+        verifier(f"aucun nom d'affaire ni de cas d'essai dans {_fichier.name}",
+                 not _trouves, ", ".join(_trouves[:4]) or "aucun")
 
 # TYPES DE CHAMP, ET LES DEUX VERSIONS DE QGIS QUI LES ECRIVENT AUTREMENT.
 #
