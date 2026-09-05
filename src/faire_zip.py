@@ -61,6 +61,41 @@ def mots_d_affaires():
             if m.strip() and not m.startswith("#")]
 
 
+# Emplacements d'INSTALLATION : identiques sur tout poste Windows, donc
+# legitimes dans du code distribue. Il faut bien savoir ou HEC-RAS s'installe,
+# et le repli sur C:\Windows sert quand SystemRoot manque a l'environnement.
+RACINES_LOGICIELLES = ("c:\\windows", "c:\\program files")
+_CHEMINS_ABSOLUS = re.compile(r"[A-Za-z]:\\[^\"'\n\r]{3,}")
+
+
+def chemins_du_poste(texte):
+    """
+    Les chemins absolus de CETTE machine presents dans un texte.
+
+    LE CRITERE EST « CE CHEMIN EXISTE-T-IL ICI ? ». Un chemin absolu qui se
+    resout sur la machine qui controle est, par construction, un chemin de
+    cette machine — c'est la signature meme du chemin d'auteur. Un chemin de
+    demonstration volontairement inexistant (« D:\\projet », ou le
+    « C:\\Users\\x\\Python313\\python.exe » dont l'auto-test de noyau.py
+    eprouve la lecture) passe sans qu'aucune exception nominative soit posee.
+
+    UNE SEULE DEFINITION, ET C'EST TOUT L'INTERET. Une seconde version, a
+    LISTE BLANCHE, vivait dans test_plugin_qgis.py et portait « d:\\1-Python »
+    — le poste de l'auteur — parmi ses exceptions : elle etait ecrite pour
+    ignorer exactement ce qu'elle devait voir, et a laisse ce chemin partir
+    dans noyau.py pendant des semaines. Recopier un garde-fou, c'est le vouer
+    a diverger de son jumeau. Les deux appellent donc ceci.
+    """
+    trouves = []
+    for brut in _CHEMINS_ABSOLUS.findall(texte):
+        chemin = brut.strip().rstrip(".,;:)»\"'")
+        if chemin.lower().startswith(RACINES_LOGICIELLES):
+            continue
+        if Path(chemin).exists():
+            trouves.append(chemin)
+    return trouves
+
+
 EXTENSIONS = {".py", ".txt", ".md", ".png", ".qml", ".svg"}
 # Le nom du dossier racine de l'archive EST le nom du paquet pour QGIS, et le
 # repertoire sous lequel l'extension s'installe. Il ne doit pas changer.
@@ -312,16 +347,9 @@ if __name__ == "__main__":
         # ce chemin en liste blanche : le garde-fou etait ecrit pour ignorer
         # exactement ce qu'il devait voir.
         #
-        # LE CRITERE EST DESORMAIS « CE CHEMIN EXISTE-T-IL ICI ? ». Un chemin
-        # absolu qui se resout sur la machine qui construit l'archive est,
-        # par construction, un chemin de CETTE machine — c'est la signature
-        # meme du chemin d'auteur. Un chemin de demonstration volontairement
-        # inexistant (« D:\projet », employe par les auto-tests pour eprouver
-        # le controle d'un dossier absent) passe sans exception nominative.
-        # Les emplacements d'INSTALLATION restent legitimes : ils sont les
-        # memes sur tout poste Windows.
-        racines_logicielles = ("c:\\windows", "c:\\program files")
-        chemins_absolus = re.compile(r"[A-Za-z]:\\[^\"'\n\r]{3,}")
+        # LE CRITERE EST DESORMAIS « CE CHEMIN EXISTE-T-IL ICI ? » — voir
+        # chemins_du_poste(), qui le porte pour ce controle ET pour son jumeau
+        # de test_plugin_qgis.py.
         mots = mots_d_affaires()
         affaires = (re.compile("|".join(re.escape(m) for m in mots),
                                re.IGNORECASE) if mots else None)
@@ -338,13 +366,9 @@ if __name__ == "__main__":
             if not nom.endswith((".py", ".md", ".txt", ".qml")):
                 continue
             texte = zf.read(nom).decode("utf-8", errors="replace")
-            for brut in chemins_absolus.findall(texte):
-                chemin = brut.strip().rstrip(".,;:)»\"'")
-                if chemin.lower().startswith(racines_logicielles):
-                    continue
-                if Path(chemin).exists():
-                    echecs.append(f"chemin du poste dans {nom} : « {chemin} » "
-                                  f"(il existe ici, il n'existera pas ailleurs)")
+            for chemin in chemins_du_poste(texte):
+                echecs.append(f"chemin du poste dans {nom} : « {chemin} » "
+                              f"(il existe ici, il n'existera pas ailleurs)")
             if affaires is not None:
                 for mot in sorted(set(affaires.findall(texte))):
                     echecs.append(f"nom d'affaire ou de cas d'essai dans "

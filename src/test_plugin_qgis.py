@@ -1193,24 +1193,19 @@ verifier("le titre de la fenetre nomme l'outil et son editeur",
 # jusqu'au 08/08/2026. Une exception nominative dans un garde-fou finit
 # toujours par etre la seule chose qu'il ne voit plus : ne rien remettre ici
 # sans que ce soit un emplacement d'INSTALLATION, identique sur tout poste.
-_LOGICIELS = (r"c:\windows", r"c:\program files")
-_CHAINE = str(CHAINE).lower()
+# LE MEME CRITERE QUE faire_zip.py, ET UNE SEULE FOIS — comme la liste
+# d'affaires plus bas, et pour la meme raison.
+#
+# CE CONTROLE VIVAIT SUR UNE LISTE BLANCHE, et faire_zip.py a note pourquoi
+# elle ne pouvait pas marcher : elle portait « d:\1-Python », le poste de
+# l'auteur, si bien que le garde-fou etait ecrit pour ignorer exactement ce
+# qu'il devait voir. faire_zip.py est passe a « ce chemin existe-t-il ici ? » ;
+# ce jumeau-ci etait reste en arriere, et refusait depuis la 0.6.7 les faux
+# chemins que l'auto-test de noyau.py emploie pour eprouver la lecture de
+# « py -0p » — des chemins qui n'existent nulle part, donc inoffensifs.
+import faire_zip as _fz                                        # noqa: E402
 for _fichier in sorted(Path(mod_plugin.__file__).parent.glob("*.py")):
-    _src = _fichier.read_text(encoding="utf-8")
-    _chemins = [c for c in re.findall(r"[A-Za-z]:\\[^\"'\n]{3,}", _src)
-                if not c.lower().startswith(_LOGICIELS)
-                and not c.lower().startswith(_CHAINE)
-                # UN MOTIF DE RECHERCHE N'EST PAS UN CHEMIN. Les emplacements
-                # ou le greffon va CHERCHER un python portent une etoile ; or
-                # l'etoile est interdite dans un nom de fichier Windows, donc
-                # aucun de ces motifs ne peut etre un chemin de donnees. Les
-                # ecarter ne relache rien.
-                #   ET SURTOUT PAS UNE EXCEPTION NOMINATIVE de plus : ajouter
-                #   « c:\osgeo4w » et « c:\python3 » a la liste blanche aurait
-                #   marche aussi, et c'est exactement ce que le paragraphe
-                #   ci-dessus interdit — une liste blanche qui grandit finit
-                #   par etre la seule chose que le garde-fou ne voit plus.
-                and "*" not in c]
+    _chemins = _fz.chemins_du_poste(_fichier.read_text(encoding="utf-8"))
     verifier(f"aucun chemin de donnees dans {_fichier.name}",
              not _chemins, "; ".join(_chemins[:2]) or "aucun")
 
