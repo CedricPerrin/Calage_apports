@@ -18,6 +18,7 @@ Outillage : `ruff 0.15.8`, `vulture 2.16`, `radon 6.0.1`, `pylint 4.0.8`,
 
 1. **Un défaut de correction (P0) : `re` n'est importé nulle part dans
    `pont_hecras.py`**, et son usage est enfermé dans un `except Exception`.
+   *(Corrigé au lot 3, avec le garde-fou qui l'aurait attrapé.)*
 2. Conséquence : **le deuxième échelon du repli des pentes n'a jamais
    fonctionné**. Tout apport dont la case `Pente_m_par_m` est vide garde la
    pente déjà en place — 1 % pour une injection créée par le greffon.
@@ -162,7 +163,7 @@ Confiance 5 sur les trois constats — chacun est une citation.
 
 ### P0 — comportement / résultat numérique
 
-#### P0-1 · `re` n'est pas importé dans `pont_hecras.py` : la pente déduite du fond n'a jamais fonctionné
+#### P0-1 · `re` n'est pas importé dans `pont_hecras.py` : la pente déduite du fond n'a jamais fonctionné — ✅ **corrigé au lot 3**
 
 | | |
 |---|---|
@@ -254,7 +255,7 @@ comportement à figer :
 
 ### P1 — dette bloquante
 
-#### P1-2 · `style_classeur.py` est compté parmi les quinze bancs verts et ne contrôle rien
+#### P1-2 · `style_classeur.py` est compté parmi les quinze bancs verts et ne contrôle rien — ✅ **corrigé au lot 3**
 
 | | |
 |---|---|
@@ -458,7 +459,7 @@ l'`assert`. **Un fichier, deux lignes.**
 
 ---
 
-#### P1-7 · Lancer le banc de `creer_template.py` salit un fichier suivi par git
+#### P1-7 · Lancer le banc de `creer_template.py` salit un fichier suivi par git — ✅ **corrigé au lot 3**
 
 | | |
 |---|---|
@@ -704,7 +705,7 @@ point clos), `CHECKPOINT.md`. **4 fichiers.**
 **Terminé quand** : plus aucun texte n'affirme « un seul apport calé », ni
 « 4 onglets ».
 
-### Lot 3 — les bancs qui manquent *(risque nul : ajouts)*
+### Lot 3 — les bancs qui manquent — ✅ **FAIT**
 
 `src/style_classeur.py` (banc neuf), `src/creer_template.py` (sortie
 temporaire), `src/faire_zip.py` (garde-fou `F821`). **3 fichiers.**
@@ -713,7 +714,26 @@ une boucle complète.
 **Terminé quand** : `style_classeur.py` rend des `[OK]`, et le garde-fou
 `F821` **échoue** si l'on retire `import re` de `pont_hecras.py`.
 
-### Lot 4 — P0-1, sous condition *(risque numérique)*
+> **Résultat, 5 septembre 2026.** `style_classeur.py` rend **13 contrôles**.
+> `git status` est **vide** après une boucle complète de bancs. Le garde-fou
+> (`faire_zip.noms_jamais_lies`) rend **code retour 1** quand on retire la
+> ligne, **0** quand on la remet — mesuré dans les deux sens. Il est de plus
+> **éprouvé par le banc adverse**, qui injecte désormais la faute en troisième
+> position et vérifie qu'elle est refusée.
+>
+> **Sa conception, et pourquoi elle est sûre** : il rassemble ce qu'un fichier
+> lie *n'importe où*, puis signale ce qui est lu sans y figurer. Il est donc
+> **délibérément aveugle aux portées** — il ne voit pas un nom lié dans une
+> fonction et lu dans une autre. En échange il ne rend **aucun faux positif**,
+> mesuré sur les 25 800 lignes du projet : c'est la seule façon qu'un garde-fou
+> d'archive soit cru. Un fichier portant `from x import *` le fait se taire
+> plutôt qu'affirmer.
+>
+> **Le lot 3 a emporté le lot 4 avec lui** : le garde-fou refusait l'archive
+> tant que `import re` manquait, et arbitrer ce refus aurait été le désarmer.
+> La ligne est posée. Ce qui reste est la question des livrables (§ 8).
+
+### Lot 4 — P0-1 — ✅ **fait avec le lot 3**
 
 `import re` dans `src/pont_hecras.py`, plus le test n° 2 du § 6.
 **1 fichier + 1 banc.**
@@ -743,7 +763,20 @@ Une seule, et elle commande le lot 4 :
 >   latent qu'on corrige tranquillement.
 >
 > **Non déterminable depuis cette session** : les journaux vivent sur le
-> partage réseau des modèles.
+> partage réseau des modèles. La ligne se cherche dans
+> `calage_<horodatage>.log`, à côté du classeur :
+> `Select-String -Path "T:\...\*\3-Apports\*\calage_*.log" -Pattern "pente"`.
+
+> ### Ce que le lot 3 a tranché, et ce qu'il n'a pas tranché
+>
+> **Deux questions étaient confondues sous « lot 4 ».** Ajouter `import re` ne
+> dépend pas des journaux : la ligne ne change rien à ce qui est déjà produit,
+> elle rend au code ce que deux docstrings promettent. **Elle est posée** — et
+> le garde-fou qui l'aurait attrapée aussi.
+>
+> **Ce qui reste ouvert est la seule vraie question** : les trois calages
+> livrés ont-ils emprunté ce repli ? Elle décide du sort de leurs livrables,
+> pas de la correction du code.
 
 ---
 

@@ -57,6 +57,16 @@ CE QUI EST EPROUVE
     (5.7, fin), la coherence du decalage se juge A LA FIN, sur les Dt
     retenus (2.2 ter), et un classeur dont la base de temps est absente,
     vide ou EN DATES est REFUSE AVANT le lancement (5.7, fin).
+  - LA PENTE DEDUITE DU FOND FONCTIONNE, depuis le 05/09 — elle n'avait
+    jamais tourne (section 6). Un GARDE-FOU D'ARCHIVE refuse desormais tout
+    nom lu sans avoir jamais ete lie dans son fichier : c'est la faute qui
+    l'avait laisse passer, et le banc adverse l'injecte pour verifier qu'elle
+    est refusee. Mesure : aucun faux positif sur les 25 800 lignes du projet.
+  - STYLE_CLASSEUR.PY A ENFIN UN BANC — treize controles, 05/09. Il etait
+    compte parmi les bancs verts ici meme et n'en portait AUCUN : « python
+    style_classeur.py » sortait 0 sans un mot. Et creer_template.py n'ecrit
+    plus dans le depot : son banc construit en dossier temporaire, seul
+    « --publier » regenere le template livre.
   - CE QUE LA FENETRE JUGEE LAISSE DEHORS EST MESURE ET DIT depuis le
     05/09 : deux nombres de plus au Diagnostic et une reserve NON bloquante
     quand le verdict et la serie entiere divergent sur la bande (2.2 bis).
@@ -2145,8 +2155,24 @@ A FAIRE, PAR ORDRE DE PRIORITE
       fige »), soit fenetre_injection apprend a se passer du decalage, soit on
       constate que le cas ne se presente pas sur un modele reel. Aucun des
       deux calages du 01/09 ne portait de transitoire dominant hors fenetre.
-  - PENTE D'UN APPORT CREE PAR LE GREFFON — REEXAMINE LE 01/09 AU SOIR, ET
-    L'ENJEU EST PLUS PETIT QU'ECRIT. PENTE_APPORT_DEFAUT = 0,01 est bien en
+  - PENTE D'UN APPORT CREE PAR LE GREFFON. LE REEXAMEN DU 01/09 REPOSAIT SUR
+    DU CODE QUI NE TOURNAIT PAS — corrige le 05/09. Le deuxieme echelon du
+    repli, « pente deduite du fond », levait un NameError a chaque appel :
+    « re » etait employe dans pont_hecras._pentes_deduites sans etre importe,
+    et un « except Exception » rendait la faute sous la forme d'un probleme
+    d'environnement (« pente : deduction impossible (...) — les valeurs en
+    place sont conservees »). Un apport dont la case Pente_m_par_m est vide
+    gardait donc la pente deja ecrite, soit 0,01 pour une injection creee par
+    le greffon. L'import est pose, et un garde-fou d'archive refuse desormais
+    tout nom lu sans avoir jamais ete lie dans son fichier (faire_zip,
+    noms_jamais_lies ; faute injectee par essai_garde_fou_archive).
+      RESTE A TRANCHER, ET IL FAUT LES JOURNAUX : les trois calages livres
+    ont-ils emprunte ce repli ? La ligne « pente : deduction impossible » se
+    cherche dans « calage_<horodatage>.log », a cote du classeur. Si elle y
+    est, des apports ont tourne a 1 % au lieu de leur pente locale, et les
+    livrables concernes sont a reprendre. Si elle n'y est pas, la colonne du
+    classeur a toujours ete remplie et l'impact en production est NUL.
+    LE RESTE DU POINT DU 01/09, INCHANGE : PENTE_APPORT_DEFAUT = 0,01 est bien en
     dur (plugin.py), mais il ne survit pas au calage : la colonne
     Pente_m_par_m du classeur est DEJA pre-remplie avec la pente locale
     (noyau.pentes_locales_apports), et pont_hecras._appliquer_pentes donne a
