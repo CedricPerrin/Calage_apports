@@ -266,7 +266,6 @@ def commande_hydrogramme(args):
     L'essayer en second reviendrait a preferer une voie dont on a mesure
     qu'elle peut se tromper en silence : l'ordre suit donc le raisonnement.
     """
-    import pandas as pd
     from ras_commander import HdfResultsPlan
 
     def voie_ras_commander():

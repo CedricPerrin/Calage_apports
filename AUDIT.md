@@ -152,6 +152,14 @@ Confiance 5 sur les trois constats — chacun est une citation.
 
 ## 3. PHASE B — Constats
 
+> **Les numéros de ligne sont ceux du commit audité, `c747c32`.** Le lot 1 a
+> depuis retiré une ligne de `src/pont_hecras.py` (l'import mort de P2-8) : tout
+> ce qui suit la ligne 269 dans ce fichier a glissé d'un cran. **P0-1 est le
+> seul constat encore vivant** qui en dépend — il est aujourd'hui aux lignes
+> **539-541**, dans `_pentes_deduites` (508-562), avec son `except` en 555-558.
+> Vérifiable à tout moment par
+> `ruff check --select F821 --no-cache src/pont_hecras.py`.
+
 ### P0 — comportement / résultat numérique
 
 #### P0-1 · `re` n'est pas importé dans `pont_hecras.py` : la pente déduite du fond n'a jamais fonctionné
@@ -410,7 +418,7 @@ vérifier que la section est nommée dans la sortie. Échoue sur le code d'avant
 
 ---
 
-#### P1-6 · Un contrôle de banc dont la condition est toujours vraie
+#### P1-6 · Un contrôle de banc dont la condition est toujours vraie — ✅ **corrigé au lot 1**
 
 | | |
 |---|---|
@@ -482,7 +490,9 @@ comptent pas sur l'effet de bord.
 
 ### P2 — nettoyage sûr
 
-#### P2-8 · Quatre constats `ruff`, tous CERTAIN
+#### P2-8 · Quatre constats `ruff` — ✅ **traités au lot 1**
+
+Sortie de l'audit, avant le lot :
 
 ```
 $ ruff check --select F401,F841 --no-cache --output-format concise src calage_apports
@@ -494,13 +504,33 @@ src/verification_environnement.py:232:12  F401 `ras_commander` imported but unus
 
 | item | certitude | attention |
 |---|---|---|
-| `maille_globale` (×2, lignes 643 **et** 649) | CERTAIN | `maille_globale = tolerance = None` : ne pas emporter `tolerance`, qui est lu |
+| `maille_globale` (×2, lignes 643 **et** 649) | **variable morte, ligne VIVANTE** | voir l'encadré ci-dessous — **cet audit s'était trompé** |
 | `prj` | CERTAIN | — |
 | `pandas` dans `pont_hecras.py:269` | CERTAIN | import local, sans effet de bord |
 | `ras_commander` dans `verification_environnement.py:232` | **USAGE INDIRECT** | l'import **est le test** : il prouve que le module se charge avant que `md.version()` ne soit lu. **Ne pas supprimer** — ajouter `# noqa: F401` avec la raison |
 
-**Correctif** : 3 suppressions + 1 `noqa`. **Risque nul.** Les bancs des quatre
-modules le prouvent.
+> ### Correction apportée au lot 1 — `maille_globale` n'était pas une suppression sûre
+>
+> L'affectation est morte ; **l'appel ne l'est pas**. `geo.taille_maille(chemin,
+> zone)` est une **sonde** : son échec fait tomber dans le `except`, qui pose
+> `tolerance = None`. Or `tolerance` est ensuite confiée à
+> `geo.controler_contre_maillage`, qui l'appelle **par géométrie et sans
+> protection** — `admis = tolerance_m(g) if callable(tolerance_m) else
+> tolerance_m` (`geometrie.py:525`). Supprimer la ligne aurait donc remplacé le
+> repli prévu (`None` → le contrôle *rapporte* la distance) par une exception
+> remontée au milieu du contrôle.
+>
+> **Ce que le lot a fait** : garder l'appel, retirer le nom. `ruff` est
+> satisfait, le comportement est identique.
+>
+> **Ce que ça dit de cet audit** : `ruff` avait raison sur la *variable* et cet
+> audit a eu tort d'en conclure une suppression à risque nul. C'est exactement
+> ce que la question obligatoire — *« cette complexité répond-elle à une
+> contrainte réelle ? »* — sert à attraper, et elle ne l'a été qu'en relisant
+> le site avant d'éditer.
+
+**Correctif** : 2 suppressions, 1 sonde débaptisée, 1 `noqa`. Les bancs des
+quatre modules le prouvent.
 
 #### P2-9 · `ModeleResiduelDecale` — classe définie, jamais instanciée
 
@@ -634,14 +664,14 @@ s'importe sous le nom `docx`, listé en `DEP001`). Le correctif P0-1 est
 
 > **Aucun lot n'est engagé.** J'attends `GO LOT n`.
 
-### Lot 1 — code mort CERTAIN et bancs sincères *(risque nul)*
+### Lot 1 — code mort CERTAIN et bancs sincères — ✅ **FAIT**
 
 **Invariant de comportement** : aucune sortie du calage ne change. Aucun
 fichier livrable, aucun nombre.
 
 | Fichier | Action |
 |---|---|
-| `src/controle_donnees.py` | retirer `maille_globale` (643, 649), garder `tolerance` |
+| `src/controle_donnees.py` | **retirer le NOM, garder l'APPEL** — c'est une sonde, voir P2-8 |
 | `src/elaguer_projet.py` | retirer `prj` (467) |
 | `src/pont_hecras.py` | retirer `import pandas` (269) |
 | `src/verification_environnement.py` | `# noqa: F401` motivé sur `ras_commander` (232) |
@@ -652,6 +682,19 @@ les bancs de `controle_donnees`, `elaguer_projet`, `noyau`,
 `verification_environnement` repassent.
 **Terminé quand** : `ruff` est vert et les compteurs de bancs sont inchangés
 (sauf `noyau`, dont un contrôle devient sincère).
+
+> **Résultat, 5 septembre 2026.** `ruff --select F401,F841` : *All checks
+> passed*. `vulture --min-confidence 100` ne rend plus que
+> `test_plugin_qgis.py:182`, qu'on garde exprès (P2-11). Compteurs **identiques
+> à ceux du § A.4** : `calage` 120, `criteres` 66, `suivi` 48,
+> `verification_environnement` 39, `noyau` 37, `geometrie` 26, `livrables` 16,
+> `controle_donnees` 6. `faire_zip` : « archive conforme ».
+>
+> `elaguer_projet` et `pont_hecras` **ne s'exécutent pas ici** (`h5py`). Vérifiés
+> statiquement, par portée : plus aucune fonction n'écrit `prj` sans le lire, et
+> toute fonction de `pont_hecras` qui utilise `pd` l'importe chez elle. `F821`
+> rend **les deux mêmes** constats qu'avant le lot — le P0 du § 3, intact : aucun
+> nom indéfini n'a été introduit.
 
 ### Lot 2 — dérive documentaire *(risque nul, aucun code exécutable)*
 

@@ -464,7 +464,6 @@ def main():
         raise SystemExit("--retenu est obligatoire : quel plan conserver ?")
 
     dossier = Path(args.dossier)
-    prj = next(iter(sorted(dossier.glob("*.prj"))), None)
     projets = [p.stem for p in sorted(dossier.glob("*.prj"))
                if (dossier / f"{p.stem}.p01").exists()
                or list(dossier.glob(f"{p.stem}.p[0-9][0-9]"))]
