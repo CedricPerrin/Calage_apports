@@ -53,6 +53,7 @@ from pathlib import Path
 # tourner une chaine externe la designe, par CALAGE_CHAINE ou depuis le
 # plugin ; c'est explicite, donc verifiable.
 
+import ast
 import os
 
 FICHIERS_CHAINE = ("criteres.py", "geometrie.py", "controle_donnees.py",
@@ -736,9 +737,14 @@ def installer_interpreteur(python_base, journal=None):
     if not interpreteur.exists():
         dire(f"Création de l'environnement dans {cible}…")
         try:
+            # ENVIRONNEMENT ASSAINI, COMME PARTOUT AILLEURS. Cette fonction
+            # s'execute DANS QGIS : sans cela, python.exe herite du
+            # PYTHONHOME et du PYTHONPATH de QGIS et fabrique un
+            # environnement qui n'est pas le sien. Voir environnement_propre.
             subprocess.run([str(python_base), "-m", "venv", str(cible)],
                            check=True, capture_output=True, text=True,
-                           encoding="utf-8", errors="replace", timeout=600)
+                           encoding="utf-8", errors="replace", timeout=600,
+                           env=environnement_propre(python_base))
         except Exception as e:                               # noqa: BLE001
             sortie = getattr(e, "stderr", "") or ""
             return None, f"création de l'environnement impossible : {e}\n{sortie}"
@@ -765,7 +771,19 @@ def installer_interpreteur(python_base, journal=None):
         resultat = subprocess.run(
             [str(interpreteur), "-m", "pip", "install", "--upgrade", *paquets],
             capture_output=True, text=True, encoding="utf-8",
-            errors="replace", timeout=1800)
+            errors="replace", timeout=1800,
+            # SANS CET ASSAINISSEMENT, PIP N'INSTALLE RIEN ET REND 0.
+            # L'installeur tourne dans QGIS, dont le PYTHONPATH et le
+            # PYTHONHOME pointent SA bibliotheque — qui livre deja numpy,
+            # pandas, scipy, matplotlib, openpyxl, geopandas, shapely et
+            # pyproj, soit huit des onze paquets. pip les voit sur sys.path,
+            # les tient pour « already satisfied », ne les pose pas dans le
+            # venv, et sort en succes. La sonde, elle, regarde le venv REEL
+            # avec un environnement propre : elle les declare tous absents.
+            # D'ou « installation terminee » suivi de « onze modules
+            # absents », deux fois de suite. Releve sur un poste neuf le
+            # 05/09/2026, a la premiere installation reelle du bouton.
+            env=environnement_propre(interpreteur))
     except Exception as e:                                   # noqa: BLE001
         return None, f"installation impossible : {e}"
     if resultat.returncode != 0:
@@ -795,7 +813,8 @@ def installer_interpreteur(python_base, journal=None):
             resultat = subprocess.run(
                 [str(interpreteur), "-m", "pip", "install", *complement],
                 capture_output=True, text=True, encoding="utf-8",
-                errors="replace", timeout=1800)
+                errors="replace", timeout=1800,
+                env=environnement_propre(interpreteur))
         except Exception as e:                               # noqa: BLE001
             return None, f"installation du complement impossible : {e}"
         if resultat.returncode != 0:
@@ -2702,6 +2721,38 @@ if __name__ == "__main__":
           f" la liste est plafonnee : sonder coute un sous-processus  ->  "
           f"{len(_emplacements)} <= {MAXIMUM_CANDIDATS}")
     assert len(_emplacements) <= MAXIMUM_CANDIDATS
+
+    print("\n4 sexies bis. TOUT SOUS-PROCESSUS LANCE DEPUIS QGIS EST ASSAINI")
+    # LE DEFAUT : l'installeur lancait « python -m venv » puis deux « pip
+    # install » SANS env=environnement_propre(). Il s'execute dans QGIS, dont
+    # le PYTHONPATH et le PYTHONHOME pointent SA bibliotheque — qui livre deja
+    # huit des onze paquets. pip les tenait pour « already satisfied », ne les
+    # posait pas dans le venv, et sortait en succes ; la sonde, elle, lisait le
+    # venv REEL et les declarait tous absents. « Installation terminee » suivi
+    # de « onze modules absents », deux fois. Releve sur un poste neuf le
+    # 05/09/2026, a la premiere installation reelle du bouton.
+    #   LE CONTROLE PORTE SUR LE CODE, faute de pouvoir installer pour de vrai
+    # dans un banc — ce serait plusieurs centaines de Mo a chaque passage.
+    _source_noyau = Path(__file__).resolve().read_text(encoding="utf-8")
+    _arbre = ast.parse(_source_noyau)
+    _nus = []
+    for _f in ast.walk(_arbre):
+        if not (isinstance(_f, ast.FunctionDef)
+                and _f.name in ("installer_interpreteur", "_sonder_interpreteur",
+                                "appeler_pont", "lancer_calage")):
+            continue
+        for _n in ast.walk(_f):
+            if not isinstance(_n, ast.Call):
+                continue
+            _cible = getattr(_n.func, "attr", None)
+            if _cible != "run" or getattr(_n.func.value, "id", "") != "subprocess":
+                continue
+            if not any(k.arg == "env" for k in _n.keywords):
+                _nus.append(f"{_f.name} l. {_n.lineno}")
+    print(f"   [{'OK' if not _nus else 'ECHEC'}] aucun subprocess.run sans "
+          f"« env= » dans les fonctions lancees depuis QGIS  ->  "
+          f"{'aucun' if not _nus else _nus}")
+    assert not _nus, _nus
 
     print("\n4 sexies. CE QU'ON DIT D'INSTALLER EST CE QU'ON EXIGE")
     # LE DEFAUT : l'aide et le message « interpreteur introuvable » nommaient

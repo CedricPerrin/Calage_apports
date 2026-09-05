@@ -176,11 +176,22 @@ LES DEUX CALAGES SONT TERMINES ET CONFORMES — RELEVE DU 02/09 A 16 H 25
     LES DEUX NE SONT PAS COMPARABLES ENTRE EUX, et il faut le noter au dossier :
     l'un porte le bug d'unites, l'autre non.
 
-CE QUI N'A JAMAIS TOURNE
-  - Le bouton « Installer l'environnement Python HEC-RAS » n'est alle
-    jusqu'au bout sur aucun poste : seul son refus d'un python inexistant est
-    couvert par le banc. Installer pour de vrai telechargerait plusieurs
-    centaines de Mo a chaque execution des tests.
+LE BOUTON « INSTALLER… » A ENFIN TOURNE SUR UN POSTE NEUF (05/09), ET IL A
+REVELE SON DEFAUT. Ses trois sous-processus — « python -m venv » et les deux
+« pip install » — etaient les SEULS du greffon a transmettre l'environnement
+de QGIS. Son PYTHONPATH et son PYTHONHOME pointent SA bibliotheque, qui livre
+deja numpy, pandas, scipy, matplotlib, openpyxl, geopandas, shapely et pyproj
+— HUIT des onze paquets. pip les voyait sur sys.path, les tenait pour « already
+satisfied », ne les posait pas dans l'environnement cree, et sortait en SUCCES.
+La sonde, elle, lisait l'environnement REEL : elle les declarait tous absents.
+D'ou « installation terminee » suivi de « onze modules absents », deux fois.
+  CORRIGE EN 0.6.9 : les trois appels passent env=environnement_propre(), comme
+la sonde, le pont et le lancement du calage le font depuis toujours. Un banc
+(noyau, 4 sexies bis) refuse desormais tout subprocess.run sans « env= » dans
+les fonctions lancees depuis QGIS ; il echoue sur le code d'avant.
+  CE QUI RESTE NON EPROUVE : l'installation complete APRES ce correctif. Le
+poste neuf du 05/09 a fini par aboutir en relancant le bouton, avec le code
+d'AVANT — la cause du succes au second essai n'est pas etablie.
 
 L'INTERPRETEUR
   D:\1-Python\.venv\Scripts\python.exe   (Python 3.13.11)
