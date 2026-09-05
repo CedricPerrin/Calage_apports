@@ -188,7 +188,18 @@ def ecrire_instructions(feuille):
     style_classeur.mise_en_page(feuille, repeter_entete=False)
 
 
-def construire():
+def construire(chemin=None):
+    """
+    Ecrit le classeur de saisie et retourne son chemin.
+
+    chemin : ou ecrire. Par defaut le template LIVRE, suivi par git. LE BANC,
+        LUI, ECRIT AILLEURS : regenerer le fichier du depot a chaque passage
+        de la boucle d'auto-tests laissait une modification a annuler a la
+        main, et un octet de mise en forme finissait dans un commit sans
+        rapport. « python creer_template.py --publier » reste la voie qui
+        regenere le fichier livre, et c'est desormais la seule.
+    """
+    chemin = Path(chemin) if chemin is not None else CHEMIN
     inconnus = [p for p, _ in PARAMETRES
                 if not p.startswith("---")
                 and p not in style_classeur.COMMENTAIRES]
@@ -201,7 +212,8 @@ def construire():
         "Commentaire": [style_classeur.COMMENTAIRES.get(p, "")
                         for p, _ in PARAMETRES],
     })
-    with pd.ExcelWriter(CHEMIN, engine="openpyxl") as w:
+    chemin.parent.mkdir(parents=True, exist_ok=True)
+    with pd.ExcelWriter(chemin, engine="openpyxl") as w:
         # Feuille de garde d'abord : c'est elle qui s'ouvre.
         pd.DataFrame().to_excel(w, sheet_name="Instructions", index=False)
         parametres.to_excel(w, sheet_name="Parametres", index=False)
@@ -209,18 +221,31 @@ def construire():
         CIBLES.to_excel(w, sheet_name="Cibles", index=False)
 
     import openpyxl
-    classeur = openpyxl.load_workbook(CHEMIN)
+    classeur = openpyxl.load_workbook(chemin)
     ecrire_instructions(classeur["Instructions"])
     classeur.active = 0
-    classeur.save(CHEMIN)
+    classeur.save(chemin)
 
-    style_classeur.mettre_en_forme(CHEMIN)
-    return CHEMIN
+    style_classeur.mettre_en_forme(chemin)
+    return chemin
 
 
 if __name__ == "__main__":
-    chemin = construire()
-    print(f"{chemin.name} — {chemin.stat().st_size / 1024:.1f} ko")
+    # LE BANC N'ECRIT PLUS DANS LE DEPOT. Ce qu'il doit prouver, c'est que le
+    # template se construit ET passe son propre controle — pas qu'un fichier
+    # suivi par git a ete reecrit. « --publier » regenere le fichier livre.
+    _publier = "--publier" in sys.argv
+    if _publier:
+        chemin = construire()
+        _temporaire = None
+    else:
+        import tempfile
+        _temporaire = Path(tempfile.mkdtemp(prefix="calage_template_"))
+        chemin = construire(_temporaire / CHEMIN.name)
+    print(f"{chemin.name} — {chemin.stat().st_size / 1024:.1f} ko"
+          + ("  (template livre, regenere)" if _publier
+             else "  (dossier temporaire — « --publier » pour regenerer "
+                  "celui du depot)"))
 
     # LE TEMPLATE LIVRE DOIT PASSER SON PROPRE CONTROLE. Un classeur de
     # reference que la chaine refuse enverrait chercher l'erreur dans le
@@ -230,6 +255,9 @@ if __name__ == "__main__":
     erreurs = [m for n, m in anomalies if n == controle_donnees.ERREUR]
     for niveau, message in anomalies:
         print(f"   [{niveau}] {message[:110]}")
+    if _temporaire is not None:
+        import shutil
+        shutil.rmtree(_temporaire, ignore_errors=True)
     if erreurs:
         print(f"\n{len(erreurs)} ERREUR(S) : le template ne passe pas son "
               f"propre controle.")
