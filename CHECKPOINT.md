@@ -42,6 +42,33 @@ fournir. Le garde-fou n'est donc pas muet — mais il ne surveille rien de réel
 Avant de committer depuis un clone neuf, se rappeler qu'un nom de client
 passerait.
 
+## Session du 5 septembre 2026 (nuit) — six améliorations d'interface
+
+**Greffon en 0.7.0.** Demandées après la première prise en main réelle.
+
+| # | demande | fait |
+|---|---|---|
+| 1 | le dossier de suivi ne se met pas à jour | les champs de l'onglet 3 réveillent le suivi ; la bannière dit d'où vient le dossier et signale le désaccord |
+| 2 | minimiser les consoles au lancement | `SANS_FENETRE` sur les 7 appels de `noyau.py` + le `tasklist` d'`elaguer_projet` |
+| 3 | « Aide » → « Aide et configuration » | fait |
+| 4 | le profil en long avec « 1. Modèle » | l'axe rejoint le modèle ; l'onglet 2 devient « Objectifs et précision » |
+| 5 | l'objectif de débit pas pris en compte | écrit au lancement **et** relu à la reprise d'un classeur |
+| 6 | le classeur passe dans « Objectifs » | fait |
+
+### Ce que les items 1 et 5 étaient vraiment
+
+Deux **bugs d'état**, pas des retouches. Les objectifs ne partaient dans le
+classeur qu'à la composition — la chaîne lit le classeur, pas la fenêtre.
+Corriger seulement l'écriture aurait créé le bug inverse : reprendre un
+classeur à ±2 % puis lancer l'aurait **desserré** à 5 %. Les deux moitiés
+vont ensemble.
+
+### Un point à vérifier à l'écran
+
+Les libellés d'onglets ont **rallongé de 25 caractères**. Le commentaire de la
+feuille de style rappelle qu'un libellé trop long se fait rogner. Si la barre
+défile sur un écran étroit, c'est là qu'il faut raccourcir.
+
 ## Session du 5 septembre 2026 (soir) — « Installer… » n'installait rien
 
 **Greffon en 0.6.9.** Le bouton a tourné pour la première fois sur un poste

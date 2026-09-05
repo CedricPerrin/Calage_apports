@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.6.9
+version=0.7.0
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,29 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,KGE,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.6.9 — « Installer… » n'installait rien, et sortait en succès.
+changelog=0.7.0 — Les onglets suivent l'ordre des décisions, et deux
+    états cessent de mentir.
+    L'axe hydraulique rejoint « 1. Modèle » : c'est un objet du modèle,
+    qu'on dessine sur la carte comme les sections, pas un objectif.
+    L'onglet 2 devient « Objectifs et précision » et accueille le
+    classeur, jusqu'ici au fond de « Lancer » — la précision visée et les
+    hydrogrammes cibles sont deux faces d'une même décision. « Lancer »
+    ne porte plus que le lancement. « Aide » devient « Aide et
+    configuration », ce qu'elle est depuis qu'elle porte les deux
+    emplacements du poste.
+    Les objectifs de précision ne partaient dans le classeur qu'à la
+    composition : les resserrer ensuite n'avait aucun effet, la chaîne
+    lisant le classeur. Le lancement les y écrit désormais, et la fenêtre
+    se remplit depuis le classeur qu'on reprend — sans quoi la reprise
+    d'un calage à ±2 % l'aurait desserré à 5 % en silence.
+    Le dossier de suivi ne suivait pas les champs de l'onglet 3 sans
+    rouvrir QGIS. Il suit, et la bannière dit d'où vient le dossier
+    surveillé — et signale le désaccord quand le classeur en désigne un
+    autre.
+    Plus aucune console noire devant la fenêtre : les sept sous-processus
+    de noyau.py et le « tasklist » d'elaguer_projet.py portent enfin
+    CREATE_NO_WINDOW, que pilote_hecras.py était seul à poser.
+    0.6.9 — « Installer… » n'installait rien, et sortait en succès.
     Les trois sous-processus de l'installeur — « python -m venv » et les
     deux « pip install » — étaient les SEULS du greffon à transmettre
     l'environnement de QGIS. Or son PYTHONPATH et son PYTHONHOME pointent
