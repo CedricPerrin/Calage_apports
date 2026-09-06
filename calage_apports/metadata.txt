@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.7.2
+version=0.7.3
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,19 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,KGE,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.7.2 — Trois états qui mentaient, et un refus inatteignable.
+changelog=0.7.3 — La barre d'onglets ne peut plus défiler.
+    Ce qui l'en empêchait n'était pas la brièveté des libellés, comme le
+    disait un commentaire, mais le plancher de largeur de la fenêtre — un
+    nombre fixe qu'on espérait suffisant. Il s'était déjà resserré sans
+    que personne le voie : 529 px de besoin en 0.6.9, 663 px en 0.7.0
+    après le renommage de deux onglets, pour 696 px disponibles. De
+    +167 px à +33 px de marge. Et sous une police d'interface plus grande
+    — autre thème Windows, réglage d'accessibilité, autre mise à
+    l'échelle — la même barre en demande 877 : elle défile, et le premier
+    onglet est tronqué. Le plancher se déduit désormais de ce que la barre
+    demande : l'invariante est vraie par construction, et un libellé trop
+    long élargit la fenêtre au lieu de disparaître. Le banc le vérifie.
+    0.7.2 — Trois états qui mentaient, et un refus inatteignable.
     QUAND LA COMPOSITION ÉCHOUE APRÈS L'ÉCRITURE, LA BOÎTE LE DIT. L'ordre
     est : écrire dans la géométrie, puis composer, puis contrôler. Tout ce
     qui échouait après l'écriture remontait au même message final, qui ne
