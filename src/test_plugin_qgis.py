@@ -461,6 +461,30 @@ else:
              f"{dlg.couche_maillage.datasetGroupCount()} groupe(s) de donnees"
              if dlg.couche_maillage else "absent")
 
+    # L'AXE N'EST PAS CHOISI TANT QUE PERSONNE NE L'A CHOISI. Les couches du
+    # modele viennent d'etre chargees, et deux d'entre elles sont des lignes :
+    # sans entree vide dans le combo, currentLayer() rendait la premiere, le
+    # fil conducteur cochait « Axe hydraulique » pour un geste jamais fait, et
+    # le garde-fou qui refuse de composer sans axe etait inatteignable.
+    # setAllowEmptyLayer NE SUFFIT PAS — il ajoute l'entree sans la choisir :
+    # ce controle tombe si le setLayer(None) qui l'accompagne disparait.
+    verifier("l'axe n'est pas pre-choisi par le greffon",
+             dlg.combo_axe.currentLayer() is None,
+             f"{dlg.combo_axe.currentLayer().name()}"
+             if dlg.combo_axe.currentLayer() else "(vide)")
+    # ET LE REFUS QUI VA AVEC EST ATTEIGNABLE. Il ne l'etait pas : le combo
+    # rendant toujours une couche, cette branche etait morte. Le controle
+    # verifie du meme coup qu'elle nomme le BON onglet — l'axe a rejoint
+    # l'onglet 1 en 0.7.0, le message etait reste sur l'onglet 2.
+    # Sans danger pour le modele : le refus tombe AVANT _ecrire_dans_geometrie.
+    BoiteMessage.critiques.clear()
+    dlg._composer_et_controler()
+    _refus = BoiteMessage.critiques[0] if BoiteMessage.critiques else ""
+    verifier("sans axe, la composition refuse et nomme le bon onglet",
+             "axe hydraulique" in _refus.lower() and "onglet 1" in _refus.lower(),
+             _refus[:90] or "aucun refus — la branche est morte")
+    BoiteMessage.critiques.clear()
+
     dlg.combo_axe.setLayer(QgsProject.instance().mapLayersByName("Axe")[0])
     dlg.edit_dossier_sortie.setText(str(ESSAI))
 

@@ -1741,8 +1741,18 @@ class DialogueParametrage(QDialog):
         ligne = QHBoxLayout()
         ligne.setSpacing(6)
         self.edit_dossier_hecras = QLineEdit()
+        # AFFICHEUR, PAS SAISIE. Le champ etait editable et son texte
+        # indicatif invitait a le remplir — mais il n'est connecte a rien :
+        # seul « Parcourir… » charge le projet. Un chemin colle a la main ne
+        # chargeait donc rien, et le refus qui suivait disait « choisir
+        # d'abord le dossier » devant un dossier ecrit a l'ecran.
+        #   PAS de connexion a editingFinished pour autant : le signal part a
+        #   chaque perte de focus, champ vide ou a demi tape compris, et
+        #   _charger_projet_hecras repond par une boite critique modale. On
+        #   gagnerait une erreur a chaque passage de focus.
+        self.edit_dossier_hecras.setReadOnly(True)
         self.edit_dossier_hecras.setPlaceholderText(
-            "Dossier contenant le fichier .prj du projet")
+            "Choisir avec « Parcourir… » — dossier contenant le .prj")
         bouton_parcourir = QPushButton("Parcourir…")
         bouton_parcourir.clicked.connect(self._parcourir_dossier_hecras)
         ligne.addWidget(self.edit_dossier_hecras, 1)
@@ -2274,6 +2284,23 @@ class DialogueParametrage(QDialog):
         f = formulaire(groupe_axe)
         self.combo_axe = QgsMapLayerComboBox()
         self.combo_axe.setFilters(QgsMapLayerProxyModel.LineLayer)
+        # UNE ENTREE VIDE, SANS QUOI L'AXE EST « CHOISI » SANS QUE PERSONNE
+        # NE L'AIT CHOISI. Sans elle, currentLayer() n'est jamais None des
+        # qu'une couche ligne existe dans le projet — et « Charger les couches
+        # du modele » en ajoute deux, fabriquees par le greffon lui-meme. Trois
+        # consequences : le fil conducteur cochait « Axe hydraulique » pour un
+        # geste jamais fait, la branche « (non choisi) » du resume etait morte,
+        # et le garde-fou qui refuse de composer sans axe etait inatteignable.
+        # Ce que cela coute : un choix explicite, meme quand le projet n'a
+        # qu'une seule couche ligne.
+        #   setAllowEmptyLayer NE SUFFIT PAS : il AJOUTE l'entree vide sans la
+        #   selectionner, et le combo reste sur la premiere couche ligne du
+        #   projet. Mesure : sans setLayer(None), currentLayer() rend encore
+        #   « Lignes d'injection (HEC-RAS) ». Le setLayer(None) tient quand des
+        #   couches arrivent ENSUITE — c'est le cas reel, la fenetre s'ouvre
+        #   avant que « Charger les couches du modele » n'en ajoute deux.
+        self.combo_axe.setAllowEmptyLayer(True, "— choisir la couche —")
+        self.combo_axe.setLayer(None)
         self.champ_axe = QgsFieldComboBox()
         self.champ_axe.setLayer(self.combo_axe.currentLayer())
         self.combo_axe.layerChanged.connect(self.champ_axe.setLayer)
@@ -4058,6 +4085,14 @@ class DialogueParametrage(QDialog):
 
     @avec_sablier
     def _composer_et_controler(self):
+        # CE DRAPEAU EXISTE POUR LE MESSAGE D'ECHEC, ET RIEN D'AUTRE.
+        # L'enchainement est : ecrire dans la geometrie, PUIS composer, PUIS
+        # controler. Tout ce qui echoue apres l'ecriture remonte au meme
+        # « except » final, qui n'affichait que le texte de l'erreur : on
+        # lisait un echec et l'on concluait que rien n'avait eu lieu, alors
+        # que le modele venait d'etre modifie. Son seul temoin, label_ecriture,
+        # vit a l'onglet 1 — invisible depuis l'onglet d'ou l'on a clique.
+        geometrie_reecrite = False
         try:
             if not self.info_projet:
                 raise ValueError(
@@ -4076,7 +4111,9 @@ class DialogueParametrage(QDialog):
             axe = self.combo_axe.currentLayer()
             if axe is None:
                 raise ValueError(
-                    "Onglet 2 : choisir la couche de l'axe hydraulique.")
+                    # L'axe a rejoint l'onglet 1 en 0.7.0, avec les couches ou
+                    # il se trace ; ce renvoi etait reste sur l'onglet 2.
+                    "Onglet 1 : choisir la couche de l'axe hydraulique.")
             dossier_sortie = self.edit_dossier_sortie.text().strip()
             if not dossier_sortie:
                 raise ValueError("Onglet 3 : choisir le dossier de sortie.")
@@ -4092,6 +4129,9 @@ class DialogueParametrage(QDialog):
                 dire(self.label_ecriture,
                      f"<span style='color:{ISL_ROUGE}'>Échec : {e}</span>")
                 raise
+            # Pose APRES le bloc ci-dessus : un echec de l'ecriture elle-meme
+            # ne doit pas heriter du message « deja reecrite ».
+            geometrie_reecrite = True
 
             g_sections = couche_vers_gdf(c_sections)
             g_apports = couche_vers_gdf(c_injections)
@@ -4221,7 +4261,14 @@ class DialogueParametrage(QDialog):
             self._maj_onglet_validation()
         except Exception as e:
             journaliser("Composition et contrôle du paquet", e)
-            QMessageBox.critical(self, "Composition", str(e))
+            QMessageBox.critical(
+                self, "Composition",
+                str(e) + ("\n\nLa géométrie HEC-RAS a DÉJÀ été réécrite : "
+                          "les sections et injections de l'onglet 1 y sont, "
+                          "et l'échec ci-dessus est survenu après. Une "
+                          "sauvegarde horodatée du fichier de géométrie a été "
+                          "faite avant l'écriture."
+                          if geometrie_reecrite else ""))
 
 
 # ---------------------------------------------------------------------------
