@@ -314,6 +314,18 @@ RAS_COMMANDER_MINIMUM = (0, 99)
 # seul consommateur du profil ne lit pas. Le profil vient du maillage.
 PAQUETS_HECRAS = (
     ("ras_commander", f"ras-commander>={'.'.join(str(n) for n in RAS_COMMANDER_MINIMUM)}"),
+    # XARRAY N'EST PAS DES NOTRES, ET C'EST BIEN POUR CELA QU'IL EST ICI.
+    # C'est une dependance de ras-commander, que pip ne pose pas : la
+    # contrainte « >=0.99 » etant satisfaite par une version deja installee,
+    # il ne re-resout rien (voir le commentaire de l'installeur, plus bas).
+    # La docstring de commande_pip_hecras() disait deja « onze plus xarray » —
+    # autrement dit, la liste qui promet de poser TOUT ce que le pont exige
+    # n'en posait pas la totalite, et suivre la commande du greffon a la lettre
+    # fabriquait encore un environnement qu'il refusait ensuite. C'est la
+    # divergence meme que PAQUETS_HECRAS existe pour empecher.
+    # Reproduit le 06/09/2026 sur un poste neuf : les onze poses, puis
+    # « module(s) absent(s) de cet interpreteur : xarray. »
+    ("xarray", "xarray"),
     ("h5py", "h5py"),
     ("numpy", "numpy"),
     ("pandas", "pandas"),
