@@ -2923,7 +2923,16 @@ class DialogueParametrage(QDialog):
         """
         Le suivi ne se relit que lorsqu'il est visible, et se remet a jour
         immediatement quand on y arrive.
+
+        ET LA FENETRE ACCUSE CE QU'ON A DESSINE PENDANT SON ABSENCE. C'est le
+        geste central de l'outil : on la laisse ouverte, on va tracer les
+        sections manquantes dans QGIS, on revient. Rien ne le remarquait — le
+        resume continuait d'afficher les comptes d'avant, et l'on n'apprenait
+        que son dessin avait ete vu qu'au clic sur « Composer et controler ».
+        Le changement d'onglet est le seul moment ou l'on sait a coup sur que
+        la fenetre reprend la main.
         """
+        self._maj_resume()
         if indice == ONGLET_SUIVI:
             self._rafraichir_suivi()
             self.minuteur_suivi.start()
