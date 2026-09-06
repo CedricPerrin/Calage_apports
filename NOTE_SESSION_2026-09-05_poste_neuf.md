@@ -279,27 +279,41 @@ Je ne l'ai **pas** corrigé : ajouter `("xarray", "xarray")` à
 correctifs du banc, le push sur `main`, la suppression des branches, la
 réinstallation du greffon (0.7.3), la coquille de commit.
 
-**Ce qui attend une décision :**
+**Les trois décisions ont été prises et appliquées** (0.7.5 à 0.7.7) —
+préfixe de scénario, garde-fou « un calage tourne », renommage du bouton.
+Voir § 9.
 
-1. **§ 2.2 de la note d'ergonomie — le préfixe de scénario.** Le plus
-   grave des constats restants. La reprise d'un classeur ne relit ni
-   `Prefixe_scenario` ni `Premier_apport`, et le lancement les réécrit
-   depuis les champs vides de la fenêtre : reprendre le classeur d'un
-   Q100 et lancer efface « Q100 » du classeur et titre les plans hors
-   scénario. **Non corrigé** : cela change le comportement du lancement,
-   et la sémantique se décide, elle ne se devine pas. Le correctif tient
-   en un endroit — `_appliquer_objectifs_du_classeur` — pas quatre.
-2. **Le garde-fou « un calage tourne »**, sur `_composer_et_controler`
-   **et** `_lancer_calage`. Une confirmation nommant le PID, pas un
-   `setEnabled` : l'état vient d'un fichier souvent sur partage réseau,
-   et une lecture manquée qui griserait le bouton principal serait pire
-   que le mal.
-3. **Renommer « Composer et contrôler »** en « Écrire, composer et
-   contrôler » ? Désaccord non tranché — voir § 1.4 de la note
-   d'ergonomie. Impose douze retouches, `LISEZMOI.md:20` comprise.
-4. **Le correctif clavier n'est vérifié qu'au banc.** Ce qui se juge
+**Ce qui reste ouvert :**
+
+1. **Le correctif clavier n'est vérifié qu'au banc.** Ce qui se juge
    devant la fenêtre : qu'Entrée ne fasse plus **rien**, nulle part.
    C'est le prix assumé, et il se voit.
+2. **Trois garde-fous jamais éprouvés en réel** — volume plancher, apport
+   refusé, modèle incohérent. Les trois calages livrés ne les ont pas
+   rencontrés ; seul le banc les couvre.
+3. **Le calage simultané** (`docs/idees_V2_plugin.md` § 1) : ×18 sur un
+   modèle à 30 apports, et c'est ce chantier qui réécrirait la boucle
+   dont la troisième extraction a été écartée. Il repose entièrement sur
+   l'hypothèse d'ordre total, que `STATUT.txt` liste toujours comme **non
+   confirmée**. C'est une question d'hydraulicien, pas de code.
+4. **Le reste de la note d'ergonomie** — les constats du suivi (§ 2.3),
+   non engagés : l'onglet 5 qui peint l'état du calage précédent après un
+   relancement, « pas encore démarré » indistinguable de « mort au
+   démarrage », le fil qui dit « lancer » pendant les heures de calcul,
+   et le `tasklist` toutes les deux secondes sur le fil graphique.
+
+## 9. Les trois décisions, appliquées le 6 septembre
+
+| version | |
+|---|---|
+| **0.7.5** | Reprendre un classeur n'efface plus son préfixe de scénario. Le lancement écrivait six réglages, la reprise n'en relisait que quatre. Reprendre le classeur d'un Q100 puis lancer effaçait « Q100 » — l'accident même que le préfixe existe pour empêcher. Même trou pour « Premier apport ». |
+| **0.7.6** | Un calage qui tourne ferme les deux portes. Ni la composition ni le lancement ne consultaient l'état du calage. Une **question** nommant le calage et son processus, jamais un bouton grisé : l'état vient d'un fichier souvent sur partage réseau. Un calage *terminé* ne ferme rien. |
+| **0.7.7** | Le bouton nomme les trois choses qu'il fait — « Écrire, composer et contrôler ». Seize occurrences alignées, `LISEZMOI` et note méthodologique comprises ; les changelogs et entrées historiques gardent le nom d'alors. |
+
+**Banc : 160 contrôles, aucun échec.** Six de plus qu'au matin, tous
+posés sur ce qui venait d'être corrigé — dont trois qui éprouvent le
+garde-fou « un calage tourne » sur un état portant le PID du processus
+d'essai.
 
 ## 8. Le 6 septembre après-midi — ce qui a été fait sans décision
 
