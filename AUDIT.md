@@ -346,7 +346,12 @@ règle que `commande_pip_hecras()` applique depuis aujourd'hui aux paquets.
 
 ---
 
-#### P1-4 · `caler()` : 699 lignes, complexité cyclomatique **81**
+#### P1-4 · `caler()` : 699 lignes, complexité cyclomatique **81** — 🟡 **engagé le 5 septembre 2026, et clos par une décision**
+
+> **622 lignes aujourd'hui.** Les deux extractions que l'audit désignait sont
+> faites ; la troisième est écartée sur mesure — quinze variables locales à
+> passer. Le titre garde les 699 lignes du constat d'origine : c'est ce qui a été
+> mesuré ce jour-là. Voir l'encadré en fin de section.
 
 | | |
 |---|---|

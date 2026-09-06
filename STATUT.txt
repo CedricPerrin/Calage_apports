@@ -59,8 +59,8 @@ CE QUI EST EPROUVE
     et verifies en 56 s. C'est le lancement depuis QGIS qui comptait — c'est
     la, et nulle part ailleurs, que son PYTHONHOME fuyait dans les
     sous-processus de pip.
-  - GREFFON EN 0.7.14 (06/09). Onze correctifs d'ergonomie issus d'une
-    relecture a six lentilles : voir docs/ergonomie_2026-09-06.md, qui dit
+  - GREFFON EN 0.7.14 (06/09). Seize constats d'ergonomie sur dix-huit
+    corriges, issus d'une relecture a six lentilles : voir docs/ergonomie_2026-09-06.md, qui dit
     aussi ce qu'il ne faut PAS toucher. Le lot 5 d'AUDIT.md est fait, et
     AUDIT.md est clos — seul P2-10 reste, dont l'audit dit lui-meme que ce
     n'est pas un lot.
@@ -104,9 +104,11 @@ CE QUI EST EPROUVE
   - LES ONGLETS SUIVENT L'ORDRE DES DECISIONS — 0.7.0, 05/09. L'axe
     hydraulique rejoint « 1. Modele » : c'est un objet du modele, qu'on
     dessine sur la carte comme les sections, pas un objectif. L'onglet 2
-    devient « Objectifs et precision » et accueille le CLASSEUR, jusqu'ici au
-    fond de « Lancer » — la precision visee et les hydrogrammes cibles sont
-    deux faces d'une meme decision. « Lancer » ne porte plus que le
+    devient « Objectifs et precision » et accueille le fichier de saisie,
+    jusqu'ici au fond de « Lancer » — la precision visee et les hydrogrammes
+    cibles sont deux faces d'une meme decision. A L'ECRAN il ne s'appelle plus
+    « classeur » mais « Excel des hydrogrammes objectifs » (0.7.14) : le mot
+    « classeur » reste celui du CODE, ou il designe un format. « Lancer » ne porte plus que le
     lancement. « Aide » devient « Aide et configuration ».
       LES TROIS GROUPES DEPLACES SONT DESORMAIS DES METHODES (_groupe_axe,
     _groupe_precision, _groupe_classeur) et l'onglet ne fait que les

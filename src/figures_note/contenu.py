@@ -467,6 +467,12 @@ CONTENU = [
           "sous-estimée concentre l'injection au lieu de l'étaler. Une valeur "
           "saisie à la main n'est jamais écrasée."),
     ("h2", "1.8  Données d'entrée et contrôles"),
+    ("p", "CE DOCUMENT L'APPELLE « le classeur », et le greffon "
+          "« l'Excel des hydrogrammes objectifs » : c'est le même fichier. Le "
+          "premier nom dit sa forme — un classeur à quatre feuilles —, le "
+          "second ce qu'on y vient faire. L'écran a retenu le second, parce "
+          "qu'un utilisateur n'ouvre pas un format, il saisit des "
+          "hydrogrammes."),
     ("p", "Le classeur formalise les données en quatre feuilles : "
           "Instructions ; Paramètres (identification du modèle, fenêtre de "
           "simulation, précision attendue, plafond d'essais, blocs géométrie "
@@ -618,8 +624,8 @@ CONTENU = [
         ["2. Objectifs et précision", "ce qu'on vise et avec quoi : l'ÉCART "
          "ADMIS sur le volume et sur le débit de pointe — le résultat, lui, "
          "se lit en pourcentage d'atteinte de la cible —, le bilan de masse "
-         "admis, le plafond d'essais, et le classeur où se saisissent les "
-         "hydrogrammes cibles."],
+         "admis, le plafond d'essais, et l'« Excel des hydrogrammes "
+         "objectifs » où ils se saisissent."],
         ["3. Résultats", "dossier de sortie et ses deux sous-dossiers, "
          "relecture d'un hydrogramme déjà calculé, résumé de la "
          "configuration."],
