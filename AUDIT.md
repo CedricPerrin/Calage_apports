@@ -893,7 +893,6 @@ l'ont fait sortir. Seul un contrôle qui lit le code le voyait.
   qui concerne `plugin.py` est statique.
 - **Les performances** (temps de calcul, mémoire) : hors périmètre demandé.
 - **La note méthodologique** (`.docx`, `.pdf`) et sa cohérence avec le code.
-- **`_arquivo/`**, hors du chemin de lecture normal.
 
 ---
 

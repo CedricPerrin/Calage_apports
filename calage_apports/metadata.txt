@@ -32,8 +32,7 @@ changelog=0.7.15 — Un seul mot pour l'extension : « plugin ».
     rien : « plugin » est le terme que QGIS emploie dans son propre
     gestionnaire d'extensions. Les messages affichés suivent, ainsi que
     `dossier_donnees_greffon()`, devenue `dossier_donnees_plugin()`.
-    Seul `_arquivo/` garde l'ancien mot : il est hors du chemin de lecture,
-    et le réécrire fausserait le récit qu'il conserve.
+    Le mot ne subsiste que dans l'historique git.
     0.7.14 — Le fichier de saisie s'appelle par ce qu'il contient.
     « Classeur » est le mot du code et de la chaîne, où il désigne un
     format. À l'écran il ne dit ni ce que le fichier contient, ni à quoi il

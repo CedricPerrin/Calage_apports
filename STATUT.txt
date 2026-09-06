@@ -1212,7 +1212,6 @@ La note, le template et ce fichier restent a la racine.
   methodologie_calage_amont_aval.docx / .pdf   Note methodologique V15.
   template_donnees_calage.xlsx                 Classeur de saisie, 4 feuilles.
   livrables_exemple/     Produit par « python livrables.py », pas une source.
-  _arquivo/              Documents remplaces, hors du chemin de lecture.
   .affaires              Mots surveilles par les garde-fous. NON SUIVI.
 
 
@@ -2171,7 +2170,7 @@ A FAIRE, PAR ORDRE DE PRIORITE
       « Version 13 ». Le .docx a ete corrige le 01/09 au soir, run par run,
       sans toucher au reste ; le .pdf demande une reexportation par Word, que
       la relecture a l'oeil fera de toute facon. Sauvegarde :
-    _arquivo/methodologie_calage_amont_aval_avant_maj_20260901.docx.
+    la version du 01/09 de la note, que git conserve.
       POUR LA RECONSTRUIRE : figures_note.py rend SIX figures, mais le contenu
       en reference HUIT — image2.png et image3.png viennent du document
       d'origine et doivent etre extraites de word/media/ d'un docx anterieur.
