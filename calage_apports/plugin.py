@@ -1565,6 +1565,18 @@ class DialogueParametrage(QDialog):
         self.info_projet = None      # resultat de noyau.lister_projet_hecras
         self.version_hecras = None   # lue dans les fichiers, jamais saisie
         self.appariement = None      # apports <-> sections, deduit des PK
+        # DE QUEL CLASSEUR L'APPARIEMENT PARLE. La ligne du haut de l'onglet 4
+        # decrit le paquet COMPOSE ; reprendre le classeur d'un autre calcul ne
+        # la recalcule pas — l'appariement se deduit des PK, donc des
+        # shapefiles du paquet, que la reprise n'a pas. Sans ce temoin, elle
+        # continuait d'annoncer les paires du paquet precedent.
+        self.classeur_apparie = None
+        # DE QUELLE GEOMETRIE VIENNENT LES COUCHES CHARGEES. Changer de plan,
+        # ou surcharger la geometrie, n'invalide rien : la zone 2D et le CRS
+        # restent ceux d'AVANT, et ils ne sont pas des comptes rendus dates —
+        # ce sont des valeurs courantes, presentees comme telles au resume et
+        # consommees a l'ecriture.
+        self.geom_couches = None
         self.crs_modele = None       # authid, ex. "EPSG:2154"
         self.couche_sections = None
         self.couche_injections = None
@@ -1880,6 +1892,16 @@ class DialogueParametrage(QDialog):
         self.combo_zone_2d = QComboBox()
         self.combo_zone_2d.currentIndexChanged.connect(self._maj_resume)
         f2.addRow("Zone d'écoulement 2D :", self.combo_zone_2d)
+        # LA ZONE 2D ET LE CRS NE SONT PAS DES COMPTES RENDUS DATES : ce sont
+        # des valeurs COURANTES, presentees comme telles au resume et
+        # consommees a l'ecriture. Or changer de plan — ou la geometrie de
+        # surcharge — ne les touche pas : elles datent alors d'une AUTRE
+        # geometrie, et rien ne le disait. L'avertissement vit ici, a cote du
+        # champ concerne, et non sous le compte rendu de chargement, qui parle
+        # d'un passe assume.
+        self.label_geom_couches = texte_etat()
+        self.label_geom_couches.setWordWrap(True)
+        f2.addRow(self.label_geom_couches)
         v.addWidget(groupe_plan)
 
         # FENETRE DE SIMULATION.
@@ -2245,6 +2267,7 @@ class DialogueParametrage(QDialog):
             return
 
         self.crs_modele = reponse.get("crs") or "EPSG:2154"
+        self.geom_couches = numero_geom
         projet = QgsProject.instance()
 
         def remplacer(couche_existante, fabrique, *args):
@@ -4039,6 +4062,17 @@ class DialogueParametrage(QDialog):
             self.label_validation_cibles.setText(f"(illisible : {e})")
             return
         self.label_validation_classeur.setText(str(self.classeur))
+        # LA LIGNE DU HAUT NE PARLE PAS DE CE CLASSEUR-CI. Elle decrit le
+        # paquet COMPOSE — ses paires apport -> section, ses injections sans
+        # section en aval. Reprendre le classeur d'un autre calcul ne la
+        # recalcule pas : l'appariement se deduit des PK, donc des shapefiles
+        # du paquet, que la reprise n'a pas. Elle continuait donc d'annoncer
+        # les paires du precedent, avec ses noms, sous le chemin du nouveau.
+        if self.classeur_apparie and str(self.classeur) != self.classeur_apparie:
+            self.label_validation_comptes.setText(
+                "Classeur repris d'un autre calcul : l'appariement "
+                "apport → section affiché plus haut est celui du dernier "
+                "paquet composé, pas celui-ci. Recomposer pour le revoir.")
         manquantes = etat.get("manquantes") or []
         self.label_validation_cibles.setText(
             f"{etat['renseignees']}/{etat['total']} renseignée(s)"
@@ -4283,6 +4317,39 @@ class DialogueParametrage(QDialog):
 
     # --- resume, mis a jour a chaque changement pertinent -------------------
 
+    def _maj_alerte_couches(self):
+        """
+        Dit quand les couches a l'ecran ne viennent plus de la geometrie
+        retenue.
+
+        _changer_plan ne touche ni combo_zone_2d ni crs_modele. Ce ne sont
+        pourtant pas des comptes rendus dates comme label_couches : ce sont
+        des valeurs COURANTES, presentees comme telles au resume et
+        consommees a l'ecriture. Apres un changement de plan — ou de la
+        geometrie de surcharge — elles decrivent une AUTRE geometrie, et rien
+        ne le disait.
+
+        ON COMPARE DEUX NUMEROS DEJA EN MEMOIRE, on ne controle rien : le
+        greffon n'ecrit aucune regle de controle, c'est la chaine qui les
+        porte. Cocher « Choisir une geometrie differente » ne suffit d'ailleurs
+        pas a desynchroniser — _maj_mode_override preselectionne celle du plan.
+        """
+        if getattr(self, "label_geom_couches", None) is None:
+            return
+        if self.geom_couches is None:
+            dire(self.label_geom_couches, "")
+            return
+        courante = self._geometrie_effective()
+        if courante and courante != self.geom_couches:
+            dire(self.label_geom_couches,
+                 f"<span style='color:{ISL_ROUGE}'>⚠ Les couches affichées "
+                 f"viennent de la géométrie g{self.geom_couches}, la "
+                 f"géométrie retenue est maintenant g{courante} — zone 2D et "
+                 f"système de coordonnées datent de l'ancienne. Recharger les "
+                 f"couches du modèle.</span>")
+        else:
+            dire(self.label_geom_couches, "")
+
     def _maj_resume(self, *_):
         """
         Rafraichit le resume. Appele par des SIGNAUX, dont certains partent
@@ -4295,6 +4362,7 @@ class DialogueParametrage(QDialog):
         touche un objet C++ detruit. Un except Exception attraperait aussi
         les vraies fautes de logique, et les cacherait.
         """
+        self._maj_alerte_couches()
         try:
             self._composer_resume()
         except RuntimeError:
@@ -4507,6 +4575,8 @@ class DialogueParametrage(QDialog):
             self.classeur = str(noyau.preparer_classeur(
                 dossier_sortie, self.appariement["paires"],
                 self.paquet, parametres=parametres, pentes=pentes))
+            # L'APPARIEMENT AFFICHE PARLE DE CE CLASSEUR-CI, et de lui seul.
+            self.classeur_apparie = self.classeur
 
             # Les sous-dossiers de resultats existent des la composition :
             # l'utilisateur les voit, meme avant le premier calcul.

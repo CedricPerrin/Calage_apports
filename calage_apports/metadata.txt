@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.7.11
+version=0.7.12
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,22 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,KGE,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.7.11 — L'aide a un sommaire.
+changelog=0.7.12 — Deux écrans qui décrivaient un état révolu.
+    LES COUCHES NE VIENNENT PLUS FORCÉMENT DE LA GÉOMÉTRIE RETENUE, et
+    l'écran le dit. Changer de plan — ou la géométrie de surcharge — ne
+    touchait ni la zone 2D ni le système de coordonnées. Ce ne sont pourtant
+    pas des comptes rendus datés : ce sont des valeurs courantes, présentées
+    comme telles au résumé et consommées à l'écriture. Elles décrivaient
+    alors une autre géométrie, sans un mot. L'avertissement vit à côté du
+    champ concerné, et compare deux numéros déjà en mémoire — le greffon
+    n'écrit aucune règle de contrôle.
+    L'APPARIEMENT AFFICHÉ NE PRÉTEND PLUS DÉCRIRE UN CLASSEUR REPRIS. La
+    ligne du haut de l'onglet 4 décrit le paquet COMPOSÉ ; reprendre le
+    classeur d'un autre calcul ne la recalcule pas — l'appariement se déduit
+    des PK, donc des shapefiles du paquet, que la reprise n'a pas. Elle
+    continuait d'annoncer les paires du précédent, avec ses noms, sous le
+    chemin du nouveau.
+    0.7.11 — L'aide a un sommaire.
     Dix sections et plus de dix mille caractères, sans un seul lien : le
     commentaire d'introduction de cet onglet dit lui-même qu'« une aide qu'on
     fait défiler n'est pas lue davantage qu'une aide absente », et il n'y

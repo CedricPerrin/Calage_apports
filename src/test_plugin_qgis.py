@@ -603,6 +603,41 @@ else:
                  == len(dlg.appariement["paires"]),
                  f"{len(dlg.appariement['paires'])} paire(s)")
 
+        # --- LES COUCHES NE VIENNENT PLUS DE LA GEOMETRIE RETENUE ----------
+        # Zone 2D et CRS ne sont pas des comptes rendus dates : ce sont des
+        # valeurs courantes, consommees a l'ecriture. Changer de plan ne les
+        # touche pas — elles datent alors d'une AUTRE geometrie.
+        _geom_vraie = dlg.geom_couches
+        verifier("aucune alerte tant que les couches suivent la geometrie",
+                 not dlg.label_geom_couches.text(),
+                 dlg.label_geom_couches.text()[:60] or "(vide)")
+        dlg.geom_couches = "99"          # comme si le plan avait change depuis
+        dlg._maj_alerte_couches()
+        verifier("des qu'elles en viennent d'une autre, l'ecran le DIT",
+                 "⚠" in dlg.label_geom_couches.text()
+                 and "g99" in dlg.label_geom_couches.text(),
+                 re.sub("<[^>]+>", "", dlg.label_geom_couches.text())[:80])
+        dlg.geom_couches = _geom_vraie
+        dlg._maj_alerte_couches()
+        verifier("et l'alerte disparait quand elles se raccordent",
+                 not dlg.label_geom_couches.text())
+
+        # --- L'APPARIEMENT AFFICHE NE PARLE PAS DU CLASSEUR REPRIS ---------
+        # La ligne du haut decrit le paquet COMPOSE. Reprendre le classeur
+        # d'un autre calcul ne la recalcule pas : elle annonçait les paires du
+        # precedent, avec ses noms, sous le chemin du nouveau.
+        _apparie = dlg.classeur_apparie
+        verifier("apres composition, l'appariement parle du classeur compose",
+                 dlg.classeur_apparie == str(dlg.classeur),
+                 f"{dlg.classeur_apparie}")
+        dlg.classeur_apparie = str(dlg.classeur) + ".un_autre.xlsx"
+        dlg._maj_onglet_validation_depuis_classeur()
+        verifier("repris d'un AUTRE calcul, l'ecran cesse de l'affirmer",
+                 "autre calcul" in dlg.label_validation_comptes.text(),
+                 dlg.label_validation_comptes.text()[:80])
+        dlg.classeur_apparie = _apparie
+        dlg._maj_onglet_validation_depuis_classeur()
+
         # Reproduit exactement ce que fait PluginCalage.composer() une fois la
         # fenetre fermee : recuperer classeur/paquet sur l'objet plugin, pour
         # que les actions 2, 3 et 4 continuent d'y acceder ensuite.
