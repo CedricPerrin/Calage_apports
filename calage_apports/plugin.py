@@ -2543,23 +2543,28 @@ class DialogueParametrage(QDialog):
         return groupe_param
 
     def _groupe_classeur(self):
-        groupe_actions = QGroupBox("Classeur")
+        # « EXCEL DES HYDROGRAMMES OBJECTIFS », ET NON « CLASSEUR ». Le mot
+        # « classeur » est celui du CODE et de la chaine, ou il designe un
+        # format ; a l'ecran il ne dit ni ce que le fichier contient, ni a
+        # quoi il sert. L'utilisateur, lui, y vient pour une chose : saisir
+        # les hydrogrammes qu'il vise. Le nom le dit maintenant.
+        groupe_actions = QGroupBox("Excel des hydrogrammes objectifs")
         v_classeur = QVBoxLayout(groupe_actions)
         v_classeur.setSpacing(8)
         ligne_classeur = QHBoxLayout()
         ligne_classeur.setSpacing(8)
-        bouton_ouvrir = QPushButton("Ouvrir le classeur…")
+        bouton_ouvrir = QPushButton("Ouvrir l'Excel…")
         bouton_ouvrir.setToolTip(
             "C'est dans sa feuille Cibles que se saisissent les hydrogrammes "
-            "visés, une colonne par section.")
+            "objectifs, une colonne par section.")
         bouton_ouvrir.clicked.connect(self._ouvrir_classeur)
         ligne_classeur.addWidget(bouton_ouvrir)
         bouton_recontroler = QPushButton(
-            "Reprendre un classeur d'un calcul précédent…")
+            "Reprendre l'Excel d'un calcul précédent…")
         bouton_recontroler.setToolTip(
-            "Rejoue tous les contrôles sur un classeur composé lors d'une "
+            "Rejoue tous les contrôles sur un fichier composé lors d'une "
             "autre session, sans rien recomposer. Les chemins des shapefiles "
-            "sont relus dans le classeur lui-même.")
+            "y sont relus.")
         bouton_recontroler.clicked.connect(self._recontroler_classeur)
         ligne_classeur.addWidget(bouton_recontroler)
         ligne_classeur.addStretch(1)
@@ -2852,7 +2857,11 @@ class DialogueParametrage(QDialog):
         self.label_validation_classeur.setWordWrap(True)
         self.label_validation_classeur.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse)
-        f.addRow("Classeur :", self.label_validation_classeur)
+        # LE MEME FICHIER PORTE LE MEME NOM D'UN ONGLET A L'AUTRE. L'onglet 2
+        # l'appelle « Excel des hydrogrammes objectifs » ; le laisser
+        # « Classeur » ici donnerait a lire deux fichiers la ou il n'y en a
+        # qu'un.
+        f.addRow("Excel des objectifs :", self.label_validation_classeur)
         self.label_validation_cibles = QLabel("(pas encore composé)")
         self.label_validation_cibles.setWordWrap(True)
         f.addRow("Hydrogrammes cibles :", self.label_validation_cibles)
