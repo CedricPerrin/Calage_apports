@@ -576,7 +576,15 @@ src/verification_environnement.py:232:12  F401 `ras_commander` imported but unus
 **Correctif** : 2 suppressions, 1 sonde débaptisée, 1 `noqa`. Les bancs des
 quatre modules le prouvent.
 
-#### P2-9 · `ModeleResiduelDecale` — classe définie, jamais instanciée
+#### P2-9 · `ModeleResiduelDecale` — classe définie, jamais instanciée — ✅ **retirée le 6 septembre 2026**
+
+**Tranché : retirée.** Du code que rien n'appelle vieillit sans que rien ne
+l'éprouve, et donne à croire qu'un cas est couvert. Elle datait d'une époque
+où ce cas s'éprouvait en faisant tourner un calage complet ; les deux
+contrôles qui la suivaient ont depuis été ramenés à ce qu'ils vérifient
+vraiment — `decalage_minimisant_ecart` et `ecart_a_la_cible`, deux fonctions
+**pures**, sans modèle ni boucle. Un commentaire garde la trace ; git garde
+le code. Test de caractérisation resté `identique`.
 
 ```
 $ grep -rn "ModeleResiduelDecale" --include=*.py .

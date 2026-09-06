@@ -2837,31 +2837,14 @@ if __name__ == "__main__":
     # depuis l'amont non cale, independant de l'apport qu'on cale. Modele
     # minimal qui le reproduit : le residuel est un signal FIXE, deja decale
     # de la cible, et l'apport s'y ajoute SANS retard propre.
-    class ModeleResiduelDecale(Modele):
-        def __init__(self, temps, residuel, forme_initiale):
-            self.temps = np.asarray(temps, dtype=float)
-            self.residuel = np.asarray(residuel, dtype=float)
-            self.forme = np.asarray(forme_initiale, dtype=float)
-            self.facteur = 0.0
-
-        def preparer(self):
-            self.facteur = 0.0
-
-        def forme_apport(self, nom_apport):
-            return self.temps, self.forme
-
-        def appliquer_facteur(self, nom_apport, facteur):
-            self.facteur = float(facteur)
-
-        def definir_forme(self, nom_apport, temps_h, debits):
-            self.forme = np.interp(self.temps, np.asarray(temps_h, dtype=float),
-                                   np.asarray(debits, dtype=float))
-
-        def calculer(self):
-            return ResultatCalcul(reussi=True)
-
-        def lire_section(self, nom_section):
-            return self.temps, self.residuel + self.facteur * self.forme
+    # UNE CLASSE ModeleResiduelDecale VIVAIT ICI, ET N'A JAMAIS ETE
+    # INSTANCIEE (P2-9 de AUDIT.md). Elle datait d'une epoque ou ce cas
+    # s'eprouvait en faisant tourner un calage complet ; les deux controles
+    # ci-dessous ont depuis ete ramenes a ce qu'ils verifient vraiment —
+    # decalage_minimisant_ecart et ecart_a_la_cible, deux fonctions PURES,
+    # sans modele ni boucle. Elle est retiree : du code que rien n'appelle
+    # vieillit sans que rien ne l'eprouve, et donne a croire qu'un cas est
+    # couvert. Git la garde si elle devait resservir.
 
     _t3 = np.linspace(0.0, 20.0, 201)
     _pic3 = lambda t0, a: a * np.exp(-((_t3 - t0) ** 2) / 2.0)  # noqa: E731
