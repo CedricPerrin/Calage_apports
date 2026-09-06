@@ -17,6 +17,9 @@ onglets — l'ordre des onglets est celui des décisions.
 | 5. Suivi | où en est le calcul : apport en cours, essai, atteinte du volume, de la pointe et de la forme, courbes cible et section, temps restant. Se rafraîchit tout seul tant qu'il est affiché. Le dossier surveillé est celui que désigne le **classeur lancé** — pas celui de l'onglet 3 — et il est nommé **en permanence** sous la bannière, y compris pendant que le calage tourne |
 | Aide et configuration | mode opératoire, pièges connus, et les deux emplacements du poste — chaîne de calage et interpréteur HEC-RAS |
 
+**Les six onglets sont en images** dans le README du dépôt, section « La
+fenêtre du greffon » — une capture par onglet, prises sur la version 0.7.13.
+
 Le bouton **Écrire, composer et contrôler**, permanent en bas de la fenêtre, écrit les
 shapefiles normalisés et un classeur **pré-rempli**, puis lance tous les
 contrôles — PK, ordre déclaré, position des apports — et ajoute une **couche

@@ -91,7 +91,7 @@ et six apports, **vingt-quatre en tout**, zéro incident. La plupart ont converg
 en un ou deux essais. Ce qu'ils ont appris est aux sections 5.6 et 5.7 de
 `STATUT.txt`.
 
-**Plugin QGIS en 0.7.9.** Ses six onglets suivent l'ordre des décisions :
+**Plugin QGIS en 0.7.13.** Ses six onglets suivent l'ordre des décisions :
 Modèle, Objectifs et précision, Résultats, Lancer, Suivi, Aide et
 configuration.
 
@@ -119,6 +119,56 @@ d'hydraulicien, pas de code.
 c'est la référence à jour, plus fiable que ce README pour le détail.
 [CHECKPOINT.md](CHECKPOINT.md) est le point de reprise entre sessions de
 travail.
+
+## La fenêtre du greffon
+
+Six onglets, dans l'ordre des décisions. Captures prises sur la version
+0.7.13, modèle d'exemple, chemins neutralisés.
+
+### 1. Modèle
+Le projet HEC-RAS — **on désigne le fichier `.prj`, pas le dossier** —, le
+plan de référence, la géométrie, la zone 2D, l'axe hydraulique et la fenêtre
+de simulation. C'est aussi d'ici que les couches du modèle arrivent sur la
+carte, éditables.
+
+![Onglet 1 — Modèle](docs/captures/onglet_1_modele.png)
+
+### 2. Objectifs et précision
+Ce qu'on vise et avec quoi : l'**écart admis** sur le volume et sur le débit
+de pointe — le résultat, lui, se lit en pourcentage d'atteinte de la cible —,
+le nombre maximal d'essais, et le classeur où se saisissent les hydrogrammes.
+
+![Onglet 2 — Objectifs et précision](docs/captures/onglet_2_objectifs.png)
+
+### 3. Résultats
+Dossiers de sortie et de suivi, relecture d'un hydrogramme déjà calculé, et
+le résumé de toute la configuration.
+
+![Onglet 3 — Résultats](docs/captures/onglet_3_resultats.png)
+
+### 4. Lancer
+L'appariement apport → section, l'état des cibles, le premier apport à caler
+et le **préfixe de scénario** — sans lui, caler le Q10 après le Q100 sur le
+même modèle efface les plans du Q100.
+
+![Onglet 4 — Lancer](docs/captures/onglet_4_lancer.png)
+
+### 5. Suivi
+Où en est le calcul, apport par apport, rafraîchi tout seul. Le dossier
+surveillé est nommé en permanence : c'est celui que désigne le **classeur
+lancé**, pas celui de l'onglet 3.
+
+![Onglet 5 — Suivi](docs/captures/onglet_5_suivi.png)
+
+### Aide et configuration
+Le mode opératoire, avec un sommaire pour l'atteindre, les pièges connus, et
+les deux emplacements du poste — chaîne de calage et interpréteur HEC-RAS.
+
+![Onglet Aide et configuration](docs/captures/onglet_6_aide.png)
+
+Le bouton **« Écrire, composer et contrôler »**, permanent en bas, nomme les
+trois choses qu'il fait, dans l'ordre où il les fait — et la première,
+l'écriture dans la géométrie HEC-RAS, est la seule irréversible.
 
 ## Licence
 
