@@ -281,8 +281,20 @@ if ESSAI.exists():
 ESSAI.mkdir(parents=True)
 
 
-def couche(nom, geometries, noms):
-    c = QgsVectorLayer("LineString?crs=EPSG:2154", nom, "memory")
+def couche(nom, geometries, noms, crs="EPSG:2154"):
+    """
+    Couche memoire de lignes. LE CRS SE PASSE, il ne se suppose pas.
+
+    Le defaut Lambert-93 convient aux geometries inventees par ce banc, dont
+    les coordonnees sont ecrites pour la France. Il ne convient PAS a une
+    couche batie sur les coordonnees REELLES d'un modele : declarees dans le
+    mauvais systeme, elles sortent de son domaine de validite et la
+    reprojection rend des valeurs non finies — « Coordinates with non-finite
+    values are not allowed », sur l'exemple Muncie qui est dans l'Indiana
+    (releve le 06/09/2026). L'axe hydraulique se construit donc dans le CRS
+    du modele, que la fenetre connait.
+    """
+    c = QgsVectorLayer(f"LineString?crs={crs}", nom, "memory")
     c.dataProvider().addAttributes([QgsField("nom", QMetaType.Type.QString)])
     c.updateFields()
     entites = []
@@ -394,10 +406,23 @@ else:
     centroides = sorted(
         (e.geometry().centroid().asPoint() for e in dlg.couche_injections.getFeatures()),
         key=lambda pt: pt.y())
-    axe_modele = LineString([(pt.x(), pt.y()) for pt in centroides])
+    if len(centroides) >= 2:
+        axe_modele = LineString([(pt.x(), pt.y()) for pt in centroides])
+    else:
+        # UN SEUL APPORT NE DEFINIT PAS D'AXE, et shapely refuse une
+        # LineString a un point : « point array must contain 0 or >1
+        # elements ». Le cas est legitime — un modele d'essai minimal porte
+        # une ligne d'injection et une ligne de reference — et arretait
+        # pourtant toute la suite au sixieme controle (releve le 06/09/2026
+        # sur le plan TEST de Muncie). On prolonge donc de part et d'autre du
+        # centroide unique, dans le sens que la suite de ce bloc suppose deja
+        # (l'axe monte en Y, les sections se posent 30 m au nord).
+        _pt = centroides[0]
+        axe_modele = LineString([(_pt.x(), _pt.y() - 500),
+                                 (_pt.x(), _pt.y() + 500)])
     for c in QgsProject.instance().mapLayersByName("Axe"):
         QgsProject.instance().removeMapLayer(c.id())
-    couche("Axe", [axe_modele], ["Axe"])
+    couche("Axe", [axe_modele], ["Axe"], crs=dlg.crs_modele or "EPSG:2154")
 
     _sections_posees_par_le_test = (dlg.couche_sections.featureCount() == 0
                                     and bool(n_apports))
