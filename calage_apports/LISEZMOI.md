@@ -14,7 +14,7 @@ onglets — l'ordre des onglets est celui des décisions.
 | 2. Objectifs et précision | ce qu'on vise et avec quoi : précision attendue sur le volume et sur le débit de pointe, nombre maximal d'essais, et le **classeur** où se saisissent les hydrogrammes cibles (ouverture, reprise d'un calcul précédent, pente des apports) |
 | 3. Résultats | dossiers de sortie et de suivi, relecture d'un hydrogramme calculé (export CSV), résumé de la configuration |
 | 4. Lancer | appariement apport → section, état des cibles, premier apport à caler, **préfixe de scénario** (« Q100 » : sans lui, caler le Q10 après le Q100 sur le même modèle efface les plans du Q100), **lancement du calage** en arrière-plan |
-| 5. Suivi | où en est le calcul : apport en cours, essai, atteinte du volume, de la pointe et de la forme, courbes cible et section, temps restant. Se rafraîchit tout seul tant qu'il est affiché. Le dossier surveillé est celui que désigne le **classeur lancé** — pas celui de l'onglet 3 — et la bannière le nomme |
+| 5. Suivi | où en est le calcul : apport en cours, essai, atteinte du volume, de la pointe et de la forme, courbes cible et section, temps restant. Se rafraîchit tout seul tant qu'il est affiché. Le dossier surveillé est celui que désigne le **classeur lancé** — pas celui de l'onglet 3 — et il est nommé **en permanence** sous la bannière, y compris pendant que le calage tourne |
 | Aide et configuration | mode opératoire, pièges connus, et les deux emplacements du poste — chaîne de calage et interpréteur HEC-RAS |
 
 Le bouton **Écrire, composer et contrôler**, permanent en bas de la fenêtre, écrit les
@@ -239,9 +239,33 @@ colonne de temps remplie de **dates** le passait — et le calcul mourait plus
 loin en réclamant 536 Gio de mémoire ; le refus de recomposer cherchait sa
 preuve dans la ligne d'en-tête, c'est-à-dire dans ce que l'accident détruit ;
 et « Lancer quand même » proposait un calage que la chaîne refuse de toute
-façon. Ce dernier point touche la fenêtre : **les 152 contrôles sous QGIS sont
-à repasser.**
+façon.
 
-> Ce que ces deux calages n'ont PAS rencontré : un volume plancher, un apport
-> refusé, un modèle incohérent. Les garde-fous qui traitent ces cas n'ont donc
-> été éprouvés qu'au banc.
+**Le 6 septembre 2026, la suite est passée de bout en bout sur un poste
+neuf : 165 contrôles, aucun échec**, avec un modèle et un interpréteur
+HEC-RAS. Elle n'y arrivait pas, et ce n'était pas le greffon : **sept
+défauts du banc** l'en empêchaient, tous du même motif — *il supposait le
+modèle et le poste de son auteur*. Un chemin de suivi figé au lieu de celui
+que la fenêtre surveille (seize faux échecs, puis un plantage), un
+garde-fou qui plantait faute de son fichier de configuration, un modèle
+sans objets de calage qui emportait la suite, une date de fenêtre codée en
+dur, un axe impossible à bâtir sur un apport unique, `EPSG:2154` déclaré en
+dur pour des coordonnées réelles — sur un modèle de l'Indiana, la
+reprojection rendait « Coordinates with non-finite values are not
+allowed » —, et le chemin de QGIS supposé sous `QGIS\LTR`.
+
+Le même jour, le bouton **« Installer l'environnement Python HEC-RAS »** a
+été mené à bout pour la première fois, **depuis QGIS** et par ses deux
+chemins — création à partir de rien, et reprise d'un environnement
+présent. Douze paquets posés et vérifiés en 56 s. C'est le lancement depuis
+QGIS qui comptait : c'est là, et nulle part ailleurs, que son environnement
+fuyait dans les sous-processus de pip.
+
+Et **l'ergonomie de la fenêtre a été relue** — six lectures indépendantes,
+puis une passe de réfutation. Onze constats corrigés, des versions 0.7.1 à
+0.7.9 ; le détail est dans `docs/ergonomie_2026-09-06.md`, y compris ce
+qu'il ne faut **pas** toucher.
+
+> Ce que les calages livrés n'ont PAS rencontré : un volume plancher, un
+> apport refusé, un modèle incohérent. Les garde-fous qui traitent ces cas
+> n'ont donc été éprouvés qu'au banc.
