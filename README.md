@@ -14,6 +14,7 @@ déclinaison HEC-RAS vit dans [src/pilote_hecras.py](src/pilote_hecras.py).
 ## Démarrage
 
 ```bat
+REM Un Python ORDINAIRE — surtout pas celui de QGIS : voir plus bas.
 pip install -r requirements-dev.txt
 cd src
 python verification_environnement.py
@@ -27,6 +28,21 @@ viennent de l'installation QGIS.
 `verification_environnement.py` vérifie ensuite tout ce qui est nécessaire à
 la mise en œuvre (interpréteurs, dépendances, fichiers du projet) et
 diagnostique les manques.
+
+> **Avec quel Python ?** La question n'est pas de forme : ce dépôt en côtoie
+> trois, et les confondre donne des diagnostics qui ressemblent à des pannes.
+>
+> | à lancer | avec quoi | pourquoi |
+> |---|---|---|
+> | `verification_environnement.py` | un Python **ordinaire** (ou celui du `venv-hecras`) | il sonde `ras-commander`, que le Python de QGIS ne peut pas importer |
+> | `test_plugin_qgis.py` | le **Python de QGIS** (`python-qgis-ltr.bat`) | il construit la fenêtre du greffon, donc il lui faut `qgis.core` |
+> | les auto-tests de `src/*.py` | l'un ou l'autre, selon leurs imports | `calage.py` et `criteres.py` n'ont besoin que de la chaîne |
+>
+> Lancé sous le Python de QGIS, `verification_environnement.py` rend
+> `DLL load failed while importing _errors` sur `ras-commander`. **Ce n'est
+> pas une panne** : c'est exactement la séparation que le projet impose —
+> QGIS embarque sa propre bibliothèque HDF5, et `h5py` y est inutilisable.
+> Le message a l'air d'un défaut d'installation ; il n'en est pas un.
 
 Pour saisir les données d'un calage, partir de
 [template_donnees_calage.xlsx](template_donnees_calage.xlsx) (produit par
