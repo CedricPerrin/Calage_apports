@@ -1583,6 +1583,34 @@ class DialogueParametrage(QDialog):
         # afficherait l'etat vieux de la derniere visite pendant deux secondes.
         self.onglets.currentChanged.connect(self._changer_onglet)
 
+        # LE PLANCHER DE LARGEUR S'ADAPTE A CE QUE LA BARRE D'ONGLETS DEMANDE.
+        #
+        # Ce qui empeche la barre de defiler — et de tronquer le premier
+        # onglet — n'est pas la brievete des libelles, contrairement a ce que
+        # dit le commentaire plus haut : c'est le plancher pose par
+        # setMinimumSize(). Or c'etait un nombre fixe, qu'on esperait
+        # suffisant.
+        #
+        # Il s'est deja resserre sans que personne le voie : 529 px de besoin
+        # en 0.6.9, 663 px en 0.7.0 apres le renommage de deux onglets, pour
+        # 696 px disponibles a 720 px de fenetre — de +167 px a +33 px. Et
+        # sous une police d'interface plus grande (autre theme Windows,
+        # reglage d'accessibilite, autre mise a l'echelle), la meme barre
+        # demande 877 px : elle DEFILE, et le premier onglet est tronque.
+        #
+        # Plutot qu'un nombre a reverifier a chaque renommage, on demande a la
+        # barre ce qu'il lui faut. L'invariante devient vraie par
+        # construction, sur toute police et toute mise a l'echelle — et un
+        # libelle trop long elargit la fenetre au lieu de disparaitre.
+        self.onglets.tabBar().ensurePolished()
+        _marges = agencement.contentsMargins()
+        _besoin = (self.onglets.tabBar().sizeHint().width()
+                   + _marges.left() + _marges.right())
+        if _besoin > self.minimumWidth():
+            self.setMinimumWidth(_besoin)
+            if _besoin > self.width():
+                self.resize(_besoin, self.height())
+
         # Fil conducteur permanent : a tout moment on sait ou on en est et ce
         # qui vient ensuite, sans avoir a parcourir les onglets.
         self.label_fil = QLabel()

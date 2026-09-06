@@ -933,6 +933,31 @@ else:
 print("\n6. ONGLET AIDE — CONTENU ET DIAGNOSTIC")
 verifier("6 onglets, dont le suivi et l'aide", dlg.onglets.count() == 6,
          [dlg.onglets.tabText(i) for i in range(dlg.onglets.count())])
+# LA BARRE D'ONGLETS NE DOIT PAS DEFILER, ET CE N'EST PAS LA BRIEVETE DES
+# LIBELLES QUI L'ASSURE — c'est le plancher minimumWidth de la fenetre.
+#
+# Un commentaire de plugin.py attribue la garantie aux « libelles COURTS ».
+# La mesure dit autre chose : le minimumSizeHint de l'agencement descendrait
+# bien plus bas, et c'est le minimumWidth explicite qui retient la barre. Le
+# controle porte donc sur l'invariante reelle — ce que les onglets DEMANDENT
+# contre ce que la fenetre peut leur donner au plus etroit — et non sur une
+# longueur de texte, qui ne protege rien.
+#
+# La marge s'est deja resserree sans que personne le voie : 529 px de besoin
+# en 0.6.9, 663 px en 0.7.0 apres le renommage de deux onglets, pour 696 px
+# disponibles. De +167 px a +33 px. Ce controle existe pour que le prochain
+# renommage se voie ici, et pas sur l'ecran d'un utilisateur.
+dlg.ensurePolished()
+_barre = dlg.onglets.tabBar(); _barre.ensurePolished()
+_marges = dlg.layout().contentsMargins()
+_besoin = _barre.sizeHint().width()
+_dispo = (max(dlg.minimumSizeHint().width(), dlg.minimumWidth())
+          - _marges.left() - _marges.right())
+verifier("la barre d'onglets ne defile pas, meme au plus etroit",
+         _besoin <= _dispo,
+         f"besoin {_besoin} px / disponible {_dispo} px "
+         f"(marge {_dispo - _besoin:+} px ; plancher "
+         f"minimumWidth={dlg.minimumWidth()} px)")
 # LES RANGS NOMMES TOMBENT SUR LEUR ONGLET. Deux methodes basculent d'onglet
 # apres une action ; un indice devenu faux ferait afficher l'onglet voisin sans
 # que rien ne le signale — Qt ne s'en plaint pas.
