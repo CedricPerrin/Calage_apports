@@ -474,6 +474,19 @@ print("     reference line et d'un apport interne, la mise a l'echelle et la")
 print("     relecture des deux. Les pieges rencontres et les defauts corriges")
 print("     a cette occasion sont listes dans STATUT.txt, et chacun est fige")
 print("     par un test.")
+# LE BOUTON « INSTALLER... » A ETE MENE A BOUT LE 06/09/2026, et il figurait
+# jusque-la trois lignes plus bas, sous « RESTE A EPROUVER ». C'est le
+# LANCEMENT DEPUIS QGIS qui compte : c'est la, et nulle part ailleurs, que le
+# PYTHONHOME et le PYTHONPATH du greffon fuyaient dans les sous-processus de
+# l'installeur — pip voyait alors les paquets de QGIS, les tenait pour
+# « already satisfied », n'en posait aucun, et rendait 0. Le meme essai lance
+# depuis une invite de commandes ne prouve rien, parce qu'il n'a pas cet
+# environnement a assainir.
+print("   - le bouton « Installer l'environnement Python HEC-RAS », de bout en")
+print("     bout et DEPUIS QGIS, le 06/09/2026 sur un poste neuf : creation du")
+print("     venv, pose des 12 paquets, verification, 56 s. Les deux chemins")
+print("     sont couverts — creation a partir de rien, et reprise d'un")
+print("     environnement deja present.")
 print("\nRESTE A EPROUVER :")
 # CE TEXTE A ETE VRAI, ET IL A CESSE DE L'ETRE SANS QUE PERSONNE NE LE
 # REECRIVE. Il annonçait « seul un apport unique a ete cale de bout en bout »
@@ -482,9 +495,6 @@ print("\nRESTE A EPROUVER :")
 # nouvel arrivant : il y lisait que la chaine n'avait jamais enchaine deux
 # apports. L'etat courant vit dans STATUT.txt section 1, et c'est lui qui fait
 # foi ; ce qui suit ne dit que ce qui MANQUE encore.
-print("   - le bouton « Installer l'environnement Python HEC-RAS » n'est alle")
-print("     jusqu'au bout sur aucun poste : seul son refus d'un python")
-print("     inexistant est couvert par un banc.")
 print("   - les garde-fous du volume plancher, de l'apport refuse et du modele")
 print("     incoherent n'ont ete eprouves QU'AU BANC : aucun des trois calages")
 print("     reels ne les a rencontres.")
