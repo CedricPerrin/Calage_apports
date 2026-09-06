@@ -1517,6 +1517,19 @@ class DialogueParametrage(QDialog):
         self.resize(880, 720)
         self.setMinimumSize(720, 520)
 
+        # CE QU'ON RETIENT DU DERNIER LANCEMENT, et pourquoi. _lancer_calage
+        # recevait le PID et le chemin du journal, les mettait dans un texte,
+        # et les perdait. Trois affichages mentaient faute de cette donnee :
+        # l'onglet 5 peignait l'etat du calage PRECEDENT comme reponse au
+        # lancement qui venait d'aboutir ; il promettait « quelques secondes
+        # apres le lancement » y compris devant un processus mort au
+        # demarrage ; et le fil conducteur ordonnait « lancer » pendant les
+        # heures du calcul. Une seule donnee, trois mensonges.
+        #   EN MEMOIRE, JAMAIS DANS QSettings : celui-ci est attache au PROFIL
+        #   QGIS et non au projet. Restaurer un lancement d'une autre etude
+        #   couterait plus cher que ce qu'on repare.
+        self.pid_lance = None
+        self.journal_lance = None
         self.info_projet = None      # resultat de noyau.lister_projet_hecras
         self.version_hecras = None   # lue dans les fichiers, jamais saisie
         self.appariement = None      # apports <-> sections, deduit des PK
@@ -1748,11 +1761,24 @@ class DialogueParametrage(QDialog):
              else f"<span style='color:{ISL_ARDOISE_CLAIR}'>○ {nom}</span>")
             for nom, ok in etapes]
         suivante = next((nom for nom, ok in etapes if not ok), None)
-        fin = (f"<b style='color:{ISL_VERT}'>tout est prêt</b> "
-               f"<span style='color:{ISL_ARDOISE}'>— renseigner les cibles "
-               f"puis lancer (onglet 4)</span>" if suivante is None
-               else f"<span style='color:{ISL_ARDOISE}'>étape suivante : "
-                    f"<b>{suivante}</b></span>")
+        # LE FIL NE DIT PLUS « LANCER » PENDANT QU'UN CALAGE TOURNE. Il est le
+        # seul repere permanent de la fenetre, et il continuait d'ordonner
+        # « renseigner les cibles puis lancer » pendant les HEURES du calcul.
+        #   LE DRAPEAU VIENT DE LA MEMOIRE, JAMAIS D'UN FICHIER : _maj_fil part
+        #   de _composer_resume, declenche a CHAQUE FRAPPE dans le champ du
+        #   dossier de sortie, et le classeur est le plus souvent sur un
+        #   partage reseau. Y lire l'etat du calage rendrait la saisie poussive.
+        if self.pid_lance:
+            fin = (f"<b style='color:{ISL_TEAL}'>calage lancé</b> "
+                   f"<span style='color:{ISL_ARDOISE}'>— processus "
+                   f"{self.pid_lance}, suivre l'avancement (onglet 5)</span>")
+        elif suivante is None:
+            fin = (f"<b style='color:{ISL_VERT}'>tout est prêt</b> "
+                   f"<span style='color:{ISL_ARDOISE}'>— renseigner les cibles "
+                   f"puis lancer (onglet 4)</span>")
+        else:
+            fin = (f"<span style='color:{ISL_ARDOISE}'>étape suivante : "
+                   f"<b>{suivante}</b></span>")
         separateur = f"<span style='color:{ISL_ARDOISE_CLAIR}'> · </span>"
         self.label_fil.setText(separateur.join(faits)
                                + f"{separateur}&nbsp; {fin}")
@@ -3177,14 +3203,51 @@ class DialogueParametrage(QDialog):
         dossier = self._dossier_suivi()
         etat = noyau.lire_avancement(dossier) if dossier else None
 
-        if etat is None:
+        # L'ETAT LU EST-IL CELUI DU CALAGE QU'ON VIENT DE LANCER ? Apres un
+        # relancement, le dossier porte encore l'avancement.json du calage
+        # PRECEDENT tant que le nouveau n'a pas ecrit le sien : on peignait
+        # « Calage terminé — conforme » ou « Calage interrompu » comme reponse
+        # au lancement qui venait d'aboutir. La comparaison des PID suffit.
+        perime = bool(self.pid_lance and etat
+                      and etat.get("pid") and etat.get("pid") != self.pid_lance)
+
+        if etat is None or perime:
             # LE DOSSIER SURVEILLE EST NOMME : un suivi muet parce qu'il
             # regardait le mauvais dossier ne se distinguait en rien d'un
             # calage pas encore parti.
+            #
+            # ET « PAS ENCORE DEMARRE » SE DISTINGUE DE « MORT AU DEMARRAGE ».
+            # Cette branche promettait « quelques secondes après le
+            # lancement » POUR TOUJOURS, y compris devant un sous-processus
+            # mort avant d'avoir rien ecrit — cas des refus precoces, qui
+            # rendent la main avant que suivi.py n'ecrive son premier etat. Et
+            # le seul document qui dit pourquoi, le journal de lancement, ne
+            # se lisait que dans une boite d'information depuis longtemps
+            # fermee.
+            titre, glyphe, couleur = "Aucun calage suivi", "·", ISL_ARDOISE_CLAIR
+            detail = ("Le suivi apparaît ici dès que le calage écrit son "
+                      "premier état, quelques secondes après le lancement.")
+            if self.pid_lance:
+                journal = (f"<br>Journal de lancement : {self.journal_lance}"
+                           if self.journal_lance else "")
+                if noyau.processus_vivant(self.pid_lance) is False:
+                    titre, glyphe, couleur = (
+                        "Calage arrêté sans avoir rien écrit", "✕", ISL_ROUGE)
+                    detail = (f"Le processus {self.pid_lance} n'existe plus et "
+                              f"aucun état n'a été écrit : le calage est mort "
+                              f"au démarrage." + journal)
+                else:
+                    detail = (f"Calage lancé (processus {self.pid_lance}) — le "
+                              f"suivi apparaît ici dès qu'il écrit son premier "
+                              f"état." + journal)
+            if perime:
+                detail += (f"<br>Le dossier porte encore l'état d'un calage "
+                           f"précédent (processus {etat.get('pid')}) : il n'est "
+                           f"pas affiché, pour ne pas se lire comme celui du "
+                           f"calage en cours.")
             self._banniere(
-                ISL_ARDOISE_CLAIR, "Aucun calage suivi", glyphe="·",
-                detail="Le suivi apparaît ici dès que le calage écrit son "
-                       "premier état, quelques secondes après le lancement."
+                couleur, titre, glyphe=glyphe,
+                detail=detail
                        + (f"<br>Dossier surveillé ({self._origine_dossier_suivi()}) "
                           f": {dossier}" if dossier else "")
                        + self._detail_desaccord_suivi(dossier))
@@ -4016,6 +4079,11 @@ class DialogueParametrage(QDialog):
             journaliser("Lancement du calage", e)
             QMessageBox.critical(self, "Lancement du calage", str(e))
             return
+        # ON RETIENT LE LANCEMENT — voir le commentaire de pid_lance. Sans
+        # cela, ces deux valeurs ne vivaient que le temps d'une boite
+        # d'information, et trois affichages mentaient ensuite faute d'elles.
+        self.pid_lance = info.get("pid")
+        self.journal_lance = info.get("journal")
         # LIBELLES : « Échec au démarrage : <chemin> » se lisait comme une
         # annonce d'échec alors que le calage venait de partir. Un chemin ne
         # doit jamais être introduit par un mot qui décrit un état.

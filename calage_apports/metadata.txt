@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.7.7
+version=0.7.8
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,27 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,KGE,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.7.7 — Le bouton principal nomme les trois choses qu'il fait.
+changelog=0.7.8 — Trois affichages du suivi cessent de mentir, pour une seule donnée retenue.
+    Le lancement recevait le PID du calage et le chemin de son journal, les
+    mettait dans une boîte d'information, et les perdait. Trois choses en
+    dépendaient sans l'avoir.
+    APRÈS UN RELANCEMENT, l'onglet 5 peignait l'état du calage PRÉCÉDENT —
+    « Calage terminé — conforme », ou « interrompu » — comme réponse au
+    lancement qui venait d'aboutir : le nouveau calcul n'a pas encore écrit
+    son état, et l'ancien fichier est toujours là. La comparaison des
+    processus suffit à le dire, et l'état périmé n'est plus affiché.
+    « PAS ENCORE DÉMARRÉ » SE DISTINGUE DE « MORT AU DÉMARRAGE ». La bannière
+    promettait « quelques secondes après le lancement » pour toujours, y
+    compris devant un sous-processus mort avant d'avoir rien écrit. Elle dit
+    désormais lequel des deux, et NOMME le journal de lancement — le seul
+    document qui explique pourquoi.
+    LE FIL CONDUCTEUR N'ORDONNE PLUS « LANCER » pendant les heures du calcul.
+    Il est le seul repère permanent de la fenêtre. Le drapeau vient de la
+    mémoire et jamais d'un fichier : le fil se recalcule à chaque frappe, et
+    le classeur est souvent sur un partage réseau.
+    Rien n'est mémorisé entre deux sessions QGIS, et c'est délibéré : QSettings
+    est attaché au profil, pas au projet. Cinq contrôles au banc.
+    0.7.7 — Le bouton principal nomme les trois choses qu'il fait.
     « Composer et contrôler » en nommait deux, et taisait la seule qui
     modifie le modèle de l'utilisateur : l'écriture des sections et
     injections dans le .gXX, en remplaçant tout objet de même nom.

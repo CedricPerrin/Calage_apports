@@ -1258,6 +1258,47 @@ verifier("un calage TERMINE ne ferme aucune porte",
          and dlg._confirmer_malgre_calage("essai") is True,
          f"etat : {dlg._calage_en_cours()}")
 
+# --- CE QU'ON RETIENT DU LANCEMENT REDRESSE TROIS AFFICHAGES ----------------
+# _lancer_calage recevait le PID et le chemin du journal, les mettait dans une
+# boite d'information, et les perdait. Trois choses mentaient faute d'eux.
+_fichier_etat = _dossier_etat() / "avancement.json"
+if _fichier_etat.exists():
+    _fichier_etat.unlink()
+dlg.pid_lance = dlg.journal_lance = None
+dlg._rafraichir_suivi()
+verifier("sans lancement retenu, le suivi attend sans rien inventer",
+         "Aucun calage suivi" in dlg.label_suivi_banniere.text(),
+         dlg.label_suivi_banniere.text()[:60])
+
+# UN PID QUI N'EXISTE PAS : le calage est mort avant d'ecrire quoi que ce soit.
+# La branche promettait « quelques secondes apres le lancement » pour toujours.
+dlg.pid_lance, dlg.journal_lance = 999999, r"D:\essai\lancement.log"
+dlg._rafraichir_suivi()
+verifier("« mort au demarrage » se distingue de « pas encore parti »",
+         "mort" in dlg.label_suivi_banniere.text().lower(),
+         dlg.label_suivi_banniere.text()[:90])
+verifier("et le seul document qui dit pourquoi est NOMME",
+         "lancement.log" in dlg.label_suivi_banniere.text())
+
+# L'ETAT D'UN AUTRE CALAGE NE SE PEINT PAS COMME LE NOTRE. Apres un
+# relancement, le dossier porte encore l'avancement.json du precedent : on
+# peignait « Calage termine — conforme » en reponse au lancement qui venait
+# d'aboutir.
+_ecrire_etat(pid=424242, termine=True, conforme=True)
+dlg._rafraichir_suivi()
+verifier("l'etat d'un calage precedent n'est pas donne pour le notre",
+         "précédent" in dlg.label_suivi_banniere.text()
+         and "conforme" not in dlg.label_suivi_banniere.text().lower(),
+         dlg.label_suivi_banniere.text()[:100])
+
+# ET LE FIL CESSE D'ORDONNER « LANCER » PENDANT LES HEURES DU CALCUL.
+dlg._maj_fil()
+verifier("le fil dit que le calage tourne, il n'ordonne plus de lancer",
+         "calage lancé" in dlg.label_fil.text()
+         and "puis lancer" not in dlg.label_fil.text(),
+         dlg.label_fil.text()[-80:])
+dlg.pid_lance = dlg.journal_lance = None
+
 # Qt REFUSE UN Path la ou il attend une chaine : « argument 3 has unexpected
 # type 'WindowsPath' ». Le classeur compose doit donc etre memorise en str,
 # sinon « Reprendre un classeur d'un calcul precedent… » casse des qu'un
