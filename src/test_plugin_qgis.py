@@ -385,10 +385,24 @@ if MODELE is None or not MODELE.exists():
           "(--modele, ou variable CALAGE_MODELE_ESSAI)")
     p.classeur = None
 else:
-    dlg.edit_dossier_hecras.setText(str(MODELE))
+    # LE .prj, PAS LE DOSSIER — c'est ce que la fenetre demande depuis
+    # qu'un selecteur de fichier a remplace le selecteur de dossier.
+    _prj = next(MODELE.glob("*.prj"), MODELE / "projet.prj")
+    dlg.edit_projet_hecras.setText(str(_prj))
     dlg._charger_projet_hecras(str(MODELE))
     verifier("projet HEC-RAS detecte", bool(dlg.info_projet),
              dlg.info_projet["nom_projet"] if dlg.info_projet else "")
+    # ON DESIGNE LE FICHIER, ON DEDUIT LE DOSSIER. Un dossier de modele porte
+    # des dizaines de fichiers et rien n'y distingue a l'oeil un projet
+    # HEC-RAS ; le .prj, lui, EST le projet. Tout ce qui suit travaille
+    # pourtant sur le dossier — geometrie, Unsteady Flow et .hdf en sont les
+    # voisins — d'ou ce derive, que cinq lecteurs empruntent.
+    verifier("le champ porte le .prj, pas le dossier",
+             dlg.edit_projet_hecras.text().lower().endswith(".prj"),
+             dlg.edit_projet_hecras.text())
+    verifier("et le dossier s'en deduit, pour les cinq qui en ont besoin",
+             Path(dlg._dossier_projet()) == MODELE,
+             f"{dlg._dossier_projet()}")
     # La version n'est plus saisie : elle est lue dans les fichiers du
     # modele, la plus recente l'emportant en cas de melange.
     verifier("version HEC-RAS lue dans le modele, pas saisie",
@@ -742,7 +756,8 @@ else:
     import geometrie                                          # noqa: E402
     noms_sections_avant = geometrie.noms_objets_geometrie(copie)["sections"]
     dlg2 = mod_plugin.DialogueParametrage(iface)
-    dlg2.edit_dossier_hecras.setText(str(faux_projet))
+    dlg2.edit_projet_hecras.setText(
+        str(next(Path(faux_projet).glob("*.prj"), Path(faux_projet) / "x.prj")))
     dlg2._charger_projet_hecras(str(faux_projet))
     index = next((i for i in range(dlg2.combo_plan.count())
                   if dlg2.combo_plan.itemData(i)["numero"] == numero_plan), 0)
@@ -884,7 +899,8 @@ else:
     # projet alors que la fenetre est ouverte, puis un signal declenche le
     # rafraichissement. Aucune trace ne doit remonter dans le journal QGIS.
     _dlg3 = mod_plugin.DialogueParametrage(iface)
-    _dlg3.edit_dossier_hecras.setText(str(faux_projet))
+    _dlg3.edit_projet_hecras.setText(
+        str(next(Path(faux_projet).glob("*.prj"), Path(faux_projet) / "x.prj")))
     _dlg3._charger_projet_hecras(str(faux_projet))
     _dlg3.combo_plan.setCurrentIndex(index)
     _dlg3._charger_couches_modele()

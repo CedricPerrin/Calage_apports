@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.7.12
+version=0.7.13
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,15 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,KGE,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.7.12 — Deux écrans qui décrivaient un état révolu.
+changelog=0.7.13 — On désigne le projet, plus le dossier qui le contient.
+    « Parcourir… » ouvrait un sélecteur de DOSSIER. Or un dossier de modèle
+    porte des dizaines de fichiers, et rien n'y distingue à l'œil un projet
+    HEC-RAS d'un autre : il fallait savoir d'avance lequel prendre. Le
+    sélecteur montre désormais les fichiers `.prj`, qui SONT les projets, et
+    masque le reste. Le dossier — dont la géométrie, l'Unsteady Flow et le
+    `.hdf` sont les voisins — s'en déduit, pour les cinq endroits qui en ont
+    besoin.
+    0.7.12 — Deux écrans qui décrivaient un état révolu.
     LES COUCHES NE VIENNENT PLUS FORCÉMENT DE LA GÉOMÉTRIE RETENUE, et
     l'écran le dit. Changer de plan — ou la géométrie de surcharge — ne
     touchait ni la zone 2D ni le système de coordonnées. Ce ne sont pourtant

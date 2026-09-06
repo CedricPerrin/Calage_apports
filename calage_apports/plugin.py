@@ -1838,7 +1838,7 @@ class DialogueParametrage(QDialog):
         f = formulaire(groupe_projet)
         ligne = QHBoxLayout()
         ligne.setSpacing(6)
-        self.edit_dossier_hecras = QLineEdit()
+        self.edit_projet_hecras = QLineEdit()
         # AFFICHEUR, PAS SAISIE. Le champ etait editable et son texte
         # indicatif invitait a le remplir — mais il n'est connecte a rien :
         # seul « Parcourir… » charge le projet. Un chemin colle a la main ne
@@ -1848,14 +1848,14 @@ class DialogueParametrage(QDialog):
         #   chaque perte de focus, champ vide ou a demi tape compris, et
         #   _charger_projet_hecras repond par une boite critique modale. On
         #   gagnerait une erreur a chaque passage de focus.
-        self.edit_dossier_hecras.setReadOnly(True)
-        self.edit_dossier_hecras.setPlaceholderText(
-            "Choisir avec « Parcourir… » — dossier contenant le .prj")
+        self.edit_projet_hecras.setReadOnly(True)
+        self.edit_projet_hecras.setPlaceholderText(
+            "Choisir avec « Parcourir… » — le fichier .prj du modèle")
         bouton_parcourir = QPushButton("Parcourir…")
-        bouton_parcourir.clicked.connect(self._parcourir_dossier_hecras)
-        ligne.addWidget(self.edit_dossier_hecras, 1)
+        bouton_parcourir.clicked.connect(self._parcourir_projet_hecras)
+        ligne.addWidget(self.edit_projet_hecras, 1)
         ligne.addWidget(bouton_parcourir)
-        f.addRow("Dossier du projet :", ligne)
+        f.addRow("Projet HEC-RAS (.prj) :", ligne)
         # La version de HEC-RAS n'est PAS demandee : elle est ecrite dans les
         # fichiers du modele (« Program Version= »), et la faire saisir ne
         # pourrait qu'introduire une erreur. Elle est lue et affichee avec le
@@ -2084,13 +2084,35 @@ class DialogueParametrage(QDialog):
         f.addRow("Préfixe de scénario :", self.edit_prefixe_scenario)
         return groupe
 
-    def _parcourir_dossier_hecras(self):
-        dossier = QFileDialog.getExistingDirectory(
-            self, "Dossier du projet HEC-RAS")
-        if not dossier:
+    def _dossier_projet(self):
+        """
+        Le dossier du modele, deduit du .prj choisi. Chaine vide si rien.
+
+        TOUT CE QUI SUIT TRAVAILLE SUR LE DOSSIER — la geometrie, l'Unsteady
+        Flow et le .hdf sont ses voisins, nommes d'apres le projet. Mais ce
+        n'est pas le dossier qu'on DESIGNE : un dossier de modele contient
+        des dizaines de fichiers, et rien n'y distingue a l'oeil un projet
+        HEC-RAS d'un autre. Le .prj, lui, EST le projet. On demande donc le
+        fichier et l'on en deduit le reste, au lieu de demander le contenant
+        et d'y chercher ce qu'on veut.
+        """
+        chemin = self.edit_projet_hecras.text().strip()
+        return str(Path(chemin).parent) if chemin else ""
+
+    def _parcourir_projet_hecras(self):
+        # LE FICHIER, PAS LE DOSSIER. Un selecteur de dossier ne montre pas
+        # ce qu'on cherche : il faut savoir d'avance lequel des dossiers
+        # contient le modele, et rien a l'ecran ne le dit. Le filtre « *.prj »
+        # montre les projets et masque le reste.
+        depart = self._dossier_projet() or ""
+        with sans_sablier(self):
+            prj, _ = QFileDialog.getOpenFileName(
+                self, "Fichier de projet HEC-RAS (.prj)", depart,
+                "Projet HEC-RAS (*.prj);;Tous les fichiers (*)")
+        if not prj:
             return
-        self.edit_dossier_hecras.setText(dossier)
-        self._charger_projet_hecras(dossier)
+        self.edit_projet_hecras.setText(prj)
+        self._charger_projet_hecras(str(Path(prj).parent))
 
     def _charger_projet_hecras(self, dossier):
         try:
@@ -2258,7 +2280,7 @@ class DialogueParametrage(QDialog):
             numero_geom = self._geometrie_effective()
             if not numero_geom:
                 raise ValueError("choisir un plan de référence.")
-            chemin_hdf = (Path(self.edit_dossier_hecras.text())
+            chemin_hdf = (Path(self._dossier_projet())
                          / f"{self.info_projet['nom_projet']}.g{numero_geom}.hdf")
             reponse = noyau.charger_couches_modele(chemin_hdf)
         except Exception as e:
@@ -2656,7 +2678,7 @@ class DialogueParametrage(QDialog):
     def _relire_hydrogramme(self):
         """Lit le débit calculé à une section ou à une injection, et l'exporte."""
         try:
-            depart = self.edit_dossier_hecras.text().strip()
+            depart = self._dossier_projet()
             with sans_sablier(self):
                 plan, _ = QFileDialog.getOpenFileName(
                     self, "Fichier de résultats HEC-RAS", depart,
@@ -2751,7 +2773,7 @@ class DialogueParametrage(QDialog):
                 "cliquer « Charger les couches du modèle » avant de "
                 "composer.")
 
-        dossier = Path(self.edit_dossier_hecras.text())
+        dossier = Path(self._dossier_projet())
         projet = self.info_projet["nom_projet"]
         geometrie = dossier / f"{projet}.g{numero_geom}"
         unsteady = dossier / f"{projet}.u{self._unsteady_effective()}"
@@ -4376,7 +4398,7 @@ class DialogueParametrage(QDialog):
         lignes = []
         if self.info_projet:
             lignes.append(f"Projet HEC-RAS : {self.info_projet['nom_projet']}"
-                          f"  ({self.edit_dossier_hecras.text()})")
+                          f"  ({self.edit_projet_hecras.text()})")
         plan = self.combo_plan.currentData()
         if plan:
             lignes.append(f"Plan de référence : p{plan['numero']} — {plan['titre']}")
@@ -4503,7 +4525,7 @@ class DialogueParametrage(QDialog):
             # ses widgets, le noyau tient le contrat. Voir
             # noyau.parametres_calage, qui s'eprouve en console.
             parametres = noyau.parametres_calage(
-                dossier_projet=self.edit_dossier_hecras.text().strip(),
+                dossier_projet=self._dossier_projet(),
                 nom_projet=self.info_projet["nom_projet"],
                 version_hecras=self.version_hecras,
                 nom_zone_2d=zone,
