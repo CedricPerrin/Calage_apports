@@ -1595,9 +1595,9 @@ class DialogueParametrage(QDialog):
         boutons.setSpacing(8)
         boutons.addStretch(1)
         bouton_composer = QPushButton("Composer et contrôler")
+        # Mise en avant par le STYLE, jamais par la touche Entree : ce bouton
+        # ecrit dans la geometrie HEC-RAS. Voir keyPressEvent().
         bouton_composer.setObjectName("boutonPrincipal")
-        bouton_composer.setDefault(True)         # action principale, mise en avant
-        bouton_composer.setAutoDefault(True)
         bouton_composer.setMinimumWidth(190)
         bouton_composer.setToolTip(
             "Écrit d'abord les sections et injections de l'onglet 1 dans la "
@@ -1614,6 +1614,33 @@ class DialogueParametrage(QDialog):
 
         self._maj_resume()
         self._maj_fil()
+
+    def keyPressEvent(self, evenement):
+        """
+        ENTREE N'ACTIVE AUCUN BOUTON DANS CETTE FENETRE.
+
+        « Composer et controler » etait le bouton par DEFAUT du dialogue
+        (setDefault + setAutoDefault). Une pression sur Entree depuis
+        n'importe quel champ de saisie — un chemin de dossier, une tolerance,
+        le prefixe de scenario — declenchait donc _composer_et_controler(),
+        qui COMMENCE par reecrire les sections et injections dans le .gXX, en
+        remplacant tout objet de meme nom. Le seul geste irreversible de la
+        fenetre etait cable sur la touche qu'on presse par reflexe en
+        finissant de taper.
+
+        RETIRER setDefault NE SUFFIT PAS. Qt promeut alors le premier bouton
+        autoDefault visible — ici « Parcourir… » — et la touche ne fait que
+        changer de cible. C'est pourquoi Entree est avalee ici.
+
+        CE QUE CELA COUTE, ET C'EST ASSUME : Entree n'active plus aucun
+        bouton, nulle part dans la fenetre. Aucun n'est pour autant hors
+        d'atteinte au clavier — la tabulation y mene, la barre d'espace les
+        actionne. Echap continue de fermer : QDialog le traite avant nous.
+        """
+        if evenement.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            evenement.accept()
+            return
+        super().keyPressEvent(evenement)
 
     def _bandeau(self):
         """
