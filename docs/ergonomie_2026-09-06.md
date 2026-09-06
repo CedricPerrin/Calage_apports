@@ -210,3 +210,41 @@ d'afficher l'appariement du classeur **précédent** (`3715-3736`).
   échec.
 - Combien de temps un nouvel arrivant met à comprendre qu'il doit
   **sortir dessiner dans QGIS** puis revenir.
+
+---
+
+## 5. Ce que cette note a donné, au 6 septembre au soir
+
+**Seize constats sur dix-huit sont traités**, des versions 0.7.1 à 0.7.12.
+Chacun a été vérifié au banc **et** dans le QGIS réel après réinstallation.
+
+Deux ne le sont pas, et c'est délibéré :
+
+- **La permanence du bouton, les libellés courts, l'ordre écrire → composer
+  → contrôler, le curseur sablier** — le § 3 dit pourquoi il ne faut pas y
+  toucher, et rien depuis ne l'a démenti.
+- **Le coût de `tasklist`** — essayé, mesuré, retiré. Le raccourci annonçait
+  « en cours » un calage mort depuis moins d'une minute, et n'économisait
+  rien pendant les longs calculs, où le fichier ne bouge pas davantage. La
+  friction achète un affichage qui ne ment pas.
+
+### Trois fois, la mesure a rattrapé le correctif
+
+C'est le principal enseignement de la journée, et il vaut d'être noté.
+
+1. **Retirer `setDefault` ne suffisait pas** : Qt promeut alors le premier
+   bouton `autoDefault` visible — « Parcourir… ». Le correctif annoncé « une
+   ligne et demie » n'aurait fait que déplacer la touche Entrée d'une action
+   irréversible vers une autre.
+2. **`setAllowEmptyLayer(True)` ajoute l'entrée vide sans la sélectionner** :
+   le combo rendait encore une couche. Il fallait `setLayer(None)`.
+3. **Le sommaire de l'aide aurait pu être un décor** : chaque onglet vit dans
+   une zone défilante, et si c'est elle qui défile, `scrollToAnchor` ne fait
+   rien. Mesuré sur la fenêtre affichée — document de 1923 px pour une vue de
+   302, trois ancres à trois places distinctes.
+
+Dans les trois cas, le banc ou la mesure a démenti une correction qui
+paraissait juste. Le quatrième cas est plus dur : **un banc a réfuté un
+correctif qui, lui, était bel et bien faux** — l'entrée de `xarray` dans
+`PAQUETS_HECRAS` désactivait silencieusement les deux contrôles qui
+éprouvent le mécanisme « la sonde nomme ce qui manque ». Voir 0.7.10.

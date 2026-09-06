@@ -304,7 +304,12 @@ traitées sont rendues, la validation de `Cibles` existe, l'aperçu est écrit.
 
 ---
 
-#### P1-3 · Le premier outil qu'on lance décrit un projet d'il y a un mois
+#### P1-3 · Le premier outil qu'on lance décrit un projet d'il y a un mois — ✅ **corrigé le 6 septembre 2026**
+
+**Corrigé, en deux fois.** Le contrôle annonce « fenêtre à 6 onglets » avec
+leurs vrais noms, déduits des appels `addTab` de `plugin.py` et plus jamais
+écrits à la main. Et la section « RESTE À ÉPROUVER » a perdu le bouton
+« Installer… », mené à bout depuis QGIS le même jour.
 
 | | |
 |---|---|
@@ -601,7 +606,13 @@ Répartition : `pont_hecras` 4, `pilote_hecras` 5, `calage` 4, `plugin` 3,
 compte est **P1-5**, déjà isolé. Les vingt autres sont à revoir **un par un, à
 l'occasion**, jamais en balayage.
 
-#### P2-11 · `test_plugin_qgis.py:182` — faux positif de `vulture`
+#### P2-11 · `test_plugin_qgis.py:182` — faux positif de `vulture` — ✅ **clos le 6 septembre 2026**
+
+La signature de `getItem` reproduit `QInputDialog.getItem` et ne se choisit
+pas : quatre de ses six arguments ne servent à rien au mannequin, mais les
+retirer casserait l'appel du greffon, qui les passe en position. Ils sont
+consommés explicitement — l'oubli est dit volontaire, et l'avertissement ne
+se re-instruit plus chaque année.
 
 ```
 vulture: src/test_plugin_qgis.py:182: unused variable 'editable' (100% confidence)
