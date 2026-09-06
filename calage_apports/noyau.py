@@ -314,18 +314,6 @@ RAS_COMMANDER_MINIMUM = (0, 99)
 # seul consommateur du profil ne lit pas. Le profil vient du maillage.
 PAQUETS_HECRAS = (
     ("ras_commander", f"ras-commander>={'.'.join(str(n) for n in RAS_COMMANDER_MINIMUM)}"),
-    # XARRAY N'EST PAS DES NOTRES, ET C'EST BIEN POUR CELA QU'IL EST ICI.
-    # C'est une dependance de ras-commander, que pip ne pose pas : la
-    # contrainte « >=0.99 » etant satisfaite par une version deja installee,
-    # il ne re-resout rien (voir le commentaire de l'installeur, plus bas).
-    # La docstring de commande_pip_hecras() disait deja « onze plus xarray » —
-    # autrement dit, la liste qui promet de poser TOUT ce que le pont exige
-    # n'en posait pas la totalite, et suivre la commande du greffon a la lettre
-    # fabriquait encore un environnement qu'il refusait ensuite. C'est la
-    # divergence meme que PAQUETS_HECRAS existe pour empecher.
-    # Reproduit le 06/09/2026 sur un poste neuf : les onze poses, puis
-    # « module(s) absent(s) de cet interpreteur : xarray. »
-    ("xarray", "xarray"),
     ("h5py", "h5py"),
     ("numpy", "numpy"),
     ("pandas", "pandas"),
@@ -346,6 +334,27 @@ PAQUETS_HECRAS = (
 )
 
 
+# CE QUI N'EST PAS DES NOTRES, ET QUE LA COMMANDE DOIT POSER QUAND MEME.
+#
+# xarray arrive par ras-commander, qui l'exige pour HdfResultsMesh sans que
+# pip le pose : la contrainte « >=0.99 » etant satisfaite par une version deja
+# installee, il ne re-resout pas ses dependances. Releve en production le
+# 02/09/2026 — calage conforme apres 14 h, puis « profil en long : non
+# calculable (No module named 'xarray') » — et de nouveau le 06/09 en montant
+# l'environnement d'un poste neuf : les onze poses, puis « module(s)
+# absent(s) : xarray ».
+#
+# IL RESTE HORS DE PAQUETS_HECRAS, ET C'EST VOULU. Cette liste-la sert a
+# SONDER : le mecanisme qui compte est « la sonde nomme ce qui manque, quel
+# que soit le nom, et l'installeur le pose ensuite » — c'est lui qui rattrape
+# la dependance suivante, celle qu'on n'a pas encore rencontree. Deux bancs
+# l'eprouvent en fabriquant un environnement ou xarray manque ; l'inscrire
+# dans PAQUETS_HECRAS les rendait verts et vides, puisqu'ils peuplent
+# l'environnement d'essai depuis cette meme liste.
+# Ici, on ne sonde pas : on ECRIT une commande. Elle doit etre complete.
+PAQUETS_INDIRECTS = (("xarray", "xarray"),)
+
+
 def commande_pip_hecras(interpreteur=None):
     r"""
     La commande pip qui pose TOUT ce que le pont exige, en un seul texte.
@@ -353,7 +362,8 @@ def commande_pip_hecras(interpreteur=None):
     ELLE SE DEDUIT DE PAQUETS_HECRAS, ET NE SE RECOPIE NULLE PART. L'aide du
     greffon et son message « interpreteur introuvable » annonçaient
     « pip install "ras-commander>=0.99" h5py » — deux paquets, quand la
-    verification en exige onze plus xarray. Qui suivait l'aide a la lettre
+    verification en exige onze, plus xarray par ras-commander
+    (PAQUETS_INDIRECTS). Qui suivait l'aide a la lettre
     fabriquait donc un environnement que le greffon REFUSAIT ensuite, et
     devait recommencer sur la foi du message d'echec. C'est exactement la
     divergence entre deux listes que PAQUETS_HECRAS existe pour empecher : la
@@ -363,7 +373,7 @@ def commande_pip_hecras(interpreteur=None):
     invite ou l'environnement est deja actif.
     """
     paquets = " ".join(f'"{pip}"' if any(c in pip for c in "<>=") else pip
-                       for _, pip in PAQUETS_HECRAS)
+                       for _, pip in PAQUETS_HECRAS + PAQUETS_INDIRECTS)
     tete = f'"{interpreteur}"' if interpreteur else "python"
     return f"{tete} -m pip install {paquets}"
 
@@ -380,6 +390,38 @@ def recette_installation_manuelle():
     venv = r"%USERPROFILE%\venv-hecras"
     return (f"python -m venv {venv}",
             commande_pip_hecras(rf"{venv}\Scripts\python.exe"))
+
+
+def message_interpreteur_introuvable():
+    """
+    Le message d'interpreteur manquant, EN UN SEUL EXEMPLAIRE.
+
+    LE GESTE LE PLUS SIMPLE D'ABORD. Ce texte ne proposait que la variable
+    d'environnement — c'est-a-dire quitter QGIS, ouvrir les parametres
+    systeme et revenir — alors qu'un bouton fait le travail. C'est la
+    premiere erreur qu'a vue l'utilisateur sur un poste neuf, et elle
+    l'envoyait vers la seule issue penible (releve le 29/08/2026).
+
+    IL EN EXISTAIT DEUX, ET UN SEUL AVAIT ETE CORRIGE. Le jumeau de
+    lancer_calage — le seul appel qui n'emprunte pas appeler_pont — etait
+    reste sur « Definir la variable d'environnement ». Le cas ou on le lit
+    n'est pas le poste neuf, dont la premiere composition passe par
+    appeler_pont : c'est l'environnement casse ENTRE DEUX SESSIONS, et
+    l'utilisateur y recevait le mauvais conseil. Deux exemplaires d'un
+    message se corrigent une fois sur deux.
+
+    « Parametres du poste » EST UN GROUPE, PAS UN ONGLET : il vit dans
+    l'onglet « Aide et configuration ». L'annoncer comme un onglet envoie
+    chercher ce qui n'existe pas.
+    """
+    return (f"aucun interpreteur capable de piloter HEC-RAS n'a ete trouve. "
+            f"Dans l'onglet « Aide et configuration » du greffon, groupe "
+            f"« Parametres du poste » : bouton « Installer… » pour en creer "
+            f"un — il cherche seul les Python presents sur le poste et "
+            f"propose ceux qui conviennent — ou « Designer… » si un "
+            f"environnement avec ras-commander existe deja. A defaut, la "
+            f"variable d'environnement {VARIABLE_INTERPRETEUR} accepte le "
+            f"chemin d'un python.exe.")
 
 
 def interpreteur_hecras():
@@ -1118,20 +1160,7 @@ def appeler_pont(*arguments, delai=300):
 
     interpreteur = interpreteur_hecras()
     if interpreteur is None:
-        # LE GESTE LE PLUS SIMPLE D'ABORD. Ce message ne proposait que la
-        # variable d'environnement, c'est-a-dire quitter QGIS, ouvrir les
-        # parametres systeme et revenir — alors qu'un bouton fait le travail.
-        # C'est la premiere erreur qu'a vue l'utilisateur sur un poste neuf, et
-        # elle l'envoyait vers la seule issue penible (releve le 29/08/2026,
-        # reformule le 01/09).
-        raise RuntimeError(
-            f"aucun interpreteur capable de piloter HEC-RAS n'a ete trouve. "
-            f"Dans l'onglet « Parametres du poste » du greffon : bouton "
-            f"« Installer… » pour en creer un — il cherche seul les Python "
-            f"presents sur le poste et propose ceux qui conviennent — ou "
-            f"« Designer… » si un environnement avec ras-commander existe "
-            f"deja. A defaut, la variable d'environnement "
-            f"{VARIABLE_INTERPRETEUR} accepte le chemin d'un python.exe.")
+        raise RuntimeError(message_interpreteur_introuvable())
 
     commande = [str(interpreteur), str(chaine / "pont_hecras.py"),
                 *[str(a) for a in arguments]]
@@ -2270,9 +2299,7 @@ def lancer_calage(chemin_classeur):
             f"{VARIABLE_CHAINE}, ou la designer depuis le plugin.")
     interpreteur = interpreteur_hecras()
     if interpreteur is None:
-        raise RuntimeError(
-            f"aucun interpreteur capable de piloter HEC-RAS n'a ete trouve. "
-            f"Definir la variable d'environnement {VARIABLE_INTERPRETEUR}.")
+        raise RuntimeError(message_interpreteur_introuvable())
 
     chemin_classeur = Path(chemin_classeur)
     horodatage = time.strftime("%Y%m%d_%H%M%S")

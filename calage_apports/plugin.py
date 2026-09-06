@@ -2399,10 +2399,19 @@ class DialogueParametrage(QDialog):
         # pas exposee — elle ne se negocie pas de la meme facon, et un
         # troisieme reglage a l'ecran donnerait a croire qu'on peut rendre un
         # calage conforme en abaissant les trois barres.
+        # DEUX POURCENTAGES DE SENS CONTRAIRE, DANS LE MEME CADRE. Le rappel
+        # annonçait « tout est rapporte en pourcentage d'atteinte de la
+        # cible » — ou 100 % est le juste — et les deux champs sous lui
+        # attendent un ECART ADMIS, ou 5 % est le juste. Un « 5 % » lu sous
+        # cette phrase se comprend comme « on vise 5 % de la cible ».
+        # On dit donc les deux sens, et les etiquettes nomment ce qu'elles
+        # demandent au lieu de repeter le mot « precision ».
         rappel = QLabel(
             "Le calage s'arrête quand le <b>volume</b>, le <b>débit de "
             "pointe</b> et la <b>forme</b> sont conformes en même temps. "
-            "Tout est rapporté en pourcentage d'atteinte de la cible.")
+            "Les résultats sont rapportés en <b>pourcentage d'atteinte de la "
+            "cible</b> — 100 % est le juste ; ci-dessous se saisit l'<b>écart "
+            "admis</b> autour de ces 100 %.")
         rappel.setWordWrap(True)
         f2.addRow(rappel)
 
@@ -2417,7 +2426,7 @@ class DialogueParametrage(QDialog):
             "la fenêtre du hydrogramme PRINCIPAL uniquement (une mini-crue "
             "avant/après l'événement calé n'entre pas dans ce calcul). "
             "5 % est la valeur du guide.")
-        f2.addRow("Précision sur le volume :", self.spin_tol_volume)
+        f2.addRow("Écart admis sur le volume :", self.spin_tol_volume)
 
         self.spin_tol_pic = QDoubleSpinBox()
         self.spin_tol_pic.setRange(0.05, 20.0)
@@ -2429,7 +2438,7 @@ class DialogueParametrage(QDialog):
             "Écart admis sur le débit de pointe. Il a sa propre tolérance "
             "parce qu'il dimensionne l'aléa : un volume juste avec une pointe "
             "fausse ne serait pas conservatif.")
-        f2.addRow("Précision sur le débit de pointe :", self.spin_tol_pic)
+        f2.addRow("Écart admis sur le débit de pointe :", self.spin_tol_pic)
 
         # CE SEUIL N'EST PAS UNE TOLERANCE DE CALAGE, et le libelle doit le
         # dire : il porte sur la CONSERVATION DE LA MASSE par HEC-RAS, pas

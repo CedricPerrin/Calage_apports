@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.7.9
+version=0.7.10
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,30 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,KGE,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.7.9 — Le dossier surveillé est nommé en permanence.
+changelog=0.7.10 — Deux textes qui trompaient, et une correction de la 0.7.1.
+    LE POURCENTAGE CHANGEAIT DE SENS DANS LE MÊME CADRE. Le rappel annonçait
+    « tout est rapporté en pourcentage d'atteinte de la cible » — où 100 %
+    est le juste — et les deux champs sous lui attendent un ÉCART ADMIS, où
+    5 % est le juste. Un « 5 % » lu sous cette phrase se comprend comme
+    « on vise 5 % de la cible ». Les deux sens sont dits, et les étiquettes
+    nomment ce qu'elles demandent.
+    LE MESSAGE « INTERPRÉTEUR INTROUVABLE » N'EXISTE PLUS QU'EN UN
+    EXEMPLAIRE. Il en avait deux, dont un seul avait été corrigé ; le jumeau
+    du lancement était resté sur « définir la variable d'environnement »,
+    c'est-à-dire quitter QGIS et revenir, quand un bouton fait le travail. Ce
+    n'est pas le poste neuf qui le lisait — sa première composition passe
+    ailleurs — mais l'environnement cassé entre deux sessions. Il nommait de
+    surcroît « Paramètres du poste » comme un onglet, alors que c'est un
+    groupe de l'onglet « Aide et configuration ».
+    ET XARRAY RESSORT DE PAQUETS_HECRAS, où la 0.7.1 l'avait mis. Cette
+    liste sert à SONDER, et deux bancs éprouvent le mécanisme qui compte :
+    « la sonde nomme ce qui manque, quel que soit le nom, et l'installeur le
+    pose ensuite » — c'est lui qui rattrapera la dépendance suivante, celle
+    qu'on n'a pas encore rencontrée. Ces bancs peuplent leur environnement
+    d'essai depuis cette même liste : y inscrire xarray les rendait verts et
+    vides. Il vit désormais dans PAQUETS_INDIRECTS, que seule la commande
+    pip imprimée emploie — car elle, elle doit être complète.
+    0.7.9 — Le dossier surveillé est nommé en permanence.
     Il ne l'était que dans la bannière « Aucun calage suivi » : l'information
     disparaissait précisément pendant les heures où cet onglet sert. Le
     manque mord après une reprise de classeur, après une retouche des champs
