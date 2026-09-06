@@ -858,7 +858,7 @@ def _controler_durees_avant_calcul(chemin_template):
     ouvrant le journal texte que rien n'avait demarre. Cela s'est produit
     TROIS FOIS de suite sur un modele reel (30/08/2026).
     Ici, la meme fonction est appelee a la COMPOSITION : la reponse arrive
-    dans le compte rendu de « Composer et controler », avant tout lancement.
+    dans le compte rendu de « Ecrire, composer et controler », avant tout lancement.
 
     ERREUR ou AVERTISSEMENT selon le cote ou se corrige la faute : un apport
     a caler se rallonge dans le classeur — c'est a notre portee, donc
@@ -1149,7 +1149,7 @@ def commande_sections(args):
     recreees : une geometrie contenant deux objets de meme nom rend
     l'appariement indecidable, et l'ecriture n'en avertirait pas. Avec
     --remplacer, elles sont RETRACEES (bloc retire puis reinsere) — c'est le
-    mode utilise par le plugin a chaque « Composer et controler », depuis
+    mode utilise par le plugin a chaque « Ecrire, composer et controler », depuis
     que le trace QGIS fait foi sur la geometrie HEC-RAS. Meme convention que
     commande_injections.
     """

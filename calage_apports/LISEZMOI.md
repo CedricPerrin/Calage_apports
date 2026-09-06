@@ -17,7 +17,7 @@ onglets — l'ordre des onglets est celui des décisions.
 | 5. Suivi | où en est le calcul : apport en cours, essai, atteinte du volume, de la pointe et de la forme, courbes cible et section, temps restant. Se rafraîchit tout seul tant qu'il est affiché. Le dossier surveillé est celui que désigne le **classeur lancé** — pas celui de l'onglet 3 — et la bannière le nomme |
 | Aide et configuration | mode opératoire, pièges connus, et les deux emplacements du poste — chaîne de calage et interpréteur HEC-RAS |
 
-Le bouton **Composer et contrôler**, permanent en bas de la fenêtre, écrit les
+Le bouton **Écrire, composer et contrôler**, permanent en bas de la fenêtre, écrit les
 shapefiles normalisés et un classeur **pré-rempli**, puis lance tous les
 contrôles — PK, ordre déclaré, position des apports — et ajoute une **couche
 des PK à la carte**.

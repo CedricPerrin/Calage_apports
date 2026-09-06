@@ -913,7 +913,7 @@ pas concentrer l'injection. Pre-remplie a la composition
 ecrasee. Le pont la depose dans pilote.pentes ; preparer() l'applique apres
 clonage.
 
-QGIS FAIT FOI SUR LA GEOMETRIE. « Composer et controler » ecrit d'abord les
+QGIS FAIT FOI SUR LA GEOMETRIE. « Ecrire, composer et controler » ecrit d'abord les
 couches dans la geometrie HEC-RAS D'ORIGINE (jamais un clone), avec une
 sauvegarde horodatee. Le remplacement des objets de meme nom est
 SYSTEMATIQUE : la ligne deja presente sous ce nom est retiree puis retracee.

@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.7.6
+version=0.7.7
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,20 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,KGE,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.7.6 — Un calage qui tourne ferme les deux portes.
+changelog=0.7.7 — Le bouton principal nomme les trois choses qu'il fait.
+    « Composer et contrôler » en nommait deux, et taisait la seule qui
+    modifie le modèle de l'utilisateur : l'écriture des sections et
+    injections dans le .gXX, en remplaçant tout objet de même nom.
+    L'information existait, mais dans l'infobulle et dans un paragraphe de
+    l'onglet 1 — deux endroits invisibles à qui clique depuis l'onglet 3
+    ou 4. Un survol d'infobulle n'est pas un consentement. Il s'appelle
+    désormais « Écrire, composer et contrôler ».
+    Le renommage vaut PARTOUT ou il ne vaut rien : les onze occurrences de
+    plugin.py, le LISEZMOI, les commentaires de pont_hecras.py, la note
+    méthodologique, et les deux documents qui énoncent la règle courante.
+    Les changelogs et les entrées historiques gardent le nom d'alors :
+    ils racontent ce qui était vrai à leur date.
+    0.7.6 — Un calage qui tourne ferme les deux portes.
     Ni la composition ni le lancement ne consultaient l'état du calage,
     alors que l'onglet 5 le lit toutes les deux secondes. Recomposer
     pendant un calcul réécrit la géométrie et le classeur que ce calcul

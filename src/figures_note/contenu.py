@@ -65,7 +65,7 @@ CONTENU = [
          "Trois couches en projection métrique commune : sections de contrôle, "
          "lignes d'injection, axe hydraulique (UNE polyligne, amont → aval). "
          "Aucun fichier de terrain n'est demandé (§ 1.7)."],
-        ["B — Composer et contrôler",
+        ["B — Écrire, composer et contrôler",
          "Le plugin écrit les objets dans la géométrie, produit les shapefiles "
          "normalisés et un classeur pré-rempli — noms réels, ordre, une colonne "
          "de cible par section, pente de chaque apport déduite du profil. Il "
@@ -629,7 +629,7 @@ CONTENU = [
     ]),
     ("p", "La fenêtre est NON MODALE : le travail consiste précisément à "
           "dessiner des sections et des injections dans QGIS pendant qu'elle "
-          "est ouverte. « Composer et contrôler » écrit d'abord les couches "
+          "est ouverte. « Écrire, composer et contrôler » écrit d'abord les couches "
           "dans la géométrie — le remplacement des objets de même nom est "
           "SYSTÉMATIQUE, ce que QGIS montre fait foi — puis compose le paquet. "
           "Le fichier de débit n'est jamais touché : un apport raccordé garde "

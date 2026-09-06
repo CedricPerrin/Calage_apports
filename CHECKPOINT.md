@@ -47,7 +47,7 @@ git checkout claude/connaissance-des-md-qjbpro
    — 699 lignes, complexité 81. **Non engagé.** Le test de caractérisation qui
    le protège existe désormais.
 3. **Recherche d'ergonomie** demandée après le lot 5, notamment le placement du
-   bouton **« Composer et contrôler »** : permanent en bas de la fenêtre, sans
+   bouton **« Écrire, composer et contrôler »** : permanent en bas de la fenêtre, sans
    lien visible avec l'onglet où l'on se trouve — on ne comprend pas quand
    cliquer dessus.
 4. Vérifier à l'écran que la **barre d'onglets ne défile pas** : les libellés

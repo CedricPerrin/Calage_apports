@@ -1021,7 +1021,7 @@ def journaliser(contexte, exception=None):
 # ---------------------------------------------------------------------------
 # Sablier
 #
-# LES CALCULS LONGS RESTENT OU ILS SONT. « Composer et controler » enchaine
+# LES CALCULS LONGS RESTENT OU ILS SONT. « Ecrire, composer et controler » enchaine
 # trois lancements de sous-processus — chacun demarre un interpreteur qui
 # importe h5py et ras-commander — puis l'ecriture de trois shapefiles et d'un
 # classeur, puis tous les controles. Tout cela sur le fil graphique, et c'est
@@ -1228,7 +1228,7 @@ hydraulique, puis
 <i>Charger les couches du modèle</i> : sections, injections et maillage
 s'affichent sur la carte. Y dessiner les sections de contrôle qui manquent —
 sans elles, le calage n'a aucun endroit où lire un débit. Elles sont écrites
-dans la géométrie au clic sur <i>Composer et contrôler</i>, et un apport créé
+dans la géométrie au clic sur <i>Écrire, composer et contrôler</i>, et un apport créé
 reçoit du même coup son hydrogramme dans le fichier Unsteady&nbsp;Flow, sinon
 il n'apporterait rien. La fenêtre de simulation n'est à corriger que si
 l'Unsteady&nbsp;Flow retenu couvre une <b>autre période</b> que le plan de
@@ -1499,7 +1499,7 @@ class DialogueParametrage(QDialog):
       Aide et configuration — mode operatoire, pieges connus, et les deux
          emplacements du poste.
 
-    Le bouton « Composer et contrôler », permanent en bas de la fenetre,
+    Le bouton « Écrire, composer et contrôler », permanent en bas de la fenetre,
     ECRIT D'ABORD les couches de l'onglet 1 dans la geometrie HEC-RAS —
     TOUJOURS EN REMPLACANT l'objet de meme nom deja present, sections comme
     injections : ce que QGIS montre fait foi, il n'y a plus de choix a faire
@@ -1622,7 +1622,7 @@ class DialogueParametrage(QDialog):
         boutons = QHBoxLayout()
         boutons.setSpacing(8)
         boutons.addStretch(1)
-        bouton_composer = QPushButton("Composer et contrôler")
+        bouton_composer = QPushButton("Écrire, composer et contrôler")
         # Mise en avant par le STYLE, jamais par la touche Entree : ce bouton
         # ecrit dans la geometrie HEC-RAS. Voir keyPressEvent().
         bouton_composer.setObjectName("boutonPrincipal")
@@ -1647,7 +1647,7 @@ class DialogueParametrage(QDialog):
         """
         ENTREE N'ACTIVE AUCUN BOUTON DANS CETTE FENETRE.
 
-        « Composer et controler » etait le bouton par DEFAUT du dialogue
+        « Ecrire, composer et controler » etait le bouton par DEFAUT du dialogue
         (setDefault + setAutoDefault). Une pression sur Entree depuis
         n'importe quel champ de saisie — un chemin de dossier, une tolerance,
         le prefixe de scenario — declenchait donc _composer_et_controler(),
@@ -1907,7 +1907,7 @@ class DialogueParametrage(QDialog):
             "prêtes à être complétées."))
         v.addWidget(groupe_charger)
 
-        # Ecrite AUTOMATIQUEMENT au clic sur « Composer et controler », pas
+        # Ecrite AUTOMATIQUEMENT au clic sur « Ecrire, composer et controler », pas
         # via une action a part : le fichier .gXX, la zone 2D et le fichier
         # Unsteady sont deja choisis juste au-dessus, et il faut que les
         # sections soient DANS le modele avant que le paquet soit compose,
@@ -1924,7 +1924,7 @@ class DialogueParametrage(QDialog):
             "lire un débit. Les dessiner ou les compléter dans les couches "
             "chargées ci-dessus : elles sont écrites automatiquement dans "
             "la géométrie HEC-RAS — en remplaçant tout objet de même nom "
-            "déjà présent — au clic sur « Composer et contrôler ».")
+            "déjà présent — au clic sur « Écrire, composer et contrôler ».")
         explication.setWordWrap(True)
         f3b.addRow(explication)
         f3b.addRow(texte_aide(CONVENTION_NOMS, INFOBULLE_CONVENTION))
@@ -2278,7 +2278,7 @@ class DialogueParametrage(QDialog):
              + (" Géométrie jamais prétraitée par HEC-RAS : maillage "
                 "indisponible, contour(s) de zone 2D lu(s) directement dans "
                 "le fichier géométrie. Dessiner les sections et injections "
-                "manquantes, puis « Composer et contrôler » — le maillage "
+                "manquantes, puis « Écrire, composer et contrôler » — le maillage "
                 "apparaîtra au premier calcul."
                 if not pretraitee else
                 f" Maillage natif : {groupes} donnée(s)."
@@ -2625,7 +2625,7 @@ class DialogueParametrage(QDialog):
         par-dessus dans QGIS) vers la géométrie HEC-RAS, et donne aux
         injections leur hydrogramme dans le fichier Unsteady Flow.
 
-        Appelée automatiquement en tête de « Composer et contrôler », jamais
+        Appelée automatiquement en tête de « Écrire, composer et contrôler », jamais
         via une action séparée : les sections doivent être DANS le modèle
         avant que le paquet soit composé, sinon le calage n'a rien à relire.
 
@@ -2928,7 +2928,7 @@ class DialogueParametrage(QDialog):
         geste central de l'outil : on la laisse ouverte, on va tracer les
         sections manquantes dans QGIS, on revient. Rien ne le remarquait — le
         resume continuait d'afficher les comptes d'avant, et l'on n'apprenait
-        que son dessin avait ete vu qu'au clic sur « Composer et controler ».
+        que son dessin avait ete vu qu'au clic sur « Ecrire, composer et controler ».
         Le changement d'onglet est le seul moment ou l'on sait a coup sur que
         la fenetre reprend la main.
         """
@@ -4085,7 +4085,7 @@ class DialogueParametrage(QDialog):
             f"{len(bilan['colonnes'])} colonne(s), de "
             f"{bilan['duree_avant_h']:.2f} h à {bilan['duree_apres_h']:.2f} h, "
             f"au pas de {60 * bilan['pas_h']:g} min.\n\n"
-            f"Relancer « Composer et contrôler » pour vérifier.")
+            f"Relancer « Écrire, composer et contrôler » pour vérifier.")
 
     def _ouvrir_classeur(self):
         if not self.classeur:
