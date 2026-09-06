@@ -455,57 +455,76 @@ else:
     verifier("sous-dossiers resultats/suivi crees",
              (ESSAI / "resultats_finaux").is_dir() and (ESSAI / "suivi").is_dir())
 
-    import pandas as pd  # noqa: E402
-    corr = pd.read_excel(dlg.classeur, sheet_name="Correspondance")
-    noms_reels_injections = sorted(
-        f["nom"] for f in dlg.couche_injections.getFeatures())
-    # LES APPORTS DU CLASSEUR SONT UN SOUS-ENSEMBLE DES INJECTIONS, pas leur
-    # copie : une injection sans section en aval — debit d'entree, condition
-    # limite aval — n'est pas un apport a caler et n'a rien a y faire. Ce
-    # qu'il faut verifier, c'est qu'aucun nom n'est invente ni duplique.
-    _apports_classeur = sorted(str(n) for n in corr["Nom_Apport (BC line)"])
-    verifier("classeur pre-rempli avec les noms reels des injections",
-             _apports_classeur
-             and set(_apports_classeur) <= set(noms_reels_injections)
-             and len(_apports_classeur) == len(set(_apports_classeur)),
-             f"classeur {_apports_classeur} / modele {noms_reels_injections}")
-    # L'onglet 4 annonce desormais ce qui est CALE et ce qui ne l'est pas,
-    # au lieu de comparer deux nombres qui n'avaient pas a etre egaux.
-    verifier("onglet 4 : apports apparies a leur section",
-             "apport(s) à caler" in dlg.label_validation_comptes.text()
-             and "→" in dlg.label_validation_comptes.text(),
-             dlg.label_validation_comptes.text().replace("\n", " | ")[:110])
-    # Convention de nommage : les objets sans nom recoivent A1.. / SC1..,
-    # sans jamais reprendre un nom deja pris dans le modele.
-    _sans_nom = QgsVectorLayer("LineString?crs=EPSG:2154", "SansNom", "memory")
-    _sans_nom.dataProvider().addAttributes([QgsField("nom", QMetaType.Type.QString)])
-    _sans_nom.updateFields()
-    _objets = []
-    for _i in range(3):
-        _e = QgsFeature(_sans_nom.fields())
-        _e.setGeometry(QgsGeometry.fromWkt(
-            f"LineString(504000 {6216000 + 50 * _i}, 504400 {6216000 + 50 * _i})"))
-        _e["nom"] = ""
-        _objets.append(_e)
-    _sans_nom.dataProvider().addFeatures(_objets)
-    _g = mod_plugin.couche_vers_gdf(
-        _sans_nom, prefixe_defaut=mod_plugin.PREFIXE_APPORT, noms_pris=["A1"])
-    verifier("les objets sans nom suivent la convention",
-             list(_g["nom"]) == ["A2", "A3", "A4"], list(_g["nom"]))
-    _gs = mod_plugin.couche_vers_gdf(
-        _sans_nom, prefixe_defaut=mod_plugin.PREFIXE_SECTION)
-    verifier("le prefixe des sections est distinct",
-             list(_gs["nom"]) == ["SC1", "SC2", "SC3"], list(_gs["nom"]))
+    if not dlg.classeur:
+        # UN MODELE QUI NE SE PRETE PAS AU CALAGE EST UN DIAGNOSTIC, PAS UN
+        # PLANTAGE. La composition n'aboutit pas si le modele n'a ni ligne de
+        # reference ni ligne d'injection — cas de tout modele HEC-RAS
+        # ordinaire, les exemples livres avec le logiciel compris. La ligne
+        # suivante appelait alors pd.read_excel(None) et emportait TOUTE la fin
+        # de la suite sur un « Invalid file path or buffer object type », la ou
+        # il fallait dire quel modele ne convient pas et ce qui lui manque.
+        # Releve le 06/09/2026 en pointant la suite sur l'exemple Muncie.
+        print(f"   ignore : la composition n'a produit aucun classeur — "
+              f"{dlg.couche_sections.featureCount()} section(s) de controle, "
+              f"{dlg.couche_injections.featureCount()} ligne(s) d'injection "
+              f"dans « {MODELE.name} ». Un modele de calage en demande au "
+              f"moins une de chaque.")
+        p.classeur = None
+    else:
+        import pandas as pd  # noqa: E402
+        corr = pd.read_excel(dlg.classeur, sheet_name="Correspondance")
+        noms_reels_injections = sorted(
+            f["nom"] for f in dlg.couche_injections.getFeatures())
+        # LES APPORTS DU CLASSEUR SONT UN SOUS-ENSEMBLE DES INJECTIONS, pas
+        # leur copie : une injection sans section en aval — debit d'entree,
+        # condition limite aval — n'est pas un apport a caler et n'a rien a y
+        # faire. Ce qu'il faut verifier, c'est qu'aucun nom n'est invente ni
+        # duplique.
+        _apports_classeur = sorted(str(n) for n in corr["Nom_Apport (BC line)"])
+        verifier("classeur pre-rempli avec les noms reels des injections",
+                 _apports_classeur
+                 and set(_apports_classeur) <= set(noms_reels_injections)
+                 and len(_apports_classeur) == len(set(_apports_classeur)),
+                 f"classeur {_apports_classeur} / modele {noms_reels_injections}")
+        # L'onglet 4 annonce desormais ce qui est CALE et ce qui ne l'est pas,
+        # au lieu de comparer deux nombres qui n'avaient pas a etre egaux.
+        verifier("onglet 4 : apports apparies a leur section",
+                 "apport(s) à caler" in dlg.label_validation_comptes.text()
+                 and "→" in dlg.label_validation_comptes.text(),
+                 dlg.label_validation_comptes.text().replace("\n", " | ")[:110])
+        # Convention de nommage : les objets sans nom recoivent A1.. / SC1..,
+        # sans jamais reprendre un nom deja pris dans le modele.
+        _sans_nom = QgsVectorLayer("LineString?crs=EPSG:2154", "SansNom", "memory")
+        _sans_nom.dataProvider().addAttributes(
+            [QgsField("nom", QMetaType.Type.QString)])
+        _sans_nom.updateFields()
+        _objets = []
+        for _i in range(3):
+            _e = QgsFeature(_sans_nom.fields())
+            _e.setGeometry(QgsGeometry.fromWkt(
+                f"LineString(504000 {6216000 + 50 * _i}, "
+                f"504400 {6216000 + 50 * _i})"))
+            _e["nom"] = ""
+            _objets.append(_e)
+        _sans_nom.dataProvider().addFeatures(_objets)
+        _g = mod_plugin.couche_vers_gdf(
+            _sans_nom, prefixe_defaut=mod_plugin.PREFIXE_APPORT, noms_pris=["A1"])
+        verifier("les objets sans nom suivent la convention",
+                 list(_g["nom"]) == ["A2", "A3", "A4"], list(_g["nom"]))
+        _gs = mod_plugin.couche_vers_gdf(
+            _sans_nom, prefixe_defaut=mod_plugin.PREFIXE_SECTION)
+        verifier("le prefixe des sections est distinct",
+                 list(_gs["nom"]) == ["SC1", "SC2", "SC3"], list(_gs["nom"]))
 
-    verifier("chaque apport cale a bien une section distincte",
-             len({s for _, s in dlg.appariement["paires"]})
-             == len(dlg.appariement["paires"]),
-             f"{len(dlg.appariement['paires'])} paire(s)")
+        verifier("chaque apport cale a bien une section distincte",
+                 len({s for _, s in dlg.appariement["paires"]})
+                 == len(dlg.appariement["paires"]),
+                 f"{len(dlg.appariement['paires'])} paire(s)")
 
-    # Reproduit exactement ce que fait PluginCalage.composer() une fois la
-    # fenetre fermee : recuperer classeur/paquet sur l'objet plugin, pour que
-    # les actions 2, 3 et 4 continuent d'y acceder ensuite.
-    p.classeur, p.paquet = dlg.classeur, dlg.paquet
+        # Reproduit exactement ce que fait PluginCalage.composer() une fois la
+        # fenetre fermee : recuperer classeur/paquet sur l'objet plugin, pour
+        # que les actions 2, 3 et 4 continuent d'y acceder ensuite.
+        p.classeur, p.paquet = dlg.classeur, dlg.paquet
 
 # ---------------------------------------------------------------------------
 # Ces trois fonctions ont quitte le menu pour rejoindre la fenetre : le
