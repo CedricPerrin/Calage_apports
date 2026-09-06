@@ -12,46 +12,57 @@ ce fichier ne dit que **où on en est** et **par quoi reprendre**.
 > sections sont conservées comme récit, **pas comme référence**.
 > **`STATUT.txt` fait foi.**
 
-## ▶ Reprendre ici — état au 5 septembre 2026, 21 h
+## ▶ Reprendre ici — état au 6 septembre 2026, 19 h
 
-Tout le travail de la journée vit sur la branche
-**`claude/connaissance-des-md-qjbpro`**, 13 commits, PR **#1** (brouillon).
-`main` n'a pas bougé.
+Tout est sur **`main`**, poussé. La branche
+`claude/connaissance-des-md-qjbpro` a été fusionnée puis supprimée, ici et
+sur l'origine.
 
-```bash
-git fetch origin
-git checkout claude/connaissance-des-md-qjbpro
-```
+**Greffon en 0.7.13**, installé et vérifié dans QGIS. Bancs : suite du
+greffon **172 contrôles, 0 échec, 0 ignoré** ; `calage` avec son test de
+caractérisation ; `noyau` opérationnel ; `faire_zip` « archive conforme » ;
+`essai_garde_fou_archive` « TOUT PASSE ».
 
-**Greffon en 0.7.0.** Bancs sur un clone Linux : `calage` 121 · `criteres` 66 ·
-`suivi` 48 · `verification_environnement` 39 · `noyau` 38 · `geometrie` 26 ·
-`livrables` 16 · `style_classeur` 13 · `controle_donnees` 6 ·
-`faire_zip` « archive conforme ». `ruff F401/F841/F821` : **zéro**.
-
-### Ce qui a été fait aujourd'hui
+### Ce que la journée du 6 a donné
 
 | | |
 |---|---|
-| La fenêtre jugée **dit** ce qu'elle exclut, sans le juger | § 2.2 bis de `STATUT.txt` |
-| L'installation, pour qui ne sait pas où est Python | 0.6.7 |
-| **`AUDIT.md`** — audit de complexité outillé, cinq lots | lots **1, 2, 3 et 4 faits** |
-| `caler()` sous **test de caractérisation** | `src/reference_calage_fictif.json` |
-| « Installer… » n'installait rien et sortait en succès | 0.6.9 |
-| Six améliorations d'interface | 0.7.0 |
+| **La suite du greffon passe de bout en bout** — 152 annoncés, 172 obtenus | § 2 de `NOTE_SESSION_2026-09-05_poste_neuf.md` |
+| **Sept défauts du banc**, tous « il suppose le monde de son auteur » | même note, § 3 et § 8 |
+| **Lot 5 d'`AUDIT.md`** — `caler()` 699 → 622 lignes, 3ᵉ extraction écartée sur mesure | `AUDIT.md` § P1-4 |
+| **`AUDIT.md` est clos** — seul P2-10 reste, et l'audit dit que ce n'est pas un lot | |
+| **Onze correctifs d'ergonomie**, 0.7.1 à 0.7.13 | `docs/ergonomie_2026-09-06.md` |
+| Le bouton « Installer… » **éprouvé depuis QGIS**, ses deux chemins | § 8.1 de la note de session |
+| La note méthodologique **reconstruite** — sa table d'onglets datait d'avant la 0.7.0 | |
 
 ### Ce qui reste, et rien d'autre
 
-1. **Les 152 contrôles QGIS**, au poste — ils datent du 03/09 et `plugin.py` a
-   beaucoup changé. Exigent une **copie** de modèle et `CALAGE_PYTHON`.
-2. **Lot 5** d'`AUDIT.md` § 7 : `_sections_derivees` (petit), puis `caler()`
-   — 699 lignes, complexité 81. **Non engagé.** Le test de caractérisation qui
-   le protège existe désormais.
-3. **Recherche d'ergonomie** demandée après le lot 5, notamment le placement du
-   bouton **« Écrire, composer et contrôler »** : permanent en bas de la fenêtre, sans
-   lien visible avec l'onglet où l'on se trouve — on ne comprend pas quand
-   cliquer dessus.
-4. Vérifier à l'écran que la **barre d'onglets ne défile pas** : les libellés
-   ont rallongé de 25 caractères en 0.7.0.
+1. **Regarder la fenêtre.** Onze correctifs d'interface en un jour, tous
+   vérifiés au banc, aucun sous les yeux de l'utilisateur. En particulier :
+   **Entrée ne fait plus rien**, nulle part — c'est le prix assumé du
+   désarmement du geste irréversible, et il se voit.
+2. **Le suivi pendant un vrai calage.** L'état du calage précédent qui ne se
+   peint plus, « mort au démarrage » distingué de « pas encore parti », le
+   fil qui dit « calage lancé », la question posée si l'on recompose pendant
+   qu'un calcul tourne : tout cela est éprouvé sur des états **fabriqués**,
+   jamais sur un calage qui tourne.
+3. **Trois garde-fous jamais rencontrés en réel** — volume plancher, apport
+   refusé, modèle incohérent. Seul le banc les couvre.
+4. **L'hypothèse d'ordre total.** Le seul vrai levier qui reste : si le
+   jacobien est triangulaire, le calage simultané divise le nombre de calculs
+   par le nombre d'apports — ×18 sur un modèle à 30 apports — et c'est ce
+   chantier qui réécrirait la boucle dont la troisième extraction a été
+   écartée. `STATUT.txt` la liste toujours comme **non confirmée**. C'est une
+   question d'hydraulicien, pas de code.
+
+### Le poste de travail, pour y revenir
+
+`venv-hecras` monté, `CALAGE_PYTHON` figé au niveau utilisateur,
+`.affaires` créé depuis l'exemple. `QGIS_PREFIX_PATH` **n'est plus à
+poser** : le banc le déduit de l'interpréteur qui tourne. Le modèle
+d'essai est le plan **TEST** de `Muncie` (`p02`/`g02`), auquel deux
+`BC Line` et deux `Reference Line` ont été ajoutées — la seconde section
+en **aval** de la première, sans quoi le greffon refuse à juste titre.
 
 ### Deux questions déjà tranchées, pour ne pas les rouvrir
 

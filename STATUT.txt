@@ -27,24 +27,43 @@ CE QUI EST EPROUVE
     pilote_hecras, livrables, geometrie, controle_donnees, style_classeur,
     creer_template, elaguer_projet, verification_environnement,
     pont_hecras autotest, noyau.
-  - test_plugin_qgis.py sous le Python de QGIS (3.44.8 / Qt 5.15.13).
-    149 CONTROLES, 0 ECHEC LE 01/09 AU SOIR — premier passage complet, sur une
-    copie de CETTE_TEST1 (plan p03). Les six correctifs du 30/08 sont donc
-    desormais exerces SOUS QGIS. 152 CONTROLES LE 03/09 AU SOIR : trois de
-    plus, sur le dossier que l'onglet Suivi surveille (5.7, fin).
-    IL LUI FAUT UN MODELE PORTANT DES RESULTATS : sans .pXX.hdf, huit
-    controles echouent en cascade — ce n'est pas une regression.
-    IL LUI FAUT AUSSI L'INTERPRETEUR HEC-RAS. Sur ce poste le greffon ne le
-    trouve pas seul — il ne le fait que pour un .venv voisin de la chaine, et
-    D:\1-Python\.venv ne l'est pas. Le designer par la variable
-    CALAGE_PYTHON avant de lancer la suite ; sans lui, la lecture de la
-    geometrie echoue et la suite S'ARRETE en le disant (elle plantait).
+  - test_plugin_qgis.py sous le Python de QGIS. 172 CONTROLES, 0 ECHEC,
+    0 IGNORE, LE 06/09 — sur un POSTE NEUF, avec un modele et un interpreteur
+    HEC-RAS. Historique : 149 le 01/09, 152 le 03/09.
+    ELLE N'Y ARRIVAIT PAS, ET CE N'ETAIT PAS LE GREFFON. Sept defauts du BANC
+    l'en empechaient, tous du meme motif — il supposait le modele et le poste
+    de son auteur : un chemin de suivi fige au lieu de celui que la fenetre
+    surveille (seize faux echecs, puis un plantage), un garde-fou qui plantait
+    faute de son fichier .affaires, un modele sans objets de calage qui
+    emportait la suite sur pd.read_excel(None), une date de fenetre inversee
+    codee en dur, un axe impossible a batir sur un apport unique, EPSG:2154
+    declare en dur pour des coordonnees REELLES — sur un modele de l'Indiana,
+    la reprojection rendait « Coordinates with non-finite values are not
+    allowed » — et le chemin de QGIS suppose sous « QGIS\LTR ».
+    IL LUI FAUT UN MODELE PORTANT DES RESULTATS, et portant AU MOINS une ligne
+    d'injection et une ligne de reference, la seconde en AVAL de la premiere :
+    sinon la composition n'aboutit pas. Sans --modele, la suite tourne quand
+    meme et annonce ce qu'elle saute.
+    IL LUI FAUT AUSSI L'INTERPRETEUR HEC-RAS, par CALAGE_PYTHON. LE PREFIXE
+    QGIS, LUI, SE DEDUIT desormais de l'interpreteur qui tourne :
+    QGIS_PREFIX_PATH n'est plus a poser.
     Invoquer sur une COPIE, jamais sur un modele porteur d'un calage : la
     suite MODIFIE la geometrie du modele designe.
   - faire_zip.py rend « archive conforme » ; essai_garde_fou_archive.py, qui
     injecte trois fautes et verifie qu'elles sont refusees, rend « TOUT
     PASSE ».
   - DEUX calages complets sur modele reel ont abouti (section 5).
+  - LE BOUTON « INSTALLER L'ENVIRONNEMENT PYTHON HEC-RAS » EST EPROUVE, mene a
+    bout le 06/09 DANS le processus QGIS et par ses deux chemins : creation a
+    partir de rien, et reprise d'un environnement present. Douze paquets poses
+    et verifies en 56 s. C'est le lancement depuis QGIS qui comptait — c'est
+    la, et nulle part ailleurs, que son PYTHONHOME fuyait dans les
+    sous-processus de pip.
+  - GREFFON EN 0.7.13 (06/09). Onze correctifs d'ergonomie issus d'une
+    relecture a six lentilles : voir docs/ergonomie_2026-09-06.md, qui dit
+    aussi ce qu'il ne faut PAS toucher. Le lot 5 d'AUDIT.md est fait, et
+    AUDIT.md est clos — seul P2-10 reste, dont l'audit dit lui-meme que ce
+    n'est pas un lot.
   - LA DUREE AJUSTEE A CHAQUE APPORT a tourne en production le 31/08 : la
     fenetre reduite est bien ecrite dans le fichier plan (section 5.3 bis).
   - LES QUINZE BANCS SONT VERTS : les treize suites ci-dessus, plus

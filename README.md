@@ -71,7 +71,7 @@ l'installation (voir plus bas).
 | [src/creer_template.py](src/creer_template.py) / [src/style_classeur.py](src/style_classeur.py) | Fabrication et mise en forme du classeur de saisie |
 | [src/faire_zip.py](src/faire_zip.py) | Construit `calage_apports.zip`, l'archive d'installation du plugin |
 | [src/essai_garde_fou_archive.py](src/essai_garde_fou_archive.py) | Essai **adverse** : injecte trois fautes dans l'archive et vérifie qu'elles sont refusées |
-| [src/test_plugin_qgis.py](src/test_plugin_qgis.py) | Suite du plugin (**165 contrôles au 06/09**), à lancer sous l'interpréteur de QGIS et sur une **copie** d'un modèle — la suite **modifie** la géométrie de celui qu'on lui donne. Sans `--modele`, elle tourne quand même et annonce ce qu'elle saute ; avec, il lui faut aussi `--plan`, `--geometrie` et `--objet <nom d'une condition limite>`. Le modèle doit porter au moins une ligne d'injection et une ligne de référence, la seconde en **aval** de la première |
+| [src/test_plugin_qgis.py](src/test_plugin_qgis.py) | Suite du plugin (**172 contrôles au 06/09**), à lancer sous l'interpréteur de QGIS et sur une **copie** d'un modèle — la suite **modifie** la géométrie de celui qu'on lui donne. Sans `--modele`, elle tourne quand même et annonce ce qu'elle saute ; avec, il lui faut aussi `--plan`, `--geometrie` et `--objet <nom d'une condition limite>`. Le modèle doit porter au moins une ligne d'injection et une ligne de référence, la seconde en **aval** de la première |
 | `src/figures_note/` | Reconstruction de la note méthodologique : contenu, figures, assemblage du `.docx` |
 | [methodologie_calage_amont_aval.docx](methodologie_calage_amont_aval.docx) | Note méthodologique (mode opératoire, méthode générale, application HEC-RAS/QGIS, livrables) |
 | `calage_apports/` | Plugin QGIS — voir son propre [LISEZMOI.md](calage_apports/LISEZMOI.md) (installation, tests, contraintes d'environnement) |
@@ -80,7 +80,7 @@ l'installation (voir plus bas).
 | [AUDIT.md](AUDIT.md) | Audit de complexité du 5 septembre 2026 — constats mesurés, ce qu'il ne faut **pas** simplifier, et le plan par lots |
 | `charte/` | Identité graphique ISL Ingénierie |
 | [docs/ergonomie_2026-09-06.md](docs/ergonomie_2026-09-06.md) | Recherche d'ergonomie sur la fenêtre : six lectures indépendantes de `plugin.py`, puis une passe de réfutation. Ce qui a été corrigé, ce qu'il ne faut **pas** toucher, et ce qu'aucune lecture de code ne tranchera |
-| [NOTE_SESSION_2026-09-05_poste_neuf.md](NOTE_SESSION_2026-09-05_poste_neuf.md) | Ce qu'un poste neuf a appris au projet : montage de l'environnement, passage des 165 contrôles, et les sept défauts du banc qu'il a fallu lever pour y arriver |
+| [NOTE_SESSION_2026-09-05_poste_neuf.md](NOTE_SESSION_2026-09-05_poste_neuf.md) | Ce qu'un poste neuf a appris au projet : montage de l'environnement, passage des 172 contrôles, et les sept défauts du banc qu'il a fallu lever pour y arriver |
 | `docs/` | Notes de travail annexes |
 | `_arquivo/` | Versions obsolètes de documents, hors du chemin de lecture normal |
 
@@ -95,7 +95,7 @@ en un ou deux essais. Ce qu'ils ont appris est aux sections 5.6 et 5.7 de
 Modèle, Objectifs et précision, Résultats, Lancer, Suivi, Aide et
 configuration.
 
-**La suite du greffon passe de bout en bout** : **165 contrôles, aucun
+**La suite du greffon passe de bout en bout** : **172 contrôles, aucun
 échec**, le 6 septembre 2026 sur un poste neuf, avec un modèle et un
 interpréteur HEC-RAS. Elle n'y arrivait pas : sept défauts du **banc**
 l'en empêchaient, tous du même motif — *il supposait le modèle et le poste

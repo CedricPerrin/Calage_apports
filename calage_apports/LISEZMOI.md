@@ -245,7 +245,7 @@ et « Lancer quand même » proposait un calage que la chaîne refuse de toute
 façon.
 
 **Le 6 septembre 2026, la suite est passée de bout en bout sur un poste
-neuf : 165 contrôles, aucun échec**, avec un modèle et un interpréteur
+neuf : 172 contrôles, aucun échec**, avec un modèle et un interpréteur
 HEC-RAS. Elle n'y arrivait pas, et ce n'était pas le greffon : **sept
 défauts du banc** l'en empêchaient, tous du même motif — *il supposait le
 modèle et le poste de son auteur*. Un chemin de suivi figé au lieu de celui
