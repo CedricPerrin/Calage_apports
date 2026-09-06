@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.7.1
+version=0.7.2
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,30 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,KGE,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.7.1 — La touche Entrée n'écrit plus dans la géométrie.
+changelog=0.7.2 — Trois états qui mentaient, et un refus inatteignable.
+    QUAND LA COMPOSITION ÉCHOUE APRÈS L'ÉCRITURE, LA BOÎTE LE DIT. L'ordre
+    est : écrire dans la géométrie, puis composer, puis contrôler. Tout ce
+    qui échouait après l'écriture remontait au même message final, qui ne
+    portait que le texte de l'erreur — on lisait un échec et l'on
+    concluait que rien n'avait eu lieu, alors que le modèle venait d'être
+    modifié. Son seul témoin vit à l'onglet 1, invisible depuis l'onglet
+    d'où l'on a cliqué.
+    L'AXE HYDRAULIQUE N'EST PLUS CHOISI SANS QUE PERSONNE NE L'AIT CHOISI.
+    Sans entrée vide, le combo rendait toujours une couche dès qu'il en
+    existait une — et « Charger les couches du modèle » en ajoute deux,
+    fabriquées par le greffon lui-même. Le fil conducteur cochait donc
+    « ✔ Axe hydraulique » pour un geste jamais fait, et le refus de
+    composer sans axe était INATTEIGNABLE. Ce refus, redevenu atteignable,
+    renvoyait de surcroît à l'onglet 2 pour un champ qui a rejoint
+    l'onglet 1 en 0.7.0.
+    LE CHAMP « DOSSIER DU PROJET » DEVIENT CE QU'IL EST DÉJÀ : un
+    afficheur. Il était éditable et invitait à le remplir, mais n'était
+    connecté à rien — seul « Parcourir… » charge le projet. Un chemin
+    collé ne chargeait rien, et le refus qui suivait réclamait un dossier
+    déjà écrit à l'écran.
+    Deux contrôles de plus au banc, dont un qui vérifie que le refus est
+    atteignable et nomme le bon onglet : 156 contrôles, aucun échec.
+    0.7.1 — La touche Entrée n'écrit plus dans la géométrie.
     « Composer et contrôler » était le bouton PAR DÉFAUT de la fenêtre :
     une pression sur Entrée depuis n'importe quel champ de saisie — un
     chemin de dossier, une tolérance, le préfixe de scénario — lançait
