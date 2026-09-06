@@ -296,11 +296,8 @@ Voir § 9.
    dont la troisième extraction a été écartée. Il repose entièrement sur
    l'hypothèse d'ordre total, que `STATUT.txt` liste toujours comme **non
    confirmée**. C'est une question d'hydraulicien, pas de code.
-4. **Le reste de la note d'ergonomie** — les constats du suivi (§ 2.3),
-   non engagés : l'onglet 5 qui peint l'état du calage précédent après un
-   relancement, « pas encore démarré » indistinguable de « mort au
-   démarrage », le fil qui dit « lancer » pendant les heures de calcul,
-   et le `tasklist` toutes les deux secondes sur le fil graphique.
+4. ~~Les constats du suivi (§ 2.3)~~ — **faits** (0.7.8 et 0.7.9), voir
+   § 10.
 
 ## 9. Les trois décisions, appliquées le 6 septembre
 
@@ -366,3 +363,48 @@ Une ligne, sur le geste central de l'outil : `_maj_resume()` en tête de
 sections dans QGIS, on revenait — et rien ne le remarquait. (`969ac89`)
 
 **Greffon installé dans QGIS : 0.7.4**, vérifié après rechargement.
+
+## 10. Les constats du suivi — 0.7.8 et 0.7.9
+
+Le § 2.3 de `docs/ergonomie_2026-09-06.md` portait six constats. Cinq
+étaient corrigeables ; **le sixième a été essayé, mesuré, et retiré**.
+
+**Trois d'entre eux n'avaient qu'une cause** : `_lancer_calage` recevait
+le PID du calage et le chemin de son journal, les mettait dans une boîte
+d'information, et les perdait.
+
+| ce qui mentait | ce que ça donnait |
+|---|---|
+| après un relancement, l'onglet 5 peignait l'état du calage **précédent** | « Calage terminé — conforme » en réponse au lancement qui venait d'aboutir |
+| « pas encore démarré » indistinguable de « mort au démarrage » | « quelques secondes après le lancement », pour toujours, devant un processus mort |
+| le fil conducteur ordonnait « lancer » | pendant les **heures** du calcul, sur le seul repère permanent de la fenêtre |
+
+Une donnée retenue en mémoire les redresse toutes les trois. **Jamais dans
+`QSettings`** : celui-ci est attaché au profil QGIS, pas au projet, et
+restaurer le lancement d'une autre étude coûterait plus cher que ce qu'on
+répare. Fermer QGIS pendant un calage ne perd d'ailleurs ni le calcul ni
+les livrables — le processus est détaché ; on perd l'orientation, pas le
+travail.
+
+**Le dossier surveillé** n'était nommé que dans la bannière « Aucun calage
+suivi », donc jamais quand l'onglet sert. Il vit désormais sous la
+bannière, renseigné à chaque passage.
+
+### Le sixième : ce qui a été essayé puis retiré
+
+Sonder `tasklist` toutes les deux secondes coûte un sous-processus sur le
+fil graphique, pendant toute la durée du calage. J'ai tenu pour vivant un
+`avancement.json` touché il y a moins d'une minute. **Le banc l'a réfuté
+en deux temps :**
+
+- un calage mort juste après avoir écrit son état était annoncé **en
+  cours** pendant cette minute — c'est-à-dire exactement le défaut que la
+  bannière « Calage interrompu » avait été ajoutée pour réparer ;
+- et l'économie est **illusoire là où elle compterait** : pendant un
+  calcul HEC-RAS de plusieurs heures, le fichier ne bouge pas davantage,
+  donc on sonde de toute façon à chaque battement.
+
+La friction reste, assumée. Un commentaire du code porte les deux mesures,
+pour que l'idée ne revienne pas sans elles.
+
+**Banc : 165 contrôles, aucun échec.**
