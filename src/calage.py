@@ -1964,7 +1964,7 @@ def _noter_bilan(suivi, calcul, config):
     APRES CHAQUE CALCUL, ACCEPTE OU NON. C'est justement le calcul REJETE
     qu'il faut pouvoir lire a l'ecran : sans cela, l'arret « qualite
     numerique » n'expose son chiffre que dans le journal texte, que
-    l'utilisateur du greffon n'ouvre pas.
+    l'utilisateur du plugin n'ouvre pas.
     """
     if suivi is None:
         return

@@ -18,8 +18,8 @@ Tout est sur **`main`**, poussé. La branche
 `claude/connaissance-des-md-qjbpro` a été fusionnée puis supprimée, ici et
 sur l'origine.
 
-**Greffon en 0.7.14**, installé et vérifié dans QGIS. Bancs : suite du
-greffon **172 contrôles, 0 échec, 0 ignoré** ; `calage` avec son test de
+**Plugin en 0.7.14**, installé et vérifié dans QGIS. Bancs : suite du
+plugin **172 contrôles, 0 échec, 0 ignoré** ; `calage` avec son test de
 caractérisation ; `noyau` opérationnel ; `faire_zip` « archive conforme » ;
 `essai_garde_fou_archive` « TOUT PASSE ».
 
@@ -27,7 +27,7 @@ caractérisation ; `noyau` opérationnel ; `faire_zip` « archive conforme » ;
 
 | | |
 |---|---|
-| **La suite du greffon passe de bout en bout** — 152 annoncés, 172 obtenus | § 2 de `NOTE_SESSION_2026-09-05_poste_neuf.md` |
+| **La suite du plugin passe de bout en bout** — 152 annoncés, 172 obtenus | § 2 de `NOTE_SESSION_2026-09-05_poste_neuf.md` |
 | **Sept défauts du banc**, tous « il suppose le monde de son auteur » | même note, § 3 et § 8 |
 | **Lot 5 d'`AUDIT.md`** — mené le **5 au soir** : `caler()` 699 → 622 lignes, 3ᵉ extraction écartée sur mesure | `AUDIT.md` § P1-4 |
 | **`AUDIT.md` est clos** — seul P2-10 reste, et l'audit dit que ce n'est pas un lot | |
@@ -65,7 +65,7 @@ caractérisation ; `noyau` opérationnel ; `faire_zip` « archive conforme » ;
 poser** : le banc le déduit de l'interpréteur qui tourne. Le modèle
 d'essai est le plan **TEST** de `Muncie` (`p02`/`g02`), auquel deux
 `BC Line` et deux `Reference Line` ont été ajoutées — la seconde section
-en **aval** de la première, sans quoi le greffon refuse à juste titre.
+en **aval** de la première, sans quoi le plugin refuse à juste titre.
 
 ### Deux questions déjà tranchées, pour ne pas les rouvrir
 
@@ -110,7 +110,7 @@ passerait.
 
 ## Session du 5 septembre 2026 (nuit) — six améliorations d'interface
 
-**Greffon en 0.7.0.** Demandées après la première prise en main réelle.
+**Plugin en 0.7.0.** Demandées après la première prise en main réelle.
 
 | # | demande | fait |
 |---|---|---|
@@ -137,7 +137,7 @@ défile sur un écran étroit, c'est là qu'il faut raccourcir.
 
 ## Session du 5 septembre 2026 (soir) — « Installer… » n'installait rien
 
-**Greffon en 0.6.9.** Le bouton a tourné pour la première fois sur un poste
+**Plugin en 0.6.9.** Le bouton a tourné pour la première fois sur un poste
 neuf, et il a révélé son défaut — celui que `STATUT.txt` annonçait depuis des
 semaines sous « CE QUI N'A JAMAIS TOURNÉ ».
 
@@ -156,7 +156,7 @@ Onze sur onze, après **deux** passages de pip qui rendent tous deux **0**.
 ### La cause
 
 Les trois sous-processus de l'installeur — `python -m venv` et les deux
-`pip install` — étaient **les seuls du greffon** à transmettre l'environnement
+`pip install` — étaient **les seuls du plugin** à transmettre l'environnement
 de QGIS.
 
 | appel | `env=environnement_propre()` avant | après |
@@ -181,7 +181,7 @@ lancées depuis QGIS. Il échoue sur le code d'avant
 
 ## Session du 5 septembre 2026 (fin) — trois lots de l'audit
 
-Lots **1, 2 et 3** de `AUDIT.md` sont faits. Greffon en **0.6.8**.
+Lots **1, 2 et 3** de `AUDIT.md` sont faits. Plugin en **0.6.8**.
 
 ### Lot 2 — la dérive documentaire, dans l'outil d'accueil
 
@@ -203,7 +203,7 @@ l'onglet 4 qui se taisait. Retiré, en disant qu'il l'a été.
 
 ## Session du 5 septembre 2026 (fin) — la pente déduite n'avait jamais tourné
 
-**Greffon en 0.6.8.** Le lot 1 puis le lot 3 de `AUDIT.md`, et le défaut que
+**Plugin en 0.6.8.** Le lot 1 puis le lot 3 de `AUDIT.md`, et le défaut que
 l'audit avait trouvé.
 
 ### Le P0, et le garde-fou qui l'aurait attrapé
@@ -213,7 +213,7 @@ sous un `except Exception` qui rendait le `NameError` comme un problème
 d'environnement. Le repli des pentes — *classeur, puis pente locale du fond,
 puis rien* — avait **deux échelons sur trois** ; un apport dont la case
 `Pente_m_par_m` est vide gardait la pente déjà en place, soit **1 %** pour une
-injection créée par le greffon.
+injection créée par le plugin.
 
 `faire_zip.noms_jamais_lies()` refuse désormais tout nom lu sans avoir jamais
 été lié dans son fichier. **Aveugle aux portées, donc sans aucun faux positif**
@@ -250,7 +250,7 @@ Et `maille_globale`, que `ruff` donnait pour mort, s'est révélé être une
 
 ## Session du 5 septembre 2026 (suite) — installer sans savoir où est Python
 
-**Greffon en 0.6.7.** Trois défauts, chacun prouvé puis fermé par un banc.
+**Plugin en 0.6.7.** Trois défauts, chacun prouvé puis fermé par un banc.
 
 | défaut | preuve | correctif |
 |---|---|---|
@@ -333,7 +333,7 @@ sur le poste, où il est vert.
 critère de cohérence se juge à la fin — corrigé), § 5.7 fin (le troisième
 calage, mesuré), § 6 (le verdict de volume, chiffre reproductible).
 
-**15 bancs verts, greffon en 0.6.6.** Les 152 contrôles QGIS datent du
+**15 bancs verts, plugin en 0.6.6.** Les 152 contrôles QGIS datent du
 03/09 : `plugin.py` a changé le 04/09, ils sont à repasser.
 
 ### Ardanavy Q100, refait de zéro avec la 0.6.1 : 6/6 conforme en 16 h 49
@@ -363,7 +363,7 @@ Premier lancement depuis un autre poste (Ardanavy Q20 V1) : feuille Cibles
 avec l'en-tête A1 remplacé par un caractère isolé et la colonne de temps
 vide sous six colonnes de débit pleines. Le pont a planté en arrière-plan
 (`'numpy.float64' object has no attribute 'to_numpy'`). `etat_cibles()`, que
-le greffon consulte avant de lancer, refuse désormais un classeur sans
+le plugin consulte avant de lancer, refuse désormais un classeur sans
 colonne « Temps_h » en nommant l'en-tête trouvé, et ne tient une cible pour
 renseignée que si elle a deux instants numériques en face de deux débits —
 la règle du pont, qui porte le même garde-fou.
@@ -396,7 +396,7 @@ Voir la session du 3 septembre ci-dessous (correctif fait le 3 au soir).
 plans — neuf), § 5.7 (les cinq défauts, mesurés), § 6 (le verdict de volume,
 à trancher).
 
-**15 bancs verts, 152 contrôles QGIS verts, greffon en 0.6.2.**
+**15 bancs verts, 152 contrôles QGIS verts, plugin en 0.6.2.**
 
 ### Ce que le relevé des dossiers a montré
 
@@ -633,7 +633,7 @@ blanche reconnaît, deux **motifs de recherche** portant une étoile. L'étoile
 critère plutôt que d'ajouter leurs racines à la liste blanche : *un motif de
 recherche n'est pas un chemin* est une règle, pas une exception nominative.
 
-**Sur ce poste, la suite QGIS exige `CALAGE_PYTHON`** — le greffon ne trouve
+**Sur ce poste, la suite QGIS exige `CALAGE_PYTHON`** — le plugin ne trouve
 seul qu'un `.venv` voisin de la chaîne.
 
 ### Ce qui reste, et ce qui a changé de statut
@@ -852,7 +852,7 @@ conditions limites ou tolérance 2D du plan.
 **Vérifié** : les 12 suites passent, archive reconstruite et conforme, garde-fou
 adverse « TOUT PASSE ». **Rien n'a tourné sous QGIS** ni sur un calcul HEC-RAS.
 
-**Par quoi reprendre** : réinstaller le greffon (son dossier a disparu du
+**Par quoi reprendre** : réinstaller le plugin (son dossier a disparu du
 profil QGIS le 30/08 vers 09:40), puis relancer le calage — le seuil à 5 %
 laissera passer le calcul de référence.
 
@@ -2080,7 +2080,7 @@ aucune n'est facultative :
   (166 Mo) hors du dépôt.
 - le modèle doit porter au moins un plan **CALCULÉ**, sinon 8 contrôles
   échouent en cascade — ce n'est pas une régression.
-- `CALAGE_PYTHON` doit désigner l'interpréteur HEC-RAS. Le greffon ne le
+- `CALAGE_PYTHON` doit désigner l'interpréteur HEC-RAS. Le plugin ne le
   trouve seul que si c'est un `.venv` **voisin de la chaîne**, ce que
   `D:\1-Python\.venv` n'est pas. Sans lui la lecture de la géométrie échoue,
   et la suite s'arrête en le disant.

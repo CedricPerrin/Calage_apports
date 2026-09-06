@@ -18,7 +18,7 @@ onglets — l'ordre des onglets est celui des décisions.
 | Aide et configuration | mode opératoire, pièges connus, et les deux emplacements du poste — chaîne de calage et interpréteur HEC-RAS |
 
 **Les six onglets sont en images** dans le README du dépôt, section « La
-fenêtre du greffon » — une capture par onglet.
+fenêtre du plugin » — une capture par onglet.
 
 Le bouton **Écrire, composer et contrôler**, permanent en bas de la fenêtre,
 fait les trois choses que son nom annonce, dans cet ordre :
@@ -130,7 +130,7 @@ sans message.
 *À la main*, si le poste interdit à QGIS de sortir sur PyPI alors qu'une
 invite de commandes le peut : **la commande exacte est donnée par *Aide →
 Vérifier l'environnement***, qui la construit à partir de la liste que le
-greffon exige réellement. Ne pas la recopier ici — elle compte une dizaine de
+plugin exige réellement. Ne pas la recopier ici — elle compte une dizaine de
 paquets et a déjà divergé une fois, un environnement bâti sur une liste courte
 étant ensuite refusé.
 
@@ -255,7 +255,7 @@ façon.
 
 **Le 6 septembre 2026, la suite est passée de bout en bout sur un poste
 neuf : 172 contrôles, aucun échec**, avec un modèle et un interpréteur
-HEC-RAS. Elle n'y arrivait pas, et ce n'était pas le greffon : **sept
+HEC-RAS. Elle n'y arrivait pas, et ce n'était pas le plugin : **sept
 défauts du banc** l'en empêchaient, tous du même motif — *il supposait le
 modèle et le poste de son auteur*. Un chemin de suivi figé au lieu de celui
 que la fenêtre surveille (seize faux échecs, puis un plantage), un

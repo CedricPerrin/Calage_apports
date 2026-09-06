@@ -27,7 +27,7 @@ python-docx         # reconstruction de methodologie_calage_amont_aval.docx
 #
 #   ras-commander, h5py   Ils pilotent HEC-RAS et lisent ses fichiers HDF. Ils
 #                         vivent dans un interpreteur SEPARE, cree par le
-#                         bouton « Installer… » du greffon — la bibliotheque
+#                         bouton « Installer… » du plugin — la bibliotheque
 #                         HDF5 de h5py entre en conflit avec celle de QGIS.
 #                         Voir noyau.PAQUETS_HECRAS, qui est la source unique
 #                         de cette autre liste. Sans eux, les bancs de

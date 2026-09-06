@@ -21,10 +21,10 @@ DOSSIER = Path(__file__).parent
 RACINE = DOSSIER.parent  # depot du projet : src/ contient la chaine, RACINE
                          # porte calage_apports/, la note methodologique, le
                          # template et STATUT.txt
-# LA VERSION MINIMALE DE ras-commander VIENT DU NOYAU DU GREFFON, jamais
+# LA VERSION MINIMALE DE ras-commander VIENT DU NOYAU DU PLUGIN, jamais
 # recopiee ici. Elle y est justifiee (une 0.98.2 borne mal les tableaux
 # d'hydrogramme : un apport ecrit y serait tronque SANS message), et le
-# greffon refuse deja un interpreteur qui ne l'atteint pas. Ce script, lui,
+# plugin refuse deja un interpreteur qui ne l'atteint pas. Ce script, lui,
 # affichait la version sans la juger : le meme poste etait donc accepte ici
 # et refuse la-bas. Deux regles qui doivent s'accorder finissent toujours par
 # diverger — il n'y en a plus qu'une, et _version_ras_commander est reutilise
@@ -396,7 +396,7 @@ try:
               else f"absents : {_manquants or 'aucun titre d onglet lisible'}",
               bloquant=False)
 except Exception as e:
-    controler("fenetre du greffon presente dans plugin.py", False, str(e),
+    controler("fenetre du plugin presente dans plugin.py", False, str(e),
               bloquant=False)
 
 # Le pont doit repondre : c'est la seule preuve qui compte.
@@ -511,7 +511,7 @@ print("     par un test.")
 # LE BOUTON « INSTALLER... » A ETE MENE A BOUT LE 06/09/2026, et il figurait
 # jusque-la trois lignes plus bas, sous « RESTE A EPROUVER ». C'est le
 # LANCEMENT DEPUIS QGIS qui compte : c'est la, et nulle part ailleurs, que le
-# PYTHONHOME et le PYTHONPATH du greffon fuyaient dans les sous-processus de
+# PYTHONHOME et le PYTHONPATH du plugin fuyaient dans les sous-processus de
 # l'installeur — pip voyait alors les paquets de QGIS, les tenait pour
 # « already satisfied », n'en posait aucun, et rendait 0. Le meme essai lance
 # depuis une invite de commandes ne prouve rien, parce qu'il n'a pas cet

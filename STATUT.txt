@@ -2,7 +2,7 @@ PROJET : Calage des apports — ISL Ingenierie
 =============================================
 
 Ajustement sequentiel d'apports amont sur des hydrogrammes cibles aval, pour
-les modeles 2D HEC-RAS. Chaine Python (src/) + greffon QGIS (calage_apports/).
+les modeles 2D HEC-RAS. Chaine Python (src/) + plugin QGIS (calage_apports/).
 
 CE FICHIER DIT L'ETAT COURANT ET LES REGLES EN VIGUEUR — rien d'autre.
 Il n'est pas un journal : le recit de ce qui a ete essaye puis retire vit
@@ -30,7 +30,7 @@ CE QUI EST EPROUVE
   - test_plugin_qgis.py sous le Python de QGIS. 172 CONTROLES, 0 ECHEC,
     0 IGNORE, LE 06/09 — sur un POSTE NEUF, avec un modele et un interpreteur
     HEC-RAS. Historique : 149 le 01/09, 152 le 03/09.
-    ELLE N'Y ARRIVAIT PAS, ET CE N'ETAIT PAS LE GREFFON. Sept defauts du BANC
+    ELLE N'Y ARRIVAIT PAS, ET CE N'ETAIT PAS LE PLUGIN. Sept defauts du BANC
     l'en empechaient, tous du meme motif — il supposait le modele et le poste
     de son auteur : un chemin de suivi fige au lieu de celui que la fenetre
     surveille (seize faux echecs, puis un plantage), un garde-fou qui plantait
@@ -59,7 +59,7 @@ CE QUI EST EPROUVE
     et verifies en 56 s. C'est le lancement depuis QGIS qui comptait — c'est
     la, et nulle part ailleurs, que son PYTHONHOME fuyait dans les
     sous-processus de pip.
-  - GREFFON EN 0.7.14 (06/09). Seize constats d'ergonomie sur dix-huit
+  - PLUGIN EN 0.7.14 (06/09). Seize constats d'ergonomie sur dix-huit
     corriges, issus d'une relecture a six lentilles : voir docs/ergonomie_2026-09-06.md, qui dit
     aussi ce qu'il ne faut PAS toucher. Le lot 5 d'AUDIT.md est fait, et
     AUDIT.md est clos — seul P2-10 reste, dont l'audit dit lui-meme que ce
@@ -69,7 +69,7 @@ CE QUI EST EPROUVE
   - LES QUINZE BANCS SONT VERTS : les treize suites ci-dessus, plus
     faire_zip.py et essai_garde_fou_archive.py. Repasses le 04/09, apres le
     garde-fou de la colonne de temps (section 5.7, fin).
-  - GREFFON EN 0.6.6. Son archive ne se comporte plus comme la 0.5.0 : les
+  - PLUGIN EN 0.6.6. Son archive ne se comporte plus comme la 0.5.0 : les
     livrables ont change (5.7), le classeur porte un parametre de plus, le
     bouton « Installer… » complete un environnement reutilise, l'onglet
     Suivi regarde le dossier du CLASSEUR LANCE, plus celui de l'onglet 3
@@ -121,7 +121,7 @@ CE QUI EST EPROUVE
   - CE QUE LA FENETRE JUGEE LAISSE DEHORS EST MESURE ET DIT depuis le
     05/09 : deux nombres de plus au Diagnostic et une reserve NON bloquante
     quand le verdict et la serie entiere divergent sur la bande (2.2 bis).
-    DIRE, SANS JUGER — aucun verdict deja rendu ne bouge. Hors greffon : la
+    DIRE, SANS JUGER — aucun verdict deja rendu ne bouge. Hors plugin : la
     suite QGIS n'est pas concernee.
   - L'INSTALLATION EST ACCESSIBLE A QUI NE SAIT PAS OU EST PYTHON — 0.6.7,
     05/09. Trois defauts, chacun avec un banc :
@@ -211,7 +211,7 @@ LES DEUX CALAGES SONT TERMINES ET CONFORMES — RELEVE DU 02/09 A 16 H 25
 
 LE BOUTON « INSTALLER… » A ENFIN TOURNE SUR UN POSTE NEUF (05/09), ET IL A
 REVELE SON DEFAUT. Ses trois sous-processus — « python -m venv » et les deux
-« pip install » — etaient les SEULS du greffon a transmettre l'environnement
+« pip install » — etaient les SEULS du plugin a transmettre l'environnement
 de QGIS. Son PYTHONPATH et son PYTHONHOME pointent SA bibliotheque, qui livre
 deja numpy, pandas, scipy, matplotlib, openpyxl, geopandas, shapely et pyproj
 — HUIT des onze paquets. pip les voyait sur sys.path, les tenait pour « already
@@ -230,7 +230,7 @@ L'INTERPRETEUR
   D:\1-Python\.venv\Scripts\python.exe   (Python 3.13.11)
   Il porte matplotlib, openpyxl, h5py 3.16.0, geopandas, pyproj,
   ras-commander 0.99.1, python-docx, pywin32.
-  Le greffon le trouve seul s'il est un .venv voisin de la chaine retenue ;
+  Le plugin le trouve seul s'il est un .venv voisin de la chaine retenue ;
   sinon il se designe (bouton « Designer… ») ou s'installe (bouton
   « Installer… »).
 
@@ -558,7 +558,7 @@ tolerance de volume exigeante ne rejette pas un calcul sain — les deux
 grandeurs ne doivent jamais se rapprocher.
 
 SEUIL : 5 % par defaut (Bilan_masse_max_pct, expose au classeur et au
-greffon). Il valait 1 % jusqu'au 30/08 ; voir section 5.3 pour ce qui a fait
+plugin). Il valait 1 % jusqu'au 30/08 ; voir section 5.3 pour ce qui a fait
 le relever.
 
 CE QUE LES SOURCES DISENT — RECHERCHE DU 01/09/2026, ET LE RESULTAT EST UNE
@@ -606,7 +606,7 @@ qui fait son travail — arreter le calage sur une erreur du solveur, sans
 l'arreter au hasard des calculs. Ce paragraphe garde ce qui a ete trouve : il
 dit ce que le seuil EST et ce qu'il n'est PAS, et cela suffit.
 Le bilan du dernier calcul est publie dans avancement.json
-(suivi.noter_bilan_masse) et affiche sous les jauges du greffon.
+(suivi.noter_bilan_masse) et affiche sous les jauges du plugin.
 
 DEUX FAMILLES D'ALERTES, ET UNE SEULE BLOQUE. Diagnostic porte « alertes »
 (tout ce qui est signale, affiche tel quel dans la colonne Alertes) et
@@ -668,7 +668,7 @@ appelants le sollicitent avant qu'un fichier soit touche — controle_donnees
 chaque jalon). Une seule regle, jamais deux qui divergent.
 
 LE PREFIXE DE SCENARIO (parametre Prefixe_scenario du classeur, champ « Prefixe
-de scenario » du greffon a cote de « Premier apport ») :
+de scenario » du plugin a cote de « Premier apport ») :
     prefixe vide       « sans apport »   « Apport_ARD06 »   « avec apports »
     prefixe « Q100 »   « Q100-sans apport »  « Q100-Apport_ARD06 »  « Q100-avec apports »
   PREFIXE VIDE = LES TITRES D'AVANT, AU CARACTERE PRES : un classeur ou un
@@ -775,7 +775,7 @@ COMPOSITION (pont_hecras._controler_durees_avant_calcul) et non plus
 seulement dans preparer(), qui ne parlait qu'au journal d'un sous-processus
 detache. Le message RANGE les fautives en deux groupes, parce qu'elles ne se
 corrigent pas au meme endroit : apports a caler (feuille Cibles du classeur)
-et autres conditions limites (modele source). Le greffon PROPOSE de prolonger
+et autres conditions limites (modele source). Le plugin PROPOSE de prolonger
 les colonnes de la feuille Cibles par des ZEROS — une crue arretee avant la
 fin de sa fenetre est retombee, zero est la mesure, pas la derniere valeur.
 
@@ -876,7 +876,7 @@ de reference s'appelle « sans apport <premier> et aval ».
   reference, avec un AVERTISSEMENT explicite : les apports amont y valent ce
   qu'ils y valent. Legitime si l'utilisateur les a cales a la main, faux
   sinon.
-  Cote greffon, c'est un reglage DE LANCEMENT et non de composition : le
+  Cote plugin, c'est un reglage DE LANCEMENT et non de composition : le
   combo est rempli depuis le classeur et sa valeur y est ecrite juste avant
   le depart, sans quoi un choix fait apres la composition serait ignore.
 
@@ -903,7 +903,7 @@ suivi.py ecrit AVANCEMENT.JSON (etat machine complet, atomique, reecrit a
 chaque essai) DES LA CONSTRUCTION du suivi, avant le premier calcul.
 suivi.conclure(conforme, motif, nb_calculs) pose le verdict. Trois etats :
 EN COURS, TERMINE (conforme ou non, avec motif), INTERROMPU (le PID n'existe
-plus et aucun verdict n'a ete rendu). Le greffon (onglet 5) relit ce fichier
+plus et aucun verdict n'a ete rendu). Le plugin (onglet 5) relit ce fichier
 toutes les deux secondes ; aucun pourcentage n'y est recalcule.
 
 LE SUIVI NE DOIT JAMAIS INTERROMPRE LE CALAGE : toute defaillance de
@@ -957,12 +957,12 @@ injection sans section en aval n'est pas calee (cas normal) ; une section
 sans injection en amont ne peut pas l'etre du tout (erreur bloquante), tout
 comme une injection que plusieurs sections revendiqueraient.
 
-2.10  QUELLE CHAINE LE GREFFON EXECUTE — LE RANG, JAMAIS LA DATE
+2.10  QUELLE CHAINE LE PLUGIN EXECUTE — LE RANG, JAMAIS LA DATE
 --------------------------------------------------------------------------
 Une designation explicite gagne toujours : noyau.definir_chaine (memorisee
 d'une session a l'autre), puis CALAGE_CHAINE. A defaut, deux emplacements
 SEULEMENT, dans un ORDRE FIXE qui NE COMPARE AUCUNE DATE : la copie embarquee
-(calage_apports/chaine/), puis src/ du parent du greffon.
+(calage_apports/chaine/), puis src/ du parent du plugin.
 
 POURQUOI PAS LA DATE. zipfile.extractall — ce qu'emploie le gestionnaire
 d'extensions de QGIS — ne restitue pas la date stockee dans l'archive : les
@@ -984,13 +984,13 @@ a lui-meme mutilee.
 noyau.emplacement_venv_hecras() / installer_interpreteur() creent
 l'environnement A COTE DE LA CHAINE quand elle est externe (poste de
 developpement, installation par lien symbolique), et sinon dans le DOSSIER DE
-DONNEES DU GREFFON — %LOCALAPPDATA%\calage_apports sous Windows,
-~/.calage_apports ailleurs (noyau.dossier_donnees_greffon).
+DONNEES DU PLUGIN — %LOCALAPPDATA%\calage_apports sous Windows,
+~/.calage_apports ailleurs (noyau.dossier_donnees_plugin).
   JAMAIS SOUS LA COPIE EMBARQUEE : elle vit dans le dossier d'installation de
   l'extension, que le gestionnaire de QGIS efface a chaque mise a jour.
   interpreteur_hecras() cherche AUSSI dans le dossier de donnees. Ce n'est pas
   une entorse a la regle « aucun emplacement n'est devine » : c'est le seul
-  endroit que le greffon INSTALLE lui-meme, et le chercher revient a se
+  endroit que le plugin INSTALLE lui-meme, et le chercher revient a se
   souvenir de ce qu'on a fait. Sans cela, un environnement installe par le
   bouton serait perdu des qu'un profil QGIS neuf viderait QSettings.
 
@@ -1041,7 +1041,7 @@ du code n'y figure : si un nom manque ici, c'est qu'il n'existe plus.
   Profil en long des livrables                 pont_hecras.
                                                _profil_pour_livrables
 
-  Etat machine relu par le greffon             suivi.Suivi.etat,
+  Etat machine relu par le plugin             suivi.Suivi.etat,
                                                noter_bilan_masse
   Bloc residuel du classeur d'iterations       suivi.enregistrer_residuel
   Prolongation des cibles par des zeros        noyau.prolonger_cibles
@@ -1050,7 +1050,7 @@ du code n'y figure : si un nom manque ici, c'est qu'il n'existe plus.
                                                interpreteur_hecras,
                                                installer_interpreteur
   Retrait de la chaine de sys.path au          noyau.detacher
-    dechargement du greffon
+    dechargement du plugin
   Sablier et restitution du curseur            plugin.avec_sablier,
                                                rendre_la_main, sans_sablier
 
@@ -1159,7 +1159,7 @@ ENVIRONNEMENT
 
 4. CONTENU DU DOSSIER
 ================================================================================
-La chaine Python vit dans src/ ; calage_apports/ (le greffon) est au MEME
+La chaine Python vit dans src/ ; calage_apports/ (le plugin) est au MEME
 NIVEAU que src/, pas dedans — c'est le nom du dossier qui compte pour QGIS.
 La note, le template et ce fichier restent a la racine.
 
@@ -1194,15 +1194,15 @@ La note, le template et ce fichier restent a la racine.
                          source unique du commentaire de chaque parametre.
                          CONTRAINTE : pandas.read_excel prend la LIGNE 1 comme
                          en-tete — aucun bandeau au-dessus d'un tableau.
-    faire_zip.py         Empaquetage du greffon + garde-fous de portabilite.
+    faire_zip.py         Empaquetage du plugin + garde-fous de portabilite.
     essai_garde_fou_archive.py  Essai ADVERSE : injecte trois fautes et
                          verifie que l'archive est refusee.
-    test_plugin_qgis.py  Suite du greffon, sous le Python de QGIS.
+    test_plugin_qgis.py  Suite du plugin, sous le Python de QGIS.
     verification_environnement.py
     figures_note/        Scripts de la note : figures matplotlib, contenu et
                          reconstruction du .docx.
 
-  calage_apports/        Greffon QGIS. Le NOM DU DOSSIER est le nom du paquet
+  calage_apports/        Plugin QGIS. Le NOM DU DOSSIER est le nom du paquet
                          pour QGIS : il doit rester « calage_apports ». Une
                          SEULE entree de menu, une fenetre non modale a cinq
                          onglets. plugin.py est une enveloppe mince ; noyau.py
@@ -1481,7 +1481,7 @@ TROIS COUPES, APRES AUDIT DE SUR-INGENIERIE SUR TOUT LE DEPOT :
     Le template livre a ete regenere : 42 parametres -> 41.
   - LE MANNEQUIN QGIS INUTILISE de test_plugin_qgis.py : classe
     BarreMessages, Iface.barre, messageBar(), addPluginToMenu() et
-    removePluginMenu(). Le greffon n'appelle que quatre methodes d'iface —
+    removePluginMenu(). Le plugin n'appelle que quatre methodes d'iface —
     mainWindow, addToolBar, addPluginToVectorMenu, removePluginVectorMenu.
   - LE CORPS DUPLIQUE des deux fabriques de couches memoire (plugin.py).
     LES DEUX NOMS PUBLICS SONT CONSERVES : ils sont passes PAR REFERENCE a
@@ -1829,7 +1829,7 @@ ne disent que ou composer le PROCHAIN paquet.
   un suivi muet parce qu'il regardait ailleurs ne se distinguait en rien d'un
   calage pas encore parti.
   PREUVE : la suite QGIS fait designer a l'onglet 3 un AUTRE dossier que celui
-  du classeur compose. Sur le greffon d'avant, 16 controles du suivi echouent
+  du classeur compose. Sur le plugin d'avant, 16 controles du suivi echouent
   et la suite s'arrete (table vide) ; apres, 152 controles passent. Banc 11
   du noyau pour la regle seule.
 
@@ -1867,11 +1867,11 @@ UN CLASSEUR SANS COLONNE DE TEMPS EST PARTI EN CALAGE (04/09, 9 h 30,
 Ardanavy Q20 V1 — premier lancement depuis un autre poste). Feuille Cibles :
 l'en-tete A1 remplace par un caractere isole (U+00B6, un pied-de-mouche) au
 lieu de « Temps_h », et la colonne de temps VIDE sous lui — un seul 0 en A2 —
-face a six colonnes de debit pleines (418 lignes). Le greffon a lance ; le
+face a six colonnes de debit pleines (418 lignes). Le plugin a lance ; le
 pont a plante en arriere-plan, hors de vue : « AttributeError:
 'numpy.float64' object has no attribute 'to_numpy' » — cib.get("Temps_h")
 rend None, to_numeric() un scalaire.
-  DEUX GARDES LAISSAIENT PASSER. etat_cibles(), que le greffon consulte juste
+  DEUX GARDES LAISSAIENT PASSER. etat_cibles(), que le plugin consulte juste
   avant de partir, tenait une cible pour renseignee des qu'une valeur de
   debit etait non vide : six sur six. Et le controle (bouton « Controler »),
   qui aurait dit « colonne 'Temps_h' absente », n'est pas exige au
@@ -1882,7 +1882,7 @@ rend None, to_numeric() un scalaire.
   instants numeriques en face de deux debits numeriques, LA REGLE DU PONT
   (_cibles_depuis_classeur). Sans cette seconde regle, l'en-tete corrige, ce
   classeur serait reparti et aurait ete refuse une seconde fois en
-  arriere-plan, pour « six cibles inexploitables ». Le greffon dit desormais
+  arriere-plan, pour « six cibles inexploitables ». Le plugin dit desormais
   « 0 / 6 renseignee(s) » et « completer la feuille Cibles » avant tout
   lancement. Le pont porte le meme garde-fou d'en-tete pour l'appel direct.
   PREUVE : quatre bancs (pont section 4, noyau 4 bis) qui echouent sur le
@@ -1891,7 +1891,7 @@ rend None, to_numeric() un scalaire.
   ET LE GESTE NATUREL APRES CE REFUS DETRUISAIT LA SAISIE. Prevenu que A1
   est faux, on recompose — et preparer_classeur() ne retrouvait les cibles
   deja collees que sous l'en-tete « Temps_h » : sans lui, la feuille etait
-  REECRITE VIDE, sans un mot, alors que le greffon promet a l'ecran que
+  REECRITE VIDE, sans un mot, alors que le plugin promet a l'ecran que
   « recomposer plus tard preserve les hydrogrammes deja saisis ». MESURE
   SUR COPIE : 418 lignes sur six colonnes, effacees. La recomposition est
   desormais REFUSEE quand la feuille porte des colonnes « Cible_ » non
@@ -1905,7 +1905,7 @@ rend None, to_numeric() un scalaire.
        du TEXTE : sur une colonne de dates Excel — la facon la plus
        courante de coller une chronique, la colonne date/heure part avec
        le debit — il rend les microsecondes depuis 1970. Le compte « deux
-       instants » etait satisfait, le greffon annoncait « renseignee », et
+       instants » etait satisfait, le plugin annoncait « renseignee », et
        le pont mourait dans reechantillonner sur une allocation de
        536 Gio : le mode de defaillance meme que la 0.6.4 pretendait
        supprimer. Les deux cotes refusent desormais une colonne de dates.
@@ -1922,7 +1922,7 @@ rend None, to_numeric() un scalaire.
        manque : repondre oui annoncait « Calage lance (PID …) », l'onglet
        Suivi restait a « Aucun calage suivi » pour toujours, et le refus ne
        vivait que dans le journal de lancement — la mise en scene meme du
-       04/09. Le greffon REFUSE desormais, en disant que la chaine n'ignore
+       04/09. Le plugin REFUSE desormais, en disant que la chaine n'ignore
        rien. C'EST LE SEUL POINT QUI TOUCHE plugin.py : les 152 controles
        QGIS sont a repasser.
   UN SECOND TOUR DE RELECTURE A ENCORE TROUVE (0.6.6) : le refus de la
@@ -2036,13 +2036,13 @@ LE REFUS ETAIT JUSTE SUR L'EMPLACEMENT ET FAUX SUR LA CONCLUSION. Interdire
 d'ecrire sous le dossier d'installation de l'extension est correct — le
 gestionnaire de QGIS l'efface a chaque mise a jour. Mais en conclure qu'il
 n'existait aucun emplacement rendait le bouton inutilisable DANS LE SEUL CAS
-POUR LEQUEL IL A ETE ECRIT : un poste neuf, ou le greffon vient d'une archive
+POUR LEQUEL IL A ETE ECRIT : un poste neuf, ou le plugin vient d'une archive
 et n'a donc que sa copie embarquee. Il fallait proposer un autre endroit, pas
 renoncer.
 
 CORRECTIF : emplacement_venv_hecras() ne rend plus jamais None. Chaine
-externe -> a cote d'elle ; sinon -> dossier de donnees du greffon. La branche
-de refus de installer_interpreteur() et la boite d'avertissement du greffon
+externe -> a cote d'elle ; sinon -> dossier de donnees du plugin. La branche
+de refus de installer_interpreteur() et la boite d'avertissement du plugin
 sont retirees, devenues inatteignables.
 
 POURQUOI LE BANC NE L'AVAIT PAS VU. Le controle existait et disait « copie
@@ -2061,7 +2061,7 @@ apres que l'utilisateur ait cru l'installation reussie.
   LES DEUX LISTES ETAIENT IMPLICITEMENT DEUX, et devaient s'accorder sans que
   rien ne l'impose : elles ont diverge. PAQUETS_HECRAS les remplace, en
   (nom d'import, nom pip) — dix paquets, installes ET verifies depuis la meme
-  source, et annonces au greffon depuis elle aussi.
+  source, et annonces au plugin depuis elle aussi.
   rasterio n'y est pas, et n'a plus lieu d'y etre : la lecture d'un profil sur
   RASTER etait son seul importateur, et elle a ete RETIREE le 31/08/2026.
   CHAQUE MODULE EST TESTE SEPAREMENT et TOUS les manquants sont rapportes
@@ -2136,7 +2136,7 @@ A FOURNIR PAR L'UTILISATEUR
     Q20 (5.7, fin) a ete vide le 04/09 a 9 h 47 par une recomposition, la
     saisie survit dans le source. Coller les 418 instants — le Q100 emploie
     0 a 208,5 h au pas de 0,5 h sur le meme nombre de lignes —, puis
-    recomposer. Le greffon refuse de lancer sans (5.7, fin).
+    recomposer. Le plugin refuse de lancer sans (5.7, fin).
   - les hydrogrammes cibles (HSMF) des affaires a venir ;
   - la confirmation qu'il n'y a pas de boucle hydraulique (hypothese d'ordre
     total, § 1.2 de la note).
@@ -2210,7 +2210,7 @@ A FAIRE, PAR ORDRE DE PRIORITE
       fige »), soit fenetre_injection apprend a se passer du decalage, soit on
       constate que le cas ne se presente pas sur un modele reel. Aucun des
       deux calages du 01/09 ne portait de transitoire dominant hors fenetre.
-  - PENTE D'UN APPORT CREE PAR LE GREFFON. LE REEXAMEN DU 01/09 REPOSAIT SUR
+  - PENTE D'UN APPORT CREE PAR LE PLUGIN. LE REEXAMEN DU 01/09 REPOSAIT SUR
     DU CODE QUI NE TOURNAIT PAS — corrige le 05/09. Le deuxieme echelon du
     repli, « pente deduite du fond », levait un NameError a chaque appel :
     « re » etait employe dans pont_hecras._pentes_deduites sans etre importe,
@@ -2218,7 +2218,7 @@ A FAIRE, PAR ORDRE DE PRIORITE
     d'environnement (« pente : deduction impossible (...) — les valeurs en
     place sont conservees »). Un apport dont la case Pente_m_par_m est vide
     gardait donc la pente deja ecrite, soit 0,01 pour une injection creee par
-    le greffon. L'import est pose, et un garde-fou d'archive refuse desormais
+    le plugin. L'import est pose, et un garde-fou d'archive refuse desormais
     tout nom lu sans avoir jamais ete lie dans son fichier (faire_zip,
     noms_jamais_lies ; faute injectee par essai_garde_fou_archive).
       TRANCHE LE 05/09 : L'IMPACT EN PRODUCTION EST NUL. Les journaux des
@@ -2241,7 +2241,7 @@ A FAIRE, PAR ORDRE DE PRIORITE
     chaque apport la sienne avant d'ecrire — classeur, puis pente deduite du
     fond, puis rien. Le 0,01 ne vit qu'entre la creation de l'injection et le
     premier calage.
-      IL NE RESTE QUE LE CAS DU MODELE CREE PAR LE GREFFON PUIS LANCE A LA
+      IL NE RESTE QUE LE CAS DU MODELE CREE PAR LE PLUGIN PUIS LANCE A LA
     MAIN, sans calage : celui-la porte 1 % partout. Le corriger a la creation
     demande la pente au PK de l'injection, or le PK sort de l'appariement, qui
     n'a pas encore eu lieu quand on ecrit la BC line — et le profil en long
@@ -2348,12 +2348,12 @@ A TRANCHER
     sections. C'est une anomalie ISOLEE, sur un modele, et non un ecart
     systematique entre routage et cibles. A porter au client pour CE modele —
     sont-ce les cibles, le routage, ou une origine de temps ?
-  - LE NOM DU GREFFON RESTE « Calage des apports » POUR LE MOMENT (decision
+  - LE NOM DU PLUGIN RESTE « Calage des apports » POUR LE MOMENT (decision
     utilisateur du 03/09). Candidats ecartes ou en reserve, pour ne pas les
     rechercher : Symbolé (trop proche de « symbole »), Syrrhoé (συρροή, les
     eaux qui affluent ensemble — le plus juste), Épirrhoé (l'afflux), Rhoé
     (le courant) ; en latin, Affluens — lisible, mais casse la famille grecque
-    avec Hyetos, le greffon des pluies radar.
+    avec Hyetos, le plugin des pluies radar.
   - EXPERIMENTAL=TRUE est conserve dans metadata.txt (decision utilisateur).
     Le LISEZMOI dit de cocher « Afficher aussi les extensions
     experimentales » si l'extension n'apparait pas apres installation.

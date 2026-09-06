@@ -853,7 +853,7 @@ def _controler_durees_avant_calcul(chemin_template):
 
     LE CONTROLE EXISTAIT DEJA, MAIS TROP TARD. conditions_trop_courtes() est
     appelee dans PiloteHecRas.preparer() : soit apres le clonage, dans un
-    sous-processus DETACHE que le greffon ne regarde pas. L'utilisateur
+    sous-processus DETACHE que le plugin ne regarde pas. L'utilisateur
     lancait un calage, basculait sur l'onglet Suivi, et n'apprenait qu'en
     ouvrant le journal texte que rien n'avait demarre. Cela s'est produit
     TROIS FOIS de suite sur un modele reel (30/08/2026).
@@ -871,7 +871,7 @@ def _controler_durees_avant_calcul(chemin_template):
     incertaine — c'est deja la regle de conditions_trop_courtes().
 
     Retourne (anomalies, prolongation), ou prolongation vaut None ou
-    {"duree_h", "apports"} : de quoi permettre au greffon de PROPOSER la
+    {"duree_h", "apports"} : de quoi permettre au plugin de PROPOSER la
     correction au lieu de la decrire. Le chiffre vient de la mesure, jamais
     d'une relecture du message — un texte se reformule, un contrat non.
     """
@@ -1714,7 +1714,7 @@ def commande_caler(args):
         # ALERTES QUI VISENT LE CALAGE ENTIER, pas un apport. Non bloquantes :
         # elles ne touchent pas « conforme ». Sans ce relais, la coherence du
         # decalage le long de l'axe n'existait que dans le journal texte, que
-        # l'utilisateur du greffon n'ouvre pas.
+        # l'utilisateur du plugin n'ouvre pas.
         alertes_chaine=list(resultat.alertes_chaine))
 
 

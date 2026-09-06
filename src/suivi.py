@@ -1394,7 +1394,7 @@ if __name__ == "__main__":
 
     # BILAN DE MASSE — QUALITE DU CALCUL, PAS ECART A LA CIBLE. Publie parce
     # qu'un calage arrete pour « qualite numerique » n'exposait son chiffre
-    # que dans le journal texte, que l'utilisateur du greffon n'ouvre pas.
+    # que dans le journal texte, que l'utilisateur du plugin n'ouvre pas.
     _suivi_bilan = Suivi(sortie / "bilan", ["A"], ["S"])
     controler("aucun bilan tant qu'aucun calcul n'a tourne",
               _suivi_bilan.etat()["bilan_masse"] is None)

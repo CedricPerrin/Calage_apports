@@ -44,7 +44,7 @@ from qgis.core import QgsApplication, QgsProject, QgsVectorLayer, QgsFeature, \
 from qgis.PyQt.QtCore import QMetaType
 
 # QgsApplication.setPrefixPath() DOIT etre appele avant initQgis(), sans quoi
-# les greffons providers (dont MDAL, qui lit nativement les maillages
+# les plugins providers (dont MDAL, qui lit nativement les maillages
 # HEC-RAS) ne sont pas trouves et QgsMeshLayer(...) echoue silencieusement.
 # Une vraie session QGIS le fait automatiquement au demarrage ; un
 # QgsApplication construit a la main pour un test headless doit le faire lui
@@ -178,7 +178,7 @@ class Iface:
 
     # UNE VRAIE QToolBar, PARENTEE A LA VRAIE FENETRE PRINCIPALE, comme le
     # fait QGIS. Un talon suffisait tant que unload() se contentait d'un
-    # « del » ; il ne suffit plus des lors que le greffon appelle
+    # « del » ; il ne suffit plus des lors que le plugin appelle
     # removeToolBar(), qui exige un QToolBar et rien d'autre.
     def addToolBar(self, nom):  # noqa: N802
         from qgis.PyQt.QtWidgets import QMenu, QToolBar
@@ -208,7 +208,7 @@ class DialogueTexte:
         # LA SIGNATURE REPRODUIT QInputDialog.getItem, ELLE NE SE CHOISIT PAS.
         # Quatre de ses six arguments ne servent a rien ici — le mannequin
         # repond sans rien afficher — mais les retirer casserait l'appel du
-        # greffon, qui les passe en position. Les consommer explicitement dit
+        # plugin, qui les passe en position. Les consommer explicitement dit
         # que l'oubli est voulu, et evite a vulture de signaler chaque annee
         # un « unused variable 'editable' » qu'il faut re-instruire (P2-11 de
         # AUDIT.md).
@@ -428,7 +428,7 @@ else:
     # de ce qu'il n'a pas encore controle : il rend UN echec la ou il en aurait
     # rendu quatre-vingt-dix-neuf.
     #   LA CAUSE ORDINAIRE EST L'INTERPRETEUR HEC-RAS ABSENT — la lecture de la
-    #   geometrie passe par lui. Le greffon ne le trouve seul que si c'est un
+    #   geometrie passe par lui. Le plugin ne le trouve seul que si c'est un
     #   .venv voisin de la chaine retenue ; ailleurs il faut le lui designer, et
     #   CALAGE_PYTHON dans l'environnement suffit pour cette suite.
     if dlg.couche_injections is None or dlg.couche_sections is None:
@@ -437,7 +437,7 @@ else:
         print("   Le diagnostic de chargement ci-dessus dit pourquoi — un "
               "interpreteur HEC-RAS introuvable suffit a produire ceci.")
         print("   Le designer par CALAGE_PYTHON, ou par le bouton "
-              "« Designer… » du greffon.")
+              "« Designer… » du plugin.")
         raise SystemExit(1)
 
     # L'axe et les sections doivent etre COHERENTS avec la geometrie reelle :
@@ -515,7 +515,7 @@ else:
     # le garde-fou qui refuse de composer sans axe etait inatteignable.
     # setAllowEmptyLayer NE SUFFIT PAS — il ajoute l'entree sans la choisir :
     # ce controle tombe si le setLayer(None) qui l'accompagne disparait.
-    verifier("l'axe n'est pas pre-choisi par le greffon",
+    verifier("l'axe n'est pas pre-choisi par le plugin",
              dlg.combo_axe.currentLayer() is None,
              f"{dlg.combo_axe.currentLayer().name()}"
              if dlg.combo_axe.currentLayer() else "(vide)")
@@ -867,7 +867,7 @@ else:
     # denonce, deux lignes plus bas : la date n'est ANTERIEURE au debut que
     # pour le modele qui a servi a ecrire le test. Sur l'exemple Muncie, qui
     # simule le 02JAN1900, elle lui est posterieure — la fenetre n'est donc
-    # pas inversee, le greffon a raison de ne rien signaler, et le test
+    # pas inversee, le plugin a raison de ne rien signaler, et le test
     # echouait sur son silence parfaitement justifie (releve le 06/09/2026).
     # On recule d'un an sur la date de DEBUT : anterieure sur tout modele.
     _jour_debut, _, _heure_debut = dlg2.edit_sim_debut.text().partition(",")
@@ -1302,7 +1302,7 @@ verifier("suivi : le tableau affiche le glyphe avec le statut",
 # reecrit la geometrie et le classeur que ce calcul partage ; relancer fait
 # travailler deux calages sur les memes plans.
 # L'etat pose ci-dessus porte le PID de CE processus et « termine: false » :
-# il decrit donc, pour le greffon, un calage bel et bien vivant.
+# il decrit donc, pour le plugin, un calage bel et bien vivant.
 # UNE QUESTION, PAS UN VERROU : le mannequin repond « non », et c'est la
 # reponse par defaut voulue — l'action doit etre refusee.
 verifier("un calage vivant est detecte, et nomme",
@@ -1487,7 +1487,7 @@ if _AFFAIRES is None:
     # montre que ce cas etait prevu ; findall etait pourtant appele dessus, et
     # emportait la suite entiere sur un AttributeError. Un garde-fou qui
     # PLANTE faute de sa liste est pire que muet : il fait croire a une panne
-    # du greffon la ou il manque un fichier de configuration.
+    # du plugin la ou il manque un fichier de configuration.
     print(f"   ignore : aucun mot d'affaire declare (fichier .affaires "
           f"absent) — {len(_a_scruter)} controles non joues")
 else:
@@ -1625,14 +1625,14 @@ for _classe, _portees in (("Qt", _PORTEES_CONNUES),
              not _nus, ", ".join(_nus[:4]) or "aucune")
 
 
-# LA FENETRE DE CRUE EXISTE EN DEUX EXEMPLAIRES — greffon et livrables.py — et
+# LA FENETRE DE CRUE EXISTE EN DEUX EXEMPLAIRES — plugin et livrables.py — et
 # c'est un choix : fusionner ferait entrer matplotlib dans un paintEvent. Ce
 # qui est interdit, c'est qu'elles divergent : la courbe du suivi et la figure
 # du livrable cadreraient alors deux fenetres differentes, sans que rien ne le
 # dise. Les deux constantes sont donc comparees ici, sur le TEXTE des deux
 # fichiers — ce qui n'exige d'importer ni matplotlib ni la chaine.
 _CRUE = {}
-for _quel, _fichier in (("greffon", Path(mod_plugin.__file__)),
+for _quel, _fichier in (("plugin", Path(mod_plugin.__file__)),
                         ("livrables", CHAINE / "livrables.py")):
     _texte = _fichier.read_text(encoding="utf-8")
     _CRUE[_quel] = {
@@ -1640,10 +1640,10 @@ for _quel, _fichier in (("greffon", Path(mod_plugin.__file__)),
         for _c in ("SEUIL_CRUE", "MARGE_CRUE_H")}
 verifier("la fenetre de crue est nommee des deux cotes",
          all(v is not None for d in _CRUE.values() for v in d.values()),
-         f"greffon={_CRUE['greffon']} livrables={_CRUE['livrables']}")
-verifier("la fenetre de crue ne diverge pas entre greffon et livrables",
-         _CRUE["greffon"] == _CRUE["livrables"],
-         f"greffon={_CRUE['greffon']} | livrables={_CRUE['livrables']}")
+         f"plugin={_CRUE['plugin']} livrables={_CRUE['livrables']}")
+verifier("la fenetre de crue ne diverge pas entre plugin et livrables",
+         _CRUE["plugin"] == _CRUE["livrables"],
+         f"plugin={_CRUE['plugin']} | livrables={_CRUE['livrables']}")
 
 # ET LES DEUX SIGNATURES DOIVENT LIRE CES CONSTANTES. Comparer les constantes
 # ne suffit pas : ecrire « def _fenetre_crue(paires, seuil=0.05, ...) » en
@@ -1651,7 +1651,7 @@ verifier("la fenetre de crue ne diverge pas entre greffon et livrables",
 # ci-dessus au vert pendant que les deux fenetres divergent — exactement ce
 # que ce garde-fou existe pour empecher.
 _SIGN = {}
-for _quel, _fichier in (("greffon", Path(mod_plugin.__file__)),
+for _quel, _fichier in (("plugin", Path(mod_plugin.__file__)),
                         ("livrables", CHAINE / "livrables.py")):
     _m = re.search(r"def _fenetre_crue\((.*?)\):",
                    _fichier.read_text(encoding="utf-8"), re.S)
@@ -1685,7 +1685,7 @@ verifier("les deux emplacements du poste sont affiches",
          f"chaine={dlg.label_chaine.text()[:40]} | "
          f"interp={dlg.label_interpreteur.text()[:40]}")
 # L'INTERPRETEUR HEC-RAS EST UN EQUIPEMENT OPTIONNEL DU POSTE, pas une piece
-# du greffon : il se designe, et le greffon compose et controle tres bien un
+# du plugin : il se designe, et le plugin compose et controle tres bien un
 # paquet sans lui. Les trois controles qui l'EXIGENT sont donc IGNORES quand il
 # n'y en a pas, au lieu d'etre comptes en echec.
 #
@@ -1766,7 +1766,7 @@ p.fenetre.close()
 # passait aupres de PyQt pour accepter n'importe quoi, et clicked(bool) lui
 # transmettait son « checked » : methode(self, False) levait TypeError DANS un
 # slot Qt, ce que PyQt >= 5.5 traite par abort(). Les cinq boutons principaux
-# du greffon etaient concernes.
+# du plugin etaient concernes.
 #
 # CE BANC NE POUVAIT PAS LE VOIR : il appelle les methodes directement, jamais
 # par le signal. C'est exactement l'angle mort qu'avait le controle Qt6 avant

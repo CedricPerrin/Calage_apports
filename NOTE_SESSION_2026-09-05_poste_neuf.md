@@ -19,7 +19,7 @@ Note de reprise autonome, tenue au fil de deux sessions. Ce qui a été
 | `origin/claude/connaissance-des-md-qjbpro` | **0.7.0** — la branche de travail |
 | plugin installé dans le profil QGIS | **0.6.9**, copie d'archive (pas un lien symbolique) |
 
-Le clone est désormais sur la bonne branche. **Le greffon installé dans
+Le clone est désormais sur la bonne branche. **Le plugin installé dans
 QGIS reste en 0.6.9** : il est en retard d'une version sur les sources.
 Cela n'a pas gêné les contrôles — voir § 2, le banc teste les sources.
 
@@ -41,7 +41,7 @@ Cela n'a pas gêné les contrôles — voir § 2, le banc teste les sources.
    **C'est le seul manque qui subsiste.**
 
 **Le banc teste les SOURCES du dépôt**, pas la copie installée :
-`test_plugin_qgis.py:106-108` charge le greffon depuis
+`test_plugin_qgis.py:106-108` charge le plugin depuis
 `RACINE/calage_apports/`. Aucune réinstallation n'est nécessaire avant de
 lancer la suite — réserve levée.
 
@@ -77,7 +77,7 @@ set QGIS_PREFIX_PATH=C:\Program Files\QGIS 3.44.14\apps\qgis-ltr
     --objet     "BC Line 1"
 ```
 
-**L'implantation compte, et le greffon la contrôle.** Au premier essai il
+**L'implantation compte, et le plugin la contrôle.** Au premier essai il
 a refusé : *« aucune ligne d'injection en amont de : Reference Line 2 »*.
 C'était juste — projetée sur l'axe, cette section tombait à PK −264, en
 amont du premier apport. Une fois déplacée en aval de `BC Line 1`,
@@ -155,7 +155,7 @@ La liste blanche disparaît : plus aucune exception nominative à maintenir.
 
 Vérifié trois fois : le banc adverse de l'archive passe en entier (il
 injecte un vrai chemin de poste et le voit refusé), l'archive se
-reconstruit `conforme`, et la suite du greffon est verte.
+reconstruit `conforme`, et la suite du plugin est verte.
 
 ## 4. Environnement HEC-RAS — monté le 6 septembre
 
@@ -210,13 +210,13 @@ le QGIS réel après réinstallation.
   sélectionner : le combo rendait encore « Lignes d'injection ». Il faut
   `setLayer(None)`, qui tient quand des couches arrivent ensuite.
 
-Le greffon installé dans QGIS est passé de **0.6.9 à 0.7.3**. L'ancienne
+Le plugin installé dans QGIS est passé de **0.6.9 à 0.7.3**. L'ancienne
 version est conservée sous
 `…\plugins\calage_apports.sauvegarde_0.6.9`.
 
 ## 6. La barre d'onglets — mesurée deux fois, et la seconde a corrigé la première
 
-Mesuré sur la fenêtre réellement instanciée, QGIS 3.44.14, greffon 0.6.9,
+Mesuré sur la fenêtre réellement instanciée, QGIS 3.44.14, plugin 0.6.9,
 police « MS Shell Dlg 2 » 8 pt gras.
 
 Les six onglets demandent **529 px**. La fenêtre porte un `minimumWidth`
@@ -230,7 +230,7 @@ des libellés** — donc pas ce qu'affirme le commentaire de `plugin.py`.
 
 > ### La seconde mesure, le 6 septembre, a corrigé la première
 >
-> Les 529 px ci-dessus valent pour le greffon **0.6.9**. La 0.7.0 avait
+> Les 529 px ci-dessus valent pour le plugin **0.6.9**. La 0.7.0 avait
 > renommé deux onglets — « 2. Objectifs et précision » et « Aide et
 > configuration » — et le besoin est passé à **663 px**. La marge était
 > donc de **+33 px**, pas +167. Elle s'était resserrée de 80 % sans que
@@ -259,7 +259,7 @@ des libellés** — donc pas ce qu'affirme le commentaire de `plugin.py`.
 `commande_pip_hecras()` promet « la commande pip qui pose **TOUT** ce que
 le pont exige », et sa docstring dit elle-même que la vérification exige
 « onze **plus xarray** ». Or `xarray` n'est pas dans `PAQUETS_HECRAS` :
-**suivre la commande du greffon à la lettre fabrique encore un
+**suivre la commande du plugin à la lettre fabrique encore un
 environnement qu'il refuse ensuite.** C'est exactement la divergence entre
 deux listes que `PAQUETS_HECRAS` existe pour empêcher, et c'est le même
 accident que la 0.6.1 (`ras-commander` sans `xarray`) et la 0.6.7 (deux
@@ -277,7 +277,7 @@ Je ne l'ai **pas** corrigé : ajouter `("xarray", "xarray")` à
 
 **Réglé depuis** : le modèle (plan TEST de Muncie), `.affaires`, les six
 correctifs du banc, le push sur `main`, la suppression des branches, la
-réinstallation du greffon (0.7.3), la coquille de commit.
+réinstallation du plugin (0.7.3), la coquille de commit.
 
 **Les trois décisions ont été prises et appliquées** (0.7.5 à 0.7.7) —
 préfixe de scénario, garde-fou « un calage tourne », renommage du bouton.
@@ -326,7 +326,7 @@ environnement déjà présent. **12 paquets posés et vérifiés en 56 s**,
 s'importent.
 
 C'est le lancement **depuis QGIS** qui compte, et rien d'autre : c'est là
-que le `PYTHONHOME` du greffon fuyait dans les sous-processus de
+que le `PYTHONHOME` du plugin fuyait dans les sous-processus de
 l'installeur — pip voyait les paquets de QGIS, les tenait pour *already
 satisfied*, n'en posait aucun, et rendait 0 (corrigé en 0.6.9, jamais
 vérifié en entier). Relevé ici :
@@ -362,7 +362,7 @@ Une ligne, sur le geste central de l'outil : `_maj_resume()` en tête de
 `_changer_onglet`. On laissait la fenêtre ouverte, on allait tracer les
 sections dans QGIS, on revenait — et rien ne le remarquait. (`969ac89`)
 
-**Greffon installé dans QGIS : 0.7.4**, vérifié après rechargement.
+**Plugin installé dans QGIS : 0.7.4**, vérifié après rechargement.
 
 ## 10. Les constats du suivi — 0.7.8 et 0.7.9
 

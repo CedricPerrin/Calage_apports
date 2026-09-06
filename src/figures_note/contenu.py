@@ -467,7 +467,7 @@ CONTENU = [
           "sous-estimée concentre l'injection au lieu de l'étaler. Une valeur "
           "saisie à la main n'est jamais écrasée."),
     ("h2", "1.8  Données d'entrée et contrôles"),
-    ("p", "CE DOCUMENT L'APPELLE « le classeur », et le greffon "
+    ("p", "CE DOCUMENT L'APPELLE « le classeur », et le plugin "
           "« l'Excel des hydrogrammes objectifs » : c'est le même fichier. Le "
           "premier nom dit sa forme — un classeur à quatre feuilles —, le "
           "second ce qu'on y vient faire. L'écran a retenu le second, parce "

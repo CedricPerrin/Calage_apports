@@ -476,7 +476,7 @@ TOLERANCE_FORME_DEFAUT = 0.03
 
 # Fenetre de crue : bornes hors desquelles il ne se passe rien d'interessant.
 #
-# LA REGLE EXISTE EN DEUX EXEMPLAIRES, ET C'EST ASSUME. Le greffon la traite
+# LA REGLE EXISTE EN DEUX EXEMPLAIRES, ET C'EST ASSUME. Le plugin la traite
 # dans un paintEvent rafraichi toutes les deux secondes ; livrables.py la
 # traite sur des tableaux numpy, pour une figure matplotlib. Fusionner les
 # deux ferait entrer matplotlib — et la chaine entiere — dans le fil
@@ -1042,8 +1042,8 @@ def journaliser(contexte, exception=None):
 #
 # CE QUI MANQUAIT N'EST PAS LA VITESSE, C'EST LE SIGNAL. Passe quelques
 # secondes sans repeindre, Windows grise la fenetre et ajoute « (Ne repond
-# pas) » a son titre : rien ne distinguait un greffon qui travaille d'un
-# greffon plante, et l'on fermait QGIS au milieu d'une ecriture dans la
+# pas) » a son titre : rien ne distinguait un plugin qui travaille d'un
+# plugin plante, et l'on fermait QGIS au milieu d'une ecriture dans la
 # geometrie.
 #
 # EN DECORATEUR, ET NON EN BLOC « with » : la restitution est ainsi garantie
@@ -2418,7 +2418,7 @@ class DialogueParametrage(QDialog):
         # UNE ENTREE VIDE, SANS QUOI L'AXE EST « CHOISI » SANS QUE PERSONNE
         # NE L'AIT CHOISI. Sans elle, currentLayer() n'est jamais None des
         # qu'une couche ligne existe dans le projet — et « Charger les couches
-        # du modele » en ajoute deux, fabriquees par le greffon lui-meme. Trois
+        # du modele » en ajoute deux, fabriquees par le plugin lui-meme. Trois
         # consequences : le fil conducteur cochait « Axe hydraulique » pour un
         # geste jamais fait, la branche « (non choisi) » du resume etait morte,
         # et le garde-fou qui refuse de composer sans axe etait inatteignable.
@@ -3641,7 +3641,7 @@ class DialogueParametrage(QDialog):
         Reflete l'etat courant des deux emplacements.
 
         UN MANQUE DIT LE GESTE QUI LE COMBLE. « introuvable » en rouge est
-        un constat, pas une consigne : celui qui decouvre le greffon y lit un
+        un constat, pas une consigne : celui qui decouvre le plugin y lit un
         defaut sans savoir lequel des trois boutons de la ligne le concerne.
         """
         chaine = noyau.trouver_chaine()
@@ -3714,7 +3714,7 @@ class DialogueParametrage(QDialog):
         """
         # emplacement_venv_hecras() rend TOUJOURS un chemin depuis le
         # 31/08/2026 : a cote d'une chaine externe si elle existe, dans le
-        # dossier de donnees du greffon sinon. Elle rendait None dans ce
+        # dossier de donnees du plugin sinon. Elle rendait None dans ce
         # second cas, et le bouton refusait donc de servir sur un poste neuf
         # — le seul ou il est utile.
         cible = noyau.emplacement_venv_hecras()
@@ -3848,11 +3848,11 @@ class DialogueParametrage(QDialog):
             # un selecteur de fichier — sur le poste ou l'interpreteur manque,
             # il n'y a precisement rien a y designer. Le bouton « Installer… »
             # existe pour ce cas exact, et le seul chemin de recuperation du
-            # greffon ne le mentionnait pas.
+            # plugin ne le mentionnait pas.
             #
             # ET LA RECETTE MANUELLE VIENT DU NOYAU. Elle etait ecrite ici, a
             # DEUX paquets, quand la verification en exige onze : la suivre a
-            # la lettre fabriquait un environnement que le greffon refusait
+            # la lettre fabriquait un environnement que le plugin refusait
             # ensuite. Elle passe en detail replie — c'est l'issue de secours
             # d'un poste dont la sortie PyPI est fermee a QGIS, pas la voie
             # recommandee.
@@ -4361,7 +4361,7 @@ class DialogueParametrage(QDialog):
         ne le disait.
 
         ON COMPARE DEUX NUMEROS DEJA EN MEMOIRE, on ne controle rien : le
-        greffon n'ecrit aucune regle de controle, c'est la chaine qui les
+        plugin n'ecrit aucune regle de controle, c'est la chaine qui les
         porte. Cocher « Choisir une geometrie differente » ne suffit d'ailleurs
         pas a desynchroniser — _maj_mode_override preselectionne celle du plan.
         """

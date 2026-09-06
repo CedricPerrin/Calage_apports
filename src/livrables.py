@@ -59,7 +59,7 @@ def _finaliser(fig, chemin):
 # GRAPHIQUES
 # ---------------------------------------------------------------------------
 
-# Les deux memes valeurs que dans le greffon (calage_apports/plugin.py,
+# Les deux memes valeurs que dans le plugin (calage_apports/plugin.py,
 # SEUIL_CRUE et MARGE_CRUE_H). L'egalite des deux jeux est VERIFIEE par
 # test_plugin_qgis.py : la regle a le droit d'exister en deux exemplaires,
 # elle n'a pas le droit de diverger.
@@ -71,7 +71,7 @@ def _fenetre_crue(paires, seuil=SEUIL_CRUE, marge_h=MARGE_CRUE_H):
     """
     Bornes temporelles ou la crue est effectivement significative.
 
-    Meme logique (seuil et marge) que la fenetre « 5. Suivi » du greffon
+    Meme logique (seuil et marge) que la fenetre « 5. Suivi » du plugin
     QGIS (calage_apports/plugin.py, _fenetre_crue) : un hydrogramme saisi
     sur 24 h ne doit pas etaler le trace au-dela de la crue qu'il porte
     reellement. paires : sequence de (temps, debit).

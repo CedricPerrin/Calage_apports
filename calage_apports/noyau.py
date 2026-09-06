@@ -60,11 +60,11 @@ FICHIERS_CHAINE = ("criteres.py", "geometrie.py", "controle_donnees.py",
                    "livrables.py", "pont_hecras.py")
 # CHAQUE SOUS-PROCESSUS OUVRIRAIT UNE CONSOLE, ET ELLE PASSE DEVANT QGIS.
 #
-# Le greffon en lance beaucoup : la sonde d'interpreteur, le lanceur « py »,
+# Le plugin en lance beaucoup : la sonde d'interpreteur, le lanceur « py »,
 # JUSQU'A QUARANTE essais de python.exe quand « Installer… » cherche une base,
 # pip pendant plusieurs minutes, et le pont a chaque operation sur le modele.
 # Sans ce drapeau, chacun fait clignoter une fenetre noire au premier plan —
-# et celle de pip reste ouverte tout du long, masquant la fenetre du greffon.
+# et celle de pip reste ouverte tout du long, masquant la fenetre du plugin.
 # pilote_hecras.py le posait deja sur ses deux appels ; nulle part ailleurs.
 #
 # IL EST INCOMPATIBLE AVEC DETACHED_PROCESS, et ce n'est pas un detail :
@@ -197,12 +197,12 @@ def detacher():
     de chaine que l'utilisateur aurait mis dans son PYTHONPATH est retire
     aussi.
 
-    A appeler au DECHARGEMENT du greffon. _raccorder() insere en tete de
+    A appeler au DECHARGEMENT du plugin. _raccorder() insere en tete de
     sys.path des l'import du module, et peut recommencer si la chaine change
     en cours de session : on retire donc TOUT dossier que est_chaine()
     reconnait, plutot que de parier sur un seul. Un dossier laisse la
     continuerait de fournir « import criteres » a tout le processus QGIS,
-    greffon decharge ou non.
+    plugin decharge ou non.
     """
     sys.path[:] = [p for p in sys.path if not est_chaine(p)]
 
@@ -360,11 +360,11 @@ def commande_pip_hecras(interpreteur=None):
     La commande pip qui pose TOUT ce que le pont exige, en un seul texte.
 
     ELLE SE DEDUIT DE PAQUETS_HECRAS, ET NE SE RECOPIE NULLE PART. L'aide du
-    greffon et son message « interpreteur introuvable » annonçaient
+    plugin et son message « interpreteur introuvable » annonçaient
     « pip install "ras-commander>=0.99" h5py » — deux paquets, quand la
     verification en exige onze, plus xarray par ras-commander
     (PAQUETS_INDIRECTS). Qui suivait l'aide a la lettre
-    fabriquait donc un environnement que le greffon REFUSAIT ensuite, et
+    fabriquait donc un environnement que le plugin REFUSAIT ensuite, et
     devait recommencer sur la foi du message d'echec. C'est exactement la
     divergence entre deux listes que PAQUETS_HECRAS existe pour empecher : la
     liste avait ete unifiee dans le code le 31/08/2026, pas dans les textes.
@@ -415,7 +415,7 @@ def message_interpreteur_introuvable():
     chercher ce qui n'existe pas.
     """
     return (f"aucun interpreteur capable de piloter HEC-RAS n'a ete trouve. "
-            f"Dans l'onglet « Aide et configuration » du greffon, groupe "
+            f"Dans l'onglet « Aide et configuration » du plugin, groupe "
             f"« Parametres du poste » : bouton « Installer… » pour en creer "
             f"un — il cherche seul les Python presents sur le poste et "
             f"propose ceux qui conviennent — ou « Designer… » si un "
@@ -435,9 +435,9 @@ def interpreteur_hecras():
     sache d'ou il vient ; sur un poste ou il manque, la reponse honnete est de
     le DEMANDER — le diagnostic du plugin propose de le designer et le retient.
 
-    LE DOSSIER DE DONNEES DU GREFFON FAIT EXCEPTION, et ce n'est pas une
+    LE DOSSIER DE DONNEES DU PLUGIN FAIT EXCEPTION, et ce n'est pas une
     entorse a la regle : ce n'est pas un emplacement DEVINE, c'est le seul que
-    le greffon INSTALLE lui-meme (installer_interpreteur). Le chercher revient
+    le plugin INSTALLE lui-meme (installer_interpreteur). Le chercher revient
     a se souvenir de ce qu'on a fait, pas a parier sur ce qu'un autre aurait
     pu poser la. Sans lui, un environnement installe par le bouton serait
     perdu des que QSettings ne le rendrait plus — profil QGIS neuf, reglages
@@ -457,7 +457,7 @@ def interpreteur_hecras():
             racine / ".venv" / "Scripts" / "python.exe",
             racine.parent / ".venv" / "bin" / "python",
         ]
-    installe = dossier_donnees_greffon() / "venv-hecras"
+    installe = dossier_donnees_plugin() / "venv-hecras"
     candidats += [installe / "Scripts" / "python.exe",
                   installe / "bin" / "python"]
     return next((c for c in candidats if c.exists()), None)
@@ -487,9 +487,9 @@ def definir_interpreteur(chemin):
     return ok, message
 
 
-def dossier_donnees_greffon():
+def dossier_donnees_plugin():
     """
-    Dossier PROPRE AU GREFFON, hors de son dossier d'installation.
+    Dossier PROPRE AU PLUGIN, hors de son dossier d'installation.
 
     %LOCALAPPDATA%\\calage_apports sous Windows, ~/.calage_apports ailleurs.
     Il survit aux mises a jour de l'extension, ne demande aucun droit
@@ -511,7 +511,7 @@ def emplacement_venv_hecras():
         l'emplacement que interpreteur_hecras() retrouve tout seul, sans
         meme avoir a le memoriser ;
       - sinon — chaine embarquee, ou aucune chaine — dans le dossier de
-        donnees du greffon (dossier_donnees_greffon()).
+        donnees du plugin (dossier_donnees_plugin()).
 
     JAMAIS SOUS LA COPIE EMBARQUEE : elle vit dans le dossier d'installation
     de l'extension, que le gestionnaire de QGIS efface et reecrit a chaque
@@ -520,7 +520,7 @@ def emplacement_venv_hecras():
 
     CETTE FONCTION RENDAIT None DANS CE DEUXIEME CAS, ce qui rendait le bouton
     « Installer… » inutilisable DANS LE SEUL CAS POUR LEQUEL IL EXISTE : un
-    poste neuf, ou le greffon vient d'une archive et n'a donc que sa copie
+    poste neuf, ou le plugin vient d'une archive et n'a donc que sa copie
     embarquee. Releve le 31/08/2026 en eprouvant la portabilite sur un second
     poste. Le refus etait juste sur l'emplacement, faux sur la conclusion :
     il fallait proposer un autre endroit, pas renoncer.
@@ -528,7 +528,7 @@ def emplacement_venv_hecras():
     chaine = trouver_chaine()
     if chaine is not None and chaine != DOSSIER_EMBARQUE:
         return chaine.parent / ".venv"
-    return dossier_donnees_greffon() / "venv-hecras"
+    return dossier_donnees_plugin() / "venv-hecras"
 
 
 PYTHON_MINIMUM = (3, 9)
@@ -1044,7 +1044,7 @@ def verifier_interpreteur(chemin, depuis_installeur=False):
             f"composition. Les installer par :\n"
             f"    \"{chemin}\" -m pip install {pip}\n\n"
             + ("L'installeur a deja tente de les poser : voir la sortie de "
-               "pip ci-dessus, et le journal du greffon."
+               "pip ci-dessus, et le journal du plugin."
                if depuis_installeur else
                "ou laisser le bouton « Installer… » creer un environnement "
                "complet."))
@@ -1335,7 +1335,7 @@ def pentes_locales_apports(dossier_projet, nom_projet, geometrie, chemin_axe,
 
 # SEUIL DE QUALITE NUMERIQUE, PAS DE CONCORDANCE. Doit rester d'accord avec
 # calage.Configuration.bilan_masse_max_pct : c'est la meme grandeur, ecrite
-# ici pour que le classeur la porte sans que le greffon importe la chaine.
+# ici pour que le classeur la porte sans que le plugin importe la chaine.
 BILAN_MASSE_DEFAUT = 5.0
 
 
@@ -1683,7 +1683,7 @@ def etat_cibles(chemin_classeur):
     col_section = next(c for c in corr.columns if c.startswith("Nom_Section"))
     col_cible = next(c for c in corr.columns if c.startswith("Nom_Cible"))
 
-    # LA COLONNE DU TEMPS D'ABORD : le greffon appelle cette fonction juste
+    # LA COLONNE DU TEMPS D'ABORD : le plugin appelle cette fonction juste
     # avant de lancer le calage. Sans « Temps_h » en A1 le pont plantait en
     # arriere-plan, hors de vue (04/09/2026). Refuser ici, en nommant l'en-tete
     # trouve a la place — c'est lui qu'il faut corriger.
@@ -2478,7 +2478,7 @@ if __name__ == "__main__":
     _cl.unlink(missing_ok=True)
 
     # ET LE LANCEMENT REFUSE UN CLASSEUR SANS COLONNE Temps_h (04/09/2026).
-    # etat_cibles() est ce que le greffon consulte juste avant de partir. Il
+    # etat_cibles() est ce que le plugin consulte juste avant de partir. Il
     # laissait passer un en-tete A1 remplace ; le pont plantait ensuite en
     # arriere-plan, hors de vue, sur un scalaire. Refuser ICI, et nommer
     # l'en-tete trouve : c'est lui qu'il faut corriger.
@@ -2508,7 +2508,7 @@ if __name__ == "__main__":
 
     # ET UNE COLONNE DE TEMPS VIDE SOUS SON EN-TETE NE RENSEIGNE RIEN. Le meme
     # classeur du 04/09 avait six colonnes de debit pleines (418 lignes) et UN
-    # SEUL instant : six cibles « renseignees » pour le greffon, six
+    # SEUL instant : six cibles « renseignees » pour le plugin, six
     # « inexploitables » pour le pont, qui l'aurait dit en arriere-plan apres
     # l'en-tete corrige. Meme regle des deux cotes : deux instants numeriques
     # en face de deux debits numeriques (_cibles_depuis_classeur).
@@ -2543,7 +2543,7 @@ if __name__ == "__main__":
     # ET RECOMPOSER N'EFFACE PAS UNE SAISIE QU'ON NE SAIT PAS RELIRE.
     # preparer_classeur() preserve les cibles deja collees en les cherchant
     # sous l'en-tete « Temps_h » ; sans lui, la feuille etait REECRITE VIDE,
-    # sans un mot — six colonnes de 418 lignes, et le greffon qui promet a
+    # sans un mot — six colonnes de 418 lignes, et le plugin qui promet a
     # l'ecran que « recomposer plus tard preserve les hydrogrammes deja
     # saisis » (04/09/2026). Le geste naturel apres le nouveau message
     # d'etat_cibles est justement de recomposer.
@@ -2650,13 +2650,13 @@ if __name__ == "__main__":
     # le bouton inutilisable sur un poste neuf — le seul ou il sert.
     _garde = _dossier_chaine
     _garde_emb = DOSSIER_EMBARQUE
-    _donnees = dossier_donnees_greffon() / "venv-hecras"
+    _donnees = dossier_donnees_plugin() / "venv-hecras"
     try:
         # LA COPIE EMBARQUEE N'EXISTE QUE DANS LE ZIP, jamais sur le disque
         # d'un poste de developpement : le controle qui la concerne etait donc
         # IGNORE ici, et c'est ce qui a laisse passer le defaut du 31/08. On
         # en FABRIQUE une, pour que la branche soit toujours exercee.
-        _faux_emb = dossier / "faux_greffon" / "chaine"
+        _faux_emb = dossier / "faux_plugin" / "chaine"
         _faux_emb.mkdir(parents=True, exist_ok=True)
         for _f in FICHIERS_CHAINE:
             (_faux_emb / _f).write_text("# temoin\n", encoding="utf-8")
@@ -2664,7 +2664,7 @@ if __name__ == "__main__":
         _dossier_chaine = _faux_emb
         _ou = emplacement_venv_hecras()
         print(f"   [{'OK' if _ou == _donnees else 'ECHEC'}] chaine embarquee "
-              f"-> dossier de donnees, PAS le greffon  ->  {_ou}")
+              f"-> dossier de donnees, PAS le plugin  ->  {_ou}")
         assert _ou == _donnees, _ou
         assert _faux_emb not in _ou.parents and _faux_emb.parent not in _ou.parents
         DOSSIER_EMBARQUE = _garde_emb
@@ -2688,14 +2688,14 @@ if __name__ == "__main__":
         # « <Path> or True » : toujours vraie, donc « [OK] » quoi qu'il
         # arrive. Seul l'assert controlait quelque chose, et la ligne au-
         # dessus de lui mentait.
-        _hors_greffon = (DOSSIER_EMBARQUE.parent
-                         not in dossier_donnees_greffon().parents)
-        print(f"   [{'OK' if _hors_greffon else 'ECHEC'}]"
-              f" le dossier de donnees est hors du greffon  ->  "
-              f"{dossier_donnees_greffon()}")
-        assert _hors_greffon
+        _hors_plugin = (DOSSIER_EMBARQUE.parent
+                         not in dossier_donnees_plugin().parents)
+        print(f"   [{'OK' if _hors_plugin else 'ECHEC'}]"
+              f" le dossier de donnees est hors du plugin  ->  "
+              f"{dossier_donnees_plugin()}")
+        assert _hors_plugin
 
-        # --- 4 quater. LE GREFFON CHERCHE LES PYTHON TOUT SEUL -------------
+        # --- 4 quater. LE PLUGIN CHERCHE LES PYTHON TOUT SEUL -------------
         print("\n4 quater. Recherche des Python utilisables")
         _cands = pythons_candidats()
         for _c in _cands:
@@ -2762,7 +2762,7 @@ if __name__ == "__main__":
 
     print("\n4 quinquies. TROUVER PYTHON SUR UN POSTE QUELCONQUE")
     # CE QUI SE JOUE ICI : le neophyte qui ne sait pas ou est Python. Le
-    # greffon le cherche pour lui, et ne doit pas le manquer sur un poste
+    # plugin le cherche pour lui, et ne doit pas le manquer sur un poste
     # ordinaire — un disque systeme autre que C:, un dossier de programmes
     # redirige, un chemin qui contient des espaces.
     for _ligne, _attendu in [
@@ -2819,7 +2819,7 @@ if __name__ == "__main__":
     #   LE CONTROLE PORTE SUR LE CODE, faute de pouvoir installer pour de vrai
     # dans un banc — ce serait plusieurs centaines de Mo a chaque passage.
     # « creationflags » AUTANT QUE « env » : sans lui, chaque appel fait
-    # clignoter une console noire devant la fenetre du greffon — quarante fois
+    # clignoter une console noire devant la fenetre du plugin — quarante fois
     # de suite quand « Installer… » cherche un python de base, et pendant
     # plusieurs minutes quand pip travaille. Le drapeau lui-meme differe selon
     # l'appel : SANS_FENETRE pour les appels synchrones, DETACHED_PROCESS pour
@@ -2874,14 +2874,14 @@ if __name__ == "__main__":
     # On interdit donc a plugin.py de composer QUELQUE commande pip que ce
     # soit — la seule source est commande_pip_hecras() — et au LISEZMOI de
     # porter l'ancienne liste.
-    _greffon = Path(__file__).resolve().parent
+    _plugin = Path(__file__).resolve().parent
     _fautifs = []
-    _source_plugin = (_greffon / "plugin.py").read_text(encoding="utf-8") \
-        if (_greffon / "plugin.py").is_file() else ""
+    _source_plugin = (_plugin / "plugin.py").read_text(encoding="utf-8") \
+        if (_plugin / "plugin.py").is_file() else ""
     for _marque in ("-m pip install", "ras-commander>="):
         if _marque in _source_plugin:
             _fautifs.append(f"plugin.py compose lui-meme « {_marque} »")
-    _lisezmoi = _greffon / "LISEZMOI.md"
+    _lisezmoi = _plugin / "LISEZMOI.md"
     if _lisezmoi.is_file() and 'install "ras-commander>=0.99" h5py' \
             in _lisezmoi.read_text(encoding="utf-8"):
         _fautifs.append("LISEZMOI.md porte la liste courte")
@@ -2923,7 +2923,7 @@ if __name__ == "__main__":
     interpreteur = interpreteur_hecras()
     print(f"   interpreteur : {interpreteur}")
     if interpreteur is None:
-        print(f"   introuvable — bouton « Installer… » du greffon "
+        print(f"   introuvable — bouton « Installer… » du plugin "
               f"({len(pythons_candidats())} base(s) possible(s) sur ce "
               f"poste), ou « Designer… », ou {VARIABLE_INTERPRETEUR}")
     else:

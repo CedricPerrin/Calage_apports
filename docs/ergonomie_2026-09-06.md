@@ -1,4 +1,4 @@
-# Recherche d'ergonomie sur la fenêtre du greffon — 6 septembre 2026
+# Recherche d'ergonomie sur la fenêtre du plugin — 6 septembre 2026
 
 Lecture de `calage_apports/plugin.py` (0.7.0, 4 214 lignes) par six
 lentilles indépendantes — une par zone de la fenêtre — puis une passe de
@@ -63,7 +63,7 @@ Entrée de « Composer » vers « Parcourir… ».
 
 `plugin.py:4033-4067` ne vérifie rien avant d'agir. Pendant les heures
 d'un calage, un clic — ou un Entrée, cf. § 1.1 — **réécrit la géométrie et
-le classeur du calcul en cours**. Le greffon sait pourtant détecter un
+le classeur du calcul en cours**. Le plugin sait pourtant détecter un
 calage vivant : il le fait déjà en `plugin.py:3096`.
 
 Le partage est réel en mode « plan », qui est le défaut ; en mode
@@ -137,7 +137,7 @@ confort ; à faire seulement si l'on accepte les douze retouches.
 | constat | lieu |
 |---|---|
 | **Le refus de composer renvoie à l'onglet 2 pour choisir l'axe hydraulique, qui est à l'onglet 1.** Trouvé par **trois** lentilles indépendantes. | `plugin.py:4050-4052` |
-| **Le fil conducteur coche « ✔ Axe hydraulique » alors que personne n'a choisi d'axe** — le combo est pré-rempli, éventuellement par une couche que le greffon vient lui-même de fabriquer. | `plugin.py:1684-1685`, `2248-2249` |
+| **Le fil conducteur coche « ✔ Axe hydraulique » alors que personne n'a choisi d'axe** — le combo est pré-rempli, éventuellement par une couche que le plugin vient lui-même de fabriquer. | `plugin.py:1684-1685`, `2248-2249` |
 | **Le champ « Dossier du projet » se laisse remplir à la main, mais une saisie ne charge jamais le projet** : seul le sélecteur y conduit. | `plugin.py:1716-1723` vs `1942-1948` |
 | **Le pourcentage change de sens sans le dire** : le rappel parle d'atteinte de la cible, les deux champs attendent un écart admis. | `plugin.py:2282-2312` |
 
@@ -179,7 +179,7 @@ d'afficher l'appariement du classeur **précédent** (`3715-3736`).
   n'accuse rien.** C'est pourtant le geste central du mode opératoire.
   `plugin.py:2840-2849`.
 - **Au lancement, l'interpréteur manquant renvoie vers une variable
-  d'environnement** — le message que le greffon a lui-même déclaré mauvais
+  d'environnement** — le message que le plugin a lui-même déclaré mauvais
   en 0.6.7, et qui ignore le bouton « Installer… ». `noyau.py:2261`,
   affiché par `plugin.py:3820`.
 - **L'aide est un rouleau de 11 000 caractères sans repère, et aucun

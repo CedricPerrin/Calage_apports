@@ -21,7 +21,7 @@ Outillage : `ruff 0.15.8`, `vulture 2.16`, `radon 6.0.1`, `pylint 4.0.8`,
    *(Corrigé au lot 3, avec le garde-fou qui l'aurait attrapé.)*
 2. Conséquence : **le deuxième échelon du repli des pentes n'a jamais
    fonctionné**. Tout apport dont la case `Pente_m_par_m` est vide garde la
-   pente déjà en place — 1 % pour une injection créée par le greffon.
+   pente déjà en place — 1 % pour une injection créée par le plugin.
 3. Le code et la documentation promettent tous deux ce repli, verbatim.
    `STATUT.txt` § 6 a même **clos un point ouvert** sur cette lecture.
 4. La dette structurelle est **concentrée** : `caler()` pèse 699 lignes pour
@@ -65,7 +65,7 @@ $ find . -name "*.ui" -o -name "*.qrc" -o -name "resources_rc.py" -o -name "ui_*
 ```
 
 Aucun algorithme Processing (`initAlgorithm`, `processAlgorithm`,
-`createInstance`) : le greffon est une fenêtre, pas un fournisseur.
+`createInstance`) : le plugin est une fenêtre, pas un fournisseur.
 
 ### A.2 Graphe d'imports — 2 cycles apparents, 0 cycle réel
 
@@ -220,7 +220,7 @@ problème d'environnement**, pas à un défaut de code.
 
 **Coût actuel.** Le repli à trois échelons en compte **deux**. Un apport dont
 la case est vide reçoit la pente déjà écrite dans l'unsteady — `0,01` (1 %)
-pour une injection créée par le greffon (`PENTE_APPORT_DEFAUT`, `plugin.py`).
+pour une injection créée par le plugin (`PENTE_APPORT_DEFAUT`, `plugin.py`).
 La pente commande la condition limite de profondeur normale de l'injection :
 elle a un effet sur le débit calculé. Le journal dit
 `pente de « A1 » : inchangee — ni saisie, ni deductible du profil`, ce qui est
@@ -486,9 +486,9 @@ Verbatim :
 
 ```python
         print(f"   [{'OK' if _donnees / 'Scripts' / 'python.exe' or True else ''}]"
-              f" le dossier de donnees est hors du greffon  ->  "
-              f"{dossier_donnees_greffon()}")
-        assert DOSSIER_EMBARQUE.parent not in dossier_donnees_greffon().parents
+              f" le dossier de donnees est hors du plugin  ->  "
+              f"{dossier_donnees_plugin()}")
+        assert DOSSIER_EMBARQUE.parent not in dossier_donnees_plugin().parents
 ```
 
 `<Path> or True` est **toujours vrai**. La ligne affiche `[OK]` quoi qu'il
@@ -623,7 +623,7 @@ l'occasion**, jamais en balayage.
 
 La signature de `getItem` reproduit `QInputDialog.getItem` et ne se choisit
 pas : quatre de ses six arguments ne servent à rien au mannequin, mais les
-retirer casserait l'appel du greffon, qui les passe en position. Ils sont
+retirer casserait l'appel du plugin, qui les passe en position. Ils sont
 consommés explicitement — l'oubli est dit volontaire, et l'avertissement ne
 se re-instruit plus chaque année.
 
@@ -662,7 +662,7 @@ touchées pour zéro concept en moins. **Non recommandés.**
 
 | Cible apparente | Verdict | Preuve |
 |---|---|---|
-| **`zip(...)` sans `strict=`, 86 fois** | **Interdit** | `noyau.PYTHON_MINIMUM = (3, 9)`. `strict=` est apparu en **3.10**. L'ajouter casse le greffon sur un poste au Python minimal annoncé. |
+| **`zip(...)` sans `strict=`, 86 fois** | **Interdit** | `noyau.PYTHON_MINIMUM = (3, 9)`. `strict=` est apparu en **3.10**. L'ajouter casse le plugin sur un poste au Python minimal annoncé. |
 | **Les 3 copies de la politique d'encodage** (`pilote_hecras._lire_texte`, `elaguer_projet._lire_texte`, `noyau._lire_texte_hecras`) | **Interdit** | Seul cluster que `pylint` trouve à 6 lignes. C'est l'**invariant 3**, écrit : *« ils ne peuvent pas partager de code. Toute correction doit être reportée aux trois. »* |
 | **Les 2 cycles d'imports** | **Interdit** | Tous les arcs sont des imports **locaux à une fonction** (§ A.2). C'est la parade à `import h5py` sous QGIS. Les « résoudre » réintroduirait le défaut que `pont_hecras.py` existe pour éviter. |
 | **Les 7 copies du helper `_verifier(libelle, condition, detail)`** | **À laisser** | Un module partagé devrait entrer dans `FICHIERS_CHAINE` et dans l'archive, pour ~8 lignes × 7. Chaque module doit rester lançable seul. Trois lignes semblables valent mieux qu'une abstraction prématurée. |
@@ -889,7 +889,7 @@ l'ont fait sortir. Seul un contrôle qui lit le code le voyait.
   Il ne s'exécute que sous le Python de QGIS, avec une copie de modèle.
 - **`src/figures_note/`** (`contenu.py` 1 015 lignes, `construire_docx.py`) —
   reconstruction de la note. Hors chaîne de calage, non distribué.
-- **Le comportement d'exécution du greffon** : ni PyQt, ni QGIS ici. Tout ce
+- **Le comportement d'exécution du plugin** : ni PyQt, ni QGIS ici. Tout ce
   qui concerne `plugin.py` est statique.
 - **Les performances** (temps de calcul, mémoire) : hors périmètre demandé.
 - **La note méthodologique** (`.docx`, `.pdf`) et sa cohérence avec le code.

@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.7.14
+version=0.7.15
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,16 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,KGE,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.7.14 — Le fichier de saisie s'appelle par ce qu'il contient.
+changelog=0.7.15 — Un seul mot pour l'extension : « plugin ».
+    « Greffon » et « plugin » cohabitaient — 181 occurrences du premier, dans
+    le code, les messages, la documentation et la note méthodologique. Deux
+    mots pour une chose se lisent comme deux choses, et celui-là n'apportait
+    rien : « plugin » est le terme que QGIS emploie dans son propre
+    gestionnaire d'extensions. Les messages affichés suivent, ainsi que
+    `dossier_donnees_greffon()`, devenue `dossier_donnees_plugin()`.
+    Seul `_arquivo/` garde l'ancien mot : il est hors du chemin de lecture,
+    et le réécrire fausserait le récit qu'il conserve.
+    0.7.14 — Le fichier de saisie s'appelle par ce qu'il contient.
     « Classeur » est le mot du code et de la chaîne, où il désigne un
     format. À l'écran il ne dit ni ce que le fichier contient, ni à quoi il
     sert — or l'utilisateur y vient pour une seule chose : saisir les
@@ -49,7 +58,7 @@ changelog=0.7.14 — Le fichier de saisie s'appelle par ce qu'il contient.
     pas des comptes rendus datés : ce sont des valeurs courantes, présentées
     comme telles au résumé et consommées à l'écriture. Elles décrivaient
     alors une autre géométrie, sans un mot. L'avertissement vit à côté du
-    champ concerné, et compare deux numéros déjà en mémoire — le greffon
+    champ concerné, et compare deux numéros déjà en mémoire — le plugin
     n'écrit aucune règle de contrôle.
     L'APPARIEMENT AFFICHÉ NE PRÉTEND PLUS DÉCRIRE UN CLASSEUR REPRIS. La
     ligne du haut de l'onglet 4 décrit le paquet COMPOSÉ ; reprendre le
@@ -148,7 +157,7 @@ changelog=0.7.14 — Le fichier de saisie s'appelle par ce qu'il contient.
     UNE QUESTION, PAS UN VERROU. L'état vient d'un fichier, souvent posé
     sur un partage réseau : une lecture manquée qui griserait l'action
     principale de la fenêtre serait pire que le mal qu'on répare. Le
-    greffon demande, en nommant le calage et son processus, et la réponse
+    plugin demande, en nommant le calage et son processus, et la réponse
     par défaut est « non ». Les deux portes se ferment ensemble — en
     fermer une seule n'aurait fait que déplacer l'accident. Un calage
     TERMINÉ n'en ferme aucune : son état reste en place et son processus
@@ -196,7 +205,7 @@ changelog=0.7.14 — Le fichier de saisie s'appelle par ce qu'il contient.
     L'AXE HYDRAULIQUE N'EST PLUS CHOISI SANS QUE PERSONNE NE L'AIT CHOISI.
     Sans entrée vide, le combo rendait toujours une couche dès qu'il en
     existait une — et « Charger les couches du modèle » en ajoute deux,
-    fabriquées par le greffon lui-même. Le fil conducteur cochait donc
+    fabriquées par le plugin lui-même. Le fil conducteur cochait donc
     « ✔ Axe hydraulique » pour un geste jamais fait, et le refus de
     composer sans axe était INATTEIGNABLE. Ce refus, redevenu atteignable,
     renvoyait de surcroît à l'onglet 2 pour un champ qui a rejoint
@@ -224,9 +233,9 @@ changelog=0.7.14 — Le fichier de saisie s'appelle par ce qu'il contient.
     promet « tout ce que le pont exige » et sa propre docstring disait
     « onze plus xarray » : la commande n'en posait donc pas la totalité,
     et la suivre à la lettre fabriquait encore un environnement que le
-    greffon refusait — le troisième accident du genre après la 0.6.1 et
+    plugin refusait — le troisième accident du genre après la 0.6.1 et
     la 0.6.7. Relevé en montant l'environnement d'un poste neuf.
-    LA SUITE DU GREFFON PASSE DE BOUT EN BOUT SUR UN POSTE NEUF —
+    LA SUITE DU PLUGIN PASSE DE BOUT EN BOUT SUR UN POSTE NEUF —
     154 contrôles, aucun échec, aucun ignoré. Six défauts du banc, tous
     du même motif — il supposait le modèle et le poste de son auteur —
     l'en empêchaient : un chemin de suivi figé au lieu de celui que la
@@ -273,7 +282,7 @@ changelog=0.7.14 — Le fichier de saisie s'appelle par ce qu'il contient.
     CREATE_NO_WINDOW, que pilote_hecras.py était seul à poser.
     0.6.9 — « Installer… » n'installait rien, et sortait en succès.
     Les trois sous-processus de l'installeur — « python -m venv » et les
-    deux « pip install » — étaient les SEULS du greffon à transmettre
+    deux « pip install » — étaient les SEULS du plugin à transmettre
     l'environnement de QGIS. Or son PYTHONPATH et son PYTHONHOME pointent
     SA bibliothèque, qui livre déjà numpy, pandas, scipy, matplotlib,
     openpyxl, geopandas, shapely et pyproj : huit des onze paquets. pip les
@@ -292,7 +301,7 @@ changelog=0.7.14 — Le fichier de saisie s'appelle par ce qu'il contient.
     classeur, puis pente locale du fond, puis rien — avait donc deux
     échelons sur trois, alors que deux docstrings promettent les trois : un
     apport dont la case Pente_m_par_m est vide gardait la pente déjà en
-    place, soit 1 % pour une injection créée par le greffon.
+    place, soit 1 % pour une injection créée par le plugin.
     Un garde-fou d'archive refuse désormais tout nom lu sans avoir jamais
     été lié dans son fichier. Il est éprouvé par le banc adverse, qui
     injecte la faute et vérifie qu'elle est refusée : un module qui
@@ -308,7 +317,7 @@ changelog=0.7.14 — Le fichier de saisie s'appelle par ce qu'il contient.
     l'environnement et le vérifie.
     Et il donnait une commande pip à DEUX paquets quand la vérification en
     exige onze : la suivre à la lettre fabriquait un environnement que le
-    greffon refusait ensuite. Le texte vient maintenant de la même liste
+    plugin refusait ensuite. Le texte vient maintenant de la même liste
     que la vérification, et un banc interdit qu'une seconde réapparaisse.
     Un Python installé hors du disque C: était invisible : la lecture de
     « py -0p » cherchait la sous-chaîne « c: » et laissait tomber la ligne
@@ -342,7 +351,7 @@ changelog=0.7.14 — Le fichier de saisie s'appelle par ce qu'il contient.
     et dont la colonne de temps était vide sous six colonnes de débit
     pleines, partait en calage : le pont plantait en arrière-plan, hors de
     vue, sur « 'numpy.float64' object has no attribute 'to_numpy' ». Le
-    greffon refuse désormais de lancer, en nommant l'en-tête trouvé à la
+    plugin refuse désormais de lancer, en nommant l'en-tête trouvé à la
     place de « Temps_h » ; et une cible n'est tenue pour renseignée que si
     elle a deux instants numériques en face de deux débits — la règle du
     pont, qui porte le même garde-fou pour l'appel direct. Et recomposer

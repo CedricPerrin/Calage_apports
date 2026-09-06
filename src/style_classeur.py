@@ -528,7 +528,7 @@ def mettre_en_forme(chemin):
 # Auto-test
 #
 # CE MODULE N'EN AVAIT AUCUN, et il etait pourtant compte parmi les bancs
-# verts du projet — dans STATUT.txt section 1, dans le LISEZMOI du greffon et
+# verts du projet — dans STATUT.txt section 1, dans le LISEZMOI du plugin et
 # dans la boucle de commandes du CHECKPOINT. « python style_classeur.py »
 # sortait 0 sans un mot : il passait parce qu'il ne faisait rien. Un banc qui
 # ne controle rien est pire qu'un banc absent, parce qu'on le compte.

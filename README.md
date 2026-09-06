@@ -37,7 +37,7 @@ diagnostique les manques.
 > | à lancer | avec quoi | pourquoi |
 > |---|---|---|
 > | `verification_environnement.py` | un Python **ordinaire** (ou celui du `venv-hecras`) | il sonde `ras-commander`, que le Python de QGIS ne peut pas importer |
-> | `test_plugin_qgis.py` | le **Python de QGIS** (`python-qgis-ltr.bat`) | il construit la fenêtre du greffon, donc il lui faut `qgis.core` |
+> | `test_plugin_qgis.py` | le **Python de QGIS** (`python-qgis-ltr.bat`) | il construit la fenêtre du plugin, donc il lui faut `qgis.core` |
 > | les auto-tests de `src/*.py` | l'un ou l'autre, selon leurs imports | `calage.py` et `criteres.py` n'ont besoin que de la chaîne |
 >
 > Lancé sous le Python de QGIS, `verification_environnement.py` rend
@@ -97,7 +97,7 @@ en un ou deux essais. Ce qu'ils ont appris est aux sections 5.6 et 5.7 de
 Modèle, Objectifs et précision, Résultats, Lancer, Suivi, Aide et
 configuration.
 
-**La suite du greffon passe de bout en bout** : **172 contrôles, aucun
+**La suite du plugin passe de bout en bout** : **172 contrôles, aucun
 échec**, le 6 septembre 2026 sur un poste neuf, avec un modèle et un
 interpréteur HEC-RAS. Elle n'y arrivait pas : sept défauts du **banc**
 l'en empêchaient, tous du même motif — *il supposait le modèle et le poste
@@ -122,7 +122,7 @@ c'est la référence à jour, plus fiable que ce README pour le détail.
 [CHECKPOINT.md](CHECKPOINT.md) est le point de reprise entre sessions de
 travail.
 
-## La fenêtre du greffon
+## La fenêtre du plugin
 
 Six onglets, dans l'ordre des décisions. Captures prises sur la version
 0.7.14, modèle d'exemple, chemins neutralisés.
