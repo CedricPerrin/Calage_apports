@@ -3038,6 +3038,56 @@ class DialogueParametrage(QDialog):
         return (Path(racine)
                 / (self.edit_sous_dossier_suivi.text().strip() or "suivi"))
 
+    def _calage_en_cours(self):
+        """
+        L'etat du calage qui tourne, ou None. Rend l'ETAT, pas un booleen :
+        l'appelant doit pouvoir le nommer.
+
+        NE SERT PAS A GRISER UN BOUTON, et c'est delibere. Cet etat vient d'un
+        fichier, souvent pose sur un partage reseau : une lecture manquee
+        desarmerait l'action principale de la fenetre sans rien expliquer —
+        pire que le mal qu'on repare. Il sert a POSER UNE QUESTION, dont la
+        reponse par defaut est « non ».
+
+        « Termine » compte autant que « vivant » : un calage abouti a laisse
+        son avancement.json en place, et son PID a pu etre reattribue depuis.
+        """
+        try:
+            dossier = self._dossier_suivi()
+            etat = noyau.lire_avancement(dossier) if dossier else None
+            if not etat or etat.get("termine"):
+                return None
+            return etat if noyau.processus_vivant(etat.get("pid")) else None
+        except Exception as e:                              # noqa: BLE001
+            # Ne jamais empecher l'action a cause du garde-fou lui-meme.
+            journaliser("Detection d'un calage en cours", e)
+            return None
+
+    def _confirmer_malgre_calage(self, consequence):
+        """
+        Demande confirmation si un calage tourne. Vrai si l'on peut y aller.
+
+        POURQUOI UNE QUESTION ET NON UN VERROU : voir _calage_en_cours. Et
+        pourquoi une question TOUT COURT : ni la composition ni le lancement
+        ne consultaient l'etat du calage, alors que l'onglet 5 le lit toutes
+        les deux secondes. Recomposer pendant un calcul reecrit la geometrie
+        et le classeur que ce calcul partage ; relancer fait travailler deux
+        calages sur les memes plans. Les deux portes se ferment ensemble —
+        en fermer une seule ne fait que deplacer l'accident.
+        """
+        etat = self._calage_en_cours()
+        if etat is None:
+            return True
+        titre = etat.get("titre") or "un calage"
+        pid = etat.get("pid", "?")
+        return QMessageBox.question(
+            self, "Un calage est en cours",
+            f"« {titre} » tourne encore (processus {pid}).\n\n"
+            f"{consequence}\n\n"
+            f"Continuer quand même ?",
+            QMessageBox.StandardButton.Yes
+            | QMessageBox.StandardButton.No) == QMessageBox.StandardButton.Yes
+
     def _ouvrir_dossier_suivi(self):
         dossier = self._dossier_suivi()
         if dossier is None or not dossier.is_dir():
@@ -3885,6 +3935,11 @@ class DialogueParametrage(QDialog):
                 "Composer d'abord le paquet (bouton « Composer et "
                 "contrôler »).")
             return
+        if not self._confirmer_malgre_calage(
+                "Lancer maintenant ferait travailler deux calages sur les "
+                "mêmes plans du même modèle, et le second écraserait les "
+                "étapes du premier."):
+            return
         try:
             etat = noyau.etat_cibles(self.classeur)
         except Exception as e:
@@ -4181,6 +4236,13 @@ class DialogueParametrage(QDialog):
         # que le modele venait d'etre modifie. Son seul temoin, label_ecriture,
         # vit a l'onglet 1 — invisible depuis l'onglet d'ou l'on a clique.
         geometrie_reecrite = False
+        # AVANT TOUT LE RESTE : recomposer pendant qu'un calage tourne
+        # reecrit la geometrie et le classeur que ce calage est en train de
+        # lire. Une question, pas un verrou — voir _confirmer_malgre_calage.
+        if not self._confirmer_malgre_calage(
+                "Composer maintenant réécrirait la géométrie HEC-RAS et le "
+                "classeur que ce calage est en train de lire."):
+            return
         try:
             if not self.info_projet:
                 raise ValueError(

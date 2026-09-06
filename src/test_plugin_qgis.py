@@ -1234,6 +1234,30 @@ verifier("suivi : le tableau affiche le glyphe avec le statut",
          "✔" in dlg.table_suivi.item(0, 2).text(),
          dlg.table_suivi.item(0, 2).text())
 
+# --- UN CALAGE QUI TOURNE FERME LES DEUX PORTES -----------------------------
+# Ni la composition ni le lancement ne consultaient l'etat du calage, alors
+# que l'onglet 5 le lit toutes les deux secondes. Recomposer pendant un calcul
+# reecrit la geometrie et le classeur que ce calcul partage ; relancer fait
+# travailler deux calages sur les memes plans.
+# L'etat pose ci-dessus porte le PID de CE processus et « termine: false » :
+# il decrit donc, pour le greffon, un calage bel et bien vivant.
+# UNE QUESTION, PAS UN VERROU : le mannequin repond « non », et c'est la
+# reponse par defaut voulue — l'action doit etre refusee.
+verifier("un calage vivant est detecte, et nomme",
+         (dlg._calage_en_cours() or {}).get("pid") == os.getpid(),
+         f"pid detecte : {(dlg._calage_en_cours() or {}).get('pid')} "
+         f"/ le notre : {os.getpid()}")
+verifier("il fait refuser composer et lancer, par defaut",
+         dlg._confirmer_malgre_calage("essai") is False)
+# ET UN CALAGE TERMINE NE FERME RIEN : son avancement.json reste en place, et
+# son PID a pu etre reattribue depuis.
+_ecrire_etat(termine=True)
+dlg._rafraichir_suivi()
+verifier("un calage TERMINE ne ferme aucune porte",
+         dlg._calage_en_cours() is None
+         and dlg._confirmer_malgre_calage("essai") is True,
+         f"etat : {dlg._calage_en_cours()}")
+
 # Qt REFUSE UN Path la ou il attend une chaine : « argument 3 has unexpected
 # type 'WindowsPath' ». Le classeur compose doit donc etre memorise en str,
 # sinon « Reprendre un classeur d'un calcul precedent… » casse des qu'un
