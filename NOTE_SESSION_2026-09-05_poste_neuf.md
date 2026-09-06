@@ -49,20 +49,69 @@ lancer la suite — réserve levée.
 
 | état du poste | résultat |
 |---|---|
-| au départ, sans modèle | 9 OK, **16 échecs**, plantage à la ligne 1078 |
-| après correction du banc (§ 3) | 92 OK, 2 échecs, aucun plantage |
-| après unification du garde-fou (§ 3) | 93 OK, 1 échec |
-| après `venv-hecras` complet | **94 OK, 0 échec** — *« La fenêtre du plugin s'exécute de bout en bout. »* |
+| au départ, sans modèle | 9 OK, **16 échecs**, plantage ligne 1078 |
+| après correction du banc (§ 3.1) | 92 OK, 2 échecs, aucun plantage |
+| après unification du garde-fou (§ 3.3) | 93 OK, 1 échec |
+| après `venv-hecras` complet | **94 OK, 0 échec**, sans modèle |
+| avec Muncie sans objets de calage | 125 → 126 OK, 8 échecs |
+| sur le plan **TEST**, 1 apport / 1 section | 6 OK, plantage → **132 OK**, 4 échecs |
+| sur le plan **TEST**, 2 apports / 2 sections bien implantés | **151 OK, 0 ÉCHEC** ✅ |
 
-**Les 58 contrôles restants attendent un modèle.** Six sections sont
-annoncées « ignoré » : aucun modèle déclaré (×2), aucun classeur composé
-(×2), aucun plan ni condition limite, et le fichier `.affaires` absent
-(3 contrôles de noms non joués).
+> **La suite est passée de bout en bout le 6 septembre 2026.**
+> *« La fenêtre du plugin s'exécute de bout en bout. »*
+> Seul reste 1 « ignoré » : `.affaires` absent — 3 contrôles de noms non
+> joués. C'est un fichier de configuration non versionné, pas un défaut.
 
-## 3. Trois défauts trouvés en faisant tourner la suite
+### Le modèle qui a servi
 
-Aucun n'était visible sans lancer le banc sur un poste neuf. Les trois
-sont corrigés et commités.
+`Documents\HECRAS\Example_Projects_7_0\2D Unsteady Flow Hydraulics\Muncie`,
+plan **TEST** (`Muncie.p02`, géométrie `g02`), auquel deux `BC Line` et
+deux `Reference Line` ont été ajoutées puis calculées.
+
+```bat
+set QGIS_PREFIX_PATH=C:\Program Files\QGIS 3.44.14\apps\qgis-ltr
+"C:\Program Files\QGIS 3.44.14\bin\python-qgis-ltr.bat" test_plugin_qgis.py ^
+    --modele    "<...>\Muncie" ^
+    --plan      "<...>\Muncie\Muncie.p02.hdf" ^
+    --geometrie "<...>\Muncie\Muncie.g02" ^
+    --objet     "BC Line 1"
+```
+
+**L'implantation compte, et le greffon la contrôle.** Au premier essai il
+a refusé : *« aucune ligne d'injection en amont de : Reference Line 2 »*.
+C'était juste — projetée sur l'axe, cette section tombait à PK −264, en
+amont du premier apport. Une fois déplacée en aval de `BC Line 1`,
+l'ordre devient celui d'un calage : chaque apport suivi de sa section.
+
+| PK | objet |
+|---|---|
+| 0 | BC Line 2 |
+| 1 263 | Reference Line 1 |
+| 1 710 | BC Line 1 |
+| 2 344 | Reference Line 2 |
+
+Réserve : cet ordre découle de l'axe que **le banc fabrique** (centroïdes
+des injections triés par Y croissant). En usage réel, c'est l'axe
+hydraulique dessiné par l'utilisateur qui décide de l'amont.
+
+## 3. Six défauts trouvés en faisant tourner la suite
+
+Aucun n'était visible sans lancer le banc sur un poste neuf, avec un
+modèle qui n'est pas celui de son auteur. **Tous les six ont le même
+motif : le banc suppose le monde dans lequel il a été écrit.** Chemin
+figé, liste absente, modèle sans objets, date codée en dur, axe à un
+point, CRS français en dur. Les six sont corrigés et commités.
+
+Les trois premiers sont détaillés ci-dessous ; les trois suivants —
+modèle sans objets de calage (`0713475`), date de fenêtre inversée
+(`47cc98c`), axe dégénéré et `EPSG:2154` en dur (`3a7c571`) — le sont
+dans leurs messages de commit.
+
+Le plus parlant est le sixième : `couche()` déclarait `EPSG:2154` —
+Lambert-93 — pour une couche bâtie sur les coordonnées **réelles** du
+modèle. Sur Muncie, qui est dans l'Indiana, la reprojection rendait
+« Coordinates with non-finite values are not allowed ». Le défaut ne
+pouvait pas se voir sur un modèle français.
 
 ### 3.1 Le banc inventait 16 échecs faute de modèle (`11e7f64`)
 
