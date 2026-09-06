@@ -297,14 +297,58 @@ réinstallation du greffon (0.7.3), la coquille de commit.
 3. **Renommer « Composer et contrôler »** en « Écrire, composer et
    contrôler » ? Désaccord non tranché — voir § 1.4 de la note
    d'ergonomie. Impose douze retouches, `LISEZMOI.md:20` comprise.
-4. **`QGIS_PREFIX_PATH` codé en dur** dans `test_plugin_qgis.py`
-   (`C:\Program Files\QGIS\LTR\...`, inexistant ici). Le déduire de
-   l'installation ? Même remarque pour le contrôle « QGIS LTR installé »
-   de `verification_environnement.py`.
-5. **Le README** dit « `python verification_environnement.py` » sans dire
-   *lequel*. Lancé sous le Python de QGIS, il rend un `DLL load failed`
-   sur `ras-commander` qui ressemble à une panne, alors que c'est
-   l'incompatibilité h5py/QGIS documentée.
-6. **Le correctif clavier n'est vérifié qu'au banc.** Ce qui se juge
+4. **Le correctif clavier n'est vérifié qu'au banc.** Ce qui se juge
    devant la fenêtre : qu'Entrée ne fasse plus **rien**, nulle part.
    C'est le prix assumé, et il se voit.
+
+## 8. Le 6 septembre après-midi — ce qui a été fait sans décision
+
+### 8.1 Le bouton « Installer… » est éprouvé, enfin
+
+`verification_environnement.py` annonçait, sous *RESTE À ÉPROUVER*, que ce
+bouton *« n'est allé jusqu'au bout sur aucun poste »*. C'était vrai.
+
+Mené le 6 septembre **dans le processus QGIS**, par les deux chemins :
+création d'un environnement à partir de rien, et reprise d'un
+environnement déjà présent. **12 paquets posés et vérifiés en 56 s**,
+`python 3.12.10, ras-commander 0.99.2, h5py 3.16.0`, et les douze
+s'importent.
+
+C'est le lancement **depuis QGIS** qui compte, et rien d'autre : c'est là
+que le `PYTHONHOME` du greffon fuyait dans les sous-processus de
+l'installeur — pip voyait les paquets de QGIS, les tenait pour *already
+satisfied*, n'en posait aucun, et rendait 0 (corrigé en 0.6.9, jamais
+vérifié en entier). Relevé ici :
+`PYTHONHOME=…\QGIS34~1.14\apps\Python312`. Le même essai lancé depuis une
+invite de commandes ne prouve rien — il n'a pas cet environnement à
+assainir. (`1b34c84`)
+
+### 8.2 Deux chemins QGIS de plus, codés en dur
+
+Septième et huitième occurrences du motif. `C:\Program Files\QGIS\LTR`
+n'existe pas sur un poste où l'installeur OSGeo range sous le numéro de
+version. Conséquences : `setPrefixPath()` faux → MDAL introuvable et
+`QgsMeshLayer` qui échoue **en silence** ; et le vérificateur qui rendait
+« non détecté » devant un QGIS installé, tout en **dictant** une commande
+menant à un fichier inexistant.
+
+Les deux se déduisent désormais du poste. Mesure : la suite passe à
+**157 OK / 0 échec sans `QGIS_PREFIX_PATH`** — une variable de moins à
+poser. (`c1f4db5`)
+
+### 8.3 Le README dit avec quel Python
+
+Le dépôt en côtoie trois. Lancé sous celui de QGIS,
+`verification_environnement.py` rend `DLL load failed` sur
+`ras-commander` — qui a toute l'apparence d'un défaut d'installation et
+n'est que la séparation voulue. C'est le premier outil que le README fait
+lancer à un nouvel arrivant. Un tableau dit maintenant quoi avec quoi, et
+que ce message-là n'est pas une panne. (`bade80a`)
+
+### 8.4 La fenêtre accuse ce qu'on a dessiné — 0.7.4
+
+Une ligne, sur le geste central de l'outil : `_maj_resume()` en tête de
+`_changer_onglet`. On laissait la fenêtre ouverte, on allait tracer les
+sections dans QGIS, on revenait — et rien ne le remarquait. (`969ac89`)
+
+**Greffon installé dans QGIS : 0.7.4**, vérifié après rechargement.
