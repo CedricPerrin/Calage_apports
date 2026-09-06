@@ -189,7 +189,32 @@ place. Ce qui reste du poids de `caler()` ne relève plus de l'extraction
 mais de l'étendue de l'état porté par la boucle — donc du chantier
 « calage simultané » de `docs/idees_V2_plugin.md`.
 
-## 6. La barre d'onglets — vérifiée le 5 septembre, conforme
+## 5 bis. Ergonomie — quatre correctifs appliqués le 6 septembre
+
+Issus de `docs/ergonomie_2026-09-06.md`. Chacun vérifié au banc **et** dans
+le QGIS réel après réinstallation.
+
+| correctif | commit |
+|---|---|
+| Entrée n'écrit plus dans la géométrie (`keyPressEvent`) | `3d845b7` |
+| La boîte d'échec dit que la géométrie a déjà été réécrite | `fecbf79` |
+| L'axe n'est plus choisi tout seul — son refus redevient atteignable, et nomme l'onglet 1 | `fecbf79` |
+| « Dossier du projet » devient l'afficheur qu'il était déjà | `fecbf79` |
+| Le plancher de largeur s'adapte à la barre d'onglets | `dc5ace6` |
+
+**Deux d'entre eux ont failli être faux, et la mesure les a rattrapés :**
+
+- Retirer `setDefault` ne suffit pas — Qt promeut alors « Parcourir… ».
+  Il faut avaler Return dans un `keyPressEvent`.
+- `setAllowEmptyLayer(True)` **ajoute** l'entrée vide sans la
+  sélectionner : le combo rendait encore « Lignes d'injection ». Il faut
+  `setLayer(None)`, qui tient quand des couches arrivent ensuite.
+
+Le greffon installé dans QGIS est passé de **0.6.9 à 0.7.3**. L'ancienne
+version est conservée sous
+`…\plugins\calage_apports.sauvegarde_0.6.9`.
+
+## 6. La barre d'onglets — mesurée deux fois, et la seconde a corrigé la première
 
 Mesuré sur la fenêtre réellement instanciée, QGIS 3.44.14, greffon 0.6.9,
 police « MS Shell Dlg 2 » 8 pt gras.
@@ -200,15 +225,32 @@ descendrait à 388 px. Au plus étroit, la barre dispose donc de 696 px pour
 529 px de besoin : **+167 px de marge**. `usesScrollButtons` vaut `True` —
 le défilement est *autorisé*, jamais déclenché.
 
-**Ce qui protège la barre est le plancher `minimumWidth = 720`, pas la
-brièveté des libellés** — donc pas ce qu'affirme le commentaire de
-`plugin.py:1512`. **Seuil de régression : 553 px** (529 + 24 de marges).
-Un contrôle utile compare `tabBar().sizeHint().width()` à
-`minimumWidth() - marges` ; mesurer la longueur des intitulés ne protège
-rien.
+**Ce qui protège la barre est le plancher `minimumWidth`, pas la brièveté
+des libellés** — donc pas ce qu'affirme le commentaire de `plugin.py`.
 
-Réserve : mesuré au DPI et à la police de ce poste. Les 24 % de marge
-absorbent large, mais un poste à 150 % n'est pas couvert.
+> ### La seconde mesure, le 6 septembre, a corrigé la première
+>
+> Les 529 px ci-dessus valent pour le greffon **0.6.9**. La 0.7.0 avait
+> renommé deux onglets — « 2. Objectifs et précision » et « Aide et
+> configuration » — et le besoin est passé à **663 px**. La marge était
+> donc de **+33 px**, pas +167. Elle s'était resserrée de 80 % sans que
+> personne le voie.
+>
+> Pire : sous la police par défaut d'une session sans interface — donc
+> sous un autre thème Windows, un réglage d'accessibilité ou une autre
+> mise à l'échelle — la même barre demande **877 px** et **défile**.
+>
+> **Le plancher se déduit désormais de ce que la barre demande**
+> (`dc5ace6`). L'invariante est vraie par construction, sur toute police
+> et toute mise à l'échelle ; un libellé trop long élargit la fenêtre au
+> lieu de disparaître. La réserve « pas mesuré à 150 % » tombe : il n'y a
+> plus rien à mesurer.
+>
+> Un contrôle du banc compare ce que les onglets demandent à ce que la
+> fenêtre peut donner au plus étroit. Écrit d'abord en dur, il échouait
+> dans le banc headless faute d'y avoir la même police — c'eût été le
+> septième défaut « le banc suppose le monde de son auteur » de la
+> journée. Avec le plancher adaptatif, il passe partout.
 
 ## 7. CE QUI DEMANDE UNE DÉCISION
 
@@ -231,24 +273,38 @@ Je ne l'ai **pas** corrigé : ajouter `("xarray", "xarray")` à
 `ras-commander`, pas du pont. Le déclarer nous-mêmes masque le fait que
 `ras-commander` la déclare mal. **À trancher.**
 
-### 7.2 Les autres questions
+### 7.2 Ce qui reste ouvert au 6 septembre, 14 h
 
-Elles sont posées à l'oral au retour. En résumé :
+**Réglé depuis** : le modèle (plan TEST de Muncie), `.affaires`, les six
+correctifs du banc, le push sur `main`, la suppression des branches, la
+réinstallation du greffon (0.7.3), la coquille de commit.
 
-1. **Un modèle de calage** sur ce poste — le seul manque pour les 58
-   contrôles restants. Où, et quel `--objet` ?
-2. **`.affaires`** — absent ; 3 contrôles ne sont pas joués. Le créer
-   depuis `.affaires.exemple`, ou le garder hors du poste ?
-3. **Les trois correctifs du banc** (§ 3) — approche validée ?
-4. **Pousser** les commits locaux de cette branche ?
-5. **Réinstaller le greffon en 0.7.0** dans QGIS ? L'archive vient d'être
-   reconstruite ; le profil est encore en 0.6.9.
-6. **Une coquille** dans le message du commit `11e7f64` (`n''a`) —
-   réécrire l'historique pour la corriger, ou laisser ?
-7. **`QGIS_PREFIX_PATH`** codé en dur dans `test_plugin_qgis.py:54` —
-   faut-il le déduire de l'installation plutôt que d'écrire un chemin qui
-   n'existe pas sur ce poste ?
-8. **Le README** dit « `python verification_environnement.py` » sans dire
-   *lequel*. Lancé sous le Python de QGIS, il rend un
-   `DLL load failed` sur `ras-commander` qui ressemble à une panne alors
-   que c'est l'incompatibilité h5py/QGIS documentée. Préciser ?
+**Ce qui attend une décision :**
+
+1. **§ 2.2 de la note d'ergonomie — le préfixe de scénario.** Le plus
+   grave des constats restants. La reprise d'un classeur ne relit ni
+   `Prefixe_scenario` ni `Premier_apport`, et le lancement les réécrit
+   depuis les champs vides de la fenêtre : reprendre le classeur d'un
+   Q100 et lancer efface « Q100 » du classeur et titre les plans hors
+   scénario. **Non corrigé** : cela change le comportement du lancement,
+   et la sémantique se décide, elle ne se devine pas. Le correctif tient
+   en un endroit — `_appliquer_objectifs_du_classeur` — pas quatre.
+2. **Le garde-fou « un calage tourne »**, sur `_composer_et_controler`
+   **et** `_lancer_calage`. Une confirmation nommant le PID, pas un
+   `setEnabled` : l'état vient d'un fichier souvent sur partage réseau,
+   et une lecture manquée qui griserait le bouton principal serait pire
+   que le mal.
+3. **Renommer « Composer et contrôler »** en « Écrire, composer et
+   contrôler » ? Désaccord non tranché — voir § 1.4 de la note
+   d'ergonomie. Impose douze retouches, `LISEZMOI.md:20` comprise.
+4. **`QGIS_PREFIX_PATH` codé en dur** dans `test_plugin_qgis.py`
+   (`C:\Program Files\QGIS\LTR\...`, inexistant ici). Le déduire de
+   l'installation ? Même remarque pour le contrôle « QGIS LTR installé »
+   de `verification_environnement.py`.
+5. **Le README** dit « `python verification_environnement.py` » sans dire
+   *lequel*. Lancé sous le Python de QGIS, il rend un `DLL load failed`
+   sur `ras-commander` qui ressemble à une panne, alors que c'est
+   l'incompatibilité h5py/QGIS documentée.
+6. **Le correctif clavier n'est vérifié qu'au banc.** Ce qui se juge
+   devant la fenêtre : qu'Entrée ne fasse plus **rien**, nulle part.
+   C'est le prix assumé, et il se voit.
