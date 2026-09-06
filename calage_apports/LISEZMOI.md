@@ -45,9 +45,13 @@ et figerait l'interface.
 
 ## Installation
 
-**Depuis l'archive** — *Extensions → Installer/Gérer les extensions →
-Installer depuis un ZIP*, choisir `calage_apports.zip`, puis cocher
-**Calage des apports** dans *Extensions installées*.
+**Depuis l'archive.** `calage_apports.zip` est **à la racine du dépôt** :
+la télécharger suffit, il n'y a rien à reconstruire. Puis, dans QGIS :
+*Extensions → Installer/Gérer les extensions → Installer depuis un ZIP*,
+la choisir, et cocher **Calage des apports** dans *Extensions installées*.
+
+Pour la reconstruire après une modification des sources :
+`python src/faire_zip.py`.
 
 Si l'extension n'apparaît pas dans la liste après installation, cocher
 *Extensions → Paramètres → **Afficher aussi les extensions expérimentales***  :

@@ -74,7 +74,8 @@ distribué : le plugin en embarque une copie autonome à l'installation.
 | [src/reconstruire_livrables.py](src/reconstruire_livrables.py) | Rattrapage : reconstruit les livrables d'un calage **terminé**, en lecture seule sur le modèle |
 | `src/figures_note/` | Reconstruction de la note méthodologique |
 | [methodologie_calage_amont_aval.docx](methodologie_calage_amont_aval.docx) | Note méthodologique : mode opératoire, méthode, application HEC-RAS/QGIS, livrables |
-| `calage_apports/` | Plugin QGIS — voir son [LISEZMOI.md](calage_apports/LISEZMOI.md) |
+| [calage_apports.zip](calage_apports.zip) | **L'archive à installer dans QGIS** — versionnée, prête à l'emploi |
+| `calage_apports/` | Sources du plugin QGIS — voir son [LISEZMOI.md](calage_apports/LISEZMOI.md) |
 | [STATUT.txt](STATUT.txt) | État courant et règles en vigueur — la référence pour le détail |
 | `charte/` | Identité graphique ISL Ingénierie |
 

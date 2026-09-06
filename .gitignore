@@ -7,6 +7,12 @@ venv/
 # Backups / archives
 *.bak
 *.zip
+# ... SAUF l'archive d'installation du plugin : elle est LIVREE. Sans elle,
+# installer le plugin suppose de cloner le depot, de monter un Python et de
+# lancer faire_zip.py — trois etapes pour ce qui doit en compter une. Elle
+# se reconstruit a l'identique (`python src/faire_zip.py`), et le banc
+# adverse verifie chaque copie embarquee avant qu'elle ne parte.
+!calage_apports.zip
 
 # Cas de test HEC-RAS (donnees volumineuses, non versionnees)
 01-cas_test/

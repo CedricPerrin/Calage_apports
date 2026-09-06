@@ -1208,7 +1208,9 @@ La note, le template et ce fichier restent a la racine.
                          onglets. plugin.py est une enveloppe mince ; noyau.py
                          porte la logique, testable hors QGIS. Aucune regle de
                          controle n'y est reecrite.
-  calage_apports.zip     Archive d'installation (gitignore).
+  calage_apports.zip     Archive d'installation, VERSIONNEE : c'est ce
+                         qu'on installe dans QGIS, telechargeable depuis
+                         le depot sans rien reconstruire.
   methodologie_calage_amont_aval.docx / .pdf   Note methodologique V15.
   template_donnees_calage.xlsx                 Classeur de saisie, 4 feuilles.
   livrables_exemple/     Produit par « python livrables.py », pas une source.
