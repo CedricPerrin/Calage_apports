@@ -1187,6 +1187,12 @@ def formulaire(parent=None):
 # qu'on fait defiler n'est pas lue davantage qu'une aide absente.
 # ---------------------------------------------------------------------------
 
+# UN SOMMAIRE, PARCE QUE LE TEXTE EST LONG. Dix sections et plus de dix mille
+# caracteres, sans un seul lien : le commentaire d'introduction de cet onglet
+# dit lui-meme qu'« une aide qu'on fait defiler n'est pas lue davantage qu'une
+# aide absente », et il n'y avait aucun moyen d'atteindre la bonne section.
+# Les ancres et la liste se deduisent des <h3> ; en ajouter un impose de lui
+# donner son ancre et sa ligne, sous peine d'un sommaire qui ment par omission.
 AIDE_HTML = """
 <h2>Calage des apports — mode opératoire</h2>
 
@@ -1194,7 +1200,21 @@ AIDE_HTML = """
 injectés dans un modèle 2D HEC-RAS pour que le débit calculé à chaque section
 de contrôle reproduise un hydrogramme cible.</p>
 
-<h3>Première utilisation — ce qu'il faut installer</h3>
+<p style="margin-top:14px"><b>Aller directement à :</b></p>
+<ul>
+<li><a href="#s1">Première utilisation — ce qu'il faut installer</a></li>
+<li><a href="#s2">À trancher avant de commencer</a></li>
+<li><a href="#s3">Le déroulement, onglet par onglet</a></li>
+<li><a href="#s4">Comment l'apport est ajusté</a></li>
+<li><a href="#s5">Comment lire le résultat</a></li>
+<li><a href="#s6">Quand la cible est hors d'atteinte</a></li>
+<li><a href="#s7">Nommer les objets</a></li>
+<li><a href="#s8">Un apport créé part de zéro</a></li>
+<li><a href="#s9">Pièges à connaître</a></li>
+<li><a href="#s10">Sur un autre poste</a></li>
+</ul>
+
+<h3><a name="s1"></a>Première utilisation — ce qu'il faut installer</h3>
 <p><b>Vous n'avez pas besoin de savoir où Python est installé sur ce poste, ni
 même s'il l'est.</b> Ouvrir <i>Paramètres du poste</i>, au bas de cet onglet,
 et cliquer <b>Vérifier l'environnement</b> : il dit ce qui manque et propose
@@ -1223,7 +1243,7 @@ interpréteur à part. C'est une contrainte mesurée, pas un choix.</p>
 <p>Ces deux emplacements sont <b>retenus d'une session à l'autre</b> : cette
 étape ne se refait pas.</p>
 
-<h3>À trancher avant de commencer</h3>
+<h3><a name="s2"></a>À trancher avant de commencer</h3>
 <ul>
 <li><b>Ordre amont → aval strict ?</b> La méthode ne s'applique pas à un
 réseau bouclé, où un apport alimenterait plusieurs sections par des chemins
@@ -1233,7 +1253,7 @@ tout : compter 3 à 5 calculs par apport.</li>
 <li><b>Hydrogrammes cibles disponibles</b> pour chaque section ?</li>
 </ul>
 
-<h3>Le déroulement, onglet par onglet</h3>
+<h3><a name="s3"></a>Le déroulement, onglet par onglet</h3>
 <ol>
 <li><b>Onglet 1 — Modèle.</b> Dossier du projet, plan de référence, axe
 hydraulique, puis
@@ -1257,7 +1277,7 @@ arrière-plan : QGIS reste utilisable.</li>
 tout seul. C'est là qu'on revient pendant les heures que dure un calage.</li>
 </ol>
 
-<h3>Comment l'apport est ajusté</h3>
+<h3><a name="s4"></a>Comment l'apport est ajusté</h3>
 <p>Une seule règle, appliquée ligne à ligne, et c'est exactement le calcul
 manuel de la note méthodologique :</p>
 <p align="center"><tt><b>apport(n+1) = max( 0 , apport(n) + [ cible(t−Δt) −
@@ -1281,7 +1301,7 @@ obtenu à la section. Il est calculé sur <b>toute la durée simulée</b> : la
 fenêtre de l'événement principal ne restreint que le <i>jugement</i> et les
 <i>figures</i>, jamais ce qui est injecté.</p>
 
-<h3>Comment lire le résultat</h3>
+<h3><a name="s5"></a>Comment lire le résultat</h3>
 <p>Tout est donné en <b>pourcentage d'atteinte de la cible</b>. Trois
 exigences, satisfaites <b>en même temps</b> :</p>
 <ul>
@@ -1309,7 +1329,7 @@ obtenue, la cible décalée, leur écart, l'apport injecté — et l'apport d'un
 bloc est l'apport du précédent plus son écart, ramené à zéro s'il devient
 négatif.</p>
 
-<h3>Quand la cible est hors d'atteinte</h3>
+<h3><a name="s6"></a>Quand la cible est hors d'atteinte</h3>
 <p>Un apport ne peut qu'<b>ajouter</b> du débit : si la section reçoit déjà
 plus que la cible sur toute la durée, aucun apport positif ne l'y ramène. Ce
 refus est prononcé <b>avant le moindre calcul</b>, donc sans rien coûter, et
@@ -1325,7 +1345,7 @@ retirer, et le volume ne peut plus repasser sous 100&nbsp;%. Si cet excédent
 dépasse à lui seul la tolérance de volume, la concordance est impossible par
 construction — mesuré sur un cas de recette, 2,12&nbsp;% du volume cible.</p>
 
-<h3>Nommer les objets</h3>
+<h3><a name="s7"></a>Nommer les objets</h3>
 <p>Les noms doivent correspondre <b>exactement</b> à ceux de la géométrie
 HEC-RAS : c'est par eux que le classeur, l'Unsteady&nbsp;Flow et les résultats
 se rejoignent. La convention ne sert donc qu'à la création, et ne renomme
@@ -1338,14 +1358,14 @@ d'elle — et le lien réellement calculé s'affiche à l'onglet 4. Une injectio
 sans section en aval n'est pas calée, ce qui est normal ; une section sans
 injection en amont est en revanche une erreur.</p>
 
-<h3>Un apport créé part de zéro</h3>
+<h3><a name="s8"></a>Un apport créé part de zéro</h3>
 <p>Il reçoit un hydrogramme <b>nul</b>, sur la base de temps du modèle. Rien
 à saisir : le calage commence par un calcul sans les apports, mesure ce que
 chaque section reçoit déjà, et la première estimation est la différence avec
 la cible. Le classeur ne demande donc aucune forme d'apport — on y saisit ce
 qu'on veut <i>obtenir à la section</i>, pas ce qu'on injecte.</p>
 
-<h3>Pièges à connaître</h3>
+<h3><a name="s9"></a>Pièges à connaître</h3>
 <ul>
 <li>Le <b>signe du débit</b> à une section dépend du sens où la ligne a été
 tracée. Il est ramené en convention positive vers l'aval, et l'inversion est
@@ -1360,7 +1380,7 @@ absente pour l'autre, et la ligne n'apporte aucun débit.</li>
 ne peuvent pas partager la même bibliothèque HDF5.</li>
 </ul>
 
-<h3>Sur un autre poste</h3>
+<h3><a name="s10"></a>Sur un autre poste</h3>
 <p>Rien de plus que la <i>première utilisation</i> ci-dessus : les deux mêmes
 emplacements, cherchés tout seuls, et le groupe <i>Paramètres du poste</i> pour
 le cas contraire. Ni QGIS ni HEC-RAS n'ont à être désignés — le premier exécute

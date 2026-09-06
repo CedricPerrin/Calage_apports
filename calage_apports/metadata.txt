@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.7.10
+version=0.7.11
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,16 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,KGE,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.7.10 — Deux textes qui trompaient, et une correction de la 0.7.1.
+changelog=0.7.11 — L'aide a un sommaire.
+    Dix sections et plus de dix mille caractères, sans un seul lien : le
+    commentaire d'introduction de cet onglet dit lui-même qu'« une aide qu'on
+    fait défiler n'est pas lue davantage qu'une aide absente », et il n'y
+    avait aucun moyen d'atteindre la bonne section. Les ancres et la liste se
+    déduisent des titres. Vérifié à l'écran, parce que le doute était fondé :
+    chaque onglet vit dans une zone défilante, et il fallait s'assurer que
+    c'est bien le navigateur de texte qui défile — document de 1923 px dans
+    une vue de 302, et chaque ancre atterrit à sa place.
+    0.7.10 — Deux textes qui trompaient, et une correction de la 0.7.1.
     LE POURCENTAGE CHANGEAIT DE SENS DANS LE MÊME CADRE. Le rappel annonçait
     « tout est rapporté en pourcentage d'atteinte de la cible » — où 100 %
     est le juste — et les deux champs sous lui attendent un ÉCART ADMIS, où

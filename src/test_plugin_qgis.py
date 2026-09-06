@@ -205,6 +205,14 @@ class DialogueTexte:
         self.questions = []
 
     def getItem(self, parent, titre, libelle, choix, i, editable):  # noqa: N802
+        # LA SIGNATURE REPRODUIT QInputDialog.getItem, ELLE NE SE CHOISIT PAS.
+        # Quatre de ses six arguments ne servent a rien ici — le mannequin
+        # repond sans rien afficher — mais les retirer casserait l'appel du
+        # greffon, qui les passe en position. Les consommer explicitement dit
+        # que l'oubli est voulu, et evite a vulture de signaler chaque annee
+        # un « unused variable 'editable' » qu'il faut re-instruire (P2-11 de
+        # AUDIT.md).
+        del parent, titre, i, editable
         self.questions.append(libelle)
         attendu = self.reponses_item.pop(0)
         if attendu not in choix:
