@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.7.0
+version=0.7.1
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,48 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,KGE,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.7.0 — Les onglets suivent l'ordre des décisions, et deux
+changelog=0.7.1 — La touche Entrée n'écrit plus dans la géométrie.
+    « Composer et contrôler » était le bouton PAR DÉFAUT de la fenêtre :
+    une pression sur Entrée depuis n'importe quel champ de saisie — un
+    chemin de dossier, une tolérance, le préfixe de scénario — lançait
+    l'écriture des sections et injections dans le .gXX, en remplaçant
+    tout objet de même nom. Le seul geste irréversible de la fenêtre
+    était câblé sur la touche qu'on presse par réflexe en finissant de
+    taper. Retirer setDefault ne suffisait pas : Qt promeut alors le
+    premier bouton autoDefault visible — « Parcourir… » — et la touche
+    ne change que de cible. Entrée est donc avalée. Ce qu'il en coûte,
+    et c'est assumé : Entrée n'active plus aucun bouton de la fenêtre ;
+    la tabulation et la barre d'espace y mènent toujours.
+    XARRAY REJOINT LA LISTE DES PAQUETS HEC-RAS. commande_pip_hecras()
+    promet « tout ce que le pont exige » et sa propre docstring disait
+    « onze plus xarray » : la commande n'en posait donc pas la totalité,
+    et la suivre à la lettre fabriquait encore un environnement que le
+    greffon refusait — le troisième accident du genre après la 0.6.1 et
+    la 0.6.7. Relevé en montant l'environnement d'un poste neuf.
+    LA SUITE DU GREFFON PASSE DE BOUT EN BOUT SUR UN POSTE NEUF —
+    154 contrôles, aucun échec, aucun ignoré. Six défauts du banc, tous
+    du même motif — il supposait le modèle et le poste de son auteur —
+    l'en empêchaient : un chemin de suivi figé au lieu de celui que la
+    fenêtre surveille (16 faux échecs puis un plantage), un garde-fou
+    qui plantait faute de son fichier .affaires, un modèle sans objets
+    de calage qui emportait la suite sur pd.read_excel(None), une date
+    de fenêtre inversée codée en dur, un axe hydraulique impossible à
+    bâtir sur un apport unique, et EPSG:2154 déclaré en dur pour des
+    coordonnées réelles — sur un modèle de l'Indiana, la reprojection
+    rendait « Coordinates with non-finite values are not allowed ».
+    Le garde-fou des chemins du poste n'existe plus qu'en UN exemplaire.
+    faire_zip.py était passé au critère « ce chemin existe-t-il ici ? » ;
+    son jumeau de test_plugin_qgis.py était resté sur une liste blanche
+    et refusait depuis la 0.6.7 les faux chemins de l'auto-test de
+    noyau.py. La suite était rouge depuis, faute d'avoir été repassée.
+    Côté chaîne, une section amont qu'on ne sait pas relire est
+    désormais NOMMÉE au lieu de disparaître : l'étape 7 l'avalait sur un
+    « except: continue » muet, et son silence se lisait comme « aucune
+    section n'a dérivé ». Et caler() perd deux étapes au profit de
+    fonctions qui les nomment — 699 lignes ramenées à 622, sans qu'une
+    seule opération flottante ne bouge : le test de caractérisation est
+    resté identique à chaque pas.
+    0.7.0 — Les onglets suivent l'ordre des décisions, et deux
     états cessent de mentir.
     L'axe hydraulique rejoint « 1. Modèle » : c'est un objet du modèle,
     qu'on dessine sur la carte comme les sections, pas un objectif.
