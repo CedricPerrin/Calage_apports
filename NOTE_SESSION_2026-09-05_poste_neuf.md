@@ -407,4 +407,5 @@ en deux temps :**
 La friction reste, assumée. Un commentaire du code porte les deux mesures,
 pour que l'idée ne revienne pas sans elles.
 
-**Banc : 165 contrôles, aucun échec.**
+**Banc : 165 contrôles au terme de cette section, aucun échec** — 172 au
+soir, les correctifs suivants ayant amené leurs propres contrôles.

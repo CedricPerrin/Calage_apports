@@ -59,7 +59,7 @@ CE QUI EST EPROUVE
     et verifies en 56 s. C'est le lancement depuis QGIS qui comptait — c'est
     la, et nulle part ailleurs, que son PYTHONHOME fuyait dans les
     sous-processus de pip.
-  - GREFFON EN 0.7.13 (06/09). Onze correctifs d'ergonomie issus d'une
+  - GREFFON EN 0.7.14 (06/09). Onze correctifs d'ergonomie issus d'une
     relecture a six lentilles : voir docs/ergonomie_2026-09-06.md, qui dit
     aussi ce qu'il ne faut PAS toucher. Le lot 5 d'AUDIT.md est fait, et
     AUDIT.md est clos — seul P2-10 reste, dont l'audit dit lui-meme que ce
@@ -143,12 +143,9 @@ CE QUI EST EPROUVE
     quelque part serait employe sans qu'on sache d'ou il vient » tient. La
     recherche PROPOSE, l'utilisateur DESIGNE, et interpreteur_hecras() est
     inchangee.
-  - LA SUITE QGIS N'A PAS ETE REJOUEE DEPUIS LE 03/09. plugin.py a change
-    le 04/09 (le lancement refuse au lieu de proposer, 5.7 fin) PUIS le
-    05/09 (l'aide, le diagnostic qui propose d'installer, l'ordre des
-    boutons, les etiquettes) : les 152 controles sont a repasser au
-    prochain accès au poste QGIS. Le reste des deux correctifs est hors
-    plugin.py et couvert par les bancs.
+  - LA SUITE QGIS A ETE REJOUEE LE 06/09, ET ELLE PASSE : 172 controles,
+    0 echec, 0 ignore. Cette ligne a annonce pendant trois jours qu'elle
+    etait « a repasser au prochain acces au poste QGIS » ; c'est fait.
 
 UN TROISIEME CALAGE COMPLET (03-04/09) : ARDANAVY Q100, REFAIT DE ZERO.
   6/6 CONFORME en 16 h 49, 11 calculs, livrables COMPLETS au premier passage

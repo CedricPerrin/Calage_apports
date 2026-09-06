@@ -18,7 +18,7 @@ onglets — l'ordre des onglets est celui des décisions.
 | Aide et configuration | mode opératoire, pièges connus, et les deux emplacements du poste — chaîne de calage et interpréteur HEC-RAS |
 
 **Les six onglets sont en images** dans le README du dépôt, section « La
-fenêtre du greffon » — une capture par onglet, prises sur la version 0.7.13.
+fenêtre du greffon » — une capture par onglet.
 
 Le bouton **Écrire, composer et contrôler**, permanent en bas de la fenêtre, écrit les
 shapefiles normalisés et un classeur **pré-rempli**, puis lance tous les
@@ -265,8 +265,8 @@ QGIS qui comptait : c'est là, et nulle part ailleurs, que son environnement
 fuyait dans les sous-processus de pip.
 
 Et **l'ergonomie de la fenêtre a été relue** — six lectures indépendantes,
-puis une passe de réfutation. Onze constats corrigés, des versions 0.7.1 à
-0.7.9 ; le détail est dans `docs/ergonomie_2026-09-06.md`, y compris ce
+puis une passe de réfutation. Seize constats sur dix-huit corrigés ; le
+détail est dans `docs/ergonomie_2026-09-06.md`, y compris ce
 qu'il ne faut **pas** toucher.
 
 > Ce que les calages livrés n'ont PAS rencontré : un volume plancher, un

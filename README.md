@@ -91,7 +91,7 @@ et six apports, **vingt-quatre en tout**, zéro incident. La plupart ont converg
 en un ou deux essais. Ce qu'ils ont appris est aux sections 5.6 et 5.7 de
 `STATUT.txt`.
 
-**Plugin QGIS en 0.7.13.** Ses six onglets suivent l'ordre des décisions :
+**Plugin QGIS en 0.7.14.** Ses six onglets suivent l'ordre des décisions :
 Modèle, Objectifs et précision, Résultats, Lancer, Suivi, Aide et
 configuration.
 
@@ -123,7 +123,7 @@ travail.
 ## La fenêtre du greffon
 
 Six onglets, dans l'ordre des décisions. Captures prises sur la version
-0.7.13, modèle d'exemple, chemins neutralisés.
+0.7.14, modèle d'exemple, chemins neutralisés.
 
 ### 1. Modèle
 Le projet HEC-RAS — **on désigne le fichier `.prj`, pas le dossier** —, le

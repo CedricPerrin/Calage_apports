@@ -18,7 +18,7 @@ Tout est sur **`main`**, poussé. La branche
 `claude/connaissance-des-md-qjbpro` a été fusionnée puis supprimée, ici et
 sur l'origine.
 
-**Greffon en 0.7.13**, installé et vérifié dans QGIS. Bancs : suite du
+**Greffon en 0.7.14**, installé et vérifié dans QGIS. Bancs : suite du
 greffon **172 contrôles, 0 échec, 0 ignoré** ; `calage` avec son test de
 caractérisation ; `noyau` opérationnel ; `faire_zip` « archive conforme » ;
 `essai_garde_fou_archive` « TOUT PASSE ».
@@ -31,7 +31,7 @@ caractérisation ; `noyau` opérationnel ; `faire_zip` « archive conforme » ;
 | **Sept défauts du banc**, tous « il suppose le monde de son auteur » | même note, § 3 et § 8 |
 | **Lot 5 d'`AUDIT.md`** — `caler()` 699 → 622 lignes, 3ᵉ extraction écartée sur mesure | `AUDIT.md` § P1-4 |
 | **`AUDIT.md` est clos** — seul P2-10 reste, et l'audit dit que ce n'est pas un lot | |
-| **Onze correctifs d'ergonomie**, 0.7.1 à 0.7.13 | `docs/ergonomie_2026-09-06.md` |
+| **Les correctifs d'ergonomie**, 0.7.1 à 0.7.14 | `docs/ergonomie_2026-09-06.md` |
 | Le bouton « Installer… » **éprouvé depuis QGIS**, ses deux chemins | § 8.1 de la note de session |
 | La note méthodologique **reconstruite** — sa table d'onglets datait d'avant la 0.7.0 | |
 
