@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.7.4
+version=0.7.5
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,20 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,KGE,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.7.4 — La fenêtre accuse ce qu'on a dessiné pendant son absence.
+changelog=0.7.5 — Reprendre un classeur n'efface plus son préfixe de scénario.
+    Le lancement écrit six réglages dans le classeur ; la reprise n'en
+    relisait que quatre. Reprendre le classeur d'un Q100 puis lancer
+    réécrivait donc le préfixe avec le champ VIDE de la fenêtre :
+    « Q100 » disparaissait du classeur, les plans étaient titrés hors
+    scénario, et caler le Q10 ensuite sur le même modèle effaçait les
+    plans du Q100 — l'accident même que le préfixe existe pour empêcher.
+    Même trou pour « Premier apport » : la reprise remettait la liste sur
+    « tous » et le lancement réécrivait ce « tous », si bien qu'un calage
+    repris au vingtième apport repartait de zéro. Rien de tout cela
+    n'était bloquant : le calage partait et rendait ses livrables. Cela
+    coûtait des heures, en silence. Les deux moitiés comptent désormais
+    pareil, et le premier apport repris est annoncé à l'écran.
+    0.7.4 — La fenêtre accuse ce qu'on a dessiné pendant son absence.
     C'est le geste central de l'outil : on laisse la fenêtre ouverte, on va
     tracer les sections manquantes dans QGIS, on revient. Rien ne le
     remarquait — le résumé continuait d'afficher les comptes d'avant, et

@@ -3773,22 +3773,36 @@ class DialogueParametrage(QDialog):
              "Premier apport de la liste : le calage part du calcul de "
              "référence « sans apport », comme sans ce réglage.")
 
-    def _appliquer_objectifs_du_classeur(self, classeur):
+    def _appliquer_reglages_du_classeur(self, classeur):
         """
-        Remet les objectifs de precision de la fenetre sur ceux du classeur.
+        Remet la fenetre sur les reglages de LANCEMENT du classeur repris.
 
-        LA MOITIE INDISPENSABLE DE L'ECRITURE AU LANCEMENT. Le lancement ecrit
-        desormais ces quatre valeurs dans le classeur : sans cette lecture,
-        reprendre un classeur cale a +/-2 % puis lancer l'aurait DESSERRE a la
-        valeur par defaut de la fenetre, sans un mot.
+        LA MOITIE INDISPENSABLE DE L'ECRITURE AU LANCEMENT, ET ELLE DOIT LUI
+        ETRE EXACTEMENT SYMETRIQUE. Le lancement ecrit SIX valeurs dans le
+        classeur ; cette lecture n'en reprenait que QUATRE, et s'appelait
+        « objectifs » — ce qu'elle etait devenue a moitie.
 
-        Ne leve jamais : un classeur illisible se signale ailleurs, et les
-        objectifs ne sont pas ce qui doit faire echouer sa reprise.
+        Les deux qui manquaient sont les plus cheres :
+
+          - « Prefixe_scenario ». Reprendre le classeur d'un Q100 puis lancer
+            reecrivait le prefixe avec le champ VIDE de la fenetre : « Q100 »
+            disparaissait du classeur, les plans etaient titres hors scenario,
+            et caler le Q10 ensuite sur le meme modele effacait les plans du
+            Q100 — l'accident meme que le prefixe existe pour empecher (0.6.0).
+          - « Premier_apport ». Meme trou : la reprise remettait la liste sur
+            « tous », et le lancement reecrivait ce « tous » dans le classeur.
+            Un calage repris au vingtieme apport repartait de zero.
+
+        Rien de tout cela n'etait BLOQUANT — le calage part et rend ses
+        livrables. Cela coutait des heures, en silence.
+
+        Ne leve jamais : un classeur illisible se signale ailleurs, et des
+        reglages ne sont pas ce qui doit faire echouer sa reprise.
         """
         try:
             parametres = noyau.lire_parametres(classeur)
         except Exception as e:                              # noqa: BLE001
-            journaliser("Objectifs de précision du classeur repris", e)
+            journaliser("Réglages du classeur repris", e)
             return
         for cle, widget in (("Tolerance_volume_pct", self.spin_tol_volume),
                             ("Tolerance_pic_pct", self.spin_tol_pic),
@@ -3803,11 +3817,43 @@ class DialogueParametrage(QDialog):
             except (TypeError, ValueError):
                 continue
 
+        # LE PREFIXE. Une chaine VIDE est une valeur — « pas de prefixe » — et
+        # non une absence : seule une cle ABSENTE du classeur laisse le champ
+        # tel quel.
+        prefixe = parametres.get("Prefixe_scenario")
+        if prefixe is not None and hasattr(self, "edit_prefixe_scenario"):
+            self.edit_prefixe_scenario.setText(str(prefixe).strip())
+
+        # LE PREMIER APPORT, ICI ET PAS DANS _remplir_premier_apport. La regle
+        # de preservation de celui-la sert la RECOMPOSITION, ou le choix
+        # courant ne doit pas etre efface en silence. Ici on reprend un AUTRE
+        # classeur : c'est lui qui fait foi, et il faut le DIRE — remplacer un
+        # reglage muet par un autre reglage muet ne vaudrait guere mieux.
+        premier = parametres.get("Premier_apport")
+        combo = getattr(self, "combo_premier_apport", None)
+        if premier is not None and combo is not None:
+            voulu = str(premier).strip()
+            rang = combo.findData(voulu)
+            if rang >= 0:
+                combo.setCurrentIndex(rang)      # declenche _dire_premier_apport
+                dire(self.label_premier_apport,
+                     self.label_premier_apport.text()
+                     + " <i>Repris du classeur.</i>")
+            elif voulu:
+                dire(self.label_premier_apport,
+                     f"Le classeur désigne « {voulu} » comme premier apport, "
+                     f"absent de sa propre liste : le choix affiché n'est pas "
+                     f"le sien.")
+
     def _maj_onglet_validation_depuis_classeur(self):
         """Rafraichit l'onglet 4 apres un controle sur classeur existant."""
+        # L'ORDRE COMPTE : _remplir_premier_apport recharge la LISTE depuis le
+        # classeur, _appliquer_reglages_du_classeur choisit ensuite DANS cette
+        # liste ce que le classeur designe. L'inverse choisirait avant que les
+        # entrees n'existent.
         self._remplir_premier_apport()
         if self.classeur:
-            self._appliquer_objectifs_du_classeur(self.classeur)
+            self._appliquer_reglages_du_classeur(self.classeur)
         try:
             etat = noyau.etat_cibles(self.classeur)
         except Exception as e:
@@ -3864,9 +3910,14 @@ class DialogueParametrage(QDialog):
             # s'arretait a 5 %.
             #   L'INVERSE EST TOUT AUSSI VRAI, et c'est pourquoi la fenetre se
             # remplit DEPUIS le classeur quand on en reprend un
-            # (_appliquer_objectifs_du_classeur) : sans cela, reprendre un
+            # (_appliquer_reglages_du_classeur) : sans cela, reprendre un
             # classeur cale a +/-2 % puis lancer l'aurait desserre a 5 % en
             # silence. Les deux moities vont ensemble.
+            #   ET ELLES DOIVENT COMPTER PAREIL. Ce bloc ecrit SIX valeurs ;
+            # la lecture n'en reprenait que quatre, et laissait donc le
+            # prefixe de scenario et le premier apport se faire ecraser par
+            # les champs vides de la fenetre. Toute valeur ajoutee ici se
+            # relit la-bas, sans quoi la reprise d'un classeur la perd.
             for cle, valeur in (
                     ("Tolerance_volume_pct", self.spin_tol_volume.value()),
                     ("Tolerance_pic_pct", self.spin_tol_pic.value()),
