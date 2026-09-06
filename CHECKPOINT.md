@@ -29,16 +29,17 @@ caractérisation ; `noyau` opérationnel ; `faire_zip` « archive conforme » ;
 |---|---|
 | **La suite du greffon passe de bout en bout** — 152 annoncés, 172 obtenus | § 2 de `NOTE_SESSION_2026-09-05_poste_neuf.md` |
 | **Sept défauts du banc**, tous « il suppose le monde de son auteur » | même note, § 3 et § 8 |
-| **Lot 5 d'`AUDIT.md`** — `caler()` 699 → 622 lignes, 3ᵉ extraction écartée sur mesure | `AUDIT.md` § P1-4 |
+| **Lot 5 d'`AUDIT.md`** — mené le **5 au soir** : `caler()` 699 → 622 lignes, 3ᵉ extraction écartée sur mesure | `AUDIT.md` § P1-4 |
 | **`AUDIT.md` est clos** — seul P2-10 reste, et l'audit dit que ce n'est pas un lot | |
-| **Les correctifs d'ergonomie**, 0.7.1 à 0.7.14 | `docs/ergonomie_2026-09-06.md` |
+| **Les correctifs d'ergonomie**, 0.7.1 à 0.7.14 (la note s'arrête à 0.7.12 : les deux dernières viennent d'une demande directe) | `docs/ergonomie_2026-09-06.md` |
 | Le bouton « Installer… » **éprouvé depuis QGIS**, ses deux chemins | § 8.1 de la note de session |
 | La note méthodologique **reconstruite** — sa table d'onglets datait d'avant la 0.7.0 | |
 
 ### Ce qui reste, et rien d'autre
 
-1. **Regarder la fenêtre.** Onze correctifs d'interface en un jour, tous
-   vérifiés au banc, aucun sous les yeux de l'utilisateur. En particulier :
+1. **Regarder la fenêtre.** Quatorze versions d'interface publiées en un
+   jour — 0.7.1 à 0.7.14 — toutes vérifiées au banc, aucune sous les yeux de
+   l'utilisateur. En particulier :
    **Entrée ne fait plus rien**, nulle part — c'est le prix assumé du
    désarmement du geste irréversible, et il se voit.
 2. **Le suivi pendant un vrai calage.** L'état du calage précédent qui ne se
@@ -49,8 +50,10 @@ caractérisation ; `noyau` opérationnel ; `faire_zip` « archive conforme » ;
 3. **Trois garde-fous jamais rencontrés en réel** — volume plancher, apport
    refusé, modèle incohérent. Seul le banc les couvre.
 4. **L'hypothèse d'ordre total.** Le seul vrai levier qui reste : si le
-   jacobien est triangulaire, le calage simultané divise le nombre de calculs
-   par le nombre d'apports — ×18 sur un modèle à 30 apports — et c'est ce
+   jacobien est triangulaire, le coût cesse de dépendre du nombre d'apports —
+   `nb_calculs = nb_essais` au lieu de `nb_apports × nb_essais`, soit un
+   facteur **18 sur un modèle à 30 apports** d'après le tableau de
+   `docs/idees_V2_plugin.md` § 1 — et c'est ce
    chantier qui réécrirait la boucle dont la troisième extraction a été
    écartée. `STATUT.txt` la liste toujours comme **non confirmée**. C'est une
    question d'hydraulicien, pas de code.

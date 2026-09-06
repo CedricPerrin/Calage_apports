@@ -7,8 +7,10 @@ Pour chaque apport, de l'amont vers l'aval : estimer, calculer, comparer à
 la cible, corriger, répéter jusqu'à concordance, puis vérifier la cohérence
 des sections amont avant de passer au suivant. La boucle de calage
 ([src/calage.py](src/calage.py)) est indépendante du solveur — elle ne
-connaît de lui qu'une interface de huit méthodes — six obligatoires, deux qui
-ont un comportement par défaut — ce qui la rend testable sans HEC-RAS. La
+connaît de lui qu'une interface de **neuf** méthodes : six qu'il faut écrire
+(`preparer`, `forme_apport`, `appliquer_facteur`, `definir_forme`, `calculer`,
+`lire_section`) et trois qui ont un comportement par défaut (`jalonner`,
+`conclure`, `limiter_duree`) — ce qui la rend testable sans HEC-RAS. La
 déclinaison HEC-RAS vit dans [src/pilote_hecras.py](src/pilote_hecras.py).
 
 ## Démarrage
@@ -71,7 +73,7 @@ l'installation (voir plus bas).
 | [src/creer_template.py](src/creer_template.py) / [src/style_classeur.py](src/style_classeur.py) | Fabrication et mise en forme du classeur de saisie |
 | [src/faire_zip.py](src/faire_zip.py) | Construit `calage_apports.zip`, l'archive d'installation du plugin |
 | [src/essai_garde_fou_archive.py](src/essai_garde_fou_archive.py) | Essai **adverse** : injecte trois fautes dans l'archive et vérifie qu'elles sont refusées |
-| [src/test_plugin_qgis.py](src/test_plugin_qgis.py) | Suite du plugin (**172 contrôles au 06/09**), à lancer sous l'interpréteur de QGIS et sur une **copie** d'un modèle — la suite **modifie** la géométrie de celui qu'on lui donne. Sans `--modele`, elle tourne quand même et annonce ce qu'elle saute ; avec, il lui faut aussi `--plan`, `--geometrie` et `--objet <nom d'une condition limite>`. Le modèle doit porter au moins une ligne d'injection et une ligne de référence, la seconde en **aval** de la première |
+| [src/test_plugin_qgis.py](src/test_plugin_qgis.py) | Suite du plugin (**172 contrôles au 06/09**), à lancer sous l'interpréteur de QGIS et sur une **copie** d'un modèle — la suite **modifie** la géométrie de celui qu'on lui donne. Sans `--modele`, elle tourne quand même et annonce ce qu'elle saute. `--plan` et `--geometrie` se **déduisent** du dossier — mais la déduction prend le **premier** fichier par ordre alphabétique, qui n'est pas forcément celui qu'on veut : les passer explicitement dès qu'un projet porte plusieurs plans. `--objet <nom d'une condition limite>` ouvre une section de plus. Le modèle doit porter au moins une ligne d'injection et une ligne de référence, la seconde en **aval** de la première |
 | `src/figures_note/` | Reconstruction de la note méthodologique : contenu, figures, assemblage du `.docx` |
 | [methodologie_calage_amont_aval.docx](methodologie_calage_amont_aval.docx) | Note méthodologique (mode opératoire, méthode générale, application HEC-RAS/QGIS, livrables) |
 | `calage_apports/` | Plugin QGIS — voir son propre [LISEZMOI.md](calage_apports/LISEZMOI.md) (installation, tests, contraintes d'environnement) |
