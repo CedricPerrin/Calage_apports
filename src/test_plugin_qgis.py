@@ -50,8 +50,33 @@ from qgis.PyQt.QtCore import QMetaType
 # QgsApplication construit a la main pour un test headless doit le faire lui
 # meme. Omis dans une premiere version de ce test, ce qui avait fait
 # conclure a tort que MDAL etait absent de cette installation.
-_PREFIXE_QGIS = (os.environ.get("QGIS_PREFIX_PATH")
-                 or r"C:\Program Files\QGIS\LTR\apps\qgis-ltr")
+def _prefixe_qgis():
+    r"""
+    Le prefixe de l'installation QGIS qui EXECUTE ce banc, pas un chemin
+    espere.
+
+    Le defaut ecrit ici etait « C:\Program Files\QGIS\LTR\apps\qgis-ltr ».
+    Il ne vaut que pour une installation nommee « QGIS\LTR » : sur un poste
+    ou QGIS s'installe sous son numero de version — « QGIS 3.44.14 », ce que
+    fait l'installeur OSGeo par defaut — il n'existe pas, MDAL n'est pas
+    trouve, et QgsMeshLayer echoue en silence. C'est le meme motif que les
+    six autres defauts de ce banc : supposer le poste de son auteur.
+
+    On part donc de l'interpreteur qui tourne. sys.prefix vaut
+    « <installation>\apps\Python312 » ; le prefixe QGIS est son voisin,
+    « qgis-ltr » sur une LTR, « qgis » sinon.
+    """
+    declare = os.environ.get("QGIS_PREFIX_PATH")
+    if declare and Path(declare).is_dir():
+        return declare
+    apps = Path(sys.prefix).parent
+    for nom in ("qgis-ltr", "qgis"):
+        if (apps / nom).is_dir():
+            return str(apps / nom)
+    return r"C:\Program Files\QGIS\LTR\apps\qgis-ltr"
+
+
+_PREFIXE_QGIS = _prefixe_qgis()
 QgsApplication.setPrefixPath(_PREFIXE_QGIS, True)
 
 CHAINE = Path(__file__).resolve().parent

@@ -293,9 +293,43 @@ controler("separateur decimal du systeme", sep == ".", f"'{sep}' (doit etre '.')
 
 # --------------------------------------------------------------------------
 print("\n3 bis. INTERFACE QGIS  (preparation des donnees, HEC-RAS uniquement)")
-QGIS = Path(r"C:\Program Files\QGIS\LTR")
-LANCEUR = QGIS / "bin" / "python-qgis-ltr.bat"
-controler("QGIS LTR installe", LANCEUR.exists(), str(QGIS), bloquant=False)
+def _installation_qgis():
+    r"""
+    L'installation QGIS presente sur CE poste, deduite et non supposee.
+
+    Le chemin etait ecrit en dur : « C:\Program Files\QGIS\LTR ». Il ne vaut
+    que pour une installation rangee ainsi. L'installeur OSGeo range par
+    defaut sous le numero de version — « C:\Program Files\QGIS 3.44.14 » — et
+    le controle rendait alors « non detecte » devant un QGIS parfaitement
+    installe. Pire : LANCEUR sert plus bas a DICTER la commande a taper pour
+    lancer test_plugin_qgis.py. Le suivre a la lettre menait a un fichier
+    inexistant.
+
+    On cherche le lanceur sous les dossiers de programmes que Windows declare
+    lui-meme, dans les deux rangements possibles : « QGIS 3.44.14\bin\... »
+    et « QGIS\LTR\bin\... ». Rend (dossier, lanceur) ; a defaut, l'ancien
+    chemin, pour que le message garde une forme lisible.
+    """
+    noms = ("python-qgis-ltr.bat", "python-qgis.bat")
+    racines = [Path(os.environ[v]) for v in
+               ("ProgramW6432", "ProgramFiles", "ProgramFiles(x86)")
+               if os.environ.get(v)]
+    for racine in racines:
+        if not racine.is_dir():
+            continue
+        for dossier in sorted(racine.glob("QGIS*"), reverse=True):
+            candidats = [dossier] + sorted(
+                (d for d in dossier.glob("*") if d.is_dir()), reverse=True)
+            for base in candidats:
+                for nom in noms:
+                    if (base / "bin" / nom).is_file():
+                        return base, base / "bin" / nom
+    defaut = Path(r"C:\Program Files\QGIS\LTR")
+    return defaut, defaut / "bin" / noms[0]
+
+
+QGIS, LANCEUR = _installation_qgis()
+controler("QGIS installe", LANCEUR.exists(), str(QGIS), bloquant=False)
 
 # Le plugin s'installe dans le profil ACTIF, qui n'est pas toujours 'default'.
 racine_profils = Path(os.environ.get("APPDATA", "")) / "QGIS" / "QGIS3" / "profiles"
