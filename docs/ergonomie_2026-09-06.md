@@ -37,13 +37,27 @@ qui **commence par écrire les sections et injections dans le `.gXX`**
 C'est le seul geste irréversible de la fenêtre, et c'est celui qui est
 câblé sur la touche qu'on presse par réflexe en finissant de taper.
 
-> **Correctif : retirer `setDefault` et `setAutoDefault`.** Une ligne et
-> demie. Le bouton reste visuellement l'action principale — c'est
-> `objectName("boutonPrincipal")` et la feuille de style qui le disent,
-> pas `setDefault`.
+> **Correctif : retirer `setDefault` et `setAutoDefault` — mais cela ne
+> suffit pas.** Qt promeut alors le premier bouton `autoDefault` visible,
+> ici **« Parcourir… »** (`plugin.py:1719`). Il faut donc en plus **avaler
+> Return/Enter dans un `keyPressEvent` de la classe** — trois lignes.
+>
+> **Effet de bord à assumer et à dire** : Entrée n'activera plus aucun
+> bouton ayant le focus, nulle part dans la fenêtre.
+
+Le bouton reste visuellement l'action principale : c'est
+`objectName("boutonPrincipal")` (`plugin.py:1598`) et la feuille de style
+qui le disent — le rôle d'un style, pas d'un raccourci clavier.
+
+La fenêtre est un `QDialog` (`plugin.py:1480`) et ne définit ni
+`keyPressEvent` ni `returnPressed` : rien n'intercepte aujourd'hui la
+touche. Vérifié par grep, zéro occurrence.
 
 C'est le constat le plus rentable du document : gravité maximale, coût
-minimal, aucun effet de bord.
+faible — mais **pas nul**, et pas sans effet de bord. Une première
+rédaction de cette note annonçait « une ligne et demie » : c'était faux,
+et un correctif qui s'y serait tenu aurait simplement déplacé la touche
+Entrée de « Composer » vers « Parcourir… ».
 
 ### 1.2 Il reste actif pendant qu'un calage tourne — *bloquant*
 
@@ -52,14 +66,28 @@ d'un calage, un clic — ou un Entrée, cf. § 1.1 — **réécrit la géométri
 le classeur du calcul en cours**. Le greffon sait pourtant détecter un
 calage vivant : il le fait déjà en `plugin.py:3096`.
 
-Réserve honnête : sur ce point, deux réfuteurs se sont contredits. L'un a
-maintenu le constat, l'autre l'a écarté au motif que le calage travaille
-sur des plans clonés. **À trancher en lisant `_composer_et_controler()`
-de bout en bout** — mais même si les plans sont clonés, le `.gXX` et le
-classeur, eux, sont partagés.
+Le partage est réel en mode « plan », qui est le défaut ; en mode
+surcharge (`plugin.py:1989-1990`) la géométrie est clonée et le risque
+disparaît.
 
-> **Correctif : désarmer le bouton tant qu'un calage tourne**, ou exiger
-> une confirmation qui nomme le calage en cours.
+> **Correctif : une confirmation qui nomme le PID du calage en cours, pas
+> un `setEnabled`.** L'état vient d'un fichier souvent posé sur un partage
+> réseau (`plugin.py:2885-2887`) : une lecture manquée qui griserait le
+> bouton principal serait pire que le mal.
+>
+> **Et le même test va dans la même passe en tête de `_lancer_calage`**
+> (`plugin.py:3745`, qui ne teste aujourd'hui que `self.classeur`) —
+> sinon on ferme une porte en laissant l'autre ouverte.
+
+Note d'implémentation : le bouton est une **variable locale**
+(`bouton_composer`, jamais `self.bouton_composer` — grep le confirme).
+Aucun code ne peut donc le désactiver aujourd'hui ; le griser demanderait
+d'en faire un attribut, ce qui est déjà plus qu'un `setEnabled`.
+
+**Pas de désarmement par onglet, en revanche.** Les garde-fous de
+`plugin.py:4035-4055` refusent déjà, avec un message qui nomme l'onglet où
+corriger. Un bouton grisé remplacerait cinq phrases explicites par un
+silence, et ne dirait pas *pourquoi*.
 
 ### 1.3 Quand la composition échoue *après* l'écriture, la boîte se tait — *trompeur*
 
@@ -71,12 +99,31 @@ modèle a déjà été modifié**.
 > **Correctif : la boîte d'erreur dit que la géométrie a déjà été
 > réécrite.** Un bloc.
 
+### 1.4 Le renommage — un désaccord non tranché, et il faut le dire
+
+Le libellé (`plugin.py:1597`) nomme **deux actions sur trois** et omet la
+seule qui modifie le modèle de l'utilisateur.
+
+**Contre le renommage** : le libellé doit rester court, et l'infobulle
+(`plugin.py:1602-1606`) énonce déjà les trois temps.
+
+**Pour** : l'information n'existe QUE dans cette infobulle et dans un
+paragraphe de l'onglet 1 (`plugin.py:1862`) — deux endroits invisibles à
+qui clique depuis l'onglet 3 ou 4. *Un survol d'infobulle n'est pas un
+consentement.* Nom proposé : **« Écrire, composer et contrôler »**.
+
+**Condition non négociable si l'on renomme** : aligner dans la même passe
+les onze occurrences du nom dans `plugin.py` — 1024, 1231, 1502, 1597,
+1845, 1862, 2216, 2546, 3748, 3891, 3897 — **et `LISEZMOI.md:20`**, qui
+est la documentation utilisateur. Un renommage qui l'oublie fabrique
+exactement le mensonge qu'il prétend supprimer.
+
+**Mon avis** : le § 1.3 (la boîte d'erreur qui se tait) règle le vrai
+danger pour un dixième du coût. Renommer est défendable, mais c'est un
+confort ; à faire seulement si l'on accepte les douze retouches.
+
 ### Ce qui a été proposé et **réfuté**
 
-- *Renommer le bouton* (il nomme deux actions sur trois, et omet la seule
-  irréversible). Réfuté : le libellé doit rester court, et l'infobulle
-  (`plugin.py:1602`) énonce déjà les trois temps. Le vrai manque n'est pas
-  le nom, c'est le silence de la boîte d'erreur — § 1.3.
 - *Absence de retour d'état pendant le travail*. Réfuté : `@avec_sablier`
   (`plugin.py:4032`) pose le curseur d'attente, et l'opération dure des
   secondes, pas des minutes.
