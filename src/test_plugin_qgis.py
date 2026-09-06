@@ -730,11 +730,23 @@ else:
              "⚠" in dlg2.label_fenetre.text(),
              dlg2.label_fenetre.text()[:90])
 
-    dlg2.edit_sim_fin.setText("12OCT2014,06:00")   # avant le debut
+    # LA FENETRE INVERSEE SE DERIVE AUSSI DU PLAN. Ce test portait
+    # « 12OCT2014 », c'est-a-dire la meme faute que le paragraphe ci-dessus
+    # denonce, deux lignes plus bas : la date n'est ANTERIEURE au debut que
+    # pour le modele qui a servi a ecrire le test. Sur l'exemple Muncie, qui
+    # simule le 02JAN1900, elle lui est posterieure — la fenetre n'est donc
+    # pas inversee, le greffon a raison de ne rien signaler, et le test
+    # echouait sur son silence parfaitement justifie (releve le 06/09/2026).
+    # On recule d'un an sur la date de DEBUT : anterieure sur tout modele.
+    _jour_debut, _, _heure_debut = dlg2.edit_sim_debut.text().partition(",")
+    _avant = f"{_jour_debut[:5]}{int(_jour_debut[5:]) - 1:04d}"
+    dlg2.edit_sim_fin.setText(f"{_avant},{_heure_debut or '00:00'}")
     dlg2._maj_resume()
     verifier("une fenetre inversee est signalee",
              "⚠" in dlg2.label_fenetre.text(),
-             dlg2.label_fenetre.text()[:90])
+             f"fin={dlg2.edit_sim_fin.text()} < debut="
+             f"{dlg2.edit_sim_debut.text()} | "
+             f"{dlg2.label_fenetre.text()[:60]}")
 
     dlg2._remplir_fenetre_depuis_plan()
     verifier("changer de plan reprend la fenetre de ce plan",
