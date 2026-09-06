@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.7.8
+version=0.7.9
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,24 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,KGE,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.7.8 — Trois affichages du suivi cessent de mentir, pour une seule donnée retenue.
+changelog=0.7.9 — Le dossier surveillé est nommé en permanence.
+    Il ne l'était que dans la bannière « Aucun calage suivi » : l'information
+    disparaissait précisément pendant les heures où cet onglet sert. Le
+    manque mord après une reprise de classeur, après une retouche des champs
+    de l'onglet 3 en cours de calcul, ou devant deux calages menés de front —
+    chaque fois qu'on peut douter d'où viennent les chiffres qu'on lit. Il
+    vit désormais sous la bannière, renseigné à chaque passage.
+    CE QUI A ÉTÉ ESSAYÉ PUIS RETIRÉ, et pourquoi c'est écrit ici : sonder
+    « tasklist » toutes les deux secondes pendant des heures coûte un
+    sous-processus sur le fil graphique, et l'on a tenté de s'en passer en
+    tenant pour vivant un état écrit il y a moins d'une minute. Deux raisons
+    de renoncer — un calage mort juste après avoir écrit était annoncé EN
+    COURS pendant cette minute, ce qui est le défaut même que la bannière
+    « Calage interrompu » répare ; et l'économie est illusoire là où elle
+    compterait, un calcul HEC-RAS de plusieurs heures ne touchant pas
+    davantage le fichier. La friction reste, assumée : elle achète un
+    affichage qui ne ment pas.
+    0.7.8 — Trois affichages du suivi cessent de mentir, pour une seule donnée retenue.
     Le lancement recevait le PID du calage et le chemin de son journal, les
     mettait dans une boîte d'information, et les perdait. Trois choses en
     dépendaient sans l'avoir.

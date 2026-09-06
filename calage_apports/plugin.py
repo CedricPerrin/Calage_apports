@@ -458,6 +458,18 @@ NOM_CLONE_GEOMETRIE_DEFAUT = "Geometrie_calage"
 # colorer les jauges du suivi quand l'etat publie ne porte pas ses propres
 # seuils. La forme ne se saisit pas — elle ne se negocie pas de la meme facon —
 # mais elle se juge, d'ou sa presence ici.
+# SONDER « tasklist » A CHAQUE BATTEMENT COUTE UN SOUS-PROCESSUS SUR LE FIL
+# GRAPHIQUE, toutes les deux secondes, pendant toute la duree du calage. On a
+# essaye de s'en passer en tenant pour vivant un avancement.json touche il y a
+# moins d'une minute. DEUX RAISONS DE NE PAS LE GARDER, mesurees le 06/09/2026 :
+#   - un calage mort juste apres avoir ecrit son etat etait annonce EN COURS
+#     pendant cette minute. « Plus personne n'ecrit, et rien ne le dit » est
+#     exactement le defaut que la banniere « Calage interrompu » repare ;
+#   - et l'economie est illusoire la ou elle compterait : pendant un calcul
+#     HEC-RAS de plusieurs heures, le fichier ne bouge pas davantage, donc on
+#     sonde de toute facon a chaque battement.
+# La friction reste, assumee : elle achete un affichage qui ne ment pas.
+
 TOLERANCE_VOLUME_DEFAUT = 0.05
 TOLERANCE_PIC_DEFAUT = 0.02
 TOLERANCE_FORME_DEFAUT = 0.03
@@ -2828,6 +2840,18 @@ class DialogueParametrage(QDialog):
         self.label_suivi_banniere.setObjectName("banniereSuivi")
         v.addWidget(self.label_suivi_banniere)
 
+        # LE DOSSIER SURVEILLE, EN PERMANENCE. Il n'etait nomme que dans la
+        # branche « Aucun calage suivi » : l'information disparaissait
+        # precisement pendant les heures ou cet onglet sert. Le manque mord
+        # apres une reprise de classeur, apres une retouche des champs de
+        # l'onglet 3 en cours de calcul, ou devant deux calages menes de
+        # front — soit chaque fois qu'on peut douter d'ou viennent les
+        # chiffres qu'on lit.
+        self.label_suivi_dossier = texte_aide("")
+        self.label_suivi_dossier.setWordWrap(True)
+        self.label_suivi_dossier.setTextFormat(Qt.TextFormat.RichText)
+        v.addWidget(self.label_suivi_dossier)
+
         groupe_avancement = QGroupBox("Avancement")
         va = QVBoxLayout(groupe_avancement)
         va.setSpacing(9)
@@ -3211,6 +3235,15 @@ class DialogueParametrage(QDialog):
         perime = bool(self.pid_lance and etat
                       and etat.get("pid") and etat.get("pid") != self.pid_lance)
 
+        # LE DOSSIER SURVEILLE EST NOMME A CHAQUE PASSAGE, avant tout test :
+        # la branche « Aucun calage suivi » sort plus bas, et c'est elle qui
+        # le disait — donc jamais quand un calage tourne. Voir la construction
+        # de ce label.
+        dire(self.label_suivi_dossier,
+             (f"Dossier surveillé ({self._origine_dossier_suivi()}) : {dossier}"
+              + self._detail_desaccord_suivi(dossier)) if dossier
+             else "Aucun dossier de suivi désigné.")
+
         if etat is None or perime:
             # LE DOSSIER SURVEILLE EST NOMME : un suivi muet parce qu'il
             # regardait le mauvais dossier ne se distinguait en rien d'un
@@ -3245,12 +3278,9 @@ class DialogueParametrage(QDialog):
                            f"précédent (processus {etat.get('pid')}) : il n'est "
                            f"pas affiché, pour ne pas se lire comme celui du "
                            f"calage en cours.")
-            self._banniere(
-                couleur, titre, glyphe=glyphe,
-                detail=detail
-                       + (f"<br>Dossier surveillé ({self._origine_dossier_suivi()}) "
-                          f": {dossier}" if dossier else "")
-                       + self._detail_desaccord_suivi(dossier))
+            # Le dossier surveille n'est plus recopie ici : il vit desormais
+            # sous la banniere, a chaque passage.
+            self._banniere(couleur, titre, glyphe=glyphe, detail=detail)
             self.barre_suivi.setValue(0)
             self.ruban_apports.actualiser([], None)
             self.courbe_suivi.actualiser(None)

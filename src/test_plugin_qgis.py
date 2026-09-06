@@ -1122,7 +1122,10 @@ verifier("suivi : sans etat, rien n'est invente",
 # ET LA BANNIERE DIT OU ELLE REGARDE. Un suivi muet parce qu'il regardait le
 # mauvais dossier ne se distinguait en rien d'un calage pas encore parti.
 verifier("suivi : sans etat, la banniere nomme le dossier qu'elle surveille",
-         str(_dossier_etat()) in dlg.label_suivi_banniere.text(),
+         # LE DOSSIER A QUITTE LA BANNIERE POUR UN LABEL PERMANENT (0.7.9) :
+         # il n'y etait nomme que faute de calage a montrer, c'est-a-dire
+         # jamais pendant les heures ou cet onglet sert.
+         str(_dossier_etat()) in dlg.label_suivi_dossier.text(),
          dlg.label_suivi_banniere.text()[-100:])
 
 # LES JAUGES JUGENT SUR LES TOLERANCES DE L'ETUDE, pas sur des defauts. Figees
