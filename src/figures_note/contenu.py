@@ -604,28 +604,39 @@ CONTENU = [
              "PYTHON* doivent être retirées et le PATH RECONSTRUIT à partir de "
              "rien : une liste noire ne protège que des chemins déjà connus."),
     ("h3", "Une seule fenêtre, cinq onglets et une aide"),
+    ("p", "L'ORDRE DES ONGLETS EST CELUI DES DÉCISIONS, et il a changé en "
+          "septembre 2026 : l'axe hydraulique a rejoint l'onglet 1, où il se "
+          "trace comme les sections et les injections, au lieu de voisiner "
+          "avec des objectifs chiffrés auxquels il n'a rien à voir."),
     ("table", [
         ["Onglet", "Contenu"],
-        ["1. Modèle HEC-RAS", "dossier du projet, plan de référence, "
-         "géométrie et fichier de débit, zone 2D, fenêtre de simulation ; "
+        ["1. Modèle", "le FICHIER .prj du projet — et non le dossier qui le "
+         "contient : rien ne distingue à l'œil un dossier de modèle d'un "
+         "autre —, le plan de référence, la géométrie et le fichier de débit, "
+         "la zone 2D, la fenêtre de simulation, et l'AXE HYDRAULIQUE ; "
          "chargement des couches, qui deviennent éditables dans QGIS."],
-        ["2. Profil en long et paramètres", "l'axe hydraulique — couche "
-         "fournie par l'utilisateur — et les paramètres numériques : sens de "
-         "l'axe, PK d'origine, précision attendue, bilan de masse admis, "
-         "plafond d'essais."],
-        ["3. Résultats et suivi", "dossier de sortie et ses deux "
-         "sous-dossiers."],
-        ["4. Validation et cibles", "appariement géométrique, et surtout "
-         "COMBIEN D'HYDROGRAMMES CIBLES RESTENT À SAISIR. Trois boutons : "
-         "ouvrir le classeur, rejouer les contrôles, lancer le calage en "
-         "arrière-plan."],
+        ["2. Objectifs et précision", "ce qu'on vise et avec quoi : l'ÉCART "
+         "ADMIS sur le volume et sur le débit de pointe — le résultat, lui, "
+         "se lit en pourcentage d'atteinte de la cible —, le bilan de masse "
+         "admis, le plafond d'essais, et le classeur où se saisissent les "
+         "hydrogrammes cibles."],
+        ["3. Résultats", "dossier de sortie et ses deux sous-dossiers, "
+         "relecture d'un hydrogramme déjà calculé, résumé de la "
+         "configuration."],
+        ["4. Lancer", "appariement géométrique, et surtout COMBIEN "
+         "D'HYDROGRAMMES CIBLES RESTENT À SAISIR ; le premier apport à caler, "
+         "le PRÉFIXE DE SCÉNARIO — sans lui, caler le Q10 après le Q100 sur "
+         "le même modèle efface les plans du Q100 — et le lancement du calage "
+         "en arrière-plan."],
         ["5. Suivi", "où en est le calage, rafraîchi toutes les deux "
          "secondes : en cours, terminé (avec le motif), ou INTERROMPU quand le "
          "processus n'existe plus sans qu'aucun verdict ait été rendu. Le "
          "bilan de masse du dernier calcul y figure."],
-        ["Aide", "le mode opératoire, et le diagnostic de l'environnement — "
-         "seul moyen de désigner la chaîne, ou d'installer l'interpréteur "
-         "HEC-RAS, lorsque le plugin ne les trouve pas."],
+        ["Aide et configuration", "le mode opératoire — précédé d'un "
+         "sommaire, car il est long —, les pièges connus, et le diagnostic de "
+         "l'environnement : c'est là qu'on désigne la chaîne, ou qu'on "
+         "INSTALLE l'interpréteur HEC-RAS sans avoir à savoir où Python se "
+         "trouve sur le poste."],
     ]),
     ("p", "La fenêtre est NON MODALE : le travail consiste précisément à "
           "dessiner des sections et des injections dans QGIS pendant qu'elle "
