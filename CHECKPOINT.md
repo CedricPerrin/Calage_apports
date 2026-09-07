@@ -6,16 +6,18 @@ ce fichier ne dit que **où on en est** et **par quoi reprendre**.
 
 ## ▶ Reprendre ici — état au 7 septembre 2026
 
-Le travail du 7 est sur la branche **`claude/project-files-overview-ld982p`**,
-poussée, **à fusionner dans `main`**. Le 6 au soir, tout était sur `main`.
+Tout est sur **`main`**, poussé — les huit commits du 7 fusionnés en avance
+rapide depuis `claude/project-files-overview-ld982p`, qui reste sur l'origine.
 
-**Plugin en 0.7.16** — pas encore installé dans QGIS : **l'archive est à
-reconstruire depuis Windows** (`python src/faire_zip.py`), `noyau.py` et la
-chaîne embarquée ont changé. Bancs, depuis un clone Linux : les **quatorze
-exécutables hors HEC-RAS/QGIS sont verts**, dont `calage` contre sa référence
-regelée, `noyau`, `faire_zip` « archive conforme », `essai_garde_fou_archive`
-« TOUT PASSE ». La suite du plugin (172 contrôles au 6) n'a pas été rejouée :
-elle exige QGIS.
+**Plugin en 0.7.18**, archive **reconstruite et versionnée** — `calage_apports.zip`
+porte la 0.7.18, construite sous Linux : les vingt fichiers embarqués sont en
+fins de ligne LF, identiques à l'octet aux sources ; la prochaine construction
+Windows les remettra en CRLF. **Pas encore réinstallée dans QGIS.** Bancs,
+depuis un clone Linux : les **quatorze exécutables hors HEC-RAS/QGIS sont
+verts**, dont `calage` contre sa référence regelée, `noyau`, `faire_zip`
+« archive conforme », `essai_garde_fou_archive` « TOUT PASSE ». La suite du
+plugin (172 contrôles au 6, un de plus depuis) n'a pas été rejouée : elle
+exige QGIS.
 
 ### Ce que la journée du 7 a donné
 
@@ -44,9 +46,10 @@ elle exige QGIS.
 
 ### Ce qui reste, et rien d'autre
 
-0. **Reconstruire l'archive depuis Windows et réinstaller** — `python
-   src/faire_zip.py`, puis Extensions → Installer depuis un ZIP. Sans cela le
-   plugin installé porte encore le KGE et la figure fausse.
+0. **Réinstaller le plugin depuis `calage_apports.zip`** (0.7.18) —
+   Extensions → Installer depuis un ZIP — puis rejouer `test_plugin_qgis.py` :
+   un contrôle neuf, deux boîtes à poignée. Sans cela le plugin installé porte
+   encore le KGE et la figure fausse.
 1. **Regarder la fenêtre.** Quatorze versions d'interface publiées en un
    jour — 0.7.1 à 0.7.14 — toutes vérifiées au banc, aucune sous les yeux de
    l'utilisateur. En particulier :

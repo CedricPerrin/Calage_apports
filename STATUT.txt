@@ -59,7 +59,8 @@ CE QUI EST EPROUVE
     et verifies en 56 s. C'est le lancement depuis QGIS qui comptait — c'est
     la, et nulle part ailleurs, que son PYTHONHOME fuyait dans les
     sous-processus de pip.
-  - PLUGIN EN 0.7.16 (07/09). LE KGE, ALPHA ET BETA SONT RETIRES DU CODE :
+  - PLUGIN EN 0.7.18 (07/09) — trois versions dans la journee. 0.7.16 : LE
+    KGE, ALPHA ET BETA SONT RETIRES DU CODE :
     la figure de convergence des livrables finaux tracait beta sous le
     libelle « Volume atteint (% de la cible) », et celle du suivi sortait
     vide — le suivi ecrivait « volume », la figure lisait « beta » (section
@@ -71,8 +72,12 @@ CE QUI EST EPROUVE
     d'archive passent depuis un clone Linux (disposition d'un venv, chemins
     POSIX), et la note se reconstruit sans qu'on lui porte a la main ses deux
     figures d'origine.
-    L'ARCHIVE calage_apports.zip EST A RECONSTRUIRE DEPUIS WINDOWS
-    (python src/faire_zip.py) : noyau.py et la chaine embarquee ont change.
+    0.7.17 : les deux comptes rendus de controle sont une seule boite (6).
+    0.7.18 : l'apport peu identifiable est inscrit en reserve (ci-dessous).
+    L'ARCHIVE calage_apports.zip A ETE RECONSTRUITE le 07/09 au soir, sous
+    Linux : elle porte la 0.7.18, ses vingt fichiers embarques sont en fins de
+    ligne LF — identiques a l'octet aux sources ; la prochaine construction
+    Windows les remettra en CRLF. A REINSTALLER dans QGIS.
   - PLUGIN EN 0.7.14 (06/09). Seize constats d'ergonomie sur dix-huit
     corriges, issus d'une relecture a six lentilles : voir docs/ergonomie_2026-09-06.md, qui dit
     aussi ce qu'il ne faut PAS toucher. Le lot 5 d'AUDIT.md est fait, et
