@@ -7,7 +7,9 @@ reconstruit avec SES PROPRES styles. C'est la methode deja employee pour la
 V11 — elle conserve la mise en page, les styles nommes et les proprietes de
 section, qu'une creation ex nihilo perdrait.
 """
+import io
 import sys
+import zipfile
 from pathlib import Path
 
 import docx
@@ -24,6 +26,26 @@ SORTIE = Path(sys.argv[3])
 VIOLET = RGBColor(0x8E, 0x3B, 0x7A)
 GRIS = RGBColor(0x5A, 0x7C, 0x8A)
 BLEU_F = RGBColor(0x2C, 0x5F, 0x73)
+
+
+def figure_du_gabarit(nom):
+    """
+    Rend une figure absente du dossier, lue dans word/media/ du GABARIT.
+
+    figures_note.py en rend SIX ; le contenu en reference HUIT. Les deux
+    autres — le profil en long et la correction additive — viennent du
+    document d'origine, et c'est justement lui que l'on passe en gabarit :
+    il les porte deja. Les extraire a la main etait un pas de plus a chaque
+    reconstruction, et son oubli arretait le script sur un
+    FileNotFoundError.
+
+    Retourne None si le gabarit ne la porte pas non plus.
+    """
+    with zipfile.ZipFile(GABARIT) as archive:
+        try:
+            return io.BytesIO(archive.read(f"word/media/{nom}"))
+        except KeyError:
+            return None
 
 
 def vider_corps(document):
@@ -117,11 +139,12 @@ def main():
         elif genre == "figure":
             nom, legende = charge
             chemin = FIGURES / nom
-            if not chemin.exists():
+            source = str(chemin) if chemin.exists() else figure_du_gabarit(nom)
+            if source is None:
                 raise FileNotFoundError(chemin)
             p = doc.add_paragraph()
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            p.add_run().add_picture(str(chemin), width=largeur)
+            p.add_run().add_picture(source, width=largeur)
             if legende:
                 c = doc.add_paragraph()
                 c.alignment = WD_ALIGN_PARAGRAPH.CENTER
