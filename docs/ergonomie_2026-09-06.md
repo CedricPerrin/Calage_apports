@@ -101,6 +101,11 @@ modèle a déjà été modifié**.
 
 ### 1.4 Le renommage — un désaccord non tranché, et il faut le dire
 
+> **Tranché le jour même, en 0.7.7** : le bouton s'appelle « Écrire, composer
+> et contrôler », les douze occurrences ont suivi — sept dans `plugin.py`, une
+> dans `LISEZMOI.md`, les autres n'existent plus. Le raisonnement ci-dessous
+> est gardé tel qu'il a été écrit.
+
 Le libellé (`plugin.py:1597`) nomme **deux actions sur trois** et omet la
 seule qui modifie le modèle de l'utilisateur.
 
@@ -217,6 +222,16 @@ d'afficher l'appariement du classeur **précédent** (`3715-3736`).
 
 **Seize constats sur dix-huit sont traités**, des versions 0.7.1 à 0.7.12.
 Chacun a été vérifié au banc **et** dans le QGIS réel après réinstallation.
+
+**Après la note — 0.7.13 à 0.7.16.** Trois versions d'interface de plus le 6
+au soir, venues de demandes directes et non de ces constats : **0.7.13**
+désigne le projet par son fichier `.prj` au lieu du dossier qui le contient ;
+**0.7.14** nomme le fichier de saisie par ce qu'il contient — « Excel des
+hydrogrammes objectifs », onglets 2 et 4 ; **0.7.15** supprime « greffon » au
+profit de « plugin », 181 occurrences. Toutes vérifiées au banc sous QGIS,
+aucune encore sous les yeux de l'utilisateur (`CHECKPOINT.md`, « Ce qui
+reste »). **0.7.16** (7 septembre) ne touche pas à la fenêtre : elle retire
+le KGE de la chaîne et corrige une figure des livrables.
 
 Deux ne le sont pas, et c'est délibéré :
 

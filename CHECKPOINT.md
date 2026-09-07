@@ -4,16 +4,29 @@ Point de reprise pour ouvrir une nouvelle conversation avec un contexte
 minimal. L'état courant et les règles en vigueur restent dans `STATUT.txt` ;
 ce fichier ne dit que **où on en est** et **par quoi reprendre**.
 
-## ▶ Reprendre ici — état au 6 septembre 2026, 19 h
+## ▶ Reprendre ici — état au 7 septembre 2026
 
-Tout est sur **`main`**, poussé. La branche
-`claude/connaissance-des-md-qjbpro` a été fusionnée puis supprimée, ici et
-sur l'origine.
+Le travail du 7 est sur la branche **`claude/project-files-overview-ld982p`**,
+poussée, **à fusionner dans `main`**. Le 6 au soir, tout était sur `main`.
 
-**Plugin en 0.7.14**, installé et vérifié dans QGIS. Bancs : suite du
-plugin **172 contrôles, 0 échec, 0 ignoré** ; `calage` avec son test de
-caractérisation ; `noyau` opérationnel ; `faire_zip` « archive conforme » ;
-`essai_garde_fou_archive` « TOUT PASSE ».
+**Plugin en 0.7.16** — pas encore installé dans QGIS : **l'archive est à
+reconstruire depuis Windows** (`python src/faire_zip.py`), `noyau.py` et la
+chaîne embarquée ont changé. Bancs, depuis un clone Linux : les **quatorze
+exécutables hors HEC-RAS/QGIS sont verts**, dont `calage` contre sa référence
+regelée, `noyau`, `faire_zip` « archive conforme », `essai_garde_fou_archive`
+« TOUT PASSE ». La suite du plugin (172 contrôles au 6) n'a pas été rejouée :
+elle exige QGIS.
+
+### Ce que la journée du 7 a donné
+
+| | |
+|---|---|
+| **Le KGE, alpha et beta sont retirés du code** — la figure de convergence des livrables finaux traçait beta sous « Volume atteint (% de la cible) », celle du suivi sortait vide | `STATUT.txt` § 1 et § 2, VOLUME |
+| **`tolerance_beta` s'appelle `tolerance_volume`** ; la référence de caractérisation est regelée, identique à l'ancienne privée des trois clés | |
+| **Deux bancs passent désormais depuis un clone Linux** — `noyau` (disposition d'un venv) et le garde-fou d'archive (chemins POSIX, qu'il ne voyait pas) | |
+| **La note se reconstruit sans qu'on lui porte ses deux figures d'origine** — elles sont lues dans le gabarit | |
+| **Trois affirmations de `STATUT.txt` corrigées** : le PDF n'était pas en retard (Version 15), `reprises_max` n'est pas « inerte » mais retiré, l'ordre total est en § 1.2 de la note — c'est `idees_V2_plugin.md` qui disait § 1.3 | |
+| Lecture complète du dépôt, 54 fichiers, doc et code | |
 
 ### Ce que la journée du 6 a donné
 
@@ -24,11 +37,14 @@ caractérisation ; `noyau` opérationnel ; `faire_zip` « archive conforme » ;
 | **Lot 5 d'`AUDIT.md`** — mené le **5 au soir** : `caler()` 699 → 622 lignes, 3ᵉ extraction écartée sur mesure | `AUDIT.md` § P1-4 |
 | **`AUDIT.md` est clos** — seul P2-10 reste, et l'audit dit que ce n'est pas un lot | |
 | **Les correctifs d'ergonomie**, 0.7.1 à 0.7.14 (la note s'arrête à 0.7.12 : les deux dernières viennent d'une demande directe) | `docs/ergonomie_2026-09-06.md` |
-| Le bouton « Installer… » **éprouvé depuis QGIS**, ses deux chemins | § 8.1 de la note de session |
+| Le bouton « Installer… » **éprouvé depuis QGIS**, ses deux chemins | `STATUT.txt` § 1 |
 | La note méthodologique **reconstruite** — sa table d'onglets datait d'avant la 0.7.0 | |
 
 ### Ce qui reste, et rien d'autre
 
+0. **Reconstruire l'archive depuis Windows et réinstaller** — `python
+   src/faire_zip.py`, puis Extensions → Installer depuis un ZIP. Sans cela le
+   plugin installé porte encore le KGE et la figure fausse.
 1. **Regarder la fenêtre.** Quatorze versions d'interface publiées en un
    jour — 0.7.1 à 0.7.14 — toutes vérifiées au banc, aucune sous les yeux de
    l'utilisateur. En particulier :
@@ -38,7 +54,8 @@ caractérisation ; `noyau` opérationnel ; `faire_zip` « archive conforme » ;
    peint plus, « mort au démarrage » distingué de « pas encore parti », le
    fil qui dit « calage lancé », la question posée si l'on recompose pendant
    qu'un calcul tourne : tout cela est éprouvé sur des états **fabriqués**,
-   jamais sur un calage qui tourne.
+   jamais sur un calage qui tourne. Y regarder aussi la **figure de
+   convergence** corrigée, dans `suivi/` et dans `resultats_finaux/`.
 3. **Trois garde-fous jamais rencontrés en réel** — volume plancher, apport
    refusé, modèle incohérent. Seul le banc les couvre.
 4. **L'hypothèse d'ordre total.** Le seul vrai levier qui reste : si le
@@ -76,10 +93,8 @@ Le dépôt porte le code, `STATUT.txt`, ce fichier, la note et le template.
 **L'historique des conversations ne voyage pas** — il vit dans
 `~/.claude/projects\…` sur le poste. Ces deux fichiers le remplacent.
 
-**Par quoi commencer :** la section du 1er septembre ci-dessous, puis
-`STATUT.txt` § 1, § 2.2 bis, § 2.2 ter, § 5.3 ter et § 5.5. Ne pas lire le
-reste de ce fichier : tout ce qui suit la session du 30 août décrit un
-algorithme retiré le 07/08/2026.
+**Par quoi commencer :** la section « Reprendre ici » ci-dessus, puis
+`STATUT.txt` § 1, § 2.2 bis, § 2.2 ter, § 5.3 ter et § 5.5.
 
 **Installer :** `python -m pip install -r requirements-dev.txt`
 
