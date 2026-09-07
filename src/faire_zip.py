@@ -64,8 +64,26 @@ def mots_d_affaires():
 # Emplacements d'INSTALLATION : identiques sur tout poste Windows, donc
 # legitimes dans du code distribue. Il faut bien savoir ou HEC-RAS s'installe,
 # et le repli sur C:\Windows sert quand SystemRoot manque a l'environnement.
-RACINES_LOGICIELLES = ("c:\\windows", "c:\\program files")
-_CHEMINS_ABSOLUS = re.compile(r"[A-Za-z]:\\[^\"'\n\r]{3,}")
+# LES RACINES SYSTEME POSIX SUIVENT LA MEME LOGIQUE : « /usr/bin/python3 » ou
+# « /etc/... » ne designent le poste de personne, ils sont au meme endroit
+# partout. Sans elles, le controle refuserait l'archive sur un shebang.
+RACINES_LOGICIELLES = ("c:\\windows", "c:\\program files",
+                       "/usr", "/etc", "/bin", "/sbin", "/lib", "/lib64",
+                       "/opt", "/var", "/proc", "/sys", "/dev", "/run", "/tmp")
+# DEUX FORMES, PARCE QUE LE CRITERE EST CELUI DE LA MACHINE QUI CONTROLE, ET
+# QU'ELLE N'EST PAS TOUJOURS WINDOWS. Le motif ne voyait que les chemins a
+# lettre de lecteur : depuis un clone Linux — le cas meme pour lequel
+# requirements-dev.txt a ete ecrit — il ne trouvait RIEN, et son banc adverse
+# le disait (« chemin du poste de developpement : LAISSE PASSER »). Le
+# garde-fou contredisait alors sa propre docstring, qui ne parle d'aucun
+# systeme.
+#   ET LEURS BORNES DIFFERENT : un chemin Windows porte volontiers des espaces
+# (« C:\Program Files\... »), un chemin POSIX pratiquement jamais. Y admettre
+# l'espace ferait avaler la fin de la phrase ou le chemin est cite ; rallonge,
+# il n'existerait plus, et le controle redeviendrait aveugle la ou il doit
+# voir.
+_CHEMINS_ABSOLUS = re.compile(r"[A-Za-z]:\\[^\"'\n\r]{3,}"
+                              r"|/[^\s\"'\n\r]{3,}")
 
 
 def chemins_du_poste(texte):
