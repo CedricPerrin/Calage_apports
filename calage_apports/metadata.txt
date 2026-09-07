@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.7.17
+version=0.7.18
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,20 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.7.17 — Les deux comptes rendus de contrôle sont une seule boîte, et elle s'agrandit.
+changelog=0.7.18 — L'apport peu identifiable est inscrit en réserve dans le classeur et la note.
+    Quand un apport ne pèse presque rien devant le débit qui transite déjà à
+    sa section, la bande de tolérance admise à la section est aussi large que
+    l'apport lui-même : la section est calée, l'hydrogramme d'apport qui en
+    sort n'est pas une estimation. La chaîne le disait — mais au journal
+    texte seulement, à l'itération 0, que le lecteur d'un rapport n'ouvre
+    jamais ; le classeur déclarait la section conforme et livrait l'apport
+    sans un mot. La part de l'apport dans le débit de pointe de sa section
+    entre au Diagnostic ; sous la tolérance de volume, une réserve NON
+    bloquante suit la colonne « Alertes » du classeur, la note de synthèse
+    et le suivi — le chemin de la réserve de périmètre du volume. Ce qui est
+    JUGÉ n'a pas changé : dire, sans juger. La règle et son texte vivent en
+    un seul endroit, criteres.reserve_identifiabilite.
+    0.7.17 — Les deux comptes rendus de contrôle sont une seule boîte, et elle s'agrandit.
     La composition d'un paquet et le recontrôle d'un classeur existant
     affichaient chacun leur boîte de compte rendu, construite de leur côté.
     L'audit du 31 août avait laissé cette coupe de côté — cinq lignes

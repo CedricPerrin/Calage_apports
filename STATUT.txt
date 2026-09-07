@@ -137,6 +137,14 @@ CE QUI EST EPROUVE
     quand le verdict et la serie entiere divergent sur la bande (2.2 bis).
     DIRE, SANS JUGER — aucun verdict deja rendu ne bouge. Hors plugin : la
     suite QGIS n'est pas concernee.
+  - L'APPORT PEU IDENTIFIABLE EST INSCRIT EN RESERVE depuis le 07/09 (0.7.18) :
+    la part de l'apport dans le debit de pointe de sa section entre au
+    Diagnostic (part_apport), et sous la tolerance de volume la reserve NON
+    bloquante « APPORT PEU IDENTIFIABLE » suit le chemin de la 2.2 bis —
+    colonne « Alertes » du classeur, note de synthese, suivi — la ou elle
+    n'existait qu'au journal texte. Regle et texte en un seul endroit :
+    criteres.reserve_identifiabilite. Aucun verdict ne bouge. Hors
+    reconstruction hors ligne (voir 6) ; hors plugin.
   - L'INSTALLATION EST ACCESSIBLE A QUI NE SAIT PAS OU EST PYTHON — 0.6.7,
     05/09. Trois defauts, chacun avec un banc :
       1. le seul chemin de recuperation quand l'interpreteur manque
@@ -758,6 +766,12 @@ pour 5 % de tolerance, l'apport retenu peut s'ecarter de 250 % du veritable
 sans que la section cesse d'etre conforme. caler() l'ANNONCE avant de
 calculer (« APPORT PEU IDENTIFIABLE »), puis continue : caler la section
 reste legitime, publier l'apport ne l'est pas.
+  DEPUIS LE 07/09/2026, LE DIAGNOSTIC LA PORTE : la part mesuree a
+l'iteration 0 (Diagnostic.part_apport) est passee a chaque essai et a la
+verification finale, et sous la tolerance de volume la reserve NON bloquante
+s'ecrit dans la colonne « Alertes » du classeur, la note de synthese et le
+suivi — meme regime que la reserve de perimetre (2.2 bis) : DIRE, SANS
+JUGER, aucun verdict ne bouge. Regle et texte : criteres.reserve_identifiabilite.
 
 2.5  LA BASE DE TEMPS
 --------------------------------------------------------------------------
@@ -1032,6 +1046,8 @@ du code n'y figure : si un nom manque ici, c'est qu'il n'existe plus.
   Qualite numerique, rejet d'un essai          calage.qualite_acceptable
   Fenetre de jugement                          calage.fenetre_injection
   Diagnostic, alertes, alertes_bloquantes      criteres.diagnostiquer
+  Reserve d'identifiabilite (seuil et texte)   criteres.reserve_identifiabilite
+    la part elle-meme est mesuree dans calage.caler, a l'iteration 0.
   Normalisation du pas d'entree                criteres.normaliser_entree
 
   Etapes conservees, reprise                   pilote_hecras.jalonner,
@@ -2280,6 +2296,19 @@ A FAIRE, PAR ORDRE DE PRIORITE
     test_plugin_qgis.py verifie la poignee sur les deux boites. Le gain
     n'etait pas « cinq lignes communes » : c'etait la divergence qu'il
     empechait, et qui etait deja la.
+  - FAUT-IL REFUSER DE CALER UN APPORT DONT LA PART TOMBE SOUS UN SEUIL ? —
+    TRANCHE LE 07/09/2026 : on ne refuse pas, on INSCRIT. Caler la section
+    reste legitime, c'est publier l'apport comme une estimation qui ne l'est
+    pas ; la reserve n'etait qu'un fait de journal, elle est desormais portee
+    par le Diagnostic (part_apport), par la meme regle que la reserve de
+    perimetre (2.2 bis), et atteint le classeur, la synthese et le suivi.
+    Bancs : calage.py « APPORT TROP PETIT », criteres.py § 7 quater.
+      CE QUI RESTE : la reconstruction hors ligne (reconstruire_livrables.py)
+    rappelle diagnostiquer sans connaitre le residuel — part_apport = None —
+    et un classeur reconstruit ne porte donc pas la reserve que l'original
+    portait. La part se relit au journal (« la section recoit deja X m3/s
+    sans cet apport, pour une cible a Y ») : c'est la piste, comme pour les
+    fenetres, si le cas se presente.
 
 A TRANCHER
   - LE VERDICT DE VOLUME PORTE SUR LA FENETRE JUGEE, PAS SUR LA CRUE. Mesure
@@ -2316,11 +2345,6 @@ A TRANCHER
     entiere, 0,5 hm3 de trop dans la decrue — 111,8 % le 01/09. Meme modele,
     memes cibles, deux calages independants : ce n'est pas un accident de
     run, c'est la fenetre.
-  - FAUT-IL REFUSER DE CALER UN APPORT DONT LA PART TOMBE SOUS UN SEUIL ?
-    La chaine ALERTE avant de calculer, puis continue. La reponse est
-    methodologique : caler la SECTION reste legitime, c'est publier l'APPORT
-    comme une estimation qui ne l'est pas. Faut-il l'inscrire en reserve dans
-    la note de synthese et le classeur ?
   - LES NOMS D'AFFAIRES DE LA SECTION 5. Ils rattachent chaque constat au cas
     qui l'a produit, et c'est ce qui fait la valeur de ce journal. Le depot
     est PRIVE, ce qui les rend tenables aujourd'hui. S'il devenait public :

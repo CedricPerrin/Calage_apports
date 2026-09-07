@@ -71,7 +71,7 @@ from pathlib import Path
 
 import numpy as np
 
-from criteres import diagnostiquer
+from criteres import diagnostiquer, reserve_identifiabilite
 
 # NOMS DES ETAPES DU CALAGE. Ils ne servent pas qu'a l'affichage : le modele
 # les reprend tels quels pour titrer ce qu'il conserve — sous HEC-RAS, un plan
@@ -391,6 +391,12 @@ class ResultatApport:
     # Conserve pour compatibilite (suivi.py, livrables.py) : plus jamais
     # calcule depuis la simplification du 07/08/2026, toujours None.
     fenetre_principale: tuple = None
+    # PART DE L'APPORT DANS LE DEBIT DE POINTE A SA SECTION, mesuree a
+    # l'iteration 0. Repassee a la verification finale : diagnostics_finaux
+    # sont RECALCULES par diagnostiquer(), une reserve ajoutee ici s'y
+    # perdrait — elle renait du nombre, par la meme regle
+    # (criteres.reserve_identifiabilite). None = inconnue.
+    part_apport: float = None
 
 
 @dataclass
@@ -1094,6 +1100,7 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
             # de l'apport PRECEDENT — la boucle porte sur les apports, et une
             # variable laissee de cote y traverse les tours sans bruit.
             cliquet = 1.0
+            part_apport = None
         else:
             # Meme raisonnement que pour les corrections suivantes : le
             # residuel arrive decale, et le soustraire tel quel melerait un
@@ -1113,41 +1120,21 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
                  f"pour une cible a {float(np.max(debit_cible)):.1f} "
                  f"(decalage retenu {decalage_zero:+.2f} h)")
 
-            # L'APPORT EST-IL SEULEMENT IDENTIFIABLE A CETTE TOLERANCE ?
-            #
-            # La chaine cale la SECTION sur sa cible ; l'apport retenu en est
-            # deduit. Quand l'apport ne pese presque rien devant le debit qui
-            # transite deja, la bande de tolerance admise a la section est
-            # AUSSI LARGE QUE L'APPORT LUI-MEME : une infinite d'apports tres
-            # differents y satisfont, et celui qui sort n'est plus une mesure.
-            # La section restera juste — c'est ce qu'on demande a la chaine —
-            # mais l'hydrogramme d'apport ne doit pas etre relu comme une
-            # estimation hydrologique.
-            #
-            # MESURE SUR UN CALAGE REEL (7 apports, 08/08/2026), face a un
-            # calcul manuel independant : six apports pesant 6 a 62 % du debit
-            # a leur section tombent a moins de 10 % du calcul manuel ; le
-            # septieme, qui n'en pese que 2 %, s'en ecarte de 200 % sur la
-            # pointe — alors que sa section est a 100,5 % de la cible. Le
-            # facteur d'amplification ci-dessous valait 2,6 pour celui-la.
+            # L'APPORT EST-IL SEULEMENT IDENTIFIABLE A CETTE TOLERANCE ? La
+            # regle, sa mesure (08/08/2026 : 2 % de part, +200 % sur l'apport,
+            # section a 100,5 %) et son texte vivent dans
+            # criteres.reserve_identifiabilite. Ici on mesure la PART, on
+            # l'annonce au journal avant tout essai, et on la passe a chaque
+            # diagnostic : c'est lui qui la porte jusqu'au classeur, a la
+            # note de synthese et au suivi (07/09/2026).
             pic_cible = float(np.max(debit_cible))
             pic_residuel = float(np.max(residuel))
-            part = (pic_cible - pic_residuel) / pic_cible if pic_cible else 0.0
-            if 0.0 < part:
-                amplification = config.tolerance_volume / part
-                if amplification > 1.0:
-                    dire(f"    ATTENTION — APPORT PEU IDENTIFIABLE : il ne "
-                         f"pese que {100 * part:.1f} % du debit a la section, "
-                         f"pour une tolerance de "
-                         f"{100 * config.tolerance_volume:.1f} % sur le volume. "
-                         f"L'apport retenu peut donc s'ecarter de l'ordre de "
-                         f"{100 * amplification:.0f} % du veritable apport "
-                         f"SANS que la section cesse d'etre conforme. La "
-                         f"section sera calee ; l'hydrogramme d'apport sorti "
-                         f"n'est pas une estimation hydrologique et ne doit "
-                         f"pas etre exploite comme telle. Pour l'identifier, "
-                         f"il faudrait une section ou cet apport pese "
-                         f"davantage, ou une tolerance plus serree.")
+            part_apport = ((pic_cible - pic_residuel) / pic_cible
+                           if pic_cible else 0.0)
+            _reserve = reserve_identifiabilite(part_apport,
+                                               config.tolerance_volume)
+            if _reserve:
+                dire(f"    ATTENTION — {_reserve}")
 
             # FENETRE DE L'EVENEMENT PRINCIPAL — voir fenetre_injection() et
             # Configuration. Restreint le jugement et la presentation des
@@ -1285,7 +1272,8 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
                                  tolerance_volume=config.tolerance_volume,
                                  tolerance_pic=config.tolerance_pic,
                                  r_min=config.r_min,
-                                 fenetre=bornes_fenetre)
+                                 fenetre=bornes_fenetre,
+                                 part_apport=part_apport)
             essais += 1
 
             historique_rapport.append({
@@ -1466,7 +1454,8 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
             diagnostic=diag, essais=essais,
             duree_s=duree_apport, motif="" if valide else motif,
             historique=historique_rapport,
-            fenetre_principale=bornes_fenetre))
+            fenetre_principale=bornes_fenetre,
+            part_apport=part_apport))
 
         if suivi is not None:
             series = ((temps_cible, debit_cible, temps_calcule, debit_calcule)
@@ -1551,7 +1540,8 @@ def _verifier_globalement(modele, sections, cibles, config, resultat, dire):
                           tolerance_volume=config.tolerance_volume,
                           tolerance_pic=config.tolerance_pic,
                           r_min=config.r_min,
-                          fenetre=a.fenetre_principale)
+                          fenetre=a.fenetre_principale,
+                          part_apport=a.part_apport)
         resultat.diagnostics_finaux.append(d)
         # SERIES PRESENTEES DANS LE RAPPORT : ENTIERES, telles que le modele
         # les rend.
@@ -1671,6 +1661,9 @@ def _sections_derivees(modele, sections, cibles, config, fenetres=None):
         except Exception as erreur:
             illisibles.append((section, f"{type(erreur).__name__}: {erreur}"))
             continue
+        # SANS part_apport, a dessein : ce controle ne lit que converge et ne
+        # produit aucun livrable ; la reserve d'identifiabilite n'y a rien a
+        # dire.
         d = diagnostiquer(t_c, q_c, t_s, q_s,
                           tolerance_volume=config.tolerance_volume,
                           tolerance_pic=config.tolerance_pic,
@@ -3136,23 +3129,57 @@ if __name__ == "__main__":
     # 2 % : la part mesuree sur le cas reel qui a motive ce garde-fou.
     modele4bis = ModeleFictif(apports[:1], sections[:1], temps, formes[:1],
                               debit_base=base)
-    caler(modele4bis, apports[:1], sections[:1], [(temps, base / 0.98)],
-          Configuration(nb_max_essais=2), journal=_dits.append)
+    _r4bis = caler(modele4bis, apports[:1], sections[:1],
+                   [(temps, base / 0.98)],
+                   Configuration(nb_max_essais=2), journal=_dits.append)
     _alerte = [l for l in _dits if "PEU IDENTIFIABLE" in l]
     controler("un apport pesant 2 % du debit est annonce peu identifiable",
               bool(_alerte), (_alerte[0][:110] if _alerte else "aucune alerte"))
-    controler("l'alerte chiffre la part et l'amplification",
+    controler("l'alerte chiffre la part et l'ecart possible",
               bool(_alerte) and "2.0 %" in _alerte[0] and "250 %" in _alerte[0],
               _alerte[0][60:170] if _alerte else "")
+    # ET LE DIAGNOSTIC LA PORTE (07/09/2026) : c'est lui, et non le journal,
+    # que lisent le classeur, la note de synthese et le suivi. Une seule fois
+    # — chaque essai la porte, donc le retour au meilleur essai n'a rien a
+    # rattraper — et jamais parmi les bloquantes : elle dit, elle ne juge pas.
+    _diag4bis = _r4bis.apports[0].diagnostic
+    controler("la reserve est portee par le diagnostic RETENU, une seule fois",
+              sum("PEU IDENTIFIABLE" in a for a in _diag4bis.alertes) == 1,
+              f"{len(_diag4bis.alertes)} alerte(s)")
+    controler("elle ne bloque pas",
+              not any("PEU IDENTIFIABLE" in a
+                      for a in _diag4bis.alertes_bloquantes))
+    controler("la part elle-meme est portee, comme un nombre",
+              _diag4bis.part_apport is not None
+              and abs(_diag4bis.part_apport - 0.02) < 1e-9,
+              f"part_apport={_diag4bis.part_apport}")
+    if _r4bis.diagnostics_finaux:
+        import livrables as liv
+        _fin4bis = _r4bis.diagnostics_finaux[0]
+        controler("elle atteint la verification finale, une fois",
+                  sum("PEU IDENTIFIABLE" in a for a in _fin4bis.alertes) == 1,
+                  f"{len(_fin4bis.alertes)} alerte(s)")
+        controler("la colonne « Alertes » du classeur la porte",
+                  "PEU IDENTIFIABLE" in liv.tableau_de_bord(
+                      sections[:1], [_fin4bis])["Alertes"].iloc[0])
+    else:
+        controler("la verification finale a eu lieu (apport cale en 2 essais)",
+                  False, f"valide={_r4bis.apports[0].valide}, "
+                  f"motif={_r4bis.apports[0].motif[:70]}")
 
     # ET LE CAS SYMETRIQUE : un apport qui pese lourd ne doit RIEN declencher,
     # sans quoi l'alerte deviendrait un bruit de fond qu'on cesse de lire.
     _dits_gros = []
     modele4ter = ModeleFictif(apports[:1], sections[:1], temps, formes[:1])
-    caler(modele4ter, apports[:1], sections[:1], [cibles[0]],
-          Configuration(nb_max_essais=3), journal=_dits_gros.append)
+    _r4ter = caler(modele4ter, apports[:1], sections[:1], [cibles[0]],
+                   Configuration(nb_max_essais=3), journal=_dits_gros.append)
     controler("un apport qui pese lourd ne declenche pas l'alerte",
               not [l for l in _dits_gros if "PEU IDENTIFIABLE" in l])
+    _d4ter = _r4ter.apports[0].diagnostic
+    controler("ni ne charge la colonne « Alertes » de sa section",
+              _d4ter is not None
+              and not any("PEU IDENTIFIABLE" in a for a in _d4ter.alertes),
+              " ; ".join(_d4ter.alertes)[:80] if _d4ter else "aucun diagnostic")
 
     # La resolution sequentielle suppose l'amont fige : un apport non cale
     # rend tout ce qui suit sans objet.

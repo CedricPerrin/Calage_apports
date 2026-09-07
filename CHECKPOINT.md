@@ -23,6 +23,8 @@ elle exige QGIS.
 |---|---|
 | **Le KGE, alpha et beta sont retirés du code** — la figure de convergence des livrables finaux traçait beta sous « Volume atteint (% de la cible) », celle du suivi sortait vide | `STATUT.txt` § 1 et § 2, VOLUME |
 | **`tolerance_beta` s'appelle `tolerance_volume`** ; la référence de caractérisation est regelée, identique à l'ancienne privée des trois clés | |
+| **L'apport peu identifiable est une réserve non bloquante du Diagnostic** — colonne « Alertes » du classeur, note de synthèse, suivi ; aucun verdict ne bouge | `STATUT.txt` § 2, « L'APPORT EST-IL IDENTIFIABLE ? » |
+| **Les deux comptes rendus de contrôle sont une seule boîte** — le recontrôle d'un classeur avait perdu sa poignée | `STATUT.txt` § 6 |
 | **Deux bancs passent désormais depuis un clone Linux** — `noyau` (disposition d'un venv) et le garde-fou d'archive (chemins POSIX, qu'il ne voyait pas) | |
 | **La note se reconstruit sans qu'on lui porte ses deux figures d'origine** — elles sont lues dans le gabarit | |
 | **Trois affirmations de `STATUT.txt` corrigées** : le PDF n'était pas en retard (Version 15), `reprises_max` n'est pas « inerte » mais retiré, l'ordre total est en § 1.2 de la note — c'est `idees_V2_plugin.md` qui disait § 1.3 | |

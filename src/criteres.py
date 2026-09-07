@@ -346,6 +346,13 @@ class Diagnostic:
     # le verdict ignore un volume, et celui qui le lit doit savoir lequel.
     rapport_volume_serie: float = None
     part_cible_jugee: float = None
+    # PART DE L'APPORT DANS LE DEBIT DE POINTE A SA SECTION —
+    # (pic_cible - pic_residuel) / pic_cible — mesuree par caler() sur le
+    # calcul de reference, le seul a connaitre le residuel, et repassee a la
+    # verification finale. Une MESURE, jamais un critere : converge ne la lit
+    # pas. Sous la tolerance de volume, elle fait lever la reserve « APPORT
+    # PEU IDENTIFIABLE » (reserve_identifiabilite). None = inconnue.
+    part_apport: float = None
 
     @property
     def converge(self):
@@ -417,10 +424,58 @@ class Diagnostic:
         return base
 
 
+def reserve_identifiabilite(part_apport, tolerance_volume):
+    """
+    La reserve « APPORT PEU IDENTIFIABLE », ou None si l'apport pese assez.
+
+    La chaine cale la SECTION sur sa cible ; l'apport retenu en est deduit.
+    Quand l'apport ne pese presque rien devant le debit qui transite deja, la
+    bande de tolerance admise a la section est AUSSI LARGE QUE L'APPORT
+    LUI-MEME : une infinite d'apports tres differents y satisfont, et celui
+    qui sort n'est plus une mesure. Ecart possible sur l'apport ~= tolerance
+    de volume / part de l'apport dans le debit de pointe a la section.
+
+    MESURE SUR UN CALAGE REEL (7 apports, 08/08/2026), face a un calcul
+    manuel independant : six apports pesant 6 a 62 % du debit a leur section
+    tombent a moins de 10 % du calcul manuel ; le septieme, qui n'en pese que
+    2 %, s'en ecarte de 200 % sur la pointe — alors que sa section est a
+    100,5 % de la cible.
+
+    UNE RESERVE, PAS UN ARRET — decision du 07/09/2026. Caler la section
+    reste legitime, c'est ce qu'on demande a la chaine ; publier l'apport
+    comme une estimation hydrologique ne l'est pas. Le texte le DIT, sans
+    juger : il n'entre jamais dans les alertes bloquantes et ne change aucun
+    verdict. Jusque-la il n'existait qu'au journal texte, a l'iteration 0 ;
+    porte par le Diagnostic, il atteint la colonne « Alertes » du classeur,
+    la note de synthese et le suivi, par le chemin de la reserve de
+    perimetre du volume.
+
+    part_apport : (pic_cible - pic_residuel) / pic_cible, mesure par caler()
+    sur le calcul de reference — le seul a connaitre le residuel. None quand
+    elle n'est pas connue (appels anciens, reconstruction hors ligne) : pas
+    de reserve, plutot qu'une reserve devinee. Le seuil est strict : a part
+    egale a la tolerance, l'ecart possible vaut 100 %, et l'apport est encore
+    identifiable au sens de la bande.
+    """
+    if part_apport is None or not (0.0 < part_apport < tolerance_volume):
+        return None
+    return (f"APPORT PEU IDENTIFIABLE : il ne pese que {100 * part_apport:.1f} % "
+            f"du debit de pointe a la section, pour une tolerance de "
+            f"{100 * tolerance_volume:.1f} % sur le volume. L'apport retenu "
+            f"peut s'ecarter de l'ordre de "
+            f"{100 * tolerance_volume / part_apport:.0f} % du veritable apport "
+            f"sans que la section cesse d'etre conforme. Caler la section "
+            f"reste legitime ; l'hydrogramme d'apport sorti n'est pas une "
+            f"estimation hydrologique et ne doit pas etre exploite comme "
+            f"telle. Pour l'identifier, il faudrait une section ou cet apport "
+            f"pese davantage, ou une tolerance plus serree.")
+
+
 def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
                   pas_h=PAS_RECALAGE_H,
                   couverture_min=0.9, tolerance_volume=0.05,
-                  tolerance_pic=0.02, r_min=0.97, fenetre=None):
+                  tolerance_pic=0.02, r_min=0.97, fenetre=None,
+                  part_apport=None):
     """
     Compare un hydrogramme calcule a sa cible et retourne un Diagnostic complet.
 
@@ -469,6 +524,15 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
     lectures ne disent pas la meme chose : verdict dans la bande, serie
     dehors. Voir les champs eux-memes pour ce qui rend ce cas structurel, et
     pourquoi la boucle ne peut pas s'en saisir.
+
+    part_apport : part de l'apport dans le debit de pointe a sa section,
+    mesuree par caler() a l'iteration 0. Sous tolerance_volume, la reserve
+    NON bloquante « APPORT PEU IDENTIFIABLE » est ajoutee aux alertes (voir
+    reserve_identifiabilite) — a chaque essai, donc aussi sur celui que le
+    retour au meilleur essai remet en place, et a la verification finale, ou
+    diagnostics_finaux sont recalcules et l'auraient perdue sinon. Elle se
+    leve aussi sur un apport NON VALIDE : l'enonce reste vrai, et c'est ce
+    que caler() annoncait deja avant tout essai. None : pas de reserve.
     """
     c_a, s_a, decalage_h = recaler(
         temps_cible, debit_cible, temps_calcule, debit_calcule, pas_h,
@@ -692,6 +756,12 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
             f"+/-{100 * tolerance_volume:.0f} %. Ce qui est dehors n'est pas "
             f"juge, et ne peut pas l'etre ici : un apport ne sait qu'ajouter "
             f"du debit, un excedent hors fenetre se corrige en amont")
+    # L'APPORT EST-IL IDENTIFIABLE ? NON BLOQUANTE, meme famille que PERIMETRE
+    # DU VERDICT : elle dit le perimetre de ce qui est publie, elle ne denonce
+    # rien. Avant les bloquantes, pour que celles-ci restent en queue.
+    _reserve = reserve_identifiabilite(part_apport, tolerance_volume)
+    if _reserve:
+        alertes.append(_reserve)
     alertes.extend(bloquantes)
 
     return Diagnostic(
@@ -703,6 +773,7 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
         r_min=r_min, fenetre=fenetre,
         rapport_volume_serie=rapport_volume_serie,
         part_cible_jugee=part_cible_jugee,
+        part_apport=part_apport,
     )
 
 
@@ -1109,6 +1180,35 @@ if __name__ == "__main__":
               not any("PERIMETRE" in a for a in diagnostiquer(
                   _t7t, _cible7t, _t7t, 1.30 * _calc7t,
                   tolerance_volume=0.05, fenetre=_fen7t).alertes))
+
+    print("\n--- 7 quater. L'apport peu identifiable est DIT par le Diagnostic, "
+          "sans etre juge ---")
+    # LA REGLE VIT ICI, PAS DANS caler() : le seuil, le texte, et ce qu'il
+    # chiffre. caler() ne fournit que la part ; le Diagnostic la porte jusqu'au
+    # classeur et a la note de synthese (07/09/2026).
+    _res = reserve_identifiabilite(0.02, 0.05)
+    _verifier("a 2 % de part pour 5 % de tolerance, la reserve se leve",
+              _res is not None and "PEU IDENTIFIABLE" in _res,
+              (_res or "None")[:60])
+    _verifier("elle chiffre la part et l'ecart possible",
+              _res is not None and "2.0 %" in _res and "250 %" in _res,
+              (_res or "")[30:120])
+    _verifier("un apport qui pese 30 % ne la leve pas",
+              reserve_identifiabilite(0.30, 0.05) is None)
+    _verifier("une part inconnue ne la leve pas — pas de reserve devinee",
+              reserve_identifiabilite(None, 0.05) is None)
+    _verifier("le seuil est strict : part egale a la tolerance, rien",
+              reserve_identifiabilite(0.05, 0.05) is None)
+    _d7q = diagnostiquer(_t7t, _cible7t, _t7t, _cible7t, part_apport=0.02)
+    _verifier("le Diagnostic la porte, une seule fois",
+              sum("PEU IDENTIFIABLE" in a for a in _d7q.alertes) == 1,
+              f"{len(_d7q.alertes)} alerte(s)")
+    _verifier("elle ne bloque pas, et le verdict ne bouge pas",
+              not _d7q.alertes_bloquantes and _d7q.converge)
+    _verifier("la part est portee comme un nombre",
+              _d7q.part_apport == 0.02, f"{_d7q.part_apport}")
+    _verifier("sans part fournie, rien ne change pour les anciens appels",
+              not diagnostiquer(_t7t, _cible7t, _t7t, _cible7t).alertes)
 
     print("\n--- 8. Tolerance de volume par defaut ---")
     # Le defaut precedent (0,5 %) rendait certains modeles hors d'atteinte par
