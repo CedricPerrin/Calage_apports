@@ -2357,6 +2357,27 @@ if __name__ == "__main__":
     import numpy as np
     from shapely.geometry import LineString
 
+    def site_packages(venv):
+        """
+        Le site-packages que CE venv porte reellement.
+
+        « Lib/site-packages » sous Windows, « lib/python3.x/site-packages »
+        ailleurs — et le « 3.x » ne se devine pas. sysconfig ne repond pas
+        non plus : sur les distributions qui le corrigent, il rend
+        « local/lib/python3.x/dist-packages », que venv ne cree pas, et
+        get_preferred_scheme demande 3.10 quand PYTHON_MINIMUM est (3, 9).
+        On lit donc la disposition sur le venv lui-meme.
+
+        DEUX BANCS EN ONT BESOIN — les 9 et 10 — et une seule definition les
+        sert : recopiee, elle se vouerait a diverger de son jumeau. Sans
+        elle, tous deux s'arretaient sur un FileNotFoundError hors de
+        Windows, et le banc du noyau ne passait pas depuis un clone neuf.
+        """
+        paquets = venv / "Lib" / "site-packages"
+        if paquets.is_dir():
+            return paquets
+        return next(venv.glob("lib/python*/site-packages"), paquets)
+
     print("=" * 72)
     print("AUTO-TEST DU NOYAU DU PLUGIN  (hors QGIS)")
     print("=" * 72)
@@ -3009,7 +3030,7 @@ if __name__ == "__main__":
         cible = bac_x / nom
         subprocess.run([sys.executable, "-m", "venv", "--without-pip",
                         str(cible)], check=True, capture_output=True)
-        paquets = cible / "Lib" / "site-packages"
+        paquets = site_packages(cible)
         for module in (i for i, _ in PAQUETS_HECRAS if i != "ras_commander"):
             (paquets / f"{module}.py").write_text("__version__ = '0.0'\n",
                                                   encoding="utf-8")
@@ -3036,7 +3057,14 @@ if __name__ == "__main__":
             if paresseux else
             ("__version__ = '0.99.1'\n"
              "from .hdf import HdfResultsMesh\n"), encoding="utf-8")
-        return cible / "Scripts" / "python.exe"
+        # MEME REPLI QUE creer_venv_hecras : « Scripts\python.exe » sous
+        # Windows, « bin/python » ailleurs. Sans lui, le refus tombait sur un
+        # interpreteur INEXISTANT au lieu de tomber sur xarray, et le banc ne
+        # prouvait plus ce qu'il annonce.
+        interpreteur = cible / "Scripts" / "python.exe"
+        if not interpreteur.is_file():
+            interpreteur = cible / "bin" / "python"
+        return interpreteur
 
     try:
         for nom_cas, tardif in (("chargement paresseux de .hdf", True),
@@ -3081,7 +3109,7 @@ if __name__ == "__main__":
         faux_venv = bac_i / "venv-hecras"
         subprocess.run([sys.executable, "-m", "venv", "--without-pip",
                         str(faux_venv)], check=True, capture_output=True)
-        paquets = faux_venv / "Lib" / "site-packages"
+        paquets = site_packages(faux_venv)
         for module in (i for i, _ in PAQUETS_HECRAS if i != "ras_commander"):
             (paquets / f"{module}.py").write_text("__version__ = '0.0'\n",
                                                   encoding="utf-8")
