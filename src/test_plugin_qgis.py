@@ -679,6 +679,13 @@ else:
     verifier("rapport detaille produit",
              rapport is not None and "PK" in rapport.detail,
              (rapport.detail[:70] + "...") if rapport else "aucun")
+    # MEME BOITE QUE LA COMPOSITION, DONC MEME POIGNEE. Les deux sites la
+    # construisaient chacun de leur cote et celui-ci avait perdu la sienne :
+    # le tableau des PK s'y lisait par une lucarne. Ce controle aurait echoue
+    # avant que les deux appelants ne partagent _rendre_compte_du_controle().
+    verifier("« Contrôle de l'implantation » est redimensionnable",
+             rapport is not None and rapport.redimensionnable,
+             "poignée posée" if rapport else "aucune boîte affichée")
 
 # ---------------------------------------------------------------------------
 print("\n4. ONGLET 3 — RELIRE UN HYDROGRAMME")

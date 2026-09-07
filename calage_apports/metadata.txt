@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.7.16
+version=0.7.17
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,18 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.7.16 — Le « volume » d'une figure livrée était le biais du KGE ; le KGE est retiré.
+changelog=0.7.17 — Les deux comptes rendus de contrôle sont une seule boîte, et elle s'agrandit.
+    La composition d'un paquet et le recontrôle d'un classeur existant
+    affichaient chacun leur boîte de compte rendu, construite de leur côté.
+    L'audit du 31 août avait laissé cette coupe de côté — cinq lignes
+    communes, le gain ne payait pas le risque. Or les deux avaient déjà
+    divergé : seule la composition appelait rendre_redimensionnable(), et le
+    recontrôle présentait le tableau des PK — plusieurs dizaines de lignes
+    larges — par une lucarne de quelques lignes, exactement ce que cette
+    fonction existe pour éviter. Une seule méthode les sert désormais ; la
+    suite du plugin vérifie la poignée sur les deux boîtes, là où elle ne la
+    vérifiait que sur une.
+    0.7.16 — Le « volume » d'une figure livrée était le biais du KGE ; le KGE est retiré.
     La figure de convergence lisait la clé « beta » pour son panneau Volume.
     Le suivi, corrigé plus tôt, écrivait « volume » : le panneau sortait
     vide, « Volume non enregistré ». La boucle de calage, elle, écrivait

@@ -2271,13 +2271,15 @@ A FAIRE, PAR ORDRE DE PRIORITE
     exige une geometrie deja pretraitee. La poule et l'oeuf, pour un cas
     d'usage qui n'est pas celui de la chaine. A faire seulement si ce cas se
     presente vraiment.
-  - LA BOITE DE COMPTE RENDU DUPLIQUEE de plugin.py (deux sites, ~3320 et
-    ~3817) : cinq lignes reellement communes, titres et textes differents.
-    SEULE COUPE DE L'AUDIT DU 31/08 LAISSEE DE COTE, et delibere : le gain ne
-    payait pas le risque dans un fichier qu'aucun banc local ne couvrait.
-    LA CONDITION EST LEVEE depuis le 01/09 au soir — 149 controles passent
-    sous QGIS. Le gain, lui, n'a pas grandi : cinq lignes communes. A trancher
-    par l'utilisateur, pas par le banc.
+  - LA BOITE DE COMPTE RENDU DUPLIQUEE de plugin.py — TRANCHEE LE 07/09/2026
+    (0.7.17), et par un fait, pas par le banc : les deux sites avaient DEJA
+    DIVERGE. Seule la composition appelait rendre_redimensionnable() ; le
+    recontrole d'un classeur presentait le tableau des PK par une lucarne de
+    quelques lignes — le defaut meme pour lequel cette fonction a ete
+    ecrite. Une seule methode, _rendre_compte_du_controle(), sert les deux ;
+    test_plugin_qgis.py verifie la poignee sur les deux boites. Le gain
+    n'etait pas « cinq lignes communes » : c'etait la divergence qu'il
+    empechait, et qui etait deja la.
 
 A TRANCHER
   - LE VERDICT DE VOLUME PORTE SUR LA FENETRE JUGEE, PAS SUR LA CRUE. Mesure

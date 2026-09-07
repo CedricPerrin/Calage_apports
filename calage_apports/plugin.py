@@ -3919,20 +3919,11 @@ class DialogueParametrage(QDialog):
 
             anomalies, tableau, prolongation = noyau.controler_paquet(
                 classeur)
-            erreurs, avertissements, _ = trier_anomalies(anomalies)
             chemins = noyau.chemins_du_classeur(classeur)
             afficher_pk_sur_carte(chemins, chemins["sens"])
 
-            boite = QMessageBox(self)
-            boite.setWindowTitle("Contrôle de l'implantation")
-            boite.setIcon(QMessageBox.Icon.Critical if erreurs
-                          else QMessageBox.Icon.Information)
-            boite.setText(f"{len(erreurs)} erreur(s), "
-                          f"{len(avertissements)} avertissement(s)")
-            boite.setDetailedText(texte_rapport_controle(anomalies, tableau))
-            rendre_la_main(self)
-            boite.exec()
-            self._proposer_prolongation(prolongation)
+            self._rendre_compte_du_controle("Contrôle de l'implantation",
+                                            anomalies, tableau, prolongation)
             self._maj_onglet_validation_depuis_classeur()
         except Exception as e:
             journaliser("Contrôle d'un classeur existant", e)
@@ -4222,6 +4213,37 @@ class DialogueParametrage(QDialog):
         # changement d'onglet démarre lui-même le rafraîchissement.
         if hasattr(self, "onglets") and hasattr(self, "minuteur_suivi"):
             self.onglets.setCurrentIndex(ONGLET_SUIVI)
+
+    def _rendre_compte_du_controle(self, titre, anomalies, tableau,
+                                   prolongation, avant="", apres=""):
+        """
+        La boite de compte rendu d'un controle — la meme pour ses deux
+        appelants, la composition d'un paquet et le recontrole d'un classeur.
+
+        Chacun construisait la sienne, et elles avaient deja diverge : seule
+        la composition appelait rendre_redimensionnable(). Le recontrole
+        presentait donc le tableau des PK par une lucarne de quelques lignes —
+        exactement ce que cette fonction existe pour eviter, et le motif pour
+        lequel elle a ete ecrite. L'audit du 31/08 avait laisse cette coupe de
+        cote (« cinq lignes communes, le gain ne paie pas le risque ») ; la
+        divergence a tranche.
+
+        avant / apres : ce que l'appelant met autour du decompte
+        « N erreur(s), M avertissement(s) », qui reste au centre.
+        """
+        erreurs, avertissements, _ = trier_anomalies(anomalies)
+        boite = QMessageBox(self)
+        boite.setWindowTitle(titre)
+        boite.setIcon(QMessageBox.Icon.Critical if erreurs
+                      else QMessageBox.Icon.Information)
+        boite.setText(f"{avant}{len(erreurs)} erreur(s), "
+                      f"{len(avertissements)} avertissement(s){apres}")
+        boite.setDetailedText(texte_rapport_controle(anomalies, tableau))
+        rendre_redimensionnable(boite)
+        # Le travail est fini : le compte rendu se lit sans sablier.
+        rendre_la_main(self)
+        boite.exec()
+        self._proposer_prolongation(prolongation)
 
     def _proposer_prolongation(self, prolongation):
         """
@@ -4616,25 +4638,15 @@ class DialogueParametrage(QDialog):
 
             anomalies, tableau, prolongation = noyau.controler_paquet(
                 self.classeur)
-            erreurs, avertissements, _ = trier_anomalies(anomalies)
             afficher_pk_sur_carte(self.paquet, parametres["Sens_axe"],
                                   self.crs_modele)
 
-            boite = QMessageBox(self)
-            boite.setWindowTitle("Composition et contrôle")
-            boite.setIcon(QMessageBox.Icon.Critical if erreurs else QMessageBox.Icon.Information)
-            boite.setText(f"Paquet composé dans {dossier_sortie}\n"
-                          f"{len(erreurs)} erreur(s), "
-                          f"{len(avertissements)} avertissement(s)"
-                          + (f"\nPente des apports : {len(pentes)}/"
-                             f"{len(self.appariement['paires'])} pré-remplie(s)"
-                             + (f" — {motif_pentes}" if motif_pentes else "")))
-            boite.setDetailedText(texte_rapport_controle(anomalies, tableau))
-            rendre_redimensionnable(boite)
-            # Le travail est fini : le compte rendu se lit sans sablier.
-            rendre_la_main(self)
-            boite.exec()
-            self._proposer_prolongation(prolongation)
+            self._rendre_compte_du_controle(
+                "Composition et contrôle", anomalies, tableau, prolongation,
+                avant=f"Paquet composé dans {dossier_sortie}\n",
+                apres=(f"\nPente des apports : {len(pentes)}/"
+                       f"{len(self.appariement['paires'])} pré-remplie(s)"
+                       + (f" — {motif_pentes}" if motif_pentes else "")))
             self._maj_resume()
             self._maj_onglet_validation()
         except Exception as e:
