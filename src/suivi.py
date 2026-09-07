@@ -156,10 +156,6 @@ class EtatApport:
     statut: str = EN_ATTENTE
     essais: int = 0
     facteur: float = float("nan")
-    # « kge » est conserve comme nom de champ — la boucle le renseigne — mais
-    # il n'est plus AFFICHE : le suivi dit le volume et le debit de pointe
-    # atteints, en pourcentage de la cible, qui sont ce qu'on surveille.
-    kge: float = float("nan")
     # VOLUME ATTEINT, en fraction de la cible — « rapport_volume » du
     # diagnostic, integre sur la fenetre ou les deux series existent. Ce champ
     # s'appelait « beta » et recevait le terme de biais du KGE, calcule lui sur
@@ -329,7 +325,7 @@ class Suivi:
         self.etats[i].decalage_correction = d
         self.etats[i].residuel_detail = {
             "essai": 0, "volume": None, "pic": None, "forme": None,
-            "decalage": None, "kge": None, "decalage_correction": d,
+            "decalage": None, "decalage_correction": d,
             "temps": grille,
             "cible": np.asarray(q_c, dtype=float),
             "calcule": _sur_grille(grille, *residuel),
@@ -345,7 +341,7 @@ class Suivi:
             "apport": None}
         self._produire()
 
-    def enregistrer_essai(self, i, facteur, volume, kge, pic=float("nan"),
+    def enregistrer_essai(self, i, facteur, volume, pic=float("nan"),
                           forme=float("nan"), decalage=float("nan"),
                           series=None, apport=None,
                           decalage_correction=None):
@@ -355,8 +351,9 @@ class Suivi:
         voir ou en est la recherche.
 
         volume : rapport du volume calcule au volume cible, sur la fenetre ou
-            les deux series existent. C'est « rapport_volume » du diagnostic,
-            et surtout PAS « beta » — voir EtatApport.volume.
+            les deux series existent. C'est « rapport_volume » du diagnostic —
+            jamais le terme de biais du KGE, retire depuis ; voir
+            EtatApport.volume.
         series : (temps_cible, debit_cible, temps_calcule, debit_calcule).
         apport : (temps, debit) EFFECTIVEMENT injecte pour cet essai.
         decalage_correction : decalage EN HEURES effectivement employe pour
@@ -370,8 +367,8 @@ class Suivi:
         etat = self.etats[i]
         etat.essais += 1
         etat.historique.append({"essai": etat.essais, "facteur": facteur,
-                                "volume": volume, "kge": kge, "pic": pic})
-        etat.facteur, etat.volume, etat.kge, etat.pic = facteur, volume, kge, pic
+                                "volume": volume, "pic": pic})
+        etat.facteur, etat.volume, etat.pic = facteur, volume, pic
         etat.forme, etat.decalage = forme, decalage
         if series:
             t_c, q_c, t_s, q_s = series
@@ -384,7 +381,7 @@ class Suivi:
             grille = np.asarray(t_c, dtype=float)
             etat.essais_detail.append({
                 "essai": etat.essais, "volume": volume, "pic": pic,
-                "forme": forme, "decalage": decalage, "kge": kge,
+                "forme": forme, "decalage": decalage,
                 "decalage_correction": d,
                 "temps": grille,
                 "cible": np.asarray(q_c, dtype=float),
@@ -415,7 +412,7 @@ class Suivi:
         etat = self.etats[i]
         etat.statut = VALIDE
         etat.diagnostic = diagnostic
-        etat.kge, etat.volume = diagnostic.kge, diagnostic.rapport_volume
+        etat.volume = diagnostic.rapport_volume
         etat.pic = diagnostic.rapport_pic
         etat.duree_s = duree_s
         self._produire(series=(i, series) if series else None)
@@ -427,7 +424,7 @@ class Suivi:
         etat.motif = motif
         etat.diagnostic = diagnostic
         if diagnostic is not None:
-            etat.kge, etat.volume = diagnostic.kge, diagnostic.rapport_volume
+            etat.volume = diagnostic.rapport_volume
             etat.pic = diagnostic.rapport_pic
         etat.duree_s = duree_s
         self._produire()
@@ -932,7 +929,7 @@ def _onglet_iterations(feuille, etat):
     # reechantillonnage, la correction en continu — et qu'un ecart entre eux
     # est en soi une information.
     entetes = ["Essai", "Volume (% cible)", "Pointe (% cible)", "Forme (%)",
-               "Décalage diagnostic (h)", "Décalage appliqué (h)", "KGE"]
+               "Décalage diagnostic (h)", "Décalage appliqué (h)"]
     for j, titre in enumerate(entetes, start=1):
         cellule = feuille.cell(row=4, column=j, value=titre)
         cellule.font = gras
@@ -941,8 +938,8 @@ def _onglet_iterations(feuille, etat):
         feuille.cell(row=ligne, column=1, value=essai["essai"])
         for j, (cle, facteur) in enumerate(
                 (("volume", 100.0), ("pic", 100.0), ("forme", 100.0),
-                 ("decalage", 1.0), ("decalage_correction", 1.0),
-                 ("kge", 1.0)), start=2):
+                 ("decalage", 1.0), ("decalage_correction", 1.0)),
+                start=2):
             valeur = essai.get(cle)
             feuille.cell(row=ligne, column=j,
                          value=_cellule(None if valeur is None
@@ -1120,7 +1117,7 @@ if __name__ == "__main__":
             # Les series de CHAQUE essai : c'est ce que consigne le classeur
             # d'iterations, et le seul moyen de l'eprouver.
             suivi.enregistrer_essai(
-                i, facteur, volume, volume - 0.02,
+                i, facteur, volume,
                 pic=min(0.60 * facteur, f),
                 series=(temps, cible, temps, hydrogramme(temps - 0.4,
                                                          pic * volume)),
@@ -1340,42 +1337,33 @@ if __name__ == "__main__":
     # reproche fait au suivi : le calcul s'arretait sans donner de nouvelles.
     # -----------------------------------------------------------------------
     # -----------------------------------------------------------------------
-    # LE VOLUME RAPPORTE EST « rapport_volume », JAMAIS « beta ».
+    # LE VOLUME RAPPORTE EST « rapport_volume ».
     #
-    # Les deux coincident quand les deux series partagent leur base de temps —
-    # ce que fait le cas ci-dessus, et c'est precisement pour cela qu'il n'a
-    # jamais vu le defaut. Sur un cas reel dont la simulation deborde largement
-    # la cible, le suivi affichait 261 % la ou le calage lisait 104 %, donnant
-    # a croire a une divergence sur un apport parfaitement en route.
-    #
-    # On fabrique donc ici l'ecart : une serie calculee DEUX FOIS plus longue
-    # que la cible. beta, calcule sur la grille qui englobe les deux, s'en
-    # trouve tire ; rapport_volume, integre sur leur seule intersection, ne
-    # bouge pas.
+    # Ce champ recevait beta, le terme de biais du KGE, calcule sur la grille
+    # qui ENGLOBE les deux series. Les deux coincident quand les series
+    # partagent leur base de temps — ce que fait le cas ci-dessus, et c'est
+    # precisement pour cela qu'il n'a jamais vu le defaut. Sur un cas reel
+    # dont la simulation debordait largement la cible, le suivi affichait
+    # 261 % la ou le calage lisait 104 %, donnant a croire a une divergence
+    # sur un apport parfaitement en route. beta n'existe plus depuis le
+    # 07/09/2026 ; ce qui reste a prouver, c'est que le suivi rapporte bien
+    # rapport_volume sur une serie calculee DEUX FOIS plus longue que la
+    # cible — le cas ou les deux grandeurs divergeaient.
     # -----------------------------------------------------------------------
     _t_cible = np.linspace(0, 24, 200)
     _q_cible = hydrogramme(_t_cible, 100.0)
     _t_long = np.linspace(0, 48, 400)
     _q_long = hydrogramme(_t_long, 100.0)
     _diag_fenetres = diagnostiquer(_t_cible, _q_cible, _t_long, _q_long)
-    # Le seuil n'est pas cosmetique : c'est la tolerance sur le volume
-    # (0,5 %). Des lors que les deux grandeurs s'ecartent de plus que cela,
-    # les confondre CHANGE LE VERDICT — ce qui est arrive.
-    controler("beta et rapport_volume DIFFERENT quand les fenetres different",
-              abs(_diag_fenetres.beta - _diag_fenetres.rapport_volume) > 0.005,
-              f"beta={_diag_fenetres.beta:.3f} "
-              f"volume={_diag_fenetres.rapport_volume:.3f} — l'ecart depasse "
-              f"la tolerance de 0,5 %")
 
     _suivi_f = Suivi(sortie / "fenetres", ["A"], ["S"])
     _suivi_f.valider_apport(0, _diag_fenetres, duree_s=60)
     _ligne = _suivi_f.tableau().iloc[0]
-    controler("le suivi rapporte le VOLUME, pas beta",
+    controler("le suivi rapporte le VOLUME sur une serie plus longue que la cible",
               abs(_ligne["Volume (% cible)"]
                   - round(100 * _diag_fenetres.rapport_volume, 1)) < 1e-9,
               f"tableau={_ligne['Volume (% cible)']} % "
-              f"volume={100 * _diag_fenetres.rapport_volume:.1f} % "
-              f"(beta aurait donne {100 * _diag_fenetres.beta:.1f} %)")
+              f"volume={100 * _diag_fenetres.rapport_volume:.1f} %")
     _etat_f = _suivi_f.etat()["apports"][0]
     controler("l'etat machine rapporte lui aussi le VOLUME",
               abs(_etat_f["volume_pct"]
@@ -1418,7 +1406,7 @@ if __name__ == "__main__":
     # -dire pendant les heures ou l'on regarde l'ecran.
     _suivi_essai = Suivi(sortie / "en_cours", ["A"], ["S"])
     _suivi_essai.commencer_apport(0)
-    _suivi_essai.enregistrer_essai(0, 1.2, 1.034, 0.91, 0.937, 0.998, -1.9)
+    _suivi_essai.enregistrer_essai(0, 1.2, 1.034, 0.937, 0.998, -1.9)
     _a = _suivi_essai.etat()["apports"][0]
     controler("un essai EN COURS rapporte volume, pointe, forme et decalage",
               (_a["volume_pct"], _a["pic_pct"], _a["forme_pct"],
@@ -1441,7 +1429,7 @@ if __name__ == "__main__":
     _suivi_c = Suivi(sortie / "courbes", ["A"], ["S"])
     _suivi_c.commencer_apport(0)
     _suivi_c.enregistrer_essai(
-        0, 1.0, 0.62, 0.60, series=(temps, hydrogramme(temps, 100.0),
+        0, 1.0, 0.62, series=(temps, hydrogramme(temps, 100.0),
                                     temps, hydrogramme(temps - 0.4, 62.0)),
         decalage_correction=0.4)
     _c = _suivi_c.etat()["courbes"]
@@ -1477,7 +1465,7 @@ if __name__ == "__main__":
     _suivi_r = Suivi(sortie / "repli", ["A1", "A2"], ["S1", "S2"])
     _suivi_r.commencer_apport(0)
     _suivi_r.enregistrer_essai(
-        0, 1.0, 1.0, 1.0, series=(temps, hydrogramme(temps, 100.0),
+        0, 1.0, 1.0, series=(temps, hydrogramme(temps, 100.0),
                                   temps, hydrogramme(temps, 99.0)))
     _suivi_r.etats[0].statut = VALIDE
     _suivi_r.commencer_apport(1)            # A2 calcule, rien a montrer encore

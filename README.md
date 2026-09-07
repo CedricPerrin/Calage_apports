@@ -57,7 +57,7 @@ distribué : le plugin en embarque une copie autonome à l'installation.
 | Fichier / dossier | Rôle |
 |---|---|
 | [src/calage.py](src/calage.py) | Boucle de calage séquentiel |
-| [src/criteres.py](src/criteres.py) | Analyse pure : recalage temporel, KGE et composantes |
+| [src/criteres.py](src/criteres.py) | Analyse pure : recalage temporel, corrélation de forme, diagnostic |
 | [src/controle_donnees.py](src/controle_donnees.py) | Validation du classeur et de la chaîne SIG avant tout calcul |
 | [src/geometrie.py](src/geometrie.py) | Shapefiles, PK par projection curviligne, écriture dans la géométrie HEC-RAS |
 | [src/livrables.py](src/livrables.py) | Graphiques, tableaux, export Excel, note de synthèse |

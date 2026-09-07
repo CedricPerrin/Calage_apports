@@ -119,8 +119,9 @@ def _orienter(debit):
     TRACEE, pas de l'hydraulique : une ligne dessinee du sud vers le nord
     alors que l'eau va vers l'est donne un debit entierement negatif. Mesure
     sur le modele reel : min -275 m3/s, max 0. Compare telle quelle a une
-    cible positive, une telle serie donne un KGE denue de sens et un beta
-    negatif — le calage divergerait sans que rien n'explique pourquoi.
+    cible positive, une telle serie donne un rapport de volume negatif et une
+    correlation denuee de sens — le calage divergerait sans que rien
+    n'explique pourquoi.
 
     Retourne (debit_oriente, inversee, reversible). « reversible » signale
     un ecoulement qui change reellement de sens au cours du temps : la
@@ -1601,7 +1602,7 @@ def commande_caler(args):
 
     config = Configuration(
         nb_max_essais=int(nombre("Nb_max_iterations_par_apport", 6)),
-        tolerance_beta=nombre("Tolerance_volume_pct", 5.0) / 100.0,
+        tolerance_volume=nombre("Tolerance_volume_pct", 5.0) / 100.0,
         tolerance_pic=nombre("Tolerance_pic_pct", 2.0) / 100.0,
         # DEJA EN POURCENTAGE des deux cotes — pas de « / 100 » ici : c'est
         # une erreur de conservation du solveur, pas un rapport a la cible.
@@ -1631,7 +1632,7 @@ def commande_caler(args):
                   # Les MEMES tolerances que la boucle : l'affichage doit
                   # juger « conforme » sur les seuils de l'etude, pas sur des
                   # seuils par defaut.
-                  tolerances={"volume": config.tolerance_beta,
+                  tolerances={"volume": config.tolerance_volume,
                               "pic": config.tolerance_pic,
                               "forme": 1.0 - config.r_min})
 

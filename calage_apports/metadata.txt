@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.7.15
+version=0.7.16
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -21,11 +21,33 @@ experimental=True
 deprecated=False
 hasProcessingProvider=False
 
-tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,KGE,crue
+tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.7.15 — Un seul mot pour l'extension : « plugin ».
+changelog=0.7.16 — Le « volume » d'une figure livrée était le biais du KGE ; le KGE est retiré.
+    La figure de convergence lisait la clé « beta » pour son panneau Volume.
+    Le suivi, corrigé plus tôt, écrivait « volume » : le panneau sortait
+    vide, « Volume non enregistré ». La boucle de calage, elle, écrivait
+    encore « beta » : dans les livrables finaux, le panneau traçait le terme
+    de biais du KGE — rapport des moyennes sur la grille qui englobe les deux
+    séries — sous le libellé « Volume atteint (% de la cible) ». Sur un cas
+    réel, beta valait 2,613 quand le volume valait 1,040. Le verdict, le
+    tableau de bord, le journal et la note de synthèse lisaient tous le bon
+    nombre : seule cette figure mentait, et seulement pour les apports qui
+    ont demandé au moins deux essais.
+    Le KGE agrégé, alpha et beta étaient calculés, stockés et lus nulle part
+    — sauf par cette figure. Ils sont retirés : de criteres.py, de calage.py,
+    du suivi (colonne KGE d'iterations.xlsx comprise), de la référence de
+    caractérisation et de la sonde d'environnement. Seule la corrélation r
+    demeure, comme critère de forme. Configuration.tolerance_beta s'appelle
+    tolerance_volume, du nom de la grandeur qu'elle borne — un nom qui ne dit
+    pas ce qu'il porte est ce qui avait laissé passer l'erreur. La référence
+    de caractérisation a été regelée : privée des trois clés, l'ancienne est
+    identique à la nouvelle, pas un nombre n'a bougé.
+    Les classeurs d'itérations déjà produits gardent leur colonne KGE ;
+    reconstruire_livrables.py l'ignore et rend désormais la figure juste.
+    0.7.15 — Un seul mot pour l'extension : « plugin ».
     « Greffon » et « plugin » cohabitaient — 181 occurrences du premier, dans
     le code, les messages, la documentation et la note méthodologique. Deux
     mots pour une chose se lisent comme deux choses, et celui-là n'apportait

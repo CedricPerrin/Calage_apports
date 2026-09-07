@@ -117,9 +117,11 @@ def fenetres_et_decalages_du_journal(chemin_journal):
 def historiques_du_suivi(chemin_iterations, apports):
     """
     Journal des essais, relu dans iterations.xlsx : un tableau par apport,
-    en-tete en ligne 4 — Essai, Volume, Pointe, Forme, decalages, KGE.
+    en-tete en ligne 4 — Essai, Volume, Pointe, Forme, decalages. Les
+    classeurs anterieurs au 07/09/2026 portent aussi une colonne KGE : elle
+    est ignoree, comme toute colonne que l'on ne cherche pas.
 
-    Les cles rendues sont celles que caler() consigne (essai, beta, kge, pic,
+    Les cles rendues sont celles que caler() consigne (essai, volume, pic,
     r) ; « facteur » n'est pas retrouvable et n'est pas invente.
     """
     x = pd.ExcelFile(chemin_iterations)
@@ -138,8 +140,7 @@ def historiques_du_suivi(chemin_iterations, apports):
                 break
             lignes.append({
                 "essai": int(essai),
-                "beta": float(f.iloc[i, col["Volume (% cible)"]]) / 100.0,
-                "kge": float(f.iloc[i, col["KGE"]]),
+                "volume": float(f.iloc[i, col["Volume (% cible)"]]) / 100.0,
                 "pic": float(f.iloc[i, col["Pointe (% cible)"]]) / 100.0,
                 "r": float(f.iloc[i, col["Forme (%)"]]) / 100.0})
         historiques[nom] = lignes
@@ -194,7 +195,7 @@ def main():
 
     config = Configuration(
         nb_max_essais=int(nombre("Nb_max_iterations_par_apport", 6)),
-        tolerance_beta=nombre("Tolerance_volume_pct", 5.0) / 100.0,
+        tolerance_volume=nombre("Tolerance_volume_pct", 5.0) / 100.0,
         tolerance_pic=nombre("Tolerance_pic_pct", 2.0) / 100.0)
 
     apports, sections, cibles, manquantes = _cibles_depuis_classeur(template)
@@ -221,7 +222,7 @@ def main():
     for i, (apport, section, (t_c, q_c)) in enumerate(zip(apports, sections, cibles)):
         t_s, q_s = modele.lire_section(section)
         d = diagnostiquer(t_c, q_c, t_s, q_s,
-                          tolerance_volume=config.tolerance_beta,
+                          tolerance_volume=config.tolerance_volume,
                           tolerance_pic=config.tolerance_pic,
                           r_min=config.r_min, fenetre=fenetres[i])
         hist = historiques.get(apport, [])

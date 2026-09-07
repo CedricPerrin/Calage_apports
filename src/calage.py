@@ -295,7 +295,7 @@ class Configuration:
     # « volume accounting error » que HEC-RAS rend lui-meme (colonne
     # « Error Percent »), soit ce qu'il perd ou fabrique entre ce qui entre,
     # ce qui sort et ce qui est stocke. Il ne dit RIEN de la concordance avec
-    # l'hydrogramme cible — celle-la se juge par tolerance_beta / _pic /
+    # l'hydrogramme cible — celle-la se juge par tolerance_volume / _pic /
     # r_min. Un calcul dont la conservation derive est REJETE : corriger un
     # apport dessus reviendrait a compenser une erreur du solveur.
     # 1,0 % jusqu'au 30/08/2026, releve a 5,0 % : sur un modele reel, un
@@ -306,7 +306,7 @@ class Configuration:
     # Tolerance sur le VOLUME. La concordance exige en plus la pointe et la
     # forme : un volume juste avec une pointe fausse serait non conservatif
     # pour une etude d'alea.
-    tolerance_beta: float = 0.05
+    tolerance_volume: float = 0.05
     # CONCORDANCE DEMANDEE : volume, debit de pointe ET forme.
     # Le pic a sa propre tolerance : le KGE l'agrege avec le reste et peut
     # rester bon alors que la pointe est franchement fausse — mesure sur un
@@ -401,7 +401,7 @@ class ResultatCalage:
     # Series (temps_cible, debit_cible, temps_calcule, debit_calcule) de la
     # verification globale finale, alignees sur diagnostics_finaux. Necessaires
     # pour tracer les figures de comparaison du rapport final : un Diagnostic
-    # seul ne contient que des indicateurs agreges (KGE, r, alpha, beta), pas
+    # seul ne contient que des indicateurs (r, rapports de volume et de pointe), pas
     # les courbes elles-memes.
     series_finales: list = field(default_factory=list)
     config: object = None
@@ -812,7 +812,7 @@ def ecarts_normalises(diag, config):
     pour-cent de pointe et trois centiemes de correlation.
     """
     return (
-        abs(diag.rapport_volume - 1.0) / max(config.tolerance_beta, 1e-9),
+        abs(diag.rapport_volume - 1.0) / max(config.tolerance_volume, 1e-9),
         abs(diag.rapport_pic - 1.0) / max(config.tolerance_pic, 1e-9),
         max(0.0, config.r_min - diag.r) / max(1.0 - config.r_min, 1e-9),
     )
@@ -885,21 +885,24 @@ def concordance(diag, config):
     critere sur r, qui mesure la forme APRES recalage temporel, et non sur
     le KGE brut.
 
-    LE KGE N'EST PAS UNE CONDITION D'ARRET. Il agrege r, alpha et beta en un
-    seul nombre : des trois, seul alpha — le rapport des ecarts-types —
-    n'est pas deja contraint ici. Le maintenir revenait donc a ajouter une
-    contrainte sur la VARIABILITE, qui ne fait pas partie de l'objectif. Le
-    KGE reste calcule et rapporte, comme critere d'ACCEPTATION a posteriori.
+    LE KGE N'EST PAS UNE CONDITION D'ARRET — et depuis le 07/09/2026 il n'est
+    plus calcule. Il agregeait r, alpha et beta en un seul nombre : des trois,
+    seul alpha — le rapport des ecarts-types — n'etait pas deja contraint
+    ici, et le maintenir revenait a ajouter une contrainte sur la
+    VARIABILITE, qui ne fait pas partie de l'objectif. « Calcule et rapporte
+    comme critere d'acceptation a posteriori », il n'etait en realite lu
+    nulle part.
 
-    LE VOLUME SE LIT SUR « rapport_volume », JAMAIS SUR « beta ». Les deux
-    sont proches quand les deux series partagent leur base de temps, et
-    seulement dans ce cas : beta est le terme de biais du KGE, calcule sur la
+    LE VOLUME SE LIT SUR « rapport_volume » — et « beta » n'existe plus. Les
+    deux etaient proches quand les series partageaient leur base de temps, et
+    seulement dans ce cas : beta, terme de biais du KGE, se calculait sur la
     grille qui ENGLOBE les deux series, tandis que rapport_volume integre sur
     la seule fenetre ou elles existent TOUTES DEUX, apres neutralisation du
-    decalage. Sur un cas reel dont la simulation depasse largement la cible,
-    l'ecart n'a rien d'academique : beta = 2,613 quand le volume vaut 1,040.
+    decalage. Sur un cas reel dont la simulation depassait largement la
+    cible : beta = 2,613 quand le volume valait 1,040 — et c'est beta qu'une
+    figure livree tracait sous le nom du volume.
     """
-    return (abs(diag.rapport_volume - 1.0) <= config.tolerance_beta
+    return (abs(diag.rapport_volume - 1.0) <= config.tolerance_volume
             and abs(diag.rapport_pic - 1.0) <= config.tolerance_pic
             and diag.r >= config.r_min)
 
@@ -1131,12 +1134,12 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
             pic_residuel = float(np.max(residuel))
             part = (pic_cible - pic_residuel) / pic_cible if pic_cible else 0.0
             if 0.0 < part:
-                amplification = config.tolerance_beta / part
+                amplification = config.tolerance_volume / part
                 if amplification > 1.0:
                     dire(f"    ATTENTION — APPORT PEU IDENTIFIABLE : il ne "
                          f"pese que {100 * part:.1f} % du debit a la section, "
                          f"pour une tolerance de "
-                         f"{100 * config.tolerance_beta:.1f} % sur le volume. "
+                         f"{100 * config.tolerance_volume:.1f} % sur le volume. "
                          f"L'apport retenu peut donc s'ecarter de l'ordre de "
                          f"{100 * amplification:.0f} % du veritable apport "
                          f"SANS que la section cesse d'etre conforme. La "
@@ -1157,7 +1160,7 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
                     t0_impose=config.fenetre_t0_h,
                     tf_impose=config.fenetre_tf_h,
                     volume_reference=_volume(temps_cible, debit_cible),
-                    perte_max=config.tolerance_beta)
+                    perte_max=config.tolerance_volume)
                 if config.fenetre_marge_h:
                     t_min, t_max = float(temps_cible[0]), float(temps_cible[-1])
                     bornes_fenetre = (
@@ -1191,13 +1194,13 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
             # lui apprendre apres six essais et autant de simulations.
             cliquet = cliquet_volume(temps_cible, debit_cible, manquant,
                                      decalage_zero, bornes_fenetre)
-            if cliquet > 1.0 + config.tolerance_beta:
+            if cliquet > 1.0 + config.tolerance_volume:
                 dire(f"    ATTENTION — VOLUME PLANCHER : la section donne "
                      f"deja plus que la cible sur une partie de la fenetre, "
                      f"et un apport ne sait qu'ajouter du debit. Le rapport "
                      f"de volume ne descendra pas au-dessous d'environ "
                      f"{100 * cliquet:.1f} %, pour une tolerance de "
-                     f"{100 * config.tolerance_beta:.1f} %. Aucun essai n'y "
+                     f"{100 * config.tolerance_volume:.1f} %. Aucun essai n'y "
                      f"changera rien : c'est le residuel qu'il faut reprendre "
                      f"— apports amont deja cales, ou la cible elle-meme.")
 
@@ -1279,7 +1282,7 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
             temps_calcule, debit_calcule = modele.lire_section(section)
             diag = diagnostiquer(temps_cible, debit_cible,
                                  temps_calcule, debit_calcule,
-                                 tolerance_volume=config.tolerance_beta,
+                                 tolerance_volume=config.tolerance_volume,
                                  tolerance_pic=config.tolerance_pic,
                                  r_min=config.r_min,
                                  fenetre=bornes_fenetre)
@@ -1288,7 +1291,7 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
             historique_rapport.append({
                 "essai": essais,
                 "facteur": _volume(temps_cible, courant) / volume_initial,
-                "beta": diag.beta, "kge": diag.kge,
+                "volume": diag.rapport_volume,
                 "pic": diag.rapport_pic, "r": diag.r})
 
             # MEMORISER LE MEILLEUR. La reponse du modele n'est pas lineaire :
@@ -1321,11 +1324,11 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
                                       (temps_cible, debit_cible),
                                       (temps_residuel, residuel),
                                       decalage_zero)
-                # rapport_volume, PAS beta : c'est la grandeur que la boucle
-                # teste et que le journal affiche.
+                # rapport_volume : c'est la grandeur que la boucle teste et
+                # que le journal affiche.
                 _sans_interrompre(suivi.enregistrer_essai, i,
                                   _volume(temps_cible, courant) / volume_initial,
-                                  diag.rapport_volume, diag.kge,
+                                  diag.rapport_volume,
                                   diag.rapport_pic, diag.r, diag.decalage_h,
                                   (temps_cible, debit_cible,
                                    temps_calcule, debit_calcule),
@@ -1340,7 +1343,7 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
             # se contredisent, car un apport ne sait qu'AJOUTER du debit — il
             # remplit un hydrogramme trop maigre, il n'affute pas un
             # hydrogramme trop plat. On le DIT, sans arreter.
-            if (diag.rapport_volume > 1.0 + config.tolerance_beta
+            if (diag.rapport_volume > 1.0 + config.tolerance_volume
                     and diag.rapport_pic < 1.0 - config.tolerance_pic):
                 dire(f"      volume DEJA excedentaire alors que la pointe "
                      f"manque : l'hydrogramme calcule est trop ETALE, pas "
@@ -1443,9 +1446,9 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
         # Un motif qui designe la mauvaise cause envoie corriger la mauvaise
         # chose — ici le maillage ou le pas de calcul, quand ce sont les
         # apports amont ou la cible qu'il faut reprendre.
-        if (not valide and cliquet > 1.0 + config.tolerance_beta
+        if (not valide and cliquet > 1.0 + config.tolerance_volume
                 and diag is not None
-                and diag.rapport_volume > 1.0 + config.tolerance_beta):
+                and diag.rapport_volume > 1.0 + config.tolerance_volume):
             motif += (f" LE VOLUME NE POUVAIT PAS DESCENDRE PLUS BAS : la "
                       f"section donne deja plus que la cible sans cet apport, "
                       f"et un apport ne sait qu'ajouter du debit — plancher "
@@ -1545,7 +1548,7 @@ def _verifier_globalement(modele, sections, cibles, config, resultat, dire):
     for section, (t_c, q_c), a in zip(sections, cibles, resultat.apports):
         t_s, q_s = modele.lire_section(section)
         d = diagnostiquer(t_c, q_c, t_s, q_s,
-                          tolerance_volume=config.tolerance_beta,
+                          tolerance_volume=config.tolerance_volume,
                           tolerance_pic=config.tolerance_pic,
                           r_min=config.r_min,
                           fenetre=a.fenetre_principale)
@@ -1669,7 +1672,7 @@ def _sections_derivees(modele, sections, cibles, config, fenetres=None):
             illisibles.append((section, f"{type(erreur).__name__}: {erreur}"))
             continue
         d = diagnostiquer(t_c, q_c, t_s, q_s,
-                          tolerance_volume=config.tolerance_beta,
+                          tolerance_volume=config.tolerance_volume,
                           tolerance_pic=config.tolerance_pic,
                           r_min=config.r_min,
                           fenetre=fenetre)
@@ -1800,7 +1803,7 @@ def _coherence_decalage(cibles, residuels, config, dire):
                 t0_impose=config.fenetre_t0_h,
                 tf_impose=config.fenetre_tf_h,
                 volume_reference=_volume(temps_cible, debit_cible),
-                perte_max=config.tolerance_beta)
+                perte_max=config.tolerance_volume)
         except Exception:                                    # noqa: BLE001
             continue
         points.append((float(t_c[int(np.nanargmax(q_c))]), dt,
@@ -1928,7 +1931,7 @@ def _calendrier_durees(cibles, residuels, config, dire):
                 t0_impose=config.fenetre_t0_h,
                 tf_impose=config.fenetre_tf_h,
                 volume_reference=_volume(temps_cible, debit_cible),
-                perte_max=config.tolerance_beta)
+                perte_max=config.tolerance_volume)
         except Exception:                                    # noqa: BLE001
             # UNE DUREE QU'ON NE SAIT PAS MESURER N'EN EST PAS UNE : on laisse
             # la fenetre entiere plutot que de deviner. Le calcul sera plus
@@ -2497,18 +2500,16 @@ if __name__ == "__main__":
     controler("hydrogrammes retrouves en POINTE a mieux que 5 %",
               max(ecarts_pic) < 0.05,
               f"ecart max {100 * max(ecarts_pic):.2f} %")
-    # LE KGE N'ARRETE PAS LA RECHERCHE.
+    # LA CONCORDANCE PORTE SUR LE VOLUME, LA POINTE ET LA FORME — RIEN D'AUTRE.
     _c = Configuration()
-    _faux = type("D", (), {"beta": 1.0, "rapport_volume": 1.0,
-                           "rapport_pic": 1.0, "r": 0.99, "kge": 0.80})()
-    controler("le KGE n'est pas une condition d'arret",
-              concordance(_faux, _c),
-              f"KGE {_faux.kge}, volume/pointe/forme conformes")
-    _faux_pic = type("D", (), {"beta": 1.0, "rapport_volume": 1.0,
-                               "rapport_pic": 1.5, "r": 0.99, "kge": 0.99})()
-    controler("une pointe fausse arrete la concordance malgre un bon KGE",
-              not concordance(_faux_pic, _c),
-              f"pic {_faux_pic.rapport_pic}, KGE {_faux_pic.kge}")
+    _faux = type("D", (), {"rapport_volume": 1.0, "rapport_pic": 1.0,
+                           "r": 0.99})()
+    controler("volume, pointe et forme conformes : la concordance est acquise",
+              concordance(_faux, _c), "volume/pointe/forme conformes")
+    _faux_pic = type("D", (), {"rapport_volume": 1.0, "rapport_pic": 1.5,
+                               "r": 0.99})()
+    controler("une pointe fausse arrete la concordance",
+              not concordance(_faux_pic, _c), f"pic {_faux_pic.rapport_pic}")
 
     controler("concordance simultanee volume / pointe / forme a chaque section",
               all(d.converge for d in resultat.diagnostics_finaux),
@@ -2616,7 +2617,7 @@ if __name__ == "__main__":
     journal = pd.read_excel(dossier_rapport / "tableaux_calage.xlsx",
                             sheet_name="Journal")
     controler("le diagnostic par essai n'est plus NaN dans le journal",
-              journal["pic"].notna().all() and journal["beta"].notna().all(),
+              journal["pic"].notna().all() and journal["volume"].notna().all(),
               f"{journal['pic'].notna().sum()}/{len(journal)} valeurs")
     tb_final = pd.read_excel(dossier_rapport / "tableaux_calage.xlsx",
                              sheet_name="Tableau_de_bord")
@@ -2925,7 +2926,7 @@ if __name__ == "__main__":
     controler("le bilan de masse ne se juge pas contre la tolerance de volume",
               qualite_acceptable(
                   ResultatCalcul(reussi=True, bilan_masse_pct=4.0),
-                  Configuration(tolerance_beta=0.001))[0],
+                  Configuration(tolerance_volume=0.001))[0],
               "un volume exigeant ne rejette pas un calcul sain")
 
     print("\n--- UNE ETAPE OUVERTE N'A PAS ENCORE DE RESULTATS ---")
@@ -3058,23 +3059,18 @@ if __name__ == "__main__":
               f"un seul, dans la boucle d'essais")
 
     # -----------------------------------------------------------------------
-    # L'ARRET PORTE SUR « rapport_volume », JAMAIS SUR « beta ».
+    # L'ARRET PORTE SUR « rapport_volume ».
     # -----------------------------------------------------------------------
     _c = Configuration()
-    _bon = type("D", (), {"kge": 0.9, "r": 0.99, "alpha": 1.0, "beta": 2.613,
-                          "decalage_h": 0.0, "rapport_pic": 1.005,
+    _bon = type("D", (), {"r": 0.99, "decalage_h": 0.0, "rapport_pic": 1.005,
                           "rapport_volume": 1.002})()
-    controler("la concordance se prononce sur le volume, pas sur beta",
-              concordance(_bon, _c),
-              f"volume {_bon.rapport_volume} conforme malgre beta "
-              f"{_bon.beta}")
-    _mauvais = type("D", (), {"kge": 0.99, "r": 0.99, "alpha": 1.0,
-                              "beta": 1.0, "decalage_h": 0.0,
-                              "rapport_pic": 1.005,
-                              "rapport_volume": 1.30})()
-    controler("un volume faux est refuse meme si beta vaut 1",
+    controler("la concordance se prononce sur le volume",
+              concordance(_bon, _c), f"volume {_bon.rapport_volume} conforme")
+    _mauvais = type("D", (), {"r": 0.99, "decalage_h": 0.0,
+                              "rapport_pic": 1.005, "rapport_volume": 1.30})()
+    controler("un volume faux est refuse",
               not concordance(_mauvais, _c),
-              f"volume {_mauvais.rapport_volume} refuse malgre beta 1,0")
+              f"volume {_mauvais.rapport_volume} refuse")
     controler("le meilleur essai se choisit lui aussi sur le volume",
               ecart_combine(_bon, _c) < ecart_combine(_mauvais, _c),
               f"{ecart_combine(_bon, _c):.2f} < "
@@ -3082,8 +3078,7 @@ if __name__ == "__main__":
 
     # --- selection : admissibilite d'abord, erreur combinee ensuite --------
     def _diag(volume, pic, forme):
-        return type("D", (), {"kge": 0.99, "alpha": 1.0, "beta": volume,
-                              "decalage_h": 0.0, "rapport_volume": volume,
+        return type("D", (), {"decalage_h": 0.0, "rapport_volume": volume,
                               "rapport_pic": pic, "r": forme})()
 
     _juste = _diag(1.0005, 1.0002, 0.999)      # les trois dans les clous
@@ -3576,9 +3571,6 @@ if __name__ == "__main__":
             "rapport_volume": float(d.rapport_volume),
             "rapport_pic": float(d.rapport_pic),
             "r": float(d.r),
-            "kge": float(d.kge),
-            "alpha": float(d.alpha),
-            "beta": float(d.beta),
             "decalage_h": float(d.decalage_h),
             "fenetre": (None if d.fenetre is None
                         else [float(d.fenetre[0]), float(d.fenetre[1])]),

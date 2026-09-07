@@ -264,32 +264,29 @@ def recaler(temps_cible, debit_cible, temps_calcule, debit_calcule,
 
 
 # ---------------------------------------------------------------------------
-# Critere KGE
+# Critere de forme
 # ---------------------------------------------------------------------------
 
-def kge(debit_cible, debit_calcule):
+def correlation(debit_cible, debit_calcule):
     """
-    Kling-Gupta Efficiency et ses trois composantes.
+    Correlation entre les deux series : l'accord sur la FORME.
 
-        KGE = 1 - sqrt[ (r-1)^2 + (alpha-1)^2 + (beta-1)^2 ]
+    C'est la seule composante du Kling-Gupta Efficiency qui ait survecu. Le
+    KGE agregeait r, alpha (rapport des ecarts-types, ~ pointe) et beta
+    (rapport des moyennes, ~ volume) en un seul nombre ; or la concordance
+    juge la pointe et le volume sur rapport_pic et rapport_volume, et un
+    agregat cache lequel de ses termes derive. Calcules et stockes, le KGE,
+    alpha et beta n'etaient lus nulle part — sauf beta, par une figure qui le
+    tracait sous le nom du volume. Retires le 07/09/2026.
 
-        r     : correlation          -> accord sur la forme
-        alpha : sigma_calc/sigma_cib -> accord sur la variabilite (~ pic)
-        beta  : moy_calc /moy_cib    -> biais (~ volume)
-
-    Retourne (kge, r, alpha, beta).
+    NaN si l'une des series est constante : la correlation n'est alors pas
+    definie, et la concordance echoue d'elle-meme (NaN >= r_min est faux).
     """
     c = np.asarray(debit_cible, dtype=float)
     s = np.asarray(debit_calcule, dtype=float)
-
-    if c.std() == 0 or s.std() == 0 or c.mean() == 0:
-        return float("nan"), float("nan"), float("nan"), float("nan")
-
-    r = float(np.corrcoef(c, s)[0, 1])
-    alpha = float(s.std() / c.std())
-    beta = float(s.mean() / c.mean())
-    valeur = 1.0 - np.sqrt((r - 1) ** 2 + (alpha - 1) ** 2 + (beta - 1) ** 2)
-    return float(valeur), r, alpha, beta
+    if c.std() == 0 or s.std() == 0:
+        return float("nan")
+    return float(np.corrcoef(c, s)[0, 1])
 
 
 # ---------------------------------------------------------------------------
@@ -299,10 +296,7 @@ def kge(debit_cible, debit_calcule):
 @dataclass
 class Diagnostic:
     """Resultat complet de la comparaison d'un essai avec sa cible."""
-    kge: float
     r: float
-    alpha: float
-    beta: float
     decalage_h: float
     rapport_pic: float
     rapport_volume: float
@@ -393,8 +387,8 @@ class Diagnostic:
         long de l'axe, pas sa valeur — piste laissee a une v2, et deliberement
         pas remplacee par un seuil different qui aurait le meme defaut.
 
-        Le KGE non calculable ne bloque pas non plus : il ne figure dans aucun
-        critere ni dans aucune sortie.
+        Une forme non calculable (serie constante) ne bloque pas non plus :
+        r vaut alors NaN et la concordance echoue d'elle-meme.
         """
         return (not self.alertes_bloquantes
                 and abs(self.rapport_volume - 1.0) <= self.tolerance_volume
@@ -435,8 +429,10 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
     recherche s'arrete — les separer avait laisse le verdict de l'etude
     dependre du KGE, que la recherche ne cherchait plus a satisfaire.
 
-    Les trois composantes du KGE sont conservees systematiquement : elles
-    servent au diagnostic, r etant de surcroit le critere de forme.
+    Du KGE ne reste que r, le critere de forme. Le KGE agrege, alpha et beta
+    ont ete retires le 07/09/2026 : calcules et stockes, ils n'etaient lus
+    nulle part — sauf beta, par une figure qui le tracait sous le nom du
+    volume (voir criteres.correlation).
 
     LE DECALAGE EST RAPPORTE, JAMAIS JUGE. Diagnostic.decalage_h porte la
     mesure, resume() l'affiche, le classeur et la note de synthese la
@@ -487,7 +483,7 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
         # LA FORME EST JUGEE SUR LA MEME FENETRE QUE LA POINTE ET LE VOLUME,
         # PAS SUR c_a/s_a — qui portent toute la grille commune aux deux
         # series. Sans cette restriction, une mini-crue isolee hors de
-        # l'evenement cale (avant ou apres) degradait r (et le KGE) sans le
+        # l'evenement cale (avant ou apres) degradait r sans le
         # moindre rapport avec l'apport qu'on cherche a caler : le § 7 de
         # l'auto-test verifiait deja que le pic et le volume l'ignoraient,
         # jamais que la forme le faisait.
@@ -507,7 +503,7 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
                    & (grille_f + decalage_h <= ts[-1]))
         if dedans_f.sum() >= 2:
             cible_f, calc_f = cible_f[dedans_f], calc_f[dedans_f]
-        valeur, r, alpha, beta = kge(cible_f, calc_f)
+        r = correlation(cible_f, calc_f)
 
         dans_c = (tc >= f0) & (tc <= f1)
         dans_s = (ts >= f0) & (ts <= f1)
@@ -516,7 +512,7 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
         pic_calcule = (float(np.max(np.asarray(debit_calcule, dtype=float)[dans_s]))
                       if dans_s.any() else float(np.max(debit_calcule)))
     else:
-        valeur, r, alpha, beta = kge(c_a, s_a)
+        r = correlation(c_a, s_a)
         pic_cible = float(np.max(debit_cible))
         pic_calcule = float(np.max(debit_calcule))
 
@@ -615,8 +611,8 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
     alertes, bloquantes = [], []
     if decalage_hors_fenetre:
         alertes.append(decalage_hors_fenetre)
-    if not np.isfinite(valeur):
-        alertes.append("KGE non calculable (serie constante ou moyenne nulle)")
+    if not np.isfinite(r):
+        alertes.append("forme non calculable (serie constante)")
 
     # Une fenetre de simulation qui ne couvre pas tout l'hydrogramme cible est
     # une erreur de configuration courante et couteuse : le volume manquant
@@ -699,7 +695,7 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
     alertes.extend(bloquantes)
 
     return Diagnostic(
-        kge=valeur, r=r, alpha=alpha, beta=beta, decalage_h=decalage_h,
+        r=r, decalage_h=decalage_h,
         rapport_pic=pic_calcule / pic_cible if pic_cible else float("nan"),
         rapport_volume=rapport_vol,
         alertes=alertes, alertes_bloquantes=bloquantes,
@@ -751,20 +747,18 @@ if __name__ == "__main__":
     print("--- 1. Identite (calcule = cible) ---")
     d = diagnostiquer(temps, cible, temps, cible)
     print(d.resume(), "-> converge :", d.converge)
-    _verifier("KGE = 1 quand le calcul EST la cible", abs(d.kge - 1.0) < 1e-6,
-              f"KGE={d.kge:.6f}")
-    _verifier("r, alpha et beta valent 1",
-              max(abs(d.r - 1), abs(d.alpha - 1), abs(d.beta - 1)) < 1e-6)
+    _verifier("r = 1 quand le calcul EST la cible", abs(d.r - 1.0) < 1e-6,
+              f"r={d.r:.6f}")
     _verifier("le cas identite converge", d.converge)
 
     print("\n--- 2. Decalage temporel PUR de +3 h (translation, forme inchangee) ---")
-    print("    la methode doit le neutraliser : KGE doit rester ~1")
+    print("    la methode doit le neutraliser : r doit rester ~1")
     decale = hydrogramme(temps - 3.0, pic=100.0)
     decale[temps < 3.0] = hydrogramme(np.array([0.01]), 100.0)[0]
     d = diagnostiquer(temps, cible, temps, decale)
     print(d.resume(), "-> converge :", d.converge)
-    _verifier("un decalage PUR est neutralise par le recalage", d.kge > 0.99,
-              f"KGE={d.kge:.4f}")
+    _verifier("un decalage PUR est neutralise par le recalage", d.r > 0.99,
+              f"r={d.r:.4f}")
     _verifier("le decalage est neanmoins RAPPORTE, pas efface",
               abs(d.decalage_h) > 2.0, f"{d.decalage_h:+.2f} h")
 
@@ -812,8 +806,9 @@ if __name__ == "__main__":
     print("\n--- 3. Apport sous-dimensionne (-25 %) ---")
     d = diagnostiquer(temps, cible, temps, 0.75 * cible)
     print(d.resume(), "-> converge :", d.converge)
-    _verifier("un apport a -25 % donne beta ~ 0,75", abs(d.beta - 0.75) < 0.01,
-              f"beta={d.beta:.4f}")
+    _verifier("un apport a -25 % donne un volume ~ 0,75",
+              abs(d.rapport_volume - 0.75) < 0.01,
+              f"volume={d.rapport_volume:.4f}")
     _verifier("un apport sous-dimensionne ne converge PAS", not d.converge)
 
     print("\n--- 4. Le decalage est MESURE et RAPPORTE, jamais juge ---")
@@ -923,7 +918,7 @@ if __name__ == "__main__":
     # La strategie de recherche a quitte ce module : la correction de
     # l'apport est desormais ADDITIVE et vit dans calage.py, avec ses propres
     # criteres d'arret. criteres.py ne garde que l'ANALYSE — recalage,
-    # volumes, KGE, diagnostic — ce qui etait sa vocation.
+    # volumes, forme, diagnostic — ce qui etait sa vocation.
     t_a = np.linspace(0, 24, 200)
     t_b = np.linspace(6, 36, 200)
     # Les deux bornes ne servent pas a la meme chose et ne doivent pas etre
@@ -1118,9 +1113,9 @@ if __name__ == "__main__":
     print("\n--- 8. Tolerance de volume par defaut ---")
     # Le defaut precedent (0,5 %) rendait certains modeles hors d'atteinte par
     # construction des que le debit de base est marque — voir calage.py,
-    # Configuration.tolerance_beta.
+    # Configuration.tolerance_volume.
     _verifier("le defaut de Diagnostic.tolerance_volume est 5 %",
-              abs(Diagnostic(0, 0, 0, 0, 0, 0, 0).tolerance_volume - 0.05)
+              abs(Diagnostic(0, 0, 0, 0).tolerance_volume - 0.05)
               < 1e-9)
     import inspect as _inspect
     _defaut_diag = _inspect.signature(diagnostiquer).parameters[

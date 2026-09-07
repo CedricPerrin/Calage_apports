@@ -111,7 +111,7 @@ def figure_comparaison(nom_section, temps_cible, debit_cible,
                        temps_calcule, debit_calcule, diag, chemin):
     """
     Hydrogramme calcule vs hydrogramme cible a une section de controle.
-    Deux panneaux : brut (decalage visible) et recale (base du KGE).
+    Deux panneaux : brut (decalage visible) et recale (base du critere de forme).
     C'est le graphique de base du livrable, un par section.
     """
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(7.2, 6.0), sharey=True)
@@ -156,12 +156,12 @@ def figure_convergence(nom_section, historique, chemin):
     essai, en POURCENTAGE DE LA CIBLE. Rend visible le chemin suivi par la
     correction additive et justifie a posteriori le nombre d'essais.
 
-    historique : liste de dicts {essai, beta, pic, ...}
+    historique : liste de dicts {essai, volume, pic, ...}
     """
     df = pd.DataFrame(historique)
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7.6, 3.1))
 
-    for ax, cle, titre in ((ax1, "beta", "Volume"),
+    for ax, cle, titre in ((ax1, "volume", "Volume"),
                            (ax2, "pic", "Débit de pointe")):
         # Un historique enregistre avant l'ajout d'une colonne ne doit pas
         # faire perdre la figure entiere : le panneau manquant le dit.
@@ -486,7 +486,7 @@ def tableau_de_bord(noms_sections, diagnostics, nb_essais=None,
         return round(serie[i], arrondi) if arrondi is not None else serie[i]
 
     # Le tableau dit ce qu'on cherche, dans l'unite ou on le lit : un
-    # POURCENTAGE D'ATTEINTE de la cible. « beta 0,993 » et « volume atteint a
+    # POURCENTAGE D'ATTEINTE de la cible. « 0,993 » et « volume atteint a
     # 99,3 % » sont le meme nombre, mais le second se lit sans decodeur et se
     # reprend tel quel dans un rapport d'etude.
     lignes = []
@@ -786,10 +786,10 @@ if __name__ == "__main__":
         titre="Profil en long — crue Q100 calée (amont → aval)"))
 
     historique = [
-        {"essai": 1, "facteur": 1.000, "beta": 0.559, "pic": 0.601},
-        {"essai": 2, "facteur": 1.790, "beta": 0.927, "pic": 0.938},
-        {"essai": 3, "facteur": 1.946, "beta": 0.994, "pic": 0.991},
-        {"essai": 4, "facteur": 1.961, "beta": 1.000, "pic": 0.998},
+        {"essai": 1, "facteur": 1.000, "volume": 0.559, "pic": 0.601},
+        {"essai": 2, "facteur": 1.790, "volume": 0.927, "pic": 0.938},
+        {"essai": 3, "facteur": 1.946, "volume": 0.994, "pic": 0.991},
+        {"essai": 4, "facteur": 1.961, "volume": 1.000, "pic": 0.998},
     ]
     fichiers.append(figure_convergence(
         sections[2], historique, sortie / "convergence_section3.png"))

@@ -729,12 +729,12 @@ if __name__ == "__main__":
     tmp = Path(tempfile.gettempdir()) / "template_fautif.xlsx"
     with pd.ExcelWriter(tmp, engine="openpyxl") as w:
         pd.DataFrame({
-            "Parametre": ["Dossier_projet_HECRAS", "Nom_projet", "Seuil_KGE",
+            "Parametre": ["Dossier_projet_HECRAS", "Nom_projet",
                           "Nb_max_iterations_par_apport",
                           # Date au format francais : l'erreur de saisie la
                           # plus probable, et la plus silencieuse.
                           "Simulation_debut", "Simulation_fin"],
-            "Valeur": [r"D:\projet", "Essai", 1.4, 2,
+            "Valeur": [r"D:\projet", "Essai", 2,
                        "13/10/2014 00:00", "14OCT2014,04:00"],
         }).to_excel(w, sheet_name="Parametres", index=False)
         pd.DataFrame({
@@ -824,10 +824,10 @@ if __name__ == "__main__":
         with pd.ExcelWriter(chemin, engine="openpyxl") as w:
             pd.DataFrame({
                 "Parametre": ["Dossier_projet_HECRAS", "Nom_projet", "Nom_zone_2D",
-                              "Seuil_KGE", "Nb_max_iterations_par_apport",
+                              "Nb_max_iterations_par_apport",
                               "Fichier_SHP_Sections", "Fichier_SHP_Apports",
                               "Fichier_SHP_Axe", "Sens_axe"],
-                "Valeur": [r"D:\projet", "Essai", "Zone2D", 0.95, 6,
+                "Valeur": [r"D:\projet", "Essai", "Zone2D", 6,
                            str(dossier_shp / "sections.shp"),
                            str(dossier_shp / "apports.shp"),
                            str(dossier_shp / "axe.shp"), "amont_aval"],
@@ -915,7 +915,6 @@ if __name__ == "__main__":
     print("\nAnomalies que ce cas doit faire remonter :")
     for att in [
         "parametre Nom_zone_2D manquant",
-        "Seuil_KGE hors de ]0 ; 1]",
         "Nb_max_iterations insuffisant pour converger",
         "Simulation_debut au format francais",
         "colonne Ordre non contigue (1, 2, 4)",

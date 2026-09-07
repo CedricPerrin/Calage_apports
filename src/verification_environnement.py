@@ -67,9 +67,9 @@ for paquet, module in [("numpy", "numpy"), ("scipy", "scipy"),
         controler(paquet, False, str(e))
 
 try:
-    from criteres import diagnostiquer, kge, recaler, volume  # noqa: F401
+    from criteres import correlation, diagnostiquer, recaler, volume  # noqa: F401
     controler("module criteres.py importable", True,
-              "kge / recaler / diagnostiquer / volume")
+              "correlation / recaler / diagnostiquer / volume")
 except Exception as e:
     controler("module criteres.py importable", False, str(e))
 

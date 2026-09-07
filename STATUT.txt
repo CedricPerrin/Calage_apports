@@ -59,6 +59,20 @@ CE QUI EST EPROUVE
     et verifies en 56 s. C'est le lancement depuis QGIS qui comptait — c'est
     la, et nulle part ailleurs, que son PYTHONHOME fuyait dans les
     sous-processus de pip.
+  - PLUGIN EN 0.7.16 (07/09). LE KGE, ALPHA ET BETA SONT RETIRES DU CODE :
+    la figure de convergence des livrables finaux tracait beta sous le
+    libelle « Volume atteint (% de la cible) », et celle du suivi sortait
+    vide — le suivi ecrivait « volume », la figure lisait « beta » (section
+    2, VOLUME). Configuration.tolerance_beta s'appelle tolerance_volume. La
+    reference de caracterisation est regelee : privee des trois cles,
+    l'ancienne est identique a la nouvelle, pas un nombre n'a bouge. La
+    0.7.15 (06/09) n'avait change qu'un mot : « greffon » devient « plugin ».
+    HORS DU CODE DISTRIBUE, le meme jour : les bancs du noyau et du garde-fou
+    d'archive passent depuis un clone Linux (disposition d'un venv, chemins
+    POSIX), et la note se reconstruit sans qu'on lui porte a la main ses deux
+    figures d'origine.
+    L'ARCHIVE calage_apports.zip EST A RECONSTRUIRE DEPUIS WINDOWS
+    (python src/faire_zip.py) : noyau.py et la chaine embarquee ont change.
   - PLUGIN EN 0.7.14 (06/09). Seize constats d'ergonomie sur dix-huit
     corriges, issus d'une relecture a six lentilles : voir docs/ergonomie_2026-09-06.md, qui dit
     aussi ce qu'il ne faut PAS toucher. Le lot 5 d'AUDIT.md est fait, et
@@ -301,12 +315,20 @@ CE SONT DES BANDES : « X % » veut dire [100-X ; 100+X], et rien n'est a
 gagner une fois dedans. Une correction qui vise le centre d'une bande deja
 tenue ne corrige rien : elle derive. Tout garde-fou se juge au BORD.
 
-Le KGE agrege ne figure dans aucun critere ni dans aucune sortie.
+LE KGE N'EXISTE PLUS DANS LE CODE (07/09/2026). Il agregeait r, alpha et
+beta ; la concordance juge la forme sur r seul, la pointe sur rapport_pic et
+le volume sur rapport_volume. Le KGE agrege, alpha et beta etaient calcules,
+stockes, et lus nulle part — sauf beta, que la figure de convergence des
+livrables finaux tracait sous le libelle « Volume atteint (% de la cible) ».
+Retires de criteres.py, calage.py, suivi.py (colonne KGE d'iterations.xlsx
+comprise), de la reference de caracterisation et de la sonde
+d'environnement. Configuration.tolerance_beta s'appelle tolerance_volume.
 
-VOLUME : le suivi et la concordance se prononcent sur rapport_volume
-(integre sur la fenetre commune aux deux series, apres recalage), jamais sur
-beta du KGE (rapport des moyennes sur la grille qui ENGLOBE les deux series).
-Les deux ne coincident que si les series partagent leur base de temps.
+VOLUME : le suivi, la concordance ET les figures se prononcent sur
+rapport_volume (integre sur la fenetre commune aux deux series, apres
+recalage). beta — rapport des moyennes sur la grille qui ENGLOBE les deux
+series — ne coincidait avec lui que si les series partageaient leur base de
+temps ; sur un cas reel, 2,613 contre 1,040.
 
 FENETRE DU HYDROGRAMME PRINCIPAL. Volume, pointe, couverture, forme ET
 MESURE DU DECALAGE (criteres.diagnostiquer), le verdict de concordance et
@@ -615,7 +637,7 @@ Diagnostic.converge ne teste que le second.
   BLOQUANT : fenetres qui ne se recouvrent pas, simulation trop courte pour
   porter la cible. Les pourcentages seraient alors justes sur des grandeurs
   qui ne se correspondent pas : il n'y a rien a conclure.
-  SIGNALE, NON BLOQUANT : le KGE non calculable, et tout le reste. recaler()
+  SIGNALE, NON BLOQUANT : la forme non calculable, et tout le reste. recaler()
   neutralise le decalage AVANT toute comparaison — volume, pointe et forme
   portent bien sur les memes instants.
 CETTE SEPARATION EXISTE PARCE QUE SON ABSENCE A COUTE UN CALAGE ENTIER :
@@ -889,8 +911,8 @@ dernier calcul porte deja le jeu d'apports retenu.
 COHERENCE DES SECTIONS AMONT : une seule evaluation, par relecture. Une
 derive est SIGNALEE, jamais reprise automatiquement — la reprise suppose de
 relancer la sequence depuis la premiere section concernee, et c'est une
-decision d'ingenieur. Configuration.reprises_max est INERTE, conserve pour ne
-pas casser les classeurs en circulation.
+decision d'ingenieur. Configuration.reprises_max a ete retire (5.3 quater) —
+ce paragraphe l'a dit « inerte, conserve » jusqu'au 07/09/2026, a tort.
 
 FERMETURE DES ORPHELINS : calculer() photographie les processus HEC-RAS avant
 le calcul et ferme apres coup ceux qui sont apparus entre-temps —
@@ -1166,8 +1188,8 @@ La note, le template et ce fichier restent a la racine.
   src/
     calage.py            Boucle de calage. Independante du solveur : elle ne
                          connait de lui que l'interface Modele.
-    criteres.py          Analyse pure : recalage temporel, KGE et composantes,
-                         diagnostic. Aucune dependance hydraulique.
+    criteres.py          Analyse pure : recalage temporel, correlation de
+                         forme, diagnostic. Aucune dependance hydraulique.
     controle_donnees.py  Validation du classeur et de la chaine SIG AVANT
                          tout calcul.
     geometrie.py         Shapefiles, PK par projection curviligne, profil en
