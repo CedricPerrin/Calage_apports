@@ -245,6 +245,23 @@ class _Icones:
     Critical = Information = Question = Warning = NoIcon = 0
 
 
+class _RolesBouton:
+    AcceptRole = 0
+    ActionRole = 1
+    RejectRole = 2
+
+
+class _BoutonDeBoite:
+    """Ce que rend addButton() : de quoi se comparer PAR IDENTITE."""
+
+    def __init__(self, libelle, role):
+        self._libelle = libelle
+        self.role = role
+
+    def text(self):
+        return self._libelle
+
+
 class BoiteMessage:
     Yes = 1
     No = 0
@@ -256,18 +273,44 @@ class BoiteMessage:
     # AttributeError, mais seulement sur un poste OU L'INTERPRETEUR MANQUE :
     # c'est la seule branche qui pose une question. Le banc ne l'atteignait
     # jamais sur le poste de developpement, et l'atteignait toujours ailleurs.
+    #
+    # ET IL A RECOMMENCE, LE 08/09/2026, AU MOT PRES. La meme branche, sur un
+    # poste ou CALAGE_PYTHON n'est plus defini : setInformativeText,
+    # addButton, setDefaultButton et clickedButton manquaient cette fois, et
+    # le banc s'arretait sur AttributeError apres 179 controles verts. La
+    # lecon ne change pas — ce talon suit une classe Qt qu'il n'implemente
+    # qu'a moitie, et c'est la branche la moins parcourue qui le revele. Les
+    # quatre methodes sont posees ci-dessous, et la branche a desormais son
+    # controle.
     StandardButton = _BoutonsStandard
+    ButtonRole = _RolesBouton
     Icon = _Icones
 
     def __init__(self, parent=None):
         self.detail = ""
+        self.informatif = ""
         self.redimensionnable = False
+        self.boutons = []
+        self.bouton_defaut = None
 
     def setWindowTitle(self, t): pass          # noqa: E704, N802
     def setIcon(self, i): pass                 # noqa: E704, N802
     def setText(self, t): self.texte = t       # noqa: E704, N802
     def setDetailedText(self, t): self.detail = t   # noqa: E704, N802
+    def setInformativeText(self, t): self.informatif = t  # noqa: E704, N802
+    def setDefaultButton(self, b): self.bouton_defaut = b  # noqa: E704, N802
     def exec(self): BoiteMessage.dernier = self     # noqa: E704
+
+    def addButton(self, libelle, role):  # noqa: N802
+        bouton = _BoutonDeBoite(libelle, role)
+        self.boutons.append(bouton)
+        return bouton
+
+    # AUCUN BOUTON N'EST CLIQUE, ET C'EST LE BON DEFAUT. Repondre « Installer »
+    # lancerait un pip de plusieurs centaines de mega-octets au milieu du
+    # banc ; repondre « designer » ouvrirait un selecteur de fichier. None
+    # vaut « Plus tard » : la boite est montree, et rien ne s'ensuit.
+    def clickedButton(self): return None            # noqa: E704, N802
 
     # Les trois suivantes servent rendre_redimensionnable(). La poignee est
     # RETENUE — c'est ce que le test verifie ; la disposition et la zone de
@@ -1916,7 +1959,29 @@ verifier("fil conducteur renseigne et coherent",
          and "Paquet composé" in dlg.label_fil.text(),
          dlg.label_fil.text().replace("<b>", "").replace("</b>", "")[:90])
 BoiteMessage.informations.clear()
+BoiteMessage.dernier = None
 dlg._diagnostic()
+# LA BRANCHE « PAS D'INTERPRETEUR » NE SE PARCOURT QUE LA OU IL MANQUE, et
+# c'est justement la qu'elle doit tenir : sur un poste neuf. Elle propose
+# trois issues, et « Installer… » est celle qui doit etre mise en avant —
+# designer suppose de savoir ou chercher, installer non.
+if noyau.interpreteur_hecras() is None:
+    _boite = BoiteMessage.dernier
+    _libelles = [b.text() for b in _boite.boutons] if _boite else []
+    verifier("sans interpreteur, le diagnostic propose ses trois issues",
+             len(_libelles) == 3 and _libelles[0].startswith("Installer"),
+             f"{_libelles}")
+    verifier("« Installer… » est le bouton mis en avant",
+             _boite is not None and _boite.bouton_defaut is not None
+             and _boite.bouton_defaut.text().startswith("Installer"),
+             _boite.bouton_defaut.text() if _boite and _boite.bouton_defaut
+             else "aucun")
+    verifier("la boite dit POURQUOI un second Python",
+             _boite is not None and "h5py" in _boite.informatif,
+             _boite.informatif[:70] if _boite else "")
+else:
+    print("   ignore : un interpreteur est designe, la branche « poste neuf »"
+          " du diagnostic n'est pas parcourue")
 verifier("diagnostic affiche", bool(BoiteMessage.informations),
          BoiteMessage.informations[-1].replace("\n", " | ")[:90]
          if BoiteMessage.informations else "")

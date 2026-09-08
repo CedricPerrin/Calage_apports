@@ -30,6 +30,21 @@ CE QUI EST EPROUVE
   - test_plugin_qgis.py sous le Python de QGIS. 172 CONTROLES, 0 ECHEC,
     0 IGNORE, LE 06/09 — sur un POSTE NEUF, avec un modele et un interpreteur
     HEC-RAS. Historique : 149 le 01/09, 152 le 03/09.
+    LE 08/09 : 113 CONTROLES, 0 ECHEC, sur un poste SANS interpreteur HEC-RAS
+    — tout ce qui touche au modele est ignore, y compris le chargement des
+    couches, qui passe par le pont. Les sept controles neufs de la 0.7.19
+    sont verts.
+    HUITIEME DEFAUT DU BANC, ET LE MEME MOTIF QUE LES SEPT AUTRES. Il
+    s'arretait sur AttributeError apres ces 113 controles :
+    BoiteMessage — le mannequin de QMessageBox — ne connaissait pas
+    setInformativeText, addButton, setDefaultButton ni clickedButton. La
+    branche qui les appelle est celle du diagnostic SANS interpreteur, la
+    seule que le poste de developpement n'atteint jamais. Le commentaire du
+    mannequin racontait DEJA cet incident, mot pour mot, pour la 0.4.0 et
+    pour d'autres methodes : un talon qui suit une classe Qt a moitie se fait
+    prendre par la branche la moins parcourue. Les quatre methodes sont
+    posees, et la branche a maintenant SES PROPRES controles — trois issues
+    proposees, « Installer… » mis en avant, le motif du second Python dit.
     ELLE N'Y ARRIVAIT PAS, ET CE N'ETAIT PAS LE PLUGIN. Sept defauts du BANC
     l'en empechaient, tous du meme motif — il supposait le modele et le poste
     de son auteur : un chemin de suivi fige au lieu de celui que la fenetre
