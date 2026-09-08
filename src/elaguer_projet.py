@@ -5,7 +5,7 @@ Elague d'un projet HEC-RAS les branches mortes laissees par des calages.
 OUTIL DE RATTRAPAGE POUR LES PROJETS CALES PAR L'ANCIENNE CHAINE, celle qui
 clonait un plan unique titre « Calage_apports » et en accumulait un par
 relance. La chaine actuelle ne travaille plus ainsi : elle cree un plan et un
-unsteady PAR ETAPE — « sans apport », puis « Apport_<nom> » — et les CONSERVE
+unsteady PAR ETAPE — « sans_apport », puis « Apport_<nom> » — et les CONSERVE
 volontairement (voir pilote_hecras.jalonner). Ce script ne les voit donc pas,
 et c'est voulu : leurs titres ne figurent pas dans TITRES_DE_CALAGE.
 

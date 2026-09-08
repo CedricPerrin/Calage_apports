@@ -16,6 +16,12 @@ méthode ne s'applique pas. Confirmée par l'hydraulicien le 8 septembre 2026
 pour les modèles en cours. Les hypothèses de validité sont au § 1.2 de la
 note méthodologique.
 
+Le calage laisse dans le modèle **un plan HEC-RAS par étape** —
+`Q100_sans_apport`, `Q100_Apport_A1`… puis `Q100_avec_apports`, qui n'est pas un
+clone mais la dernière étape retitrée, avec ses résultats. Ils sont conservés :
+ils documentent le calage et permettent de reprendre une séquence interrompue.
+L'onglet 3 les élague **sur demande**, une fois le calage livré.
+
 La boucle ([src/calage.py](src/calage.py)) est **indépendante du solveur** : elle
 n'en connaît qu'une interface de neuf méthodes, dont six à écrire. Elle est donc
 testable sans HEC-RAS, dont la déclinaison vit dans
@@ -125,7 +131,9 @@ nombre maximal d'essais, et l'Excel des hydrogrammes objectifs.
 ![Onglet 2 — Objectifs et précision](docs/captures/onglet_2_objectifs.png)
 
 **3. Résultats** — dossiers de sortie et de suivi, relecture d'un hydrogramme
-déjà calculé, résumé de la configuration.
+déjà calculé, résumé de la configuration, et le **ménage du modèle** : une fois
+le calage livré, ses plans d'étape s'élaguent d'un bouton (jamais d'office, et
+jamais sans confirmation).
 
 ![Onglet 3 — Résultats](docs/captures/onglet_3_resultats.png)
 
@@ -137,7 +145,9 @@ Q100 sur le même modèle efface les plans du Q100.
 
 **5. Suivi** — où en est le calcul, apport par apport, rafraîchi tout seul. Le
 dossier surveillé est nommé en permanence : c'est celui que désigne l'Excel
-lancé, pas celui de l'onglet 3.
+lancé, pas celui de l'onglet 3. La courbe porte la cible et la section de
+l'apport en cours, et **derrière, en vert pointillé, les sections déjà
+calées** : c'est la famille de courbes qui dit si tout se tient.
 
 ![Onglet 5 — Suivi](docs/captures/onglet_5_suivi.png)
 

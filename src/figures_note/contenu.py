@@ -661,7 +661,8 @@ CONTENU = [
          "objectifs » où ils se saisissent."],
         ["3. Résultats", "dossier de sortie et ses deux sous-dossiers, "
          "relecture d'un hydrogramme déjà calculé, résumé de la "
-         "configuration."],
+         "configuration, et le MÉNAGE DU MODÈLE — l'élagage des plans "
+         "d'étape d'un calage livré, sur demande et après confirmation."],
         ["4. Lancer", "appariement géométrique, et surtout COMBIEN "
          "D'HYDROGRAMMES CIBLES RESTENT À SAISIR ; le premier apport à caler, "
          "le PRÉFIXE DE SCÉNARIO — sans lui, caler le Q10 après le Q100 sur "
@@ -670,13 +671,28 @@ CONTENU = [
         ["5. Suivi", "où en est le calage, rafraîchi toutes les deux "
          "secondes : en cours, terminé (avec le motif), ou INTERROMPU quand le "
          "processus n'existe plus sans qu'aucun verdict ait été rendu. Le "
-         "bilan de masse du dernier calcul y figure."],
+         "bilan de masse du dernier calcul y figure. La courbe porte la cible "
+         "et la section de l'apport en cours, et DERRIÈRE, EN POINTILLÉ, LES "
+         "SECTIONS DÉJÀ CALÉES : un calage séquentiel se lit de l'amont vers "
+         "l'aval, et c'est la famille de courbes qui dit si tout se tient."],
         ["Aide et configuration", "le mode opératoire — précédé d'un "
          "sommaire, car il est long —, les pièges connus, et le diagnostic de "
          "l'environnement : c'est là qu'on désigne la chaîne, ou qu'on "
          "INSTALLE l'interpréteur HEC-RAS sans avoir à savoir où Python se "
          "trouve sur le poste."],
     ]),
+    ("p", "CE QUE LE CALAGE LAISSE DANS LE MODÈLE : un plan HEC-RAS par "
+          "étape, et son Unsteady Flow — « <préfixe>_sans_apport », puis "
+          "« <préfixe>_Apport_<nom> », et à l'arrivée "
+          "« <préfixe>_avec_apports ». Ce dernier n'est pas un clone : c'est "
+          "le plan de la dernière étape, RETITRÉ, qui porte donc tous les "
+          "apports calés ET ses résultats de calcul. Les étapes sont "
+          "CONSERVÉES — elles documentent le calage apport par apport et "
+          "permettent de reprendre une séquence interrompue — au prix du "
+          "disque : un modèle à trente apports garde trente et un jeux de "
+          "résultats. L'onglet 3 les élague SUR DEMANDE, jamais d'office, et "
+          "refuse de le faire si le calage n'a pas conclu : ses étapes sont "
+          "alors tout ce qu'il en reste."),
     ("p", "La fenêtre est NON MODALE : le travail consiste précisément à "
           "dessiner des sections et des injections dans QGIS pendant qu'elle "
           "est ouverte. « Écrire, composer et contrôler » écrit d'abord les couches "

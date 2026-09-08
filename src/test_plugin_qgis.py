@@ -1845,10 +1845,16 @@ verifier("l'aide ne parle plus en KGE",
 # page reste ou elle est, et le lecteur croit avoir mal clique.
 _ancres_aide = re.findall(r'name="(s[0-9]+)"', mod_plugin.AIDE_HTML)
 _liens_aide = re.findall(r'href="#(s[0-9]+)"', mod_plugin.AIDE_HTML)
+# Le sommaire ouvre l'aide : ses liens sont les PREMIERS, et dans l'ordre des
+# sections. Les renvois places dans le corps viennent apres, et il leur suffit
+# de tomber sur une ancre existante.
 verifier("chaque lien du sommaire de l'aide tombe sur son ancre, dans l'ordre",
-         _liens_aide == _ancres_aide
+         _liens_aide[:len(_ancres_aide)] == _ancres_aide
          and len(set(_ancres_aide)) == len(_ancres_aide),
-         f"sommaire {_liens_aide} / ancres {_ancres_aide}")
+         f"sommaire {_liens_aide[:len(_ancres_aide)]} / ancres {_ancres_aide}")
+verifier("aucun renvoi de l'aide ne pointe dans le vide",
+         set(_liens_aide) <= set(_ancres_aide),
+         f"{sorted(set(_liens_aide) - set(_ancres_aide))} sans ancre")
 verifier("l'aide a recueilli l'ecriture dans la geometrie",
          "Écrire dans la géométrie" in mod_plugin.AIDE_HTML
          and "Sur un autre poste" not in mod_plugin.AIDE_HTML)
@@ -1878,6 +1884,45 @@ verifier("l'onglet 1 porte « Mise à jour du modèle », et plus « Écriture "
          "Mise à jour du modèle" in _groupes_modele
          and "Écriture dans la géométrie" not in _groupes_modele,
          _groupes_modele)
+# LES SECTIONS DEJA CALEES SE TRACENT DERRIERE LA PAIRE COURANTE. Le banc
+# n'eprouve pas l'apparence, mais il peut verifier que le widget ACCEPTE les
+# deux jeux et les retient : sans cela, une signature changee d'un cote et pas
+# de l'autre ne se verrait qu'a l'ecran, pendant un calage.
+_serie_t = [round(0.5 * i, 2) for i in range(40)]
+_serie_q = [round(100.0 * (1 - abs(i - 20) / 20.0), 2) for i in range(40)]
+dlg.courbe_suivi.actualiser(
+    {"temps_cible": _serie_t, "debit_cible": _serie_q,
+     "temps_calcule": _serie_t, "debit_calcule": _serie_q,
+     "decalage_h": 0.0, "apport": "A2", "section": "SC2"},
+    [{"apport": "A1", "section": "SC1", "temps": _serie_t,
+      "debit": [q / 2 for q in _serie_q]}])
+verifier("la courbe de suivi retient les sections deja calees",
+         len(dlg.courbe_suivi.precedentes) == 1
+         and dlg.courbe_suivi.precedentes[0]["section"] == "SC1",
+         str(dlg.courbe_suivi.precedentes)[:60])
+dlg.courbe_suivi.actualiser(None, None)
+verifier("et les oublie quand il n'y a plus de calage suivi",
+         dlg.courbe_suivi.precedentes == []
+         and dlg.courbe_suivi.courbes is None)
+
+# LE MENAGE EST A L'ONGLET 3, ET IL DEMANDE AVANT. Le bouton efface des
+# resultats de calcul : le banc verifie qu'il existe, qu'il est la ou on le
+# cherche, et surtout que sans projet charge il REFUSE en nommant l'onglet.
+_page_resultats = dlg.onglets.widget(2)
+_groupes_resultats = [g.title() for g in _page_resultats.findChildren(_QGroupBoxA)]
+verifier("l'onglet 3 porte « Ménage du modèle HEC-RAS »",
+         "Ménage du modèle HEC-RAS" in _groupes_resultats, _groupes_resultats)
+_boutons_resultats = [b.text() for b in _page_resultats.findChildren(_QPushButtonA)]
+verifier("« Élaguer les plans d'étape… » y est",
+         "Élaguer les plans d'étape…" in _boutons_resultats, _boutons_resultats)
+BoiteMessage.critiques.clear()
+dlg._elaguer_etapes()
+verifier("sans projet, l'elagage refuse et nomme l'onglet",
+         bool(BoiteMessage.critiques)
+         and "onglet 1" in BoiteMessage.critiques[0].lower(),
+         BoiteMessage.critiques[0][:80] if BoiteMessage.critiques else "aucun refus")
+BoiteMessage.critiques.clear()
+
 # L'ORDRE DES ENCADRES EST UN CONTENU : le plan dit quelle geometrie on
 # lit, le profil en long comment on la parcourt. Les separer par les
 # couches renvoyait le second en fin d'onglet, ou personne ne le cherchait.

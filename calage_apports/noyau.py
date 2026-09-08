@@ -1987,6 +1987,24 @@ def lister_objets_modele(hdf_plan):
     return {"sections": reponse["sections"], "apports": reponse["apports"]}
 
 
+def elaguer_etapes(dossier_projet, nom_projet, plan_reference, prefixe="",
+                   executer=False):
+    """
+    Retire les plans d'etape d'un calage abouti — ou dit seulement ce qui
+    partirait.
+
+    executer=False, LE DEFAUT, ne touche a rien : c'est ce que la fenetre
+    affiche avant de demander confirmation. La regle et les garde-fous vivent
+    dans pilote_hecras.elaguer_etapes, pas ici.
+    """
+    arguments = ["elaguer-etapes", "--dossier", dossier_projet,
+                 "--projet", nom_projet, "--plan-reference", plan_reference,
+                 "--prefixe", prefixe]
+    if executer:
+        arguments.append("--executer")
+    return appeler_pont(*arguments)
+
+
 def lire_hydrogramme(hdf_plan, nom_section, nom_zone_2d=None, sortie=None,
                      groupe="Reference Lines"):
     """

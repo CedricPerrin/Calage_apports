@@ -100,6 +100,47 @@ def _etat_a_tracer(etats, en_cours):
     return next((e for e in reversed(etats) if e.series), None)
 
 
+def _courbes_precedentes(etats, etat_trace, points=90):
+    """
+    Les hydrogrammes RETENUS aux sections deja calees, pour les tracer
+    derriere la paire courante.
+
+    POURQUOI LES MONTRER. Le panneau ne disait qu'une chose a la fois :
+    l'apport en cours, sa cible et sa section. Or un calage sequentiel se lit
+    de l'amont vers l'aval, et ce qu'on veut voir pendant les heures qu'il
+    dure, c'est si la FAMILLE de courbes se tient — un debit qui grandit
+    section apres section, des formes qui se ressemblent. Une section calee
+    dont l'hydrogramme sort du lot se voit d'un coup d'oeil ; dans trois
+    jauges lues l'une apres l'autre, non.
+
+    SEULEMENT LES VALIDEES, ET SEULEMENT LA SECTION. Un apport en echec ou
+    encore en recherche n'a pas d'hydrogramme retenu — le montrer laisserait
+    croire a un resultat. Et l'on ne publie que la serie CALCULEE : les
+    cibles precedentes ne se comparent pas a la cible courante, elles
+    encombreraient le trace sans rien dire.
+
+    ALLEGEES DEUX FOIS. La serie est deja sous-echantillonnee a 180 points au
+    moment de l'essai ; on la ramene ici a 90, parce qu'elles sont N et que
+    l'etat est relu toutes les deux secondes. Le pic reste preserve — c'est
+    _alleger qui s'en charge.
+    """
+    if etat_trace is None:
+        return []
+    rendu = []
+    for etat in etats:
+        if etat is etat_trace:
+            break
+        if etat.statut != VALIDE or not etat.series:
+            continue
+        (_, _), (t_s, q_s) = etat.series
+        temps, debits = Suivi._alleger(t_s, q_s, points=points)
+        if len(temps) < 2:
+            continue
+        rendu.append({"apport": etat.nom_apport, "section": etat.nom_section,
+                      "temps": temps, "debit": debits})
+    return rendu
+
+
 def _courbes_publiees(etat):
     """
     Les deux courbes d'un apport, telles que l'ecran doit les tracer.
@@ -472,6 +513,11 @@ class Suivi:
             return None if valeur is None or np.isnan(valeur) else round(
                 float(valeur), 2)
 
+        # UNE SEULE FOIS : les courbes courantes et les precedentes se
+        # definissent l'une par rapport a l'autre — celles d'avant sont celles
+        # qui precedent CELLE-CI, pas celles qui precedent l'apport en cours.
+        _trace = _etat_a_tracer(self.etats, en_cours)
+
         return {
             "titre": self.titre,
             "pid": os.getpid(),
@@ -506,7 +552,11 @@ class Suivi:
             # trois jauges affichant 99,9 % : l'oeil concluait a un calage
             # faux la ou il etait juste. Le decalage accompagne les courbes
             # pour que la legende le nomme au lieu de le taire.
-            "courbes": _courbes_publiees(_etat_a_tracer(self.etats, en_cours)),
+            "courbes": _courbes_publiees(_trace),
+            # LES SECTIONS DEJA CALEES, derriere la paire courante. Voir
+            # _courbes_precedentes : c'est la famille de courbes qui se lit,
+            # pas la seule qui tourne.
+            "courbes_precedentes": _courbes_precedentes(self.etats, _trace),
             # En POURCENTAGE, comme tout le reste de l'etat : l'affichage ne
             # doit pas avoir a convertir, il finirait par le faire autrement
             # que la boucle.
@@ -727,7 +777,7 @@ class Suivi:
             "",
             f"**{comptes[VALIDE]} apport(s) validé(s) sur {n}**"
             + (f", {comptes[ECHOUE]} en échec" if comptes[ECHOUE] else "")
-            + (f", 1 en cours" if comptes[EN_COURS] else "")
+            + (", 1 en cours" if comptes[EN_COURS] else "")
             + f" — {100 * fraction:.0f} % achevé",
             "",
             f"- Temps écoulé : {duree(ecoule)}",
@@ -1453,6 +1503,53 @@ if __name__ == "__main__":
               and abs(_pic_cible - _pic_section) < 0.4 / 4,
               f"pic cible {_pic_cible:.2f} h, pic section {_pic_section:.2f} h, "
               f"pas {_pas:.3f} h (Δt annule = 0,40 h)")
+
+    # -----------------------------------------------------------------------
+    # LES SECTIONS DEJA CALEES SONT PUBLIEES A PART, pour se tracer derriere la
+    # paire courante. Ce qui compte ici : n'y mettre QUE des apports valides —
+    # un apport en echec ou en recherche n'a pas d'hydrogramme retenu, et le
+    # montrer laisserait croire a un resultat.
+    # -----------------------------------------------------------------------
+    _suivi_p = Suivi(sortie / "precedentes", ["A1", "A2", "A3"],
+                     ["S1", "S2", "S3"])
+    _series = (temps, hydrogramme(temps, 100.0),
+               temps, hydrogramme(temps, 96.0))
+    controler("aucune section calee tant que rien n'est valide",
+              _suivi_p.etat()["courbes_precedentes"] == [],
+              str(_suivi_p.etat()["courbes_precedentes"]))
+
+    _suivi_p.commencer_apport(0)
+    _suivi_p.enregistrer_essai(0, 1.0, 0.96, series=_series)
+    _suivi_p.valider_apport(0, diagnostiquer(temps, hydrogramme(temps, 100.0),
+                                             temps, hydrogramme(temps, 96.0)))
+    _suivi_p.commencer_apport(1)
+    _suivi_p.enregistrer_essai(1, 1.0, 0.99, series=_series)
+    _p = _suivi_p.etat()["courbes_precedentes"]
+    controler("l'apport valide precedent est publie, nomme par sa section",
+              len(_p) == 1 and _p[0]["section"] == "S1"
+              and _p[0]["apport"] == "A1", str([c["section"] for c in _p]))
+    controler("il porte une serie tracable",
+              len(_p[0]["temps"]) > 1
+              and len(_p[0]["temps"]) == len(_p[0]["debit"]),
+              f"{len(_p[0]['temps'])} point(s)")
+    controler("elle est allegee plus fort que la courbe courante",
+              len(_p[0]["temps"]) <= 91,
+              f"{len(_p[0]['temps'])} point(s) pour 90 demandes")
+    controler("l'apport EN COURS n'est pas dans les precedentes",
+              all(c["section"] != "S2" for c in _p),
+              str([c["section"] for c in _p]))
+
+    # UN APPORT EN ECHEC N'EST PAS UN RESULTAT. Il a des series — il a bien
+    # calcule — mais aucun hydrogramme retenu.
+    _suivi_e = Suivi(sortie / "echoue", ["A1", "A2"], ["S1", "S2"])
+    _suivi_e.commencer_apport(0)
+    _suivi_e.enregistrer_essai(0, 1.0, 0.5, series=_series)
+    _suivi_e.echouer_apport(0, "cible hors d'atteinte")
+    _suivi_e.commencer_apport(1)
+    _suivi_e.enregistrer_essai(1, 1.0, 0.99, series=_series)
+    controler("un apport en ECHEC ne figure pas parmi les sections calees",
+              _suivi_e.etat()["courbes_precedentes"] == [],
+              str(_suivi_e.etat()["courbes_precedentes"]))
     controler("seule la base de temps est decalee, jamais les debits",
               abs(max(_c["debit_cible"]) - 100.0) < 0.5,
               f"pic publie {max(_c['debit_cible']):.2f} m³/s, attendu 100")

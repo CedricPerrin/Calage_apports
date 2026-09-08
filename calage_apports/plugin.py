@@ -598,20 +598,33 @@ QPushButton#boutonAccent:hover {{
 /* --- Textes d'accompagnement -----------------------------------------
    Aucun fond n'est impose ailleurs qu'ici, et ceux-ci viennent de la
    palette : QGIS se decline en theme clair ET sombre, une couleur en dur
-   casserait le second. */
+   casserait le second.
+
+   ET LE ROLE COMPTE AUTANT QUE LA PALETTE. Ces fonds ont d'abord ete pris a
+   « alternate-base », qui est un gris tres clair dans le theme par defaut.
+   Sous « Night Mapping », le theme sombre de QGIS, il vaut #e9e7e3 —
+   c'est-a-dire QUASI BLANC : le fil conducteur, les comptes rendus, la
+   banniere de suivi et les en-tetes de tableau sortaient en plaques claires
+   au milieu d'une fenetre sombre, avec un texte gris dessus. Mesure du
+   08/09/2026 dans QGIS 3.44 en Night Mapping.
+     « base » est le role qui s'inverse VRAIMENT : c'est le fond des champs de
+   saisie — blanc en theme clair, #202020 ici. Il contraste donc avec la
+   fenetre dans les deux sens, ce qu'on attendait d'alternate-base.
+     Le meme piege vaut pour « midlight » (#dddddd en sombre), remplace par
+   « dark » pour les filets de tableau. */
 QLabel[role="aide"] {{
     color: {ISL_ARDOISE};
     font-size: 8pt;
     padding: 1px 0 3px 0;
 }}
 QLabel[role="etat"] {{
-    background-color: palette(alternate-base);
+    background-color: palette(base);
     border-left: 3px solid {ISL_ARDOISE};
     border-radius: 2px;
     padding: 7px 9px;
 }}
 QLabel#filConducteur {{
-    background-color: palette(alternate-base);
+    background-color: palette(base);
     border-radius: 3px;
     padding: 6px 10px;
 }}
@@ -633,7 +646,7 @@ QProgressBar {{
     height: 22px;
     text-align: center;
     font-weight: bold;
-    background-color: palette(alternate-base);
+    background-color: palette(base);
 }}
 QProgressBar::chunk {{
     background-color: {ISL_TEAL};
@@ -642,10 +655,10 @@ QProgressBar::chunk {{
 QTableWidget {{
     border: 1px solid palette(mid);
     border-radius: 3px;
-    gridline-color: palette(midlight);
+    gridline-color: palette(dark);
 }}
 QHeaderView::section {{
-    background-color: palette(alternate-base);
+    background-color: palette(base);
     color: {ISL_ARDOISE};
     font-weight: bold;
     border: none;
@@ -812,12 +825,35 @@ class JaugeAtteinte(QWidget):
         peintre.setPen(Qt.PenStyle.NoPen)
         # La piste doit se VOIR : sans elle, on ne lit qu'un trait rouge sans
         # savoir sur quelle etendue il se situe.
-        peintre.setBrush(QColor("#00000024"))
+        #
+        # ELLE NE SE VOYAIT PAS, ET CE N'ETAIT PAS LE THEME.
+        #
+        # QColor LIT « #AARRGGBB », PAS « #RRGGBBAA ». La piste etait ecrite
+        # QColor("#00000024") en croyant dire « noir a 14 % » : Qt y lit
+        # alpha=00 — TRANSPARENT. Elle n'a jamais ete dessinee, sur aucun
+        # theme, depuis qu'elle existe ; et le commentaire au-dessus dit
+        # pourtant qu'elle doit se voir. De meme, ISL_VERT + "33" donnait
+        # #3E7A5E33, soit alpha=3E sur un (7A,5E,33) KAKI, la ou l'on voulait
+        # un vert pale. Les deux se lisaient comme un choix graphique.
+        # Trouve le 08/09/2026 en regardant la fenetre dans QGIS.
+        #
+        # L'alpha se pose donc par setAlpha(), jamais par concatenation. Et
+        # tant qu'a la rendre visible, la piste demande son sens au fond REEL
+        # du widget : sur clair on assombrit, sur sombre on eclaircit.
+        from qgis.PyQt.QtGui import QPalette
+        sombre = (self.palette().color(QPalette.ColorRole.Window).lightness()
+                  < 128)
+        piste = QColor(255, 255, 255, 38) if sombre else QColor(0, 0, 0, 36)
+        peintre.setBrush(piste)
         peintre.drawRoundedRect(0, haut, self.width(), hauteur, 3, 3)
         centre = self.width() / 2.0
 
         demi = self.tolerance / etendue * (self.width() / 2.0)
-        peintre.setBrush(QColor(ISL_VERT + "33"))
+        # Sur fond sombre le vert translucide se noie : il lui faut le double
+        # d'opacite pour dire la meme chose.
+        bande = QColor(ISL_VERT)
+        bande.setAlpha(0x66 if sombre else 0x33)
+        peintre.setBrush(bande)
         peintre.drawRect(int(centre - demi), haut, int(2 * demi), hauteur)
 
         if self.valeur is not None:
@@ -877,10 +913,12 @@ class CourbeComparaison(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.courbes = None
+        self.precedentes = []
         self.setMinimumHeight(190)
 
-    def actualiser(self, courbes):
+    def actualiser(self, courbes, precedentes=None):
         self.courbes = courbes or None
+        self.precedentes = list(precedentes or [])
         self.update()
 
     def paintEvent(self, evenement):                        # noqa: N802
@@ -915,8 +953,14 @@ class CourbeComparaison(QWidget):
         gauche, droite, haut, bas = 46, 8, 8, 22
         largeur = max(self.width() - gauche - droite, 10)
         hauteur = max(self.height() - haut - bas, 10)
-        q_max = max(max(qc), max(qs)) or 1.0
-        t_min, t_max = _fenetre_crue(tc, qc, ts, qs, q_max)
+        # LES SECTIONS DEJA CALEES ENTRENT DANS L'ECHELLE, mais PAS dans la
+        # fenetre de crue : celle-ci se calcule sur la paire courante, qui est
+        # ce qu'on juge. Les couper a l'echelle les ecraserait ; les laisser
+        # commander la fenetre deplacerait le regard vers un apport clos.
+        deja = [c for c in self.precedentes if len(c.get("debit") or []) > 1]
+        q_max = max([max(qc), max(qs)]
+                    + [max(c["debit"]) for c in deja]) or 1.0
+        t_min, t_max = _fenetre_crue(tc, qc, ts, qs, max(max(qc), max(qs)) or 1.0)
         etendue_t = (t_max - t_min) or 1.0
 
         def point(t, q):
@@ -941,12 +985,22 @@ class CourbeComparaison(QWidget):
         peintre.drawText(gauche, haut + hauteur + 2, largeur, 14,
                          Qt.AlignmentFlag.AlignRight, f"{t_max:.0f} h")
 
+        # DERRIERE, ET CLIPPEES. Une section calee peut deborder la fenetre de
+        # crue courante : sans decoupe, sa polyligne irait ecrire par-dessus
+        # les graduations et la legende.
+        peintre.setClipRect(gauche, haut, largeur, hauteur)
+        for courbe in deja:
+            peintre.setPen(QPen(QColor(ISL_VERT), 1.2, Qt.PenStyle.DotLine))
+            peintre.drawPolyline(QPolygonF(
+                [point(t, q) for t, q in zip(courbe["temps"],
+                                             courbe["debit"])]))
         for temps, debits, couleur, style, epaisseur in (
                 (tc, qc, ISL_ARDOISE, Qt.PenStyle.DashLine, 1.6),
                 (ts, qs, ISL_TEAL, Qt.PenStyle.SolidLine, 2.0)):
             peintre.setPen(QPen(QColor(couleur), epaisseur, style))
             peintre.drawPolyline(QPolygonF(
                 [point(t, q) for t, q in zip(temps, debits)]))
+        peintre.setClipping(False)
 
         # Legende, en haut a droite : deux traits et deux mots, pas un cadre.
         # Le libelle de la cible DIT son decalage des qu'il n'est pas nul —
@@ -969,6 +1023,20 @@ class CourbeComparaison(QWidget):
         peintre.setPen(QColor(ISL_TEAL))
         peintre.drawText(x_mesure + 22, haut, 40, 14,
                          Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, "mesuré")
+        # La troisieme entree n'apparait QUE s'il y a quelque chose derriere :
+        # au premier apport, une legende annoncant des sections calees qui
+        # n'existent pas ferait chercher des courbes absentes.
+        if deja:
+            libelle_deja = (f"{len(deja)} section(s) calée(s)" if len(deja) > 1
+                            else "1 section calée")
+            largeur_deja = 24 + 6 * len(libelle_deja)
+            x_deja = x_cible - largeur_deja
+            peintre.setPen(QPen(QColor(ISL_VERT), 1.2, Qt.PenStyle.DotLine))
+            peintre.drawLine(x_deja, haut + 6, x_deja + 18, haut + 6)
+            peintre.setPen(QColor(ISL_VERT))
+            peintre.drawText(x_deja + 22, haut, largeur_deja - 22, 14,
+                             Qt.AlignmentFlag.AlignLeft
+                             | Qt.AlignmentFlag.AlignVCenter, libelle_deja)
         peintre.end()
 
 
@@ -1202,6 +1270,7 @@ de contrôle reproduise un hydrogramme cible.</p>
 <li><a href="#s8">Nommer les objets</a></li>
 <li><a href="#s9">Un apport créé part de zéro</a></li>
 <li><a href="#s10">Pièges à connaître</a></li>
+<li><a href="#s11">Ce que le calage laisse dans le modèle</a></li>
 </ul>
 
 <h3><a name="s1"></a>Première utilisation — ce qu'il faut installer</h3>
@@ -1264,12 +1333,19 @@ retenu couvre une <b>autre période</b> que le plan de référence.</li>
 la précision attendue sur le volume et sur le débit de pointe, puis le
 classeur — c'est dans sa feuille <i>Cibles</i> que se saisissent les
 hydrogrammes visés, une colonne par section.</li>
-<li><b>Onglet 3 — Résultats.</b> Dossier de résultats et dossier de suivi.</li>
+<li><b>Onglet 3 — Résultats.</b> Dossier de résultats et dossier de suivi,
+relecture d'un hydrogramme déjà calculé, et le <i>ménage du modèle</i> :
+une fois le calage livré, ses plans d'étape s'élaguent d'un bouton — voir
+<a href="#s11">Ce que le calage laisse dans le modèle</a>.</li>
 <li><b>Onglet 4 — Lancer.</b> Vérifier l'appariement et l'état des cibles,
 choisir le premier apport à caler, puis lancer. Le calage tourne en
 arrière-plan : QGIS reste utilisable.</li>
 <li><b>Onglet 5 — Suivi.</b> Où en est le calcul, apport par apport, rafraîchi
-tout seul. C'est là qu'on revient pendant les heures que dure un calage.</li>
+tout seul. C'est là qu'on revient pendant les heures que dure un calage. La
+courbe y porte la cible et la section de l'apport en cours, et <b>derrière,
+en vert pointillé, les sections déjà calées</b> : un calage séquentiel se lit
+de l'amont vers l'aval, et c'est la <i>famille</i> de courbes qui dit si tout
+se tient.</li>
 </ol>
 
 <h3><a name="s4"></a>Écrire dans la géométrie</h3>
@@ -1401,6 +1477,27 @@ absente pour l'autre, et la ligne n'apporte aucun débit.</li>
 <li>Les <b>calculs longs</b> ne tournent jamais dans QGIS : HEC-RAS et QGIS
 ne peuvent pas partager la même bibliothèque HDF5.</li>
 </ul>
+
+<h3><a name="s11"></a>Ce que le calage laisse dans le modèle</h3>
+<p>Un plan HEC-RAS par <b>étape</b>, et son Unsteady&nbsp;Flow :
+<tt>…_sans_apport</tt> d'abord — tous les apports à zéro —, puis
+<tt>…_Apport_A1</tt>, <tt>…_Apport_A2</tt>… et, à l'arrivée,
+<tt>…_avec_apports</tt>. Le préfixe de scénario les précède tous s'il est
+renseigné : <tt>Q100_sans_apport</tt>, <tt>Q100_avec_apports</tt>.</p>
+<p><b>Le plan final n'est pas un clone</b> : c'est le plan de la dernière
+étape, retitré. Il porte donc tous les apports calés <i>et</i> ses résultats
+de calcul — un clone n'emporterait pas son <tt>.hdf</tt> et serait muet dans
+RAS&nbsp;Mapper.</p>
+<p><b>Les étapes sont conservées</b>, et c'est voulu : elles documentent ce
+qui a été obtenu apport par apport, et permettent de reprendre une séquence
+interrompue sans repartir du premier. Le prix est le disque — un modèle à
+trente apports garde trente et un jeux de résultats.</p>
+<p>Une fois le calage livré, <i>Ménage du modèle HEC-RAS</i> (onglet 3) les
+retire. Il ne touche qu'aux plans d'étape du préfixe indiqué : le plan de
+référence, le plan final et tout plan qui n'est pas de la chaîne restent. La
+liste s'affiche avant, et rien ne part sans confirmation. <b>Si le calage n'a
+pas conclu</b> — aucun plan <tt>…_avec_apports</tt> —, l'élagage est refusé :
+ses étapes sont alors tout ce qu'il en reste.</p>
 
 <p><i>Hypothèses de validité, justification des tolérances et livrables :
 note méthodologique « methodologie_calage_amont_aval.docx », dans le dossier
@@ -2123,13 +2220,13 @@ class DialogueParametrage(QDialog):
             "Q100 — vide : pas de préfixe")
         self.edit_prefixe_scenario.setToolTip(
             "Préfixe posé devant le titre de chaque plan créé par le "
-            "calage : « Q100 » donne « Q100-sans apport », "
-            "« Q100-Apport_A1 » et, à l'arrivée, « Q100-avec apports ».\n\n"
+            "calage : « Q100 » donne « Q100_sans_apport », "
+            "« Q100_Apport_A1 » et, à l'arrivée, « Q100_avec_apports ».\n\n"
             "INDISPENSABLE si plusieurs scénarios sont calés sur le même "
             "modèle : sans lui, le calage du Q10 REMPLACE les plans du Q100, "
             "qui portent exactement les mêmes titres.\n\n"
-            "Le tiret est ajouté tout seul : « Q100 » et « Q100- » donnent "
-            "le même titre.\n\n"
+            "Le souligné est ajouté tout seul : « Q100 » et « Q100_ » "
+            "donnent le même titre.\n\n"
             "Titre complet limité à 30 caractères — le champ « Short "
             "Identifier », dont RAS Mapper fait le nom du dossier de "
             "résultats. Au-delà, la composition REFUSE plutôt que de "
@@ -2722,6 +2819,36 @@ class DialogueParametrage(QDialog):
             "injecté à une ligne d'apport."))
         v.addWidget(groupe_relire)
 
+        # LE MENAGE VIT ICI, PAS A L'ONGLET 1. L'onglet 1 prepare le modele
+        # AVANT le calage ; celui-ci parle de ce que le calage a PRODUIT, et
+        # l'elagage se decide une fois les livrables en main.
+        groupe_menage = QGroupBox("Ménage du modèle HEC-RAS")
+        fm = formulaire(groupe_menage)
+        fm.addRow(texte_aide(
+            "Le calage garde un plan par étape — « …_sans_apport », puis un "
+            "par apport — pour documenter ce qu'il a obtenu et pouvoir "
+            "reprendre une séquence interrompue. Une fois le calage livré, "
+            "ils ne servent plus qu'à occuper le disque : un modèle à trente "
+            "apports en garde trente et un jeux de résultats."))
+        bouton_elaguer = QPushButton("Élaguer les plans d'étape…")
+        bouton_elaguer.setToolTip(
+            "Retire les plans d'étape du calage désigné par le préfixe de "
+            "scénario (onglet 4), et eux seuls. Le plan de référence, le plan "
+            "final « …_avec_apports » et tout plan qui n'est pas de la chaîne "
+            "restent.\n\n"
+            "Rien n'est supprimé sans confirmation : la liste s'affiche "
+            "d'abord. Et si le calage n'a pas conclu — pas de plan final —, "
+            "l'élagage est refusé : ses étapes sont alors tout ce qu'il en "
+            "reste.")
+        bouton_elaguer.clicked.connect(self._elaguer_etapes)
+        ligne_elaguer = QHBoxLayout()
+        ligne_elaguer.addWidget(bouton_elaguer)
+        ligne_elaguer.addStretch(1)
+        fm.addRow(ligne_elaguer)
+        self.label_elagage = texte_etat()
+        fm.addRow(self.label_elagage)
+        v.addWidget(groupe_menage)
+
         groupe_resume = QGroupBox("Résumé de la configuration")
         v2 = QVBoxLayout(groupe_resume)
         self.texte_resume = QTextEdit()
@@ -2732,6 +2859,75 @@ class DialogueParametrage(QDialog):
         v.addWidget(groupe_resume, 1)
 
         return page
+
+    @avec_sablier
+    def _elaguer_etapes(self):
+        """
+        Retire les plans d'etape d'un calage abouti, apres confirmation.
+
+        DEUX APPELS, ET LE PREMIER NE TOUCHE A RIEN. Le pont rend d'abord la
+        LISTE de ce qui partirait ; on la montre, on demande, et le second
+        appel seul efface. Un compte rendu qui arrive apres coup n'aurait
+        aucune valeur ici : les resultats d'un plan efface ne se refont qu'en
+        relancant le calcul.
+
+        LE REFUS DU PONT EST UN DIAGNOSTIC, PAS UNE PANNE : « le calage n'a
+        pas conclu » veut dire que ses etapes sont tout ce qu'il en reste. On
+        l'affiche tel quel, sans boite d'erreur rouge.
+        """
+        try:
+            if not self.info_projet:
+                raise ValueError(
+                    "Onglet 1 : choisir d'abord le dossier du projet HEC-RAS.")
+            plan = self.combo_plan.currentData()
+            if plan is None:
+                raise ValueError("Onglet 1 : choisir un plan de référence.")
+            prefixe = self.edit_prefixe_scenario.text().strip()
+
+            simulation = noyau.elaguer_etapes(
+                self._dossier_projet(), self.info_projet["nom_projet"],
+                str(plan["numero"]), prefixe)
+            if simulation.get("refus"):
+                dire(self.label_elagage,
+                     f"<span style='color:{ISL_ARDOISE}'>"
+                     f"{simulation['refus']}</span>")
+                return
+            etapes = simulation.get("etapes") or []
+            if not etapes:
+                dire(self.label_elagage,
+                     f"Aucun plan d'étape à retirer pour "
+                     f"« {prefixe or '(sans préfixe)'} » — le modèle est déjà "
+                     f"net.")
+                return
+
+            with sans_sablier(self):
+                reponse = QMessageBox.question(
+                    self, "Élaguer les plans d'étape",
+                    f"{len(etapes)} plan(s) d'étape vont être supprimés du "
+                    f"modèle, AVEC leurs résultats de calcul :\n\n"
+                    f"    p{', p'.join(etapes)}\n\n"
+                    f"Le plan final « {simulation['final']} » et le plan de "
+                    f"référence sont conservés.\n\n"
+                    f"Cette suppression est DÉFINITIVE : un plan effacé ne se "
+                    f"refait qu'en relançant son calcul. Continuer ?",
+                    QMessageBox.StandardButton.Yes
+                    | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No)
+            if reponse != QMessageBox.StandardButton.Yes:
+                dire(self.label_elagage, "Élagage annulé — rien n'a été retiré.")
+                return
+
+            fait = noyau.elaguer_etapes(
+                self._dossier_projet(), self.info_projet["nom_projet"],
+                str(plan["numero"]), prefixe, executer=True)
+            retires = fait.get("supprimes") or []
+            dire(self.label_elagage,
+                 f"<span style='color:{ISL_VERT}'>{len(retires)} fichier(s) "
+                 f"d'objet retiré(s)</span> : {', '.join(retires)}. "
+                 f"Le plan « {fait['final']} » et ses résultats sont intacts.")
+        except Exception as e:
+            journaliser("Élagage des plans d'étape", e)
+            QMessageBox.critical(self, "Élagage", str(e))
 
     @avec_sablier
     def _relire_hydrogramme(self):
@@ -3324,7 +3520,7 @@ class DialogueParametrage(QDialog):
         tienne en theme clair comme en theme sombre.
         """
         self.label_suivi_banniere.setStyleSheet(
-            f"background-color: palette(alternate-base);"
+            f"background-color: palette(base);"
             f"border-left: 5px solid {couleur};"
             f"border-radius: 3px; padding: 12px 16px;")
         self.label_suivi_banniere.setText(
@@ -3419,7 +3615,7 @@ class DialogueParametrage(QDialog):
             self._banniere(couleur, titre, glyphe=glyphe, detail=detail)
             self.barre_suivi.setValue(0)
             self.ruban_apports.actualiser([], None)
-            self.courbe_suivi.actualiser(None)
+            self.courbe_suivi.actualiser(None, None)
             self.label_suivi_position.setText("—")
             self.table_suivi.setRowCount(0)
             for jauge in self.jauges.values():
@@ -3445,7 +3641,8 @@ class DialogueParametrage(QDialog):
         fraction = float(etat.get("fraction") or 0.0)
         self.barre_suivi.setValue(int(round(100 * fraction)))
         self.ruban_apports.actualiser(apports, en_cours)
-        self.courbe_suivi.actualiser(etat.get("courbes"))
+        self.courbe_suivi.actualiser(etat.get("courbes"),
+                                     etat.get("courbes_precedentes"))
 
         # BANNIERE : l'etat en un mot, et sa couleur avant meme la lecture.
         if etat.get("termine"):
@@ -4027,7 +4224,7 @@ class DialogueParametrage(QDialog):
         if not premier:
             dire(self.label_premier_apport,
                  "Tous les apports seront calés, à partir d'un calcul de "
-                 "référence « sans apport ».")
+                 "référence « sans_apport ».")
             return
         try:
             noms = [a for a, _ in noyau.apports_du_classeur(self.classeur)]
@@ -4041,7 +4238,7 @@ class DialogueParametrage(QDialog):
              f"retouchés : {', '.join(amont)}."
              if amont else
              "Premier apport de la liste : le calage part du calcul de "
-             "référence « sans apport », comme sans ce réglage.")
+             "référence « sans_apport », comme sans ce réglage.")
 
     def _appliquer_reglages_du_classeur(self, classeur):
         """
@@ -4512,7 +4709,11 @@ class DialogueParametrage(QDialog):
 
         axe = couche_vivante(
             self.combo_axe.currentLayer() if hasattr(self, "combo_axe") else None)
-        lignes.append(f"Axe hydraulique : {axe.name() if axe else '(non choisi)'}")
+        # MEME NOM QUE L'ENCADRE QUI LE PORTE (0.7.20) : l'onglet 1 dit
+        # « Profil en long », le resume disait « Axe hydraulique » — deux noms
+        # pour un seul objet, a deux ecrans d'intervalle.
+        lignes.append(
+            f"Profil en long (axe) : {axe.name() if axe else '(non choisi)'}")
 
         dossier_sortie = self.edit_dossier_sortie.text().strip()
         if dossier_sortie:

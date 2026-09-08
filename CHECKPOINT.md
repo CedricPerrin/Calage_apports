@@ -46,6 +46,17 @@ elle exige QGIS.
 | **Deux défauts du banc de plus**, même motif que les huit précédents — il suppose le monde de son auteur : le mannequin de `QMessageBox` ignorait quatre méthodes que seule la branche « pas d'interpréteur » appelle, et un appariement impossible était compté comme quatre échecs au lieu d'un diagnostic sur le modèle | `STATUT.txt` § 1 |
 | **L'interpréteur HEC-RAS posé par le bouton « Installer… »**, depuis QGIS, sur un poste qui n'en avait pas — le point ouvert depuis le 30/08 est levé | `STATUT.txt` § 1 |
 
+### La 0.7.20, dans la foulée
+
+| | |
+|---|---|
+| **Les titres d'étape passent au souligné** — `Q100_sans_apport`, `Q100_Apport_A1`, `Q100_avec_apports`. **Casse la reprise d'un calage antérieur** : ses étapes portent l'ancienne écriture et ne seront plus reconnues | `STATUT.txt` § 1 |
+| **Les plans d'étape s'élaguent, sur demande** — encadré « Ménage du modèle HEC-RAS » à l'onglet 3. Simulation d'abord, confirmation ensuite, et refus si le calage n'a pas conclu. Douze contrôles au banc | `STATUT.txt` § 1 |
+| **Le suivi montre les sections déjà calées**, en vert pointillé derrière la paire courante — seules les validées | `STATUT.txt` § 1 |
+| **Le thème sombre était cassé, et personne ne l'avait vu** : cinq fonds pris à `alternate-base` (quasi blanc sous Night Mapping), et la piste des jauges jamais dessinée — `QColor` lit `#AARRGGBB`, pas `#RRGGBBAA`. Trois défauts qu'aucun banc n'aurait pris : il a fallu **regarder** | `STATUT.txt` § 1 |
+| **Deux défauts du banc de plus** — le mannequin de `QMessageBox`, et un appariement impossible compté comme quatre échecs | `STATUT.txt` § 1 |
+| Banc du plugin : **118 contrôles sans modèle, 153 avec**, 0 échec | |
+
 ### Ce que la journée du 7 a donné
 
 | | |

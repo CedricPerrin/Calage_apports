@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.7.19
+version=0.7.20
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,35 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.7.19 — L'onglet 1 porte l'action qu'il prépare, et l'encadré sans geste descend dans l'aide.
+changelog=0.7.20 — Les titres de plan passent au souligné, les étapes s'élaguent sur demande, et le suivi montre les sections déjà calées.
+    LES TITRES D'ÉTAPE S'ÉCRIVENT D'UN SEUL TENANT (décision utilisateur) :
+    « Q100_sans_apport », « Q100_Apport_A1 », « Q100_avec_apports » — le
+    séparateur de préfixe suit. ATTENTION : la reprise d'un calage ANTÉRIEUR
+    ne reconnaîtra plus ses étapes, qui portent l'ancienne écriture
+    « Q100-sans apport » ; une relance y ouvrirait une seconde série à côté
+    de la première. Les calages livrés sont terminés, le cas ne se pose que
+    si l'on en rouvre un.
+    LES PLANS D'ÉTAPE S'ÉLAGUENT, SUR DEMANDE ET JAMAIS D'OFFICE. Un encadré
+    « Ménage du modèle HEC-RAS » à l'onglet 3 retire les plans d'étape d'un
+    calage abouti — eux seuls : le plan de référence, le plan final et tout
+    plan qui n'est pas de la chaîne restent. La liste s'affiche avant, rien
+    n'est supprimé sans confirmation, et si le calage n'a pas conclu — pas
+    de plan final — l'élagage est refusé : ses étapes sont alors tout ce
+    qu'il en reste. Motif : un modèle à trente apports garde trente et un
+    jeux de résultats, et cela se compte en dizaines de gigaoctets.
+    LE SUIVI MONTRE LES SECTIONS DÉJÀ CALÉES, en vert pointillé derrière la
+    paire courante. Un calage séquentiel se lit de l'amont vers l'aval : ce
+    qu'on veut voir pendant les heures qu'il dure, c'est si la famille de
+    courbes se tient. Seules les sections VALIDÉES y figurent.
+    LE THÈME SOMBRE DE QGIS EST RÉPARÉ. Sous « Night Mapping », le fil
+    conducteur, les comptes rendus, la bannière de suivi et les en-têtes de
+    tableau sortaient en plaques blanches : la feuille de style prenait son
+    fond à « alternate-base », qui y vaut #e9e7e3. Elle le prend désormais à
+    « base », le seul rôle qui s'inverse vraiment. Et les jauges d'atteinte
+    ne dessinaient PAS leur piste, sur aucun thème : QColor lit « #AARRGGBB »
+    et non « #RRGGBBAA », si bien que « #00000024 » valait alpha = 0 — la
+    bande de tolérance, elle, sortait kaki au lieu de vert pâle.
+    0.7.19 — L'onglet 1 porte l'action qu'il prépare, et l'encadré sans geste descend dans l'aide.
     « Écrire, composer et contrôler » vivait en bas de la fenêtre, permanent,
     visible depuis les six onglets — y compris ceux où il n'a rien à faire.
     Tout ce qu'il consomme est pourtant à l'onglet 1 : le plan, le profil en

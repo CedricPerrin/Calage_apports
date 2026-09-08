@@ -272,7 +272,7 @@ def figure_etapes():
     fig.subplots_adjust(top=0.72, bottom=0.02)
     ax.set_xlim(0, 12.6); ax.set_ylim(-0.2, 3.0); ax.axis("off")
 
-    etapes = [("« sans apport »", "tous à zéro"),
+    etapes = [("« sans_apport »", "tous à zéro"),
               ("« Apport_A1 »", "A1 calé"),
               ("« Apport_A2 »", "A1–A2 calés"),
               ("« Apport_A3 »", "A1–A3 calés")]

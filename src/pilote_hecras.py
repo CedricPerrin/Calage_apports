@@ -32,7 +32,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from calage import Modele, ResultatCalcul
+from calage import (ETAPE_AVEC_APPORTS, ETAPE_SANS_APPORT, Modele,
+                    PREFIXE_ETAPE_APPORT, ResultatCalcul, titre_etape)
 
 # Les mois d'un plan HEC-RAS sont ecrits en anglais, sur trois lettres
 # majuscules. Une date construite avec les mois de la machine — « OCT » en
@@ -1477,10 +1478,10 @@ class PiloteHecRas(Modele):
 
         POURQUOI UN JEU DE FICHIERS PAR ETAPE. La chaine calait tout dans un
         plan unique, reecrit a chaque essai, et le menage final n'en gardait
-        qu'un. Il ne restait donc aucune trace de l'etat « sans apport », ni de
+        qu'un. Il ne restait donc aucune trace de l'etat « sans_apport », ni de
         ce qu'avait donne chaque apport une fois cale : un calage interrompu
         sur le troisieme apport obligeait a tout reprendre depuis le premier.
-        Avec une etape par apport, le projet garde « sans apport », puis
+        Avec une etape par apport, le projet garde « sans_apport », puis
         « Apport_A1 », « Apport_A2 »... et l'on peut repartir de n'importe
         lequel — c'est ce que fait le parametre « Premier_apport ».
 
@@ -1578,7 +1579,7 @@ class PiloteHecRas(Modele):
         final : la verification globale vient de le relire section par
         section sans lancer un seul calcul (voir calage.caler). Un clone
         n'emporterait pas le .pXX.hdf — RasPlan.clone_plan copie le .pXX
-        seul — et le plan « avec apports » serait muet dans RAS Mapper a cote
+        seul — et le plan « avec_apports » serait muet dans RAS Mapper a cote
         d'un « Apport_<dernier> » qui, lui, a les resultats. Recopier le .hdf
         doublerait des centaines de Mo pour deux plans decrivant LE MEME
         calcul ; recalculer couterait des heures pour refaire a l'identique
@@ -1592,7 +1593,7 @@ class PiloteHecRas(Modele):
 
         Un etat final homonyme laisse par un calage precedent du meme
         scenario est remplace, exactement comme une etape : deux
-        « Q100-avec apports » ne diraient plus lequel fait foi.
+        « Q100_avec_apports » ne diraient plus lequel fait foi.
         """
         if self.plan_travail is None or self.fichier_unsteady is None:
             raise RuntimeError(
@@ -1916,6 +1917,95 @@ class PiloteHecRas(Modele):
                 pass
         return rendu
 
+    def elaguer_etapes(self, prefixe="", simuler=True):
+        """
+        Retire les plans d'ETAPE d'un calage abouti — et rien d'autre.
+
+        SUR DEMANDE, JAMAIS D'OFFICE (decision utilisateur du 08/09/2026). La
+        chaine CONSERVE ses etapes : c'est ce qui documente le calage apport
+        par apport et permet de reprendre une sequence interrompue sans
+        repartir du premier (voir jalonner et nettoyer_reliquats). Mais une
+        fois le calage fini et livre, ces plans ne servent plus qu'a occuper
+        le disque — un modele a trente apports en garde trente et un jeux de
+        resultats, et cela se compte en dizaines de gigaoctets. On offre donc
+        de les retirer APRES COUP, a celui qui sait que le calage est clos.
+
+        TROIS GARDE-FOUS, ET LE PREMIER EST LE PLUS IMPORTANT :
+
+          - RIEN SANS PLAN FINAL. Si aucun plan ne porte
+            « <prefixe>_avec_apports », le calage n'a pas conclu : ses etapes
+            sont alors tout ce qui existe, et les retirer effacerait le
+            calage lui-meme. On refuse, et on le dit.
+          - LE PLAN DE REFERENCE ET LE PLAN COURANT SONT INTOUCHABLES, comme
+            partout ailleurs dans cette classe.
+          - ON NE RECONNAIT QUE NOS PROPRES TITRES. Un plan dont le titre
+            n'est ni « <prefixe>_sans_apport » ni « <prefixe>_Apport_… »
+            appartient a l'utilisateur et reste, quel qu'il soit.
+
+        LE MENAGE DES DERIVES EST PLUS ETROIT QUE CELUI DE
+        _remplacer_homonymes : on ne balaie pas tous les unsteady orphelins du
+        projet, mais SEULEMENT ceux que les plans retires designaient. Un
+        unsteady que l'utilisateur garde de cote sans plan qui l'emploie n'a
+        rien a voir avec ce calage, et un outil de menage n'a pas a en
+        decider.
+
+        simuler : ne rien supprimer, rendre seulement ce qui partirait. C'est
+            le DEFAUT : cette methode efface des resultats de calcul, et
+            l'appelant doit avoir vu la liste avant de la confirmer.
+
+        Rend {"final", "etapes", "supprimes", "simule"} ou, en cas de refus,
+        {"refus", "etapes", "supprimes"}.
+        """
+        final = titre_etape(ETAPE_AVEC_APPORTS, prefixe)
+        depart = titre_etape(ETAPE_SANS_APPORT, prefixe)
+        marque = titre_etape(PREFIXE_ETAPE_APPORT, prefixe)
+
+        titres = {}
+        for chemin in sorted(
+                self.dossier.glob(f"{self.nom_projet}.p[0-9][0-9]")):
+            titres[chemin.suffix[2:]] = self._titre(chemin, "Plan Title") or ""
+
+        if final not in titres.values():
+            return {"refus": (f"aucun plan « {final} » dans ce projet : le "
+                              f"calage n'a pas conclu, et ses etapes sont "
+                              f"tout ce qu'il en reste. Rien n'est retire."),
+                    "etapes": [], "supprimes": []}
+
+        courant = (str(self.plan_travail).zfill(2)
+                   if self.plan_travail is not None else None)
+        a_retirer = sorted(
+            numero for numero, titre in titres.items()
+            if (titre == depart or titre.startswith(marque))
+            and numero != self.plan_reference and numero != courant)
+
+        # Ce que ces plans designent, RELEVE AVANT de les effacer : apres, le
+        # fichier n'est plus la pour le dire.
+        designes = set()
+        for numero in a_retirer:
+            texte = _lire_texte(self.dossier / f"{self.nom_projet}.p{numero}")
+            for cle, lettre in (("Flow File", "u"), ("Geom File", "g")):
+                trouve = re.search(rf"^{cle}={lettre}(\w+)", texte, re.M)
+                if trouve:
+                    designes.add(f"{lettre}{trouve.group(1)}")
+
+        if simuler:
+            return {"final": final, "etapes": a_retirer, "supprimes": [],
+                    "simule": True}
+
+        supprimes = []
+        for numero in a_retirer:
+            self._effacer_objet(f"p{numero}")
+            supprimes.append(f"p{numero}")
+        for objet in sorted(designes):
+            lettre, numero = objet[0], objet[1:]
+            cle = "Flow File" if lettre == "u" else "Geom File"
+            if not self._utilise_par_un_plan(cle, lettre, numero):
+                self._effacer_objet(objet)
+                supprimes.append(objet)
+        self._nettoyer_prj()
+        return {"final": final, "etapes": a_retirer, "supprimes": supprimes,
+                "simule": False}
+
     def _effacer_objet(self, objet):
         """
         Efface un plan, un unsteady ou une geometrie, et TOUS ses derives.
@@ -2005,7 +2095,7 @@ class PiloteHecRas(Modele):
                     # l'interface HEC-RAS l'ecrit sur 64, cette chaine sur 24,
                     # ras-commander sans bourrage (17, 22) — et les trois
                     # s'ouvrent. LE BOURRAGE A 24 RESTE QUAND MEME :
-                    # « sans apport ».ljust(24) rend octet pour octet la ligne
+                    # « sans_apport ».ljust(24) rend octet pour octet la ligne
                     # des 34 plans que la chaine a deja ecrits.
                     valeur = nom.ljust(24) if "Short" in cle else nom
                     lignes[i] = f"{cle}{valeur}{fin}"
@@ -3111,14 +3201,14 @@ if __name__ == "__main__":
     _p = _pilote_menage()
     _p.fichier_unsteady = _bac / f"{_NOM}.u11"
     _p.etapes = ["Q100-Apport_A1"]
-    _rendu = _p.conclure("Q100-avec apports")
+    _rendu = _p.conclure("Q100_avec_apports")
     _p11 = (_bac / f"{_NOM}.p11").read_text(encoding="utf-8")
     _verifier("plan final : le plan de la derniere etape porte le titre final",
-              "Plan Title=Q100-avec apports" in _p11, _rendu)
+              "Plan Title=Q100_avec_apports" in _p11, _rendu)
     _verifier("plan final : le Short Identifier suit",
-              "Short Identifier=Q100-avec apports" in _p11)
+              "Short Identifier=Q100_avec_apports" in _p11)
     _verifier("plan final : l'unsteady du plan courant suit",
-              "Flow Title=Q100-avec apports"
+              "Flow Title=Q100_avec_apports"
               in (_bac / f"{_NOM}.u11").read_text(encoding="utf-8"))
     _verifier("plan final : ses resultats sont conserves (aucun clone)",
               (_bac / f"{_NOM}.p11.hdf").is_file())
@@ -3127,11 +3217,11 @@ if __name__ == "__main__":
               str(sorted(p.name
                          for p in _bac.glob(f"{_NOM}.p[0-9][0-9]"))))
     _verifier("plan final : l'etape courante est rebaptisee, pas ajoutee",
-              _p.etapes == ["Q100-avec apports"], str(_p.etapes))
+              _p.etapes == ["Q100_avec_apports"], str(_p.etapes))
     _verifier("plan final : conclure() avant preparer() est refuse",
               _leve(RuntimeError,
                     PiloteHecRas(_bac, _NOM, plan_reference="01").conclure,
-                    "Q100-avec apports"))
+                    "Q100_avec_apports"))
 
     # 7. LA TRONCATURE SILENCIEUSE DU SHORT IDENTIFIER EST PARTIE. C'est elle
     #    qui fabriquait le doublon : un plan de reprise du depot porte encore
@@ -3139,31 +3229,108 @@ if __name__ == "__main__":
     _batir_projet()
     _p = _pilote_menage()
     _p.fichier_unsteady = _bac / f"{_NOM}.u11"
-    _long = "Riviere1-Q100-avec apports"                # 26 caracteres
+    _long = "Riviere1-Q100_avec_apports"                # 26 caracteres
     _p.conclure(_long)
     _verifier("short id : un titre de 26 caracteres est ecrit ENTIER",
               f"Short Identifier={_long}\n"
               in (_bac / f"{_NOM}.p11").read_text(encoding="utf-8"))
     # RETROCOMPATIBILITE, OCTET POUR OCTET : le bourrage a 24 reste, et rend la
     # ligne exacte des 34 plans deja ecrits par la chaine dans 01-cas_test.
-    _p.conclure("sans apport")
+    _p.conclure("sans_apport")
     _verifier("short id : un titre court reste complete a 24, octet pour octet",
-              "Short Identifier=" + "sans apport".ljust(24) + "\n"
+              "Short Identifier=" + "sans_apport".ljust(24) + "\n"
               in (_bac / f"{_NOM}.p11").read_text(encoding="utf-8"))
 
     # 8. UN ETAT FINAL HOMONYME D'UN CALAGE PRECEDENT EST REMPLACE, comme une
-    #    etape : deux « Q100-avec apports » ne diraient plus lequel fait foi.
+    #    etape : deux « Q100_avec_apports » ne diraient plus lequel fait foi.
     _batir_projet()
     (_bac / f"{_NOM}.p10").write_text(
-        "Plan Title=Q100-avec apports\n"
-        "Short Identifier=Q100-avec apports\n"
+        "Plan Title=Q100_avec_apports\n"
+        "Short Identifier=Q100_avec_apports\n"
         "Geom File=g10\nFlow File=u10\n", encoding="utf-8")
     _p = _pilote_menage()
     _p.fichier_unsteady = _bac / f"{_NOM}.u11"
-    _rendu = _p.conclure("Q100-avec apports")
+    _rendu = _p.conclure("Q100_avec_apports")
     _verifier("plan final : l'etat final d'un calage precedent est remplace",
               not (_bac / f"{_NOM}.p10").exists()
               and (_bac / f"{_NOM}.p11").exists(), _rendu)
+
+    # 9. ELAGAGE DES ETAPES, SUR DEMANDE. La chaine les conserve ; cette
+    #    methode-ci les retire APRES COUP, et seulement si le calage a
+    #    conclu. C'est la seule suppression de plan que l'utilisateur puisse
+    #    demander, et elle ne doit emporter que ce qui lui appartient.
+    def _titrer(numero, titre, geom, flot):
+        (_bac / f"{_NOM}.p{numero}").write_text(
+            f"Plan Title={titre}\nShort Identifier={titre}\n"
+            f"Geom File={geom}\nFlow File={flot}\n", encoding="utf-8")
+
+    _batir_projet()
+    _titrer("10", "Q100_sans_apport", "g10", "u10")
+    _titrer("02", "Q100_Apport_A1", "g10", "u02")
+    _titrer("11", "Q100_avec_apports", "g11", "u11")
+    _p = _pilote_menage()
+    _p.plan_travail = None          # le calage est fini : plus de plan courant
+
+    _avant = _objets()
+    _simule = _p.elaguer_etapes("Q100", simuler=True)
+    _verifier("elagage : la simulation annonce les deux etapes",
+              _simule["etapes"] == ["02", "10"], str(_simule))
+    _verifier("elagage : la simulation ne retire RIEN",
+              _objets() == _avant,
+              f"{sorted(_avant - _objets())} manquant(s)")
+
+    _fait = _p.elaguer_etapes("Q100", simuler=False)
+    _verifier("elagage : les plans d'etape sont partis",
+              not (_bac / f"{_NOM}.p10").exists()
+              and not (_bac / f"{_NOM}.p02").exists(), str(_fait))
+    _verifier("elagage : le plan final est intact, AVEC ses resultats",
+              (_bac / f"{_NOM}.p11").exists()
+              and (_bac / f"{_NOM}.p11.hdf").exists())
+    _verifier("elagage : le plan de reference n'est pas touche",
+              (_bac / f"{_NOM}.p01").exists())
+    _verifier("elagage : les derives des plans retires partent avec eux",
+              not (_bac / f"{_NOM}.p10.hdf").exists()
+              and not (_bac / "_compute_p10.log").exists())
+    _verifier("elagage : l'unsteady que seul un plan retire designait part",
+              not (_bac / f"{_NOM}.u02").exists(), str(_fait["supprimes"]))
+    _verifier("elagage : le .prj ne declare plus les plans retires",
+              "Plan File=p10" not in (_bac / f"{_NOM}.prj").read_text(
+                  encoding="utf-8"))
+
+    # LE GARDE-FOU QUI COMPTE : sans plan final, les etapes sont TOUT ce qui
+    # reste du calage. Les retirer l'effacerait.
+    _batir_projet()
+    _titrer("10", "Q100_sans_apport", "g10", "u10")
+    _titrer("11", "Q100_Apport_A1", "g11", "u11")
+    _p = _pilote_menage()
+    _p.plan_travail = None
+    _avant = _objets()
+    _refus = _p.elaguer_etapes("Q100", simuler=False)
+    _verifier("elagage : sans plan final, on REFUSE et l'on dit pourquoi",
+              "refus" in _refus and "n'a pas conclu" in _refus["refus"],
+              str(_refus)[:90])
+    _verifier("elagage : le refus ne retire rien",
+              _objets() == _avant,
+              f"{sorted(_avant - _objets())} manquant(s)")
+
+    # UN PLAN QUI N'EST PAS DE NOUS RESTE, quel que soit son titre.
+    _batir_projet()
+    _titrer("10", "Q100_sans_apport", "g10", "u10")
+    _titrer("11", "Q100_avec_apports", "g11", "u11")
+    _p = _pilote_menage()
+    _p.plan_travail = None
+    _p.elaguer_etapes("Q100", simuler=False)
+    _verifier("elagage : le plan « Q100 copy » de l'utilisateur reste",
+              (_bac / f"{_NOM}.p02").exists())
+    # ET LE PREFIXE ISOLE LES SERIES : elaguer le Q10 ne touche pas au Q100.
+    _batir_projet()
+    _titrer("10", "Q100_sans_apport", "g10", "u10")
+    _titrer("11", "Q10_avec_apports", "g11", "u11")
+    _p = _pilote_menage()
+    _p.plan_travail = None
+    _p.elaguer_etapes("Q10", simuler=False)
+    _verifier("elagage : le prefixe isole les series — le Q100 est intact",
+              (_bac / f"{_NOM}.p10").exists())
 
     _verifier("detection de HEC-RAS ouvert : repond sans lever",
               hecras_ouvert() in (True, False, None), str(hecras_ouvert()))

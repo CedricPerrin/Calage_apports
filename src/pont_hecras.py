@@ -1142,6 +1142,29 @@ def commande_controler_modele(args):
                     conforme=not erreurs)
 
 
+def commande_elaguer_etapes(args):
+    """
+    Retire les plans d'etape d'un calage abouti — sur demande, et apres coup.
+
+    SIMULATION PAR DEFAUT : sans --executer, rien n'est efface et l'on rend
+    seulement la liste de ce qui partirait. C'est ce que la fenetre affiche
+    avant de demander confirmation ; le second appel, lui, porte --executer.
+
+    Le refus (« le calage n'a pas conclu ») remonte tel quel dans la reponse :
+    c'est un diagnostic sur le projet, pas une panne du pont.
+    """
+    from pilote_hecras import PiloteHecRas
+
+    pilote = PiloteHecRas(args.dossier, args.projet,
+                          plan_reference=args.plan_reference)
+    # Le calage est termine : il n'y a plus de plan courant a proteger, et le
+    # plan final se reconnait a son titre, pas a un numero.
+    pilote.plan_travail = None
+    rendu = pilote.elaguer_etapes(args.prefixe or "",
+                                  simuler=not args.executer)
+    return repondre(ok=True, **rendu)
+
+
 def commande_sections(args):
     """
     Cree des reference lines dans la geometrie, depuis un shapefile.
@@ -1682,7 +1705,7 @@ def commande_caler(args):
         except Exception as e:
             print(f"AVERTISSEMENT : rapport final non produit : {e}", flush=True)
 
-    # MENAGE. LES PLANS D'ETAPE SONT CONSERVES — « sans apport », puis un par
+    # MENAGE. LES PLANS D'ETAPE SONT CONSERVES — « sans_apport », puis un par
     # apport : ils documentent le calage et permettent de le reprendre sans
     # repartir du premier apport. Ne partent que les traces de preparation, et
     # seulement si le calage a abouti : tant qu'il n'a pas abouti, les
@@ -1767,6 +1790,18 @@ def construire_analyseur():
     a.add_argument("--geometrie", default=None,
                    help="geometrie HDF ; deduite du template si omise")
     a.set_defaults(fonction=commande_controler_modele)
+
+    a = sous.add_parser("elaguer-etapes",
+                        help="retire les plans d'etape d'un calage abouti")
+    a.add_argument("--dossier", required=True)
+    a.add_argument("--projet", required=True)
+    a.add_argument("--plan-reference", required=True, dest="plan_reference")
+    a.add_argument("--prefixe", default="",
+                   help="prefixe de scenario du calage a elaguer")
+    a.add_argument("--executer", action="store_true",
+                   help="sans lui, rien n'est efface : on ne rend que la "
+                        "liste de ce qui partirait")
+    a.set_defaults(fonction=commande_elaguer_etapes)
 
     a = sous.add_parser("sections", help="cree des reference lines")
     a.add_argument("--geometrie", required=True)

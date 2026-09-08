@@ -156,7 +156,7 @@ COMMENTAIRES = {
         "Sous-dossier des sorties de suivi, reecrites a chaque apport valide.",
     "Nom_clone_geometrie": "Titre donne a la copie de travail de la geometrie. "
                            "Le plan et l'Unsteady Flow, eux, sont titres par "
-                           "etape : « sans apport », puis « Apport_<nom> ».",
+                           "etape : « sans_apport », puis « Apport_<nom> ».",
 }
 
 
