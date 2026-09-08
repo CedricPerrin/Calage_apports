@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Contenu de la note methodologique V16.
+Contenu de la note methodologique V17.
 
 COUPE FRANCHE (decision utilisateur 30/08/2026) : ~40 % de mots en moins par
 RETRAIT de contenu, pas par reformulation. Ce qui est retire du corps :
@@ -17,16 +17,19 @@ caption code note.
 
 CONTENU = [
     ("title", "Calage d'apports amont sur des hydrogrammes cibles en aval"),
-    ("sous_titre", "Note méthodologique — Version 16"),
+    ("sous_titre", "Note méthodologique — Version 17"),
     ("p", "Détermine, pour un cours d'eau modélisé en 2D comportant plusieurs "
           "apports successifs, les débits à injecter en chaque point d'apport "
           "pour que le modèle restitue à chaque section de contrôle aval un "
           "hydrogramme cible imposé."),
-    ("note", "Version 16 (8 septembre 2026) — deux réponses d'hydraulicien "
+    ("note", "Version 17 (8 septembre 2026) — deux réponses d'hydraulicien "
              "y entrent : l'absence de boucle hydraulique est une HYPOTHÈSE "
              "DU MODÈLE que la chaîne ne vérifie pas (§ 1.2), et le verdict "
              "de volume porte sur la fenêtre de l'événement, pas sur la crue "
-             "entière (§ 1.4). Depuis la V15, les justifications historiques "
+             "entière (§ 1.4) ; et le chapitre du plugin suit une interface "
+             "qui a bougé le même jour — l'action est passée à l'onglet 4, "
+             "les plans d'étape s'élaguent sur demande, le suivi montre les "
+             "sections déjà calées. Depuis la V15, les justifications historiques "
              "(essais, mesures, approches écartées) sont regroupées en "
              "annexe B ; le corps n'énonce que la règle en vigueur. Six "
              "figures remplacent les développements qu'elles disent mieux."),

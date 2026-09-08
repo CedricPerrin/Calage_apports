@@ -2363,7 +2363,15 @@ A FAIRE, PAR ORDRE DE PRIORITE
   classeur d'iterations, la version de ras-commander, et la moitie du
   bornement a la fenetre. Un point ouvert ne se perime pas tout seul : il
   reste ecrit tel qu'il a ete pose, et le code, lui, avance.
-  - LA NOTE EST EN V16 (08/09/2026) — LE .DOCX SEULEMENT. contenu.py porte
+  - LA NOTE EST EN V17 (08/09/2026) — LE .DOCX SEULEMENT. La V16 avait ete
+    reconstruite le matin, AVANT les 0.7.20 et 0.7.21 : son chapitre du
+    plugin decrivait deja une interface perimee de trois heures. La V17 la
+    rattrape — action a l'onglet 4, elagage des etapes, sections calees au
+    suivi — et compte 9 173 mots.
+      LA LECON, POUR LA PROCHAINE FOIS : le .docx se reconstruit en dix
+    secondes et sans Word (construire_docx.py). Il n'y a donc aucune raison
+    de le laisser derriere contenu.py — c'est le .pdf, lui, qui coute.
+  - CE QUE LA V16 AVAIT DEJA APPORTE : contenu.py porte
     les deux decisions du jour — § 1.2 « Hypotheses de validite » et « Trois
     questions bloquantes » disent que l'absence de boucle est une HYPOTHESE DU
     MODELE que la chaine ne verifie pas ; § 1.4 dit que le verdict porte sur
