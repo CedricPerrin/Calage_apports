@@ -30,10 +30,20 @@ CE QUI EST EPROUVE
   - test_plugin_qgis.py sous le Python de QGIS. 172 CONTROLES, 0 ECHEC,
     0 IGNORE, LE 06/09 — sur un POSTE NEUF, avec un modele et un interpreteur
     HEC-RAS. Historique : 149 le 01/09, 152 le 03/09.
-    LE 08/09 : 113 CONTROLES, 0 ECHEC, sur un poste SANS interpreteur HEC-RAS
-    — tout ce qui touche au modele est ignore, y compris le chargement des
-    couches, qui passe par le pont. Les sept controles neufs de la 0.7.19
-    sont verts.
+    LE 08/09 : 153 CONTROLES, 0 ECHEC, 6 IGNORES — sur un modele REEL
+    (Ardanavy, copie reduite a un plan, une geometrie, un unsteady : 113 Mo
+    au lieu de 60 Go). Les sept controles neufs de la 0.7.19 sont verts.
+    L'interpreteur HEC-RAS a ete pose par le bouton « Installer… » du plugin,
+    depuis QGIS, sur un poste qui n'en avait pas : il s'est range dans
+    %LOCALAPPDATA%\calage_apports\venv-hecras, et non a cote de la chaine
+    externe comme emplacement_venv_hecras() le proposait.
+      SANS interpreteur, le meme banc rend 113 verts : tout ce qui touche au
+    modele est ignore, y compris le chargement des couches, qui passe par le
+    pont.
+      CE QUI RESTE NON EXERCE, ET POURQUOI : les 4 controles de COMPOSITION
+    (ecriture dans la geometrie, boite de compte rendu, paquet ecrit,
+    sous-dossiers). Ils demandent un modele que ce poste n'a plus — voir le
+    point « refabriquer le jeu d'essai » en § 6.
     HUITIEME DEFAUT DU BANC, ET LE MEME MOTIF QUE LES SEPT AUTRES. Il
     s'arretait sur AttributeError apres ces 113 controles :
     BoiteMessage — le mannequin de QMessageBox — ne connaissait pas
@@ -2330,6 +2340,30 @@ A FAIRE, PAR ORDRE DE PRIORITE
       methode en vigueur, l'annexe B.3 reste aux incidents cote MODELE
       (bilan de masse, blocs orphelins). L'historique des defauts de la chaine
       vit dans ce fichier et dans git.
+  - REFABRIQUER LE JEU D'ESSAI DU BANC. Les 4 controles de composition ne se
+    jouent que sur un modele qui porte des LIGNES D'INJECTION ET AUCUNE LIGNE
+    DE REFERENCE : le banc pose alors lui-meme une section par apport, en
+    aval de chacune, et l'appariement est 1:1 par construction. C'est ce
+    qu'etait le plan TEST de Muncie augmente de ses BC Line, avec lequel les
+    172 controles du 06/09 ont ete obtenus — il n'est plus sur le poste.
+      POURQUOI UN MODELE REEL NE PEUT PAS LE REMPLACER : le banc fabrique son
+    axe en enfilant les centroides des injections TRIES PAR LATITUDE. Sur une
+    vraie riviere ce n'est pas le fil de l'eau ; les PK n'ont plus de sens,
+    deux sections tombent derriere la meme injection, et le plugin refuse — a
+    juste titre. Mesure le 08/09 sur deux modeles : « ARD08 » pour ARD08 et
+    ARD07, « SUH03 » pour SUH02 et SUH01.
+      ET RETIRER LES SECTIONS D'UN MODELE REEL NE MARCHE PAS : le chargement
+    des couches lit le .hdf PRETRAITE, pas le fichier texte. Un .g02 prive de
+    ses six blocs « Reference Line » (essai du 08/09, sans dommage pour aucun
+    autre bloc) donne toujours six sections a l'ecran ; et sans le .hdf, le
+    chargement echoue tout court. LE TEXTE FAIT FOI POUR CE QU'ON VIENT D'Y
+    ECRIRE, PAS POUR CE QU'ON EN RETIRE — l'aide dit le premier, elle ne dit
+    pas le second.
+      LA RECETTE, DONC : partir d'un Muncie (ou de tout modele 2D leger), y
+    ajouter deux BC Line et deux Reference Line — la seconde EN AVAL de la
+    premiere —, PRETRAITER sous HEC-RAS, calculer un plan. Trois gestes dans
+    HEC-RAS, et le banc retrouve ses 4 controles. A ranger quelque part de
+    stable, cette fois : celui du 06/09 a disparu avec le poste.
   - REGARDER LES FENETRES ETROITES. Le defaut du bouton coupe (§ 1) n'etait
     qu'un cas : la zone defilante de chaque onglet comprime son contenu au
     lieu de faire apparaitre une barre, et c'est le DERNIER encadre qui

@@ -42,7 +42,9 @@ elle exige QGIS.
 | **La note passe en V16** — `contenu.py` § 1.2, § 1.4 et le chapitre du plugin ; `.docx` reconstruit, 8 911 mots. **Le `.pdf` reste en V15** : Word se fige dans son export sur ce poste, et pas à cause du document — la note d'avant, sortie de git, se fige pareil | `STATUT.txt` § 6 |
 | **Les six captures sont refaites, et par un script** — `src/captures_plugin.py`, avec un projet de démonstration et les chemins du poste mis en scène | `STATUT.txt` § 1 |
 | **Deux défauts d'affichage trouvés PAR les captures** — le libellé du bouton coupé à mi-hauteur dans une fenêtre trop courte, et une phrase à deux lignes dont la seconde sortait rognée. Le banc ne les voit pas : il n'éprouve pas l'apparence | `STATUT.txt` § 1 |
-| Six contrôles de plus au banc du plugin, non rejoués (ils exigent QGIS) | |
+| **Le banc du plugin rejoué : 153 contrôles, 0 échec**, sur une copie réduite d'un modèle réel (113 Mo au lieu de 60 Go). Sept contrôles neufs pour la 0.7.19, plus trois pour la branche « poste neuf » du diagnostic | `STATUT.txt` § 1 |
+| **Deux défauts du banc de plus**, même motif que les huit précédents — il suppose le monde de son auteur : le mannequin de `QMessageBox` ignorait quatre méthodes que seule la branche « pas d'interpréteur » appelle, et un appariement impossible était compté comme quatre échecs au lieu d'un diagnostic sur le modèle | `STATUT.txt` § 1 |
+| **L'interpréteur HEC-RAS posé par le bouton « Installer… »**, depuis QGIS, sur un poste qui n'en avait pas — le point ouvert depuis le 30/08 est levé | `STATUT.txt` § 1 |
 
 ### Ce que la journée du 7 a donné
 

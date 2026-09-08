@@ -579,20 +579,56 @@ else:
     dlg.edit_dossier_sortie.setText(str(ESSAI))
 
     dlg._composer_et_controler()
-    verifier("aucune erreur remontee", not BoiteMessage.critiques,
-             BoiteMessage.critiques[0][:90] if BoiteMessage.critiques else "")
-    # Le rapport porte le tableau des PK, plusieurs dizaines de lignes larges :
-    # la fenetre qui le presente doit pouvoir s'agrandir.
-    _rapport_compo = getattr(BoiteMessage, "dernier", None)
-    verifier("« Composition et contrôle » est redimensionnable",
-             _rapport_compo is not None and _rapport_compo.redimensionnable,
-             "poignée posée" if _rapport_compo else "aucune boîte affichée")
-    attendus = ["sections_controle.shp", "lignes_injection.shp",
-               "axe_hydraulique.shp", "donnees_calage.xlsx"]
-    presents = [f for f in attendus if (ESSAI / f).exists()]
-    verifier("paquet ecrit", len(presents) == 4, f"{presents}")
-    verifier("sous-dossiers resultats/suivi crees",
-             (ESSAI / "resultats_finaux").is_dir() and (ESSAI / "suivi").is_dir())
+
+    # UN APPARIEMENT IMPOSSIBLE EST UN DIAGNOSTIC SUR LE MODELE, PAS UN ECHEC
+    # DU PLUGIN — et c'est le banc qui le provoque.
+    #
+    # L'AXE DE CE BANC EST FABRIQUE : il enfile les centroides des injections
+    # TRIES PAR LATITUDE (voir plus haut). Sur un modele d'essai, ou le banc
+    # pose lui-meme une section par apport, cela suffit. Sur un modele REEL
+    # qui porte ses PROPRES lignes de reference, cet axe n'est pas le fil de
+    # l'eau : les PK n'ont plus de sens, deux sections tombent derriere la
+    # meme injection, et le plugin refuse — a JUSTE TITRE, c'est meme le
+    # garde-fou « la methode cale un apport contre UNE cible ».
+    #   Le banc comptait ce refus comme quatre echecs. Mesure du 08/09/2026
+    # sur deux modeles reels : « ARD08 » pour ARD08 et ARD07 sur l'un,
+    # « SUH03 » pour SUH02 et SUH01 sur l'autre. Neuvieme defaut du meme
+    # motif que les huit autres — il suppose le monde de son auteur, ici un
+    # modele dont les sections s'ordonnent du sud au nord.
+    #   CE QU'IL FAUT POUR EXERCER LA COMPOSITION : un modele qui porte des
+    # lignes d'injection et AUCUNE ligne de reference — le banc pose alors
+    # une section par apport, en aval de chacune, et l'appariement est 1:1
+    # par construction. C'est le cas du plan TEST de Muncie augmente de ses
+    # BC Line, avec lequel les 172 controles du 06/09 ont ete obtenus.
+    _refus_compo = BoiteMessage.critiques[0] if BoiteMessage.critiques else ""
+    _appariement_impossible = any(
+        motif in _refus_compo
+        for motif in ("alimenterait plusieurs sections",
+                      "aucune ligne d'injection en amont"))
+    if _appariement_impossible:
+        print("   ignore : les sections que porte « "
+              f"{MODELE.name} » ne s'apparient pas contre l'axe que ce banc "
+              "fabrique — 4 controles de composition non joues.")
+        print(f"            {_refus_compo[:150]}")
+        print("            Il faut un modele SANS ligne de reference : le "
+              "banc pose alors sa propre section par apport.")
+        BoiteMessage.critiques.clear()
+    else:
+        verifier("aucune erreur remontee", not BoiteMessage.critiques,
+                 BoiteMessage.critiques[0][:90] if BoiteMessage.critiques else "")
+        # Le rapport porte le tableau des PK, plusieurs dizaines de lignes
+        # larges : la fenetre qui le presente doit pouvoir s'agrandir.
+        _rapport_compo = getattr(BoiteMessage, "dernier", None)
+        verifier("« Composition et contrôle » est redimensionnable",
+                 _rapport_compo is not None and _rapport_compo.redimensionnable,
+                 "poignée posée" if _rapport_compo else "aucune boîte affichée")
+        attendus = ["sections_controle.shp", "lignes_injection.shp",
+                    "axe_hydraulique.shp", "donnees_calage.xlsx"]
+        presents = [f for f in attendus if (ESSAI / f).exists()]
+        verifier("paquet ecrit", len(presents) == 4, f"{presents}")
+        verifier("sous-dossiers resultats/suivi crees",
+                 (ESSAI / "resultats_finaux").is_dir()
+                 and (ESSAI / "suivi").is_dir())
 
     if not dlg.classeur:
         # UN MODELE QUI NE SE PRETE PAS AU CALAGE EST UN DIAGNOSTIC, PAS UN
