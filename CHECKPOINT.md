@@ -46,6 +46,14 @@ elle exige QGIS.
 | **Deux défauts du banc de plus**, même motif que les huit précédents — il suppose le monde de son auteur : le mannequin de `QMessageBox` ignorait quatre méthodes que seule la branche « pas d'interpréteur » appelle, et un appariement impossible était compté comme quatre échecs au lieu d'un diagnostic sur le modèle | `STATUT.txt` § 1 |
 | **L'interpréteur HEC-RAS posé par le bouton « Installer… »**, depuis QGIS, sur un poste qui n'en avait pas — le point ouvert depuis le 30/08 est levé | `STATUT.txt` § 1 |
 
+### La 0.7.21 — l'action passe à l'onglet 4
+
+| | |
+|---|---|
+| **« Écrire, composer et contrôler » quitte l'onglet 1 pour l'onglet 4**, dans un encadré **« Contrôle du paramétrage »** qui précède « Calage ». Ce qu'il produit — paquet, classeur, compte rendu — se lit là ; le composer ailleurs obligeait à revenir en arrière. On ne lance plus rien sans être passé devant le compte rendu | `STATUT.txt` § 1 |
+| Le nom change avec la place : « Mise à jour du modèle » annonçait l'effet de bord, pas le geste qu'on cherche avant de lancer | |
+| Prix assumé : recomposer au fil de l'ajustement des couches fait l'aller-retour 1 → 4 | |
+
 ### La 0.7.20, dans la foulée
 
 | | |

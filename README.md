@@ -119,8 +119,7 @@ quelqu'un a pensé à appuyer sur *Impr. écran*.
 dossier**), le plan de référence, la géométrie, la zone 2D, le **profil en
 long** — l'axe, son sens, le PK d'origine — et la fenêtre de simulation. C'est
 d'ici que les couches du modèle arrivent sur la carte, éditables, et l'onglet
-se termine par **Mise à jour du modèle**, dont le bouton **Écrire, composer et
-contrôler** est le seul geste irréversible de la fenêtre.
+ce qu'on y dessine est écrit dans la géométrie par l'onglet 4.
 
 ![Onglet 1 — Modèle](docs/captures/onglet_1_modele.png)
 
@@ -138,8 +137,11 @@ jamais sans confirmation).
 ![Onglet 3 — Résultats](docs/captures/onglet_3_resultats.png)
 
 **4. Lancer** — l'appariement apport → section, l'état des cibles, le premier
-apport à caler et le **préfixe de scénario** : sans lui, caler le Q10 après le
-Q100 sur le même modèle efface les plans du Q100.
+apport à caler, le **préfixe de scénario** (sans lui, caler le Q10 après le
+Q100 sur le même modèle efface les plans du Q100), puis **Contrôle du
+paramétrage** : c'est son bouton **Écrire, composer et contrôler** qui écrit
+dans la géométrie, compose et contrôle — seul geste irréversible de la fenêtre,
+et il précède le lancement.
 
 ![Onglet 4 — Lancer](docs/captures/onglet_4_lancer.png)
 

@@ -2341,11 +2341,34 @@ def lancer_calage(chemin_classeur):
         drapeaux = (subprocess.DETACHED_PROCESS
                     | subprocess.CREATE_NEW_PROCESS_GROUP)
 
+    # LA CONSOLE NE DOIT PAS COUVRIR LA FENETRE, ET ELLE LE FAISAIT.
+    #
+    # DETACHED_PROCESS prive NOTRE processus de console — mais quand
+    # l'interpreteur HEC-RAS est un RELAIS (python.exe de 256 ko d'un venv
+    # cree depuis le Python de QGIS), il relance le vrai interpreteur, et
+    # celui-la, n'ayant aucune console a heriter, s'en fait allouer une NEUVE.
+    # Elle s'ouvre au premier plan, par-dessus la fenetre du plugin, pendant
+    # les heures que dure le calage. Constate le 08/09/2026 sur un poste
+    # distant, capture a l'appui.
+    #   ON NE LA SUPPRIME PAS, ON LA RANGE : elle reste dans la barre des
+    # taches, et c'est parfois la seule chose a regarder quand HEC-RAS refuse
+    # de demarrer. SW_SHOWMINNOACTIVE l'ouvre reduite ET sans prendre le
+    # focus — un SW_MINIMIZE ordinaire volerait la frappe en cours.
+    demarrage = None
+    if hasattr(subprocess, "STARTUPINFO"):
+        demarrage = subprocess.STARTUPINFO()
+        demarrage.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        demarrage.wShowWindow = 7        # SW_SHOWMINNOACTIVE
+
     fichier_journal = open(journal, "w", encoding="utf-8")
     processus = subprocess.Popen(
         commande, stdout=fichier_journal, stderr=subprocess.STDOUT,
         stdin=subprocess.DEVNULL, env=environnement_propre(interpreteur),
-        creationflags=drapeaux, close_fds=True)
+        creationflags=drapeaux, startupinfo=demarrage, close_fds=True)
+    # LE PID RENDU N'EST PAS FORCEMENT CELUI DU CALAGE — voir ci-dessus : avec
+    # un interpreteur-relais, c'est celui du relais, qui rend la main aussitot.
+    # Le suivi ne s'en sert donc que pour l'afficher ; ce qui fait foi, c'est
+    # l'heure de debut ecrite dans avancement.json (plugin, _maj_suivi).
     return {"pid": processus.pid, "journal": str(journal)}
 
 

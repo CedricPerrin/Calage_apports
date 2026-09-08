@@ -10,20 +10,20 @@ onglets — l'ordre des onglets est celui des décisions.
 
 | Onglet | Rôle |
 |---|---|
-| 1. Modèle | le **fichier `.prj`** du projet HEC-RAS — et non le dossier qui le contient —, plan de référence, géométrie, zone 2D, **profil en long** (l'axe, son sens, le PK d'origine), fenêtre de simulation. Charge les sections, injections et emprises **existantes** en couches **éditables**, et se termine par **Mise à jour du modèle**, qui écrit dans le `.gXX` celles qu'on y dessine (sauvegarde horodatée) |
+| 1. Modèle | le **fichier `.prj`** du projet HEC-RAS — et non le dossier qui le contient —, plan de référence, géométrie, zone 2D, **profil en long** (l'axe, son sens, le PK d'origine), fenêtre de simulation. Charge les sections, injections et emprises **existantes** en couches **éditables** ; ce qu'on y dessine est écrit dans le `.gXX` par l'onglet 4 (sauvegarde horodatée) |
 | 2. Objectifs et précision | ce qu'on vise et avec quoi : l'**écart admis** sur le volume et sur le débit de pointe — le résultat, lui, se lit en pourcentage d'atteinte de la cible —, le nombre maximal d'essais, et l'**Excel des hydrogrammes objectifs** où ils se saisissent (ouverture, reprise d'un calcul précédent, pente des apports) |
 | 3. Résultats | dossiers de sortie et de suivi, relecture d'un hydrogramme calculé (export CSV), résumé de la configuration, et le **ménage du modèle** — l'élagage des plans d'étape d'un calage livré, sur demande et après confirmation |
-| 4. Lancer | appariement apport → section, état des cibles, premier apport à caler, **préfixe de scénario** (« Q100 » : sans lui, caler le Q10 après le Q100 sur le même modèle efface les plans du Q100), **lancement du calage** en arrière-plan |
+| 4. Lancer | appariement apport → section, état des cibles, premier apport à caler, **préfixe de scénario** (« Q100 » : sans lui, caler le Q10 après le Q100 sur le même modèle efface les plans du Q100), **contrôle du paramétrage** — c'est là qu'on écrit, compose et contrôle —, puis **lancement du calage** en arrière-plan |
 | 5. Suivi | où en est le calcul : apport en cours, essai, atteinte du volume, de la pointe et de la forme, courbes cible et section — **plus les sections déjà calées, en vert pointillé derrière** —, temps restant. Se rafraîchit tout seul tant qu'il est affiché. Le dossier surveillé est celui que désigne le **classeur lancé** — pas celui de l'onglet 3 — et il est nommé **en permanence** sous la bannière, y compris pendant que le calage tourne |
 | Aide et configuration | mode opératoire, pièges connus, et les deux emplacements du poste — chaîne de calage et interpréteur HEC-RAS |
 
 **Les six onglets sont en images** dans le README du dépôt, section « La
 fenêtre du plugin » — une capture par onglet.
 
-Le bouton **Écrire, composer et contrôler** ferme l'onglet 1, dans l'encadré
-**Mise à jour du modèle** — au bout de ce qu'il consomme : le plan, le profil
-en long, les couches. Il fait les trois choses que son nom annonce, dans cet
-ordre :
+Le bouton **Écrire, composer et contrôler** vit à l'onglet 4, dans l'encadré
+**Contrôle du paramétrage**, juste avant **Calage** : ce qu'il produit — le
+paquet, le classeur, le compte rendu — est précisément ce qu'on relit avant de
+lancer. Il fait les trois choses que son nom annonce, dans cet ordre :
 
 1. il **écrit dans la géométrie HEC-RAS** les sections et injections dessinées
    à l'onglet 1, en remplaçant tout objet de même nom — **c'est le seul geste

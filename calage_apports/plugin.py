@@ -20,6 +20,7 @@ et figerait l'interface.
 import functools
 import os
 import traceback
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from qgis.core import (
@@ -1323,11 +1324,10 @@ tout : compter 3 à 5 calculs par apport.</li>
 <i>profil en long</i>, puis
 <i>Charger les couches du modèle</i> : sections, injections et maillage
 s'affichent sur la carte. Y dessiner les sections de contrôle qui manquent —
-sans elles, le calage n'a aucun endroit où lire un débit. L'onglet se termine
-par <i>Mise à jour du modèle</i>, et c'est son bouton <i>Écrire, composer et
-contrôler</i> qui les écrit dans la géométrie ; un apport créé reçoit du même
-coup son hydrogramme dans le fichier Unsteady&nbsp;Flow, sinon il n'apporterait
-rien. La fenêtre de simulation n'est à corriger que si l'Unsteady&nbsp;Flow
+sans elles, le calage n'a aucun endroit où lire un débit. Elles sont écrites
+dans la géométrie par <i>Écrire, composer et contrôler</i>, à l'onglet 4 ; un
+apport créé reçoit du même coup son hydrogramme dans le fichier
+Unsteady&nbsp;Flow, sinon il n'apporterait rien. La fenêtre de simulation n'est à corriger que si l'Unsteady&nbsp;Flow
 retenu couvre une <b>autre période</b> que le plan de référence.</li>
 <li><b>Onglet 2 — Objectifs et précision.</b> Ce qu'on vise, et avec quoi :
 la précision attendue sur le volume et sur le débit de pointe, puis le
@@ -1338,8 +1338,10 @@ relecture d'un hydrogramme déjà calculé, et le <i>ménage du modèle</i> :
 une fois le calage livré, ses plans d'étape s'élaguent d'un bouton — voir
 <a href="#s11">Ce que le calage laisse dans le modèle</a>.</li>
 <li><b>Onglet 4 — Lancer.</b> Vérifier l'appariement et l'état des cibles,
-choisir le premier apport à caler, puis lancer. Le calage tourne en
-arrière-plan : QGIS reste utilisable.</li>
+choisir le premier apport à caler, puis <i>Contrôle du paramétrage</i> —
+<b>c'est là que tout se compose et se contrôle</b>, et le compte rendu qui
+s'ouvre est ce qu'on lit avant de lancer. Puis lancer : le calage tourne en
+arrière-plan, QGIS reste utilisable.</li>
 <li><b>Onglet 5 — Suivi.</b> Où en est le calcul, apport par apport, rafraîchi
 tout seul. C'est là qu'on revient pendant les heures que dure un calage. La
 courbe y porte la cible et la section de l'apport en cours, et <b>derrière,
@@ -1353,7 +1355,8 @@ se tient.</li>
 modèle</b> — le calage n'aurait aucun endroit où lire un débit. Les dessiner
 ou les compléter dans les couches chargées à l'onglet 1 : elles sont écrites
 dans la géométrie HEC-RAS au clic sur <i>Écrire, composer et contrôler</i>
-— l'encadré <i>Mise à jour du modèle</i>, au bout de l'onglet 1 —,
+— l'encadré <i>Contrôle du paramétrage</i>, à l'onglet 4, juste avant le
+lancement —,
 en <b>remplaçant tout objet de même nom</b> déjà présent, sections comme
 injections. Une sauvegarde horodatée du fichier de géométrie précède
 l'écriture, et le compte rendu de composition dit ce qui a été écrit.</p>
@@ -1613,6 +1616,17 @@ def afficher_pk_sur_carte(chemins, sens, crs_defaut="EPSG:2154"):
 # puisque Qt affiche simplement l'onglet voisin.
 # ---------------------------------------------------------------------------
 
+# COMBIEN DE TEMPS ON LAISSE AU CALAGE POUR ECRIRE SON PREMIER ETAT avant de
+# le declarer mort. Il lui faut ouvrir le classeur, initialiser ras-commander
+# et titrer sa premiere etape — une trentaine de secondes sur un modele leger,
+# davantage sur un partage reseau. Mesure du 08/09/2026 sur un modele reel :
+# 1 min 55 entre le lancement et la premiere ligne d'etape.
+#   ET IL FAUT CETTE PATIENCE : le PID rendu par Popen n'est pas celui du
+# calage quand l'interpreteur est un relais (voir _maj_suivi), si bien qu'il
+# disparait aussitot. Sans delai, le suivi annoncait « mort au demarrage »
+# trois secondes apres un lancement qui se deroulait bien.
+DELAI_PREMIER_ETAT_S = 240
+
 ONGLET_MODELE = 0
 ONGLET_LANCER = 3
 ONGLET_SUIVI = 4
@@ -1643,8 +1657,8 @@ class DialogueParametrage(QDialog):
       Aide et configuration — mode operatoire, pieges connus, et les deux
          emplacements du poste.
 
-    Le bouton « Écrire, composer et contrôler », au bout de l'onglet 1 dans
-    l'encadre « Mise a jour du modele »,
+    Le bouton « Écrire, composer et contrôler », a l'onglet 4 dans l'encadre
+    « Controle du parametrage », juste avant le lancement,
     ECRIT D'ABORD les couches de l'onglet 1 dans la geometrie HEC-RAS —
     TOUJOURS EN REMPLACANT l'objet de meme nom deja present, sections comme
     injections : ce que QGIS montre fait foi, il n'y a plus de choix a faire
@@ -1675,6 +1689,10 @@ class DialogueParametrage(QDialog):
         #   couterait plus cher que ce qu'on repare.
         self.pid_lance = None
         self.journal_lance = None
+        # L'INSTANT DU LANCEMENT, ET C'EST LUI QUI FAIT FOI — pas le PID. Voir
+        # _maj_suivi : le PID rendu par Popen n'est pas celui du calage des
+        # que l'interpreteur est un relais.
+        self.instant_lance = None
         self.info_projet = None      # resultat de noyau.lister_projet_hecras
         self.version_hecras = None   # lue dans les fichiers, jamais saisie
         self.appariement = None      # apports <-> sections, deduit des PK
@@ -1722,8 +1740,7 @@ class DialogueParametrage(QDialog):
         for page, titre, infobulle in (
             (self._onglet_modele(), "1. Modèle",
              "Projet HEC-RAS, plan de référence, zone 2D, profil en long, "
-             "chargement des couches existantes, puis mise à jour du "
-             "modèle."),
+             "et chargement des couches existantes du modèle."),
             (self._onglet_objectifs(), "2. Objectifs et précision",
              "Précision attendue sur le volume et la pointe, nombre maximal "
              "d'essais, et le classeur où se saisissent les hydrogrammes "
@@ -1733,7 +1750,8 @@ class DialogueParametrage(QDialog):
              "déjà calculé, résumé de la configuration."),
             (self._onglet_validation(), "4. Lancer",
              "Correspondance sections / injections, état des hydrogrammes "
-             "cibles, apports à déterminer et lancement du calage."),
+             "cibles, apports à déterminer, contrôle du paramétrage — c'est "
+             "là qu'on compose — et lancement du calage."),
             (self._onglet_suivi(), "5. Suivi",
              "Où en est le calage : apport en cours, essai, avancement, "
              "temps restant, et ce qui s'est passé quand il s'arrête."),
@@ -1790,9 +1808,10 @@ class DialogueParametrage(QDialog):
         agencement.addWidget(self.label_fil)
 
         # « ECRIRE, COMPOSER ET CONTROLER » N'EST PLUS ICI (0.7.19) : il a
-        # rejoint l'onglet 1, encadre « Mise a jour du modele », au bout de ce
-        # qu'il consomme. Le bas de la fenetre ne porte donc plus que le fil
-        # conducteur et « Fermer ».
+        # rejoint les onglets — l'onglet 1 d'abord, puis l'onglet 4 en 0.7.21,
+        # encadre « Controle du parametrage », juste avant le lancement. Le
+        # bas de la fenetre ne porte donc plus que le fil conducteur et
+        # « Fermer ».
         boutons = QHBoxLayout()
         boutons.setSpacing(8)
         boutons.addStretch(1)
@@ -2103,36 +2122,50 @@ class DialogueParametrage(QDialog):
             "prêtes à être complétées."))
         v.addWidget(groupe_charger)
 
-        # LE GROUPE « ECRITURE DANS LA GEOMETRIE » A QUITTE CET ONGLET
-        # (0.7.19, demande utilisateur). Il ne portait AUCUNE commande : une
-        # explication, la convention de nommage, un compte rendu. Or
-        # l'ecriture n'a jamais eu de bouton a elle — elle a lieu au clic sur
-        # « Ecrire, composer et controler », parce que les sections doivent
-        # etre DANS le modele avant que le paquet soit compose, sinon le
-        # calage n'a rien a relire. Un encadre sans geste, au milieu d'un
-        # onglet qui n'est fait que de gestes, se lisait comme une etape a
-        # franchir. Le texte vit desormais dans l'aide, § « Ecrire dans la
-        # geometrie » ; le compte rendu ouvre la boite de composition, d'ou
-        # il est enfin visible depuis l'endroit ou l'on a clique.
-        v.addWidget(self._groupe_mise_a_jour())
-
+        # DEUX ENCADRES ONT QUITTE CET ONGLET, ET POUR DES RAISONS OPPOSEES.
+        #
+        # « ECRITURE DANS LA GEOMETRIE » (0.7.19) ne portait AUCUNE commande :
+        # une explication, la convention de nommage, un compte rendu. Un
+        # encadre sans geste, au milieu d'un onglet qui n'est fait que de
+        # gestes, se lisait comme une etape a franchir. Son texte vit dans
+        # l'aide, § « Ecrire dans la geometrie » ; son compte rendu ouvre la
+        # boite de composition, d'ou il est enfin visible.
+        #
+        # « CONTROLE DU PARAMETRAGE » (0.7.21) porte, lui, LE geste — mais il
+        # est parti a l'onglet 4, juste avant le lancement. L'onglet 1 decrit
+        # le modele ; ce bouton, lui, consomme AUSSI les objectifs (onglet 2)
+        # et les dossiers (onglet 3), et ce qu'il produit — le paquet, le
+        # classeur, le compte rendu — est precisement ce qu'on relit avant de
+        # lancer. Le laisser ici obligeait a revenir en arriere pour composer
+        # ce que l'onglet 4 allait juger.
         v.addStretch(1)
         return page
 
-    def _groupe_mise_a_jour(self):
+    def _groupe_controle_parametrage(self):
         """
-        L'ACTION EST AU BOUT DE L'ONGLET QUI LA PREPARE (0.7.19, demande
-        utilisateur). « Ecrire, composer et controler » vivait en bas de la
-        fenetre, permanent, visible depuis les six onglets — y compris ceux
-        ou il n'a rien a faire. Or tout ce qu'il consomme est ICI : le plan,
-        le profil en long, les couches. Il ferme donc l'onglet 1, dans un
-        encadre qui dit ce qu'il fait au modele.
+        L'ACTION EST JUSTE AVANT LE LANCEMENT (0.7.21, demande utilisateur).
 
-        CE QUE CELA COUTE : il faut revenir a l'onglet 1 pour recomposer. La
-        recomposition au fil de l'ajustement des couches reste le cas normal,
-        et c'est aussi a l'onglet 1 que les couches s'ajustent.
+        « Ecrire, composer et controler » a d'abord vecu en bas de la fenetre,
+        permanent, visible depuis les six onglets — y compris ceux ou il n'a
+        rien a faire. Il est passe a l'onglet 1 en 0.7.19, au motif que le
+        plan, le profil en long et les couches sont la. Mais il consomme AUSSI
+        les objectifs de l'onglet 2 et les dossiers de l'onglet 3, et surtout
+        CE QU'IL PRODUIT SE LIT ICI : le paquet, le classeur pre-rempli, le
+        compte rendu de controle que le groupe « Validation de la derniere
+        composition » resume trois lignes plus haut. Le laisser a l'onglet 1
+        obligeait a revenir en arriere pour composer ce que l'onglet 4 allait
+        juger.
+
+        D'OU SON NOM : « Controle du parametrage ». « Mise a jour du modele »
+        annoncait l'effet de bord — l'ecriture dans la geometrie — la ou
+        l'utilisateur cherche le geste qui VERIFIE avant de lancer. L'ecriture
+        reste, elle est dite par le texte de l'encadre et par l'infobulle.
+
+        CE QUE CELA COUTE : recomposer au fil de l'ajustement des couches — le
+        cas NORMAL — fait maintenant l'aller-retour 1 -> 4. En echange, on ne
+        lance plus rien sans etre passe devant le compte rendu.
         """
-        groupe = QGroupBox("Mise à jour du modèle")
+        groupe = QGroupBox("Contrôle du paramétrage")
         v = QVBoxLayout(groupe)
         v.setSpacing(8)
 
@@ -2148,7 +2181,8 @@ class DialogueParametrage(QDialog):
         # geometrie ».
         explication = QLabel(
             "Écrit dans la géométrie, compose le paquet, contrôle. "
-            "<b>Seul geste irréversible de la fenêtre.</b>")
+            "<b>À passer avant de lancer</b> — et seul geste irréversible "
+            "de la fenêtre.")
         explication.setWordWrap(True)
         v.addWidget(explication)
 
@@ -2158,7 +2192,7 @@ class DialogueParametrage(QDialog):
         bouton_composer.setObjectName("boutonPrincipal")
         bouton_composer.setMinimumWidth(190)
         bouton_composer.setToolTip(
-            "Écrit d'abord les sections et injections de cet onglet dans la "
+            "Écrit d'abord les sections et injections de l'onglet 1 dans la "
             "géométrie HEC-RAS (en remplaçant tout objet de même nom déjà "
             "présent, après une sauvegarde horodatée du fichier), puis les "
             "shapefiles et le classeur, puis lance tous les contrôles et "
@@ -2532,8 +2566,8 @@ class DialogueParametrage(QDialog):
              + (" Géométrie jamais prétraitée par HEC-RAS : maillage "
                 "indisponible, contour(s) de zone 2D lu(s) directement dans "
                 "le fichier géométrie. Dessiner les sections et injections "
-                "manquantes, puis « Écrire, composer et contrôler » (bas de "
-                "l'onglet 1) — le maillage apparaîtra au premier calcul."
+                "manquantes, puis « Écrire, composer et contrôler » "
+                "(onglet 4) — le maillage apparaîtra au premier calcul."
                 if not pretraitee else
                 f" Maillage natif : {groupes} donnée(s)."
                 if maillage.isValid() else
@@ -3128,6 +3162,13 @@ class DialogueParametrage(QDialog):
         # apres.
         v.addWidget(self._groupe_copies_de_travail())
 
+        # AVANT DE LANCER, ON COMPOSE ET L'ON CONTROLE. C'est l'ordre du
+        # travail, et desormais celui de l'onglet : l'encadre ci-dessous rend
+        # le compte rendu que le groupe « Validation » du haut resume, et le
+        # bouton « Lancer » qui suit n'a de sens qu'une fois ce compte rendu
+        # lu.
+        v.addWidget(self._groupe_controle_parametrage())
+
         groupe_lancer = QGroupBox("Calage")
         vl = QVBoxLayout(groupe_lancer)
         vl.setSpacing(8)
@@ -3563,9 +3604,30 @@ class DialogueParametrage(QDialog):
         # relancement, le dossier porte encore l'avancement.json du calage
         # PRECEDENT tant que le nouveau n'a pas ecrit le sien : on peignait
         # « Calage terminé — conforme » ou « Calage interrompu » comme reponse
-        # au lancement qui venait d'aboutir. La comparaison des PID suffit.
-        perime = bool(self.pid_lance and etat
-                      and etat.get("pid") and etat.get("pid") != self.pid_lance)
+        # au lancement qui venait d'aboutir.
+        #
+        # C'EST L'HEURE QUI TRANCHE, PAS LE PID — et il a fallu un vrai calage
+        # pour le decouvrir (08/09/2026, Q20 sur poste distant). Le PID rendu
+        # par Popen n'est PAS celui qui ecrit l'etat des que l'interpreteur
+        # HEC-RAS est un RELAIS : un venv cree depuis le Python de QGIS — ce
+        # que le bouton « Installer… » propose lui-meme — a un python.exe de
+        # 256 ko qui relance le vrai interpreteur dans un AUTRE processus.
+        # Mesure : Popen rend 55160, le processus qui tourne est 23284.
+        #   Consequence, vue a l'ecran : le suivi refusait d'afficher le calage
+        # EN COURS en le prenant pour celui d'avant, pendant toute sa duree.
+        #   L'etat est donc a nous s'il a commence APRES notre lancement. La
+        # tolerance d'une seconde couvre l'arrondi de « debut », ecrit a la
+        # seconde par suivi.py.
+        perime = False
+        if self.instant_lance and etat and etat.get("debut"):
+            try:
+                debut = datetime.fromisoformat(etat["debut"])
+                perime = debut < self.instant_lance - timedelta(seconds=1)
+            except ValueError:
+                # Un « debut » illisible ne doit pas masquer un calage qui
+                # tourne : on prefere afficher un etat douteux a ne rien
+                # afficher pendant des heures.
+                perime = False
 
         # LE DOSSIER SURVEILLE EST NOMME A CHAQUE PASSAGE, avant tout test :
         # la branche « Aucun calage suivi » sort plus bas, et c'est elle qui
@@ -3595,21 +3657,31 @@ class DialogueParametrage(QDialog):
             if self.pid_lance:
                 journal = (f"<br>Journal de lancement : {self.journal_lance}"
                            if self.journal_lance else "")
-                if noyau.processus_vivant(self.pid_lance) is False:
+                # « MORT AU DEMARRAGE » NE SE PRONONCE PLUS SUR LE PID DE
+                # POPEN. Avec un interpreteur-relais, ce processus-la rend la
+                # main aussitot apres avoir lance le vrai : le suivi annoncait
+                # un calage mort alors qu'il demarrait. On ne conclut donc a la
+                # mort que si l'on a laisse au calage le temps d'ecrire —
+                # DELAI_PREMIER_ETAT_S — et qu'il n'a toujours rien ecrit.
+                depuis = ((datetime.now() - self.instant_lance).total_seconds()
+                          if self.instant_lance else 0.0)
+                mort = (noyau.processus_vivant(self.pid_lance) is False
+                        and depuis > DELAI_PREMIER_ETAT_S)
+                if mort:
                     titre, glyphe, couleur = (
                         "Calage arrêté sans avoir rien écrit", "✕", ISL_ROUGE)
-                    detail = (f"Le processus {self.pid_lance} n'existe plus et "
-                              f"aucun état n'a été écrit : le calage est mort "
-                              f"au démarrage." + journal)
+                    detail = (f"Rien n'a été écrit en "
+                              f"{int(depuis)} s : le calage est mort au "
+                              f"démarrage." + journal)
                 else:
                     detail = (f"Calage lancé (processus {self.pid_lance}) — le "
                               f"suivi apparaît ici dès qu'il écrit son premier "
                               f"état." + journal)
             if perime:
                 detail += (f"<br>Le dossier porte encore l'état d'un calage "
-                           f"précédent (processus {etat.get('pid')}) : il n'est "
-                           f"pas affiché, pour ne pas se lire comme celui du "
-                           f"calage en cours.")
+                           f"précédent, commencé à {etat.get('debut')} : il "
+                           f"n'est pas affiché, pour ne pas se lire comme "
+                           f"celui du calage en cours.")
             # Le dossier surveille n'est plus recopie ici : il vit desormais
             # sous la banniere, a chaque passage.
             self._banniere(couleur, titre, glyphe=glyphe, detail=detail)
@@ -4449,6 +4521,7 @@ class DialogueParametrage(QDialog):
         # d'information, et trois affichages mentaient ensuite faute d'elles.
         self.pid_lance = info.get("pid")
         self.journal_lance = info.get("journal")
+        self.instant_lance = datetime.now()
         # LIBELLES : « Échec au démarrage : <chemin> » se lisait comme une
         # annonce d'échec alors que le calage venait de partir. Un chemin ne
         # doit jamais être introduit par un mot qui décrit un état.
@@ -4549,7 +4622,7 @@ class DialogueParametrage(QDialog):
             f"{len(bilan['colonnes'])} colonne(s), de "
             f"{bilan['duree_avant_h']:.2f} h à {bilan['duree_apres_h']:.2f} h, "
             f"au pas de {60 * bilan['pas_h']:g} min.\n\n"
-            f"Relancer « Écrire, composer et contrôler » (bas de l'onglet 1) "
+            f"Relancer « Écrire, composer et contrôler » (onglet 4) "
             f"pour vérifier.")
 
     def _ouvrir_classeur(self):

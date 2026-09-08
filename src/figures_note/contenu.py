@@ -637,14 +637,17 @@ CONTENU = [
           "pris le nom de PROFIL EN LONG et la place qui lui revient, "
           "immédiatement sous le plan : le plan dit quelle géométrie on lit, "
           "le profil en long comment on la parcourt."),
-    ("p", "L'ACTION EST AU BOUT DE L'ONGLET QUI LA PRÉPARE. « Écrire, "
-          "composer et contrôler » était permanent en bas de la fenêtre, "
-          "visible depuis les six onglets — y compris ceux où il n'a rien à "
-          "faire. Il ferme désormais l'onglet 1, dans un encadré MISE À JOUR "
-          "DU MODÈLE, au bout de tout ce qu'il consomme. L'encadré « Écriture "
-          "dans la géométrie », qui ne portait aucune commande, est descendu "
-          "dans l'aide : un cadre sans geste, au milieu d'un onglet qui n'est "
-          "fait que de gestes, se lisait comme une étape à franchir."),
+    ("p", "L'ACTION EST JUSTE AVANT LE LANCEMENT. « Écrire, composer et "
+          "contrôler » était permanent en bas de la fenêtre, visible depuis "
+          "les six onglets — y compris ceux où il n'a rien à faire. Il vit "
+          "désormais à l'onglet 4, dans un encadré CONTRÔLE DU PARAMÉTRAGE "
+          "qui précède le lancement : ce qu'il produit — le paquet, le "
+          "classeur, le compte rendu de contrôle — est précisément ce que cet "
+          "onglet donne à relire, et le composer ailleurs obligeait à revenir "
+          "en arrière. L'encadré « Écriture dans la géométrie », qui ne "
+          "portait aucune commande, est descendu dans l'aide : un cadre sans "
+          "geste, au milieu d'un onglet qui n'est fait que de gestes, se "
+          "lisait comme une étape à franchir."),
     ("table", [
         ["Onglet", "Contenu"],
         ["1. Modèle", "le FICHIER .prj du projet — et non le dossier qui le "
@@ -652,8 +655,8 @@ CONTENU = [
          "autre —, le plan de référence, la géométrie et le fichier de débit, "
          "le PROFIL EN LONG (l'axe, son sens, le PK d'origine), la zone 2D et "
          "la fenêtre de simulation ; chargement des couches, qui deviennent "
-         "éditables dans QGIS ; puis MISE À JOUR DU MODÈLE, qui écrit, "
-         "compose et contrôle."],
+         "éditables dans QGIS. Ce qu'on y dessine est écrit dans la "
+         "géométrie par l'onglet 4."],
         ["2. Objectifs et précision", "ce qu'on vise et avec quoi : l'ÉCART "
          "ADMIS sur le volume et sur le débit de pointe — le résultat, lui, "
          "se lit en pourcentage d'atteinte de la cible —, le bilan de masse "
@@ -663,7 +666,9 @@ CONTENU = [
          "relecture d'un hydrogramme déjà calculé, résumé de la "
          "configuration, et le MÉNAGE DU MODÈLE — l'élagage des plans "
          "d'étape d'un calage livré, sur demande et après confirmation."],
-        ["4. Lancer", "appariement géométrique, et surtout COMBIEN "
+        ["4. Lancer", "CONTRÔLE DU PARAMÉTRAGE — c'est ici qu'on écrit, "
+         "compose et contrôle, juste avant de lancer —, appariement "
+         "géométrique, et surtout COMBIEN "
          "D'HYDROGRAMMES CIBLES RESTENT À SAISIR ; le premier apport à caler, "
          "le PRÉFIXE DE SCÉNARIO — sans lui, caler le Q10 après le Q100 sur "
          "le même modèle efface les plans du Q100 — et le lancement du calage "

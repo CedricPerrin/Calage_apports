@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.7.20
+version=0.7.21
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,40 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.7.20 — Les titres de plan passent au souligné, les étapes s'élaguent sur demande, et le suivi montre les sections déjà calées.
+changelog=0.7.21 — « Écrire, composer et contrôler » passe à l'onglet 4, juste avant le lancement, dans « Contrôle du paramétrage ».
+    Le bouton avait quitté le bas de la fenêtre pour l'onglet 1 en 0.7.19, au
+    motif que le plan, le profil en long et les couches y sont. Mais il
+    consomme AUSSI les objectifs de l'onglet 2 et les dossiers de l'onglet 3,
+    et surtout CE QU'IL PRODUIT SE LIT À L'ONGLET 4 : le paquet, le classeur
+    pré-rempli, et le compte rendu de contrôle que « Validation de la
+    dernière composition » y résume trois lignes plus haut. Le laisser à
+    l'onglet 1 obligeait à revenir en arrière pour composer ce que l'onglet 4
+    allait juger. Il précède désormais l'encadré « Calage » : on ne lance
+    plus rien sans être passé devant le compte rendu.
+    ET IL CHANGE DE NOM. « Mise à jour du modèle » annonçait l'effet de bord
+    — l'écriture dans la géométrie — là où l'utilisateur cherche le geste qui
+    VÉRIFIE avant de lancer. L'écriture reste, et reste dite : par le texte
+    de l'encadré, par l'infobulle du bouton, et par l'aide § « Écrire dans la
+    géométrie ».
+    CE QUE CELA COÛTE : recomposer au fil de l'ajustement des couches — le
+    cas normal — fait maintenant l'aller-retour onglet 1 → onglet 4.
+    LE SUIVI AFFICHE ENFIN LE CALAGE QUI TOURNE. Il refusait de le montrer
+    pendant toute sa durée, en le prenant pour « l'état d'un calage
+    précédent ». Le PID rendu au lancement n'est PAS celui qui écrit l'état
+    quand l'interpréteur HEC-RAS est un RELAIS — un venv créé depuis le
+    Python de QGIS, ce que le bouton « Installer… » propose lui-même, a un
+    python.exe de 256 ko qui relance le vrai interpréteur dans un autre
+    processus. Mesure : le lancement rend 55160, le calage tourne en 23284.
+    C'est désormais L'HEURE DE DÉBUT qui dit si l'état est le nôtre. Même
+    cause pour « Calage arrêté sans avoir rien écrit », qui s'affichait
+    quelques secondes après un lancement réussi : on laisse maintenant quatre
+    minutes au calage pour écrire son premier état.
+    ET LA CONSOLE NE COUVRE PLUS LA FENÊTRE. Le même relais faisait allouer
+    une console neuve au vrai interpréteur, qui s'ouvrait au premier plan
+    par-dessus le plugin pendant des heures. Elle s'ouvre désormais réduite et
+    sans prendre le focus — rangée dans la barre des tâches, pas supprimée :
+    c'est parfois la seule chose à regarder quand HEC-RAS refuse de démarrer.
+    0.7.20 — Les titres de plan passent au souligné, les étapes s'élaguent sur demande, et le suivi montre les sections déjà calées.
     LES TITRES D'ÉTAPE S'ÉCRIVENT D'UN SEUL TENANT (décision utilisateur) :
     « Q100_sans_apport », « Q100_Apport_A1 », « Q100_avec_apports » — le
     séparateur de préfixe suit. ATTENTION : la reprise d'un calage ANTÉRIEUR

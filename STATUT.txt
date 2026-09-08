@@ -102,6 +102,26 @@ CE QUI EST EPROUVE
     et verifies en 56 s. C'est le lancement depuis QGIS qui comptait — c'est
     la, et nulle part ailleurs, que son PYTHONHOME fuyait dans les
     sous-processus de pip.
+  - PLUGIN EN 0.7.21 (08/09) — « ECRIRE, COMPOSER ET CONTROLER » PASSE A
+    L'ONGLET 4, juste avant le lancement, dans un encadre « Controle du
+    parametrage » (demande utilisateur). Il avait quitte le bas de la fenetre
+    pour l'onglet 1 en 0.7.19, au motif que le plan, le profil en long et les
+    couches y sont. Mais il consomme AUSSI les objectifs (onglet 2) et les
+    dossiers (onglet 3), et surtout CE QU'IL PRODUIT SE LIT A L'ONGLET 4 : le
+    paquet, le classeur, et le compte rendu que « Validation de la derniere
+    composition » y resume trois lignes plus haut. Le laisser a l'onglet 1
+    obligeait a revenir en arriere pour composer ce que l'onglet 4 allait
+    juger. Il PRECEDE « Calage » : on ne lance plus rien sans etre passe
+    devant le compte rendu.
+      LE NOM CHANGE AUSSI. « Mise a jour du modele » annoncait l'effet de
+    bord — l'ecriture dans la geometrie — la ou l'utilisateur cherche le
+    geste qui VERIFIE. L'ecriture reste, et reste dite : texte de l'encadre,
+    infobulle du bouton, aide § « Ecrire dans la geometrie ».
+      CE QUE CELA COUTE : recomposer au fil de l'ajustement des couches — le
+    cas NORMAL — fait desormais l'aller-retour onglet 1 -> onglet 4. C'est le
+    prix assume d'un compte rendu qu'on ne peut plus contourner.
+      Banc : 121 controles sans modele, 0 echec ; trois neufs pour la place et
+    l'ordre des encadres.
   - PLUGIN EN 0.7.20 (08/09, apres-midi) — QUATRE CHANTIERS.
     1. LES TITRES D'ETAPE PASSENT AU SOULIGNE (decision utilisateur) :
        « Q100_sans_apport », « Q100_Apport_A1 », « Q100_avec_apports », et

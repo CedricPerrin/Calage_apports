@@ -33,6 +33,7 @@ import re
 import shutil
 import sys
 import tempfile
+from datetime import datetime, timedelta
 from pathlib import Path
 
 # ORDRE IMPOSE : qgis.core avant tout le reste. Charger geopandas d'abord
@@ -1197,6 +1198,10 @@ _dossier_etat().mkdir(parents=True, exist_ok=True)
 def _ecrire_etat(**surcharges):
     etat = {"titre": "Essai", "pid": os.getpid(), "total": 3,
             "fraction": 0.3333, "ecoule_s": 900, "reste_s": 1800,
+            # « debut » N'EST PLUS FACULTATIF : c'est lui qui dit desormais si
+            # l'etat est celui du calage qu'on vient de lancer. Par defaut on
+            # le pose maintenant, cas normal d'un calage qui tourne.
+            "debut": datetime.now().isoformat(timespec="seconds"),
             "maj": "2026-07-27T23:45:10", "termine": False, "conforme": None,
             "motif_final": "", "nb_calculs": 4, "incidents": 0,
             "en_cours": 1, "fin": None, "fin_prevue": "2026-07-28T00:15",
@@ -1422,9 +1427,16 @@ verifier("sans lancement retenu, le suivi attend sans rien inventer",
          "Aucun calage suivi" in dlg.label_suivi_banniere.text(),
          dlg.label_suivi_banniere.text()[:60])
 
-# UN PID QUI N'EXISTE PAS : le calage est mort avant d'ecrire quoi que ce soit.
-# La branche promettait « quelques secondes apres le lancement » pour toujours.
+# UN PID QUI N'EXISTE PAS, ET DU TEMPS ECOULE : le calage est mort avant
+# d'ecrire quoi que ce soit. La branche promettait « quelques secondes apres le
+# lancement » pour toujours.
+#   LE DELAI EST INDISPENSABLE DEPUIS LE 08/09/2026 : quand l'interpreteur
+# HEC-RAS est un relais, le processus rendu par Popen disparait aussitot apres
+# avoir lance le vrai. Sans patience, le suivi annoncait « mort au demarrage »
+# trois secondes apres un lancement qui se deroulait bien.
 dlg.pid_lance, dlg.journal_lance = 999999, r"D:\essai\lancement.log"
+dlg.instant_lance = datetime.now() - timedelta(
+    seconds=mod_plugin.DELAI_PREMIER_ETAT_S + 5)
 dlg._rafraichir_suivi()
 verifier("« mort au demarrage » se distingue de « pas encore parti »",
          "mort" in dlg.label_suivi_banniere.text().lower(),
@@ -1432,16 +1444,47 @@ verifier("« mort au demarrage » se distingue de « pas encore parti »",
 verifier("et le seul document qui dit pourquoi est NOMME",
          "lancement.log" in dlg.label_suivi_banniere.text())
 
+# ET AVANT LE DELAI, ON ATTEND. Meme PID mort, meme absence d'etat : tant que
+# le calage n'a pas eu le temps d'ecrire, on ne le declare pas mort.
+dlg.instant_lance = datetime.now()
+dlg._rafraichir_suivi()
+verifier("avant le delai, un PID disparu ne fait pas conclure a la mort",
+         "mort" not in dlg.label_suivi_banniere.text().lower()
+         and "Calage lancé" in dlg.label_suivi_banniere.text(),
+         dlg.label_suivi_banniere.text()[:90])
+
 # L'ETAT D'UN AUTRE CALAGE NE SE PEINT PAS COMME LE NOTRE. Apres un
 # relancement, le dossier porte encore l'avancement.json du precedent : on
 # peignait « Calage termine — conforme » en reponse au lancement qui venait
 # d'aboutir.
-_ecrire_etat(pid=424242, termine=True, conforme=True)
+dlg.instant_lance = datetime.now()
+_ecrire_etat(pid=424242, termine=True, conforme=True,
+             debut=(datetime.now() - timedelta(hours=3)).isoformat(
+                 timespec="seconds"))
 dlg._rafraichir_suivi()
 verifier("l'etat d'un calage precedent n'est pas donne pour le notre",
          "précédent" in dlg.label_suivi_banniere.text()
          and "conforme" not in dlg.label_suivi_banniere.text().lower(),
          dlg.label_suivi_banniere.text()[:100])
+
+# --- ET C'EST L'HEURE QUI TRANCHE, PAS LE PID -------------------------------
+# LE DEFAUT QUI A COUTE UN CALAGE ENTIER (08/09/2026, Q20 sur poste distant).
+# Le PID rendu par Popen n'est PAS celui qui ecrit l'etat quand l'interpreteur
+# HEC-RAS est un relais — python.exe de 256 ko d'un venv cree depuis le Python
+# de QGIS, ce que le bouton « Installer… » propose lui-meme. Mesure : Popen
+# rend 55160, le processus qui tourne est 23284.
+#   La comparaison de PID declarait donc « etat d'un calage precedent » LE
+# CALAGE EN COURS, pendant toute sa duree — c'est-a-dire pendant exactement
+# les heures ou l'on regarde cet onglet.
+dlg.instant_lance = datetime.now() - timedelta(minutes=2)
+_ecrire_etat(pid=424242,        # un PID qui n'est pas celui du lancement
+             debut=datetime.now().isoformat(timespec="seconds"))
+dlg._rafraichir_suivi()
+verifier("un etat COMMENCE APRES le lancement est le notre, PID different ou "
+         "non",
+         "précédent" not in dlg.label_suivi_banniere.text()
+         and "A2" in dlg.label_suivi_position.text(),
+         dlg.label_suivi_banniere.text()[:90])
 
 # ET LE FIL CESSE D'ORDONNER « LANCER » PENDANT LES HEURES DU CALCUL.
 dlg._maj_fil()
@@ -1876,14 +1919,27 @@ from qgis.PyQt.QtWidgets import QGroupBox as _QGroupBoxA  # noqa: E402
 from qgis.PyQt.QtWidgets import QPushButton as _QPushButtonA  # noqa: E402
 _page_modele = dlg.onglets.widget(mod_plugin.ONGLET_MODELE)
 _boutons_modele = [b.text() for b in _page_modele.findChildren(_QPushButtonA)]
-verifier("« Écrire, composer et contrôler » vit a l'onglet 1",
-         "Écrire, composer et contrôler" in _boutons_modele, _boutons_modele)
 _groupes_modele = [g.title() for g in _page_modele.findChildren(_QGroupBoxA)]
-verifier("l'onglet 1 porte « Mise à jour du modèle », et plus « Écriture "
-         "dans la géométrie »",
-         "Mise à jour du modèle" in _groupes_modele
-         and "Écriture dans la géométrie" not in _groupes_modele,
-         _groupes_modele)
+verifier("l'onglet 1 ne porte plus ni l'écriture ni la mise à jour",
+         "Écriture dans la géométrie" not in _groupes_modele
+         and "Mise à jour du modèle" not in _groupes_modele
+         and "Écrire, composer et contrôler" not in _boutons_modele,
+         f"{_groupes_modele} | {_boutons_modele}")
+
+# L'ACTION EST JUSTE AVANT LE LANCEMENT (0.7.21). Ce que le bouton produit —
+# paquet, classeur, compte rendu — se lit a l'onglet 4 ; l'y placer evite
+# l'aller-retour qui consistait a composer a l'onglet 1 ce que l'onglet 4
+# allait juger.
+_page_lancer = dlg.onglets.widget(mod_plugin.ONGLET_LANCER)
+_groupes_lancer = [g.title() for g in _page_lancer.findChildren(_QGroupBoxA)]
+_boutons_lancer = [b.text() for b in _page_lancer.findChildren(_QPushButtonA)]
+verifier("« Écrire, composer et contrôler » vit a l'onglet 4",
+         "Écrire, composer et contrôler" in _boutons_lancer, _boutons_lancer)
+verifier("l'onglet 4 porte « Contrôle du paramétrage »",
+         "Contrôle du paramétrage" in _groupes_lancer, _groupes_lancer)
+verifier("et il precede « Calage » : on controle avant de lancer",
+         _groupes_lancer.index("Contrôle du paramétrage")
+         < _groupes_lancer.index("Calage"), _groupes_lancer)
 # LES SECTIONS DEJA CALEES SE TRACENT DERRIERE LA PAIRE COURANTE. Le banc
 # n'eprouve pas l'apparence, mais il peut verifier que le widget ACCEPTE les
 # deux jeux et les retient : sans cela, une signature changee d'un cote et pas
