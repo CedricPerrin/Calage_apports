@@ -1346,7 +1346,7 @@ def parametres_calage(dossier_projet, nom_projet, version_hecras, nom_zone_2d,
                       tolerance_volume_pct, tolerance_pic_pct, dossier_sortie,
                       sous_dossier_resultats, sous_dossier_suivi,
                       fenetre=None, bilan_masse_max_pct=BILAN_MASSE_DEFAUT,
-                      prefixe_scenario=""):
+                      prefixe_scenario="", elaguer_etapes=False):
     """
     Feuille Parametres du classeur, a partir de valeurs simples.
 
@@ -1377,6 +1377,11 @@ def parametres_calage(dossier_projet, nom_projet, version_hecras, nom_zone_2d,
         # les plans d'un scenario de ceux d'un autre : sans lui, caler le Q10
         # apres le Q100 efface les plans du Q100.
         "Prefixe_scenario": prefixe_scenario,
+        # ELAGAGE DES PLANS D'ETAPE, DECIDE ICI ET APPLIQUE PAR LA CHAINE a la
+        # fin d'un calage abouti. « oui » / « non » et non True/False : ce
+        # parametre traverse un classeur Excel, ou un booleen se relit
+        # « TRUE », « VRAI » ou 1 selon la langue d'Excel.
+        "Elaguer_plans_etape": "oui" if elaguer_etapes else "non",
         "Sens_axe": sens_axe,
         "PK_origine_m": pk_origine_m,
         "Nb_max_iterations_par_apport": nb_max_iterations,
@@ -1981,51 +1986,6 @@ def pk_pour_affichage(chemin_shp_lignes, chemin_shp_axe, sens="amont_aval"):
 # et bloquerait l'interface. Seules les operations de quelques secondes sont
 # exposees — lire un hydrogramme, creer une ligne.
 
-def lister_objets_modele(hdf_plan):
-    """Sections de controle et lignes d'injection presentes dans le modele."""
-    reponse = appeler_pont("lister", "--plan", hdf_plan)
-    return {"sections": reponse["sections"], "apports": reponse["apports"]}
-
-
-def elaguer_etapes(dossier_projet, nom_projet, plan_reference, prefixe="",
-                   executer=False):
-    """
-    Retire les plans d'etape d'un calage abouti — ou dit seulement ce qui
-    partirait.
-
-    executer=False, LE DEFAUT, ne touche a rien : c'est ce que la fenetre
-    affiche avant de demander confirmation. La regle et les garde-fous vivent
-    dans pilote_hecras.elaguer_etapes, pas ici.
-    """
-    arguments = ["elaguer-etapes", "--dossier", dossier_projet,
-                 "--projet", nom_projet, "--plan-reference", plan_reference,
-                 "--prefixe", prefixe]
-    if executer:
-        arguments.append("--executer")
-    return appeler_pont(*arguments)
-
-
-def lire_hydrogramme(hdf_plan, nom_section, nom_zone_2d=None, sortie=None,
-                     groupe="Reference Lines"):
-    """
-    Debit calcule a travers une section de controle, ecrit en CSV.
-
-    groupe : « Reference Lines » pour une section de controle, « Boundary
-    Conditions » pour relire un apport tel qu'il a ete injecte — utile pour
-    verifier qu'un hydrogramme d'apport a bien ete pris en compte.
-
-    Retourne le dict de reponse : voie utilisee, nombre de pas de temps,
-    duree, debit de pointe, volume et chemin du fichier.
-    """
-    arguments = ["hydrogramme", "--plan", hdf_plan, "--section", nom_section,
-                 "--groupe", groupe]
-    if nom_zone_2d:
-        arguments += ["--zone", nom_zone_2d]
-    if sortie:
-        arguments += ["--sortie", sortie]
-    return appeler_pont(*arguments)
-
-
 def creer_sections_dans_modele(fichier_geometrie, chemin_shp, nom_zone_2d,
                                remplacer=False):
     """
@@ -2334,7 +2294,7 @@ def lancer_calage(chemin_classeur):
     if not ok:
         raise RuntimeError(f"interpreteur HEC-RAS inutilisable : {motif}")
 
-    commande = [str(interpreteur), str(chaine / "pont_hecras.py"),
+    commande = [str(chaine / "pont_hecras.py"),
                 "caler", "--template", str(chemin_classeur)]
     drapeaux = 0
     if hasattr(subprocess, "DETACHED_PROCESS"):
@@ -2347,22 +2307,38 @@ def lancer_calage(chemin_classeur):
     # l'interpreteur HEC-RAS est un RELAIS (python.exe de 256 ko d'un venv
     # cree depuis le Python de QGIS), il relance le vrai interpreteur, et
     # celui-la, n'ayant aucune console a heriter, s'en fait allouer une NEUVE.
-    # Elle s'ouvre au premier plan, par-dessus la fenetre du plugin, pendant
+    # Elle s'ouvrait au premier plan, par-dessus la fenetre du plugin, pendant
     # les heures que dure le calage. Constate le 08/09/2026 sur un poste
     # distant, capture a l'appui.
-    #   ON NE LA SUPPRIME PAS, ON LA RANGE : elle reste dans la barre des
-    # taches, et c'est parfois la seule chose a regarder quand HEC-RAS refuse
-    # de demarrer. SW_SHOWMINNOACTIVE l'ouvre reduite ET sans prendre le
-    # focus — un SW_MINIMIZE ordinaire volerait la frappe en cours.
+    #
+    # PYTHONW, ET C'EST LA VRAIE REPONSE. Un premier correctif demandait la
+    # console REDUITE (SW_SHOWMINNOACTIVE) ; elle revenait quand meme au
+    # premier plan, parce que ce reglage ne vaut que pour le processus qu'on
+    # cree — le relais, lui, en cree un autre a sa facon. pythonw.exe, a cote
+    # de python.exe dans tout venv, est un binaire du sous-systeme GRAPHIQUE :
+    # Windows ne lui alloue JAMAIS de console, ni a lui ni au relais qui le
+    # lance. Le probleme ne se contourne plus, il n'existe plus.
+    #   CE QU'ON NE PERD PAS : la sortie. stdout et stderr sont rediriges vers
+    # le journal, comme avant — c'est meme la seule facon de lire un
+    # pythonw. Une trace de demarrage rate y figure toujours.
+    #   ET SI PYTHONW MANQUE (interpreteur qui n'est pas un venv, poste
+    # exotique), on retombe sur python.exe avec la console reduite : mieux
+    # vaut une console rangee que pas de calage.
+    lancement = interpreteur
+    graphique = Path(interpreteur).with_name("pythonw.exe")
+    if graphique.is_file():
+        lancement = graphique
+
     demarrage = None
-    if hasattr(subprocess, "STARTUPINFO"):
+    if lancement is interpreteur and hasattr(subprocess, "STARTUPINFO"):
         demarrage = subprocess.STARTUPINFO()
         demarrage.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         demarrage.wShowWindow = 7        # SW_SHOWMINNOACTIVE
 
     fichier_journal = open(journal, "w", encoding="utf-8")
     processus = subprocess.Popen(
-        commande, stdout=fichier_journal, stderr=subprocess.STDOUT,
+        [str(lancement)] + commande,
+        stdout=fichier_journal, stderr=subprocess.STDOUT,
         stdin=subprocess.DEVNULL, env=environnement_propre(interpreteur),
         creationflags=drapeaux, startupinfo=demarrage, close_fds=True)
     # LE PID RENDU N'EST PAS FORCEMENT CELUI DU CALAGE — voir ci-dessus : avec

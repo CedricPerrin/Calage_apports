@@ -1725,6 +1725,29 @@ def commande_caler(args):
             # calage qui a abouti.
             print(f"AVERTISSEMENT : menage non effectue : {e}", flush=True)
 
+        # ELAGAGE DES PLANS D'ETAPE, SI LA CASE ETAIT COCHEE. Ici et pas
+        # ailleurs : le plan final vient d'etre titre, c'est le seul moment ou
+        # l'operation a un sens ET ou elle est sure — elaguer_etapes refuse de
+        # toute facon s'il n'existe pas.
+        #   APRES LES LIVRABLES, JAMAIS AVANT : ils relisent les plans
+        # d'etape. Les retirer d'abord rendrait un rapport ampute sur un
+        # calage reussi, ce qui est pire que garder des plans.
+        if texte("Elaguer_plans_etape", "non").lower() in ("oui", "true", "1"):
+            try:
+                elagage = pilote.elaguer_etapes(prefixe_etape, simuler=False)
+                if elagage.get("refus"):
+                    print(f"Elagage refuse : {elagage['refus']}", flush=True)
+                else:
+                    print(f"Elagage : {len(elagage['supprimes'])} objet(s) "
+                          f"retire(s) — "
+                          f"{', '.join(elagage['supprimes'])}. Le plan "
+                          f"« {elagage['final']} » est conserve.", flush=True)
+            except Exception as e:
+                # Comme le menage : un calage abouti ne se perd pas sur un
+                # confort de rangement.
+                print(f"AVERTISSEMENT : elagage non effectue : {e}",
+                      flush=True)
+
     return repondre(
         ok=True, conforme=resultat.conforme, motif=resultat.motif,
         duree_s=round(resultat.duree_s, 1), nb_calculs=resultat.nb_calculs,

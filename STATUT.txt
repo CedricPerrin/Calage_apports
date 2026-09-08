@@ -102,6 +102,46 @@ CE QUI EST EPROUVE
     et verifies en 56 s. C'est le lancement depuis QGIS qui comptait — c'est
     la, et nulle part ailleurs, que son PYTHONHOME fuyait dans les
     sous-processus de pip.
+  - PLUGIN EN 0.7.22 (08/09) — REMANIEMENT D'ERGONOMIE (demande
+    utilisateur), CINQ POINTS.
+    1. L'ONGLET 1 SUIT L'ORDRE DES GESTES : projet, plan, « Couches
+       existantes » (on charge ce que le plan designe), profil en long qu'on
+       trace dessus, fenetre de simulation. La 0.7.19 avait glisse le profil
+       en long entre le plan et les couches ; a l'usage, il separait deux
+       gestes qui s'enchainent.
+    2. « CONTROLE DU PARAMETRAGE » PASSE A L'ONGLET 2, apres « Precision
+       attendue ». Troisieme demenagement en trois versions — bas de fenetre,
+       onglet 1, onglet 4, onglet 2 — et le dernier a une raison qui tient :
+       il est au contact des tolerances qu'il ecrit dans le classeur, et il
+       precede le classeur qu'il fabrique.
+    3. L'ELAGAGE DEVIENT UNE CASE A COCHER, decidee AVANT le calage et
+       appliquee par la CHAINE a la fin (pont_hecras, apres les livrables :
+       ils relisent les plans d'etape). Le parametre voyage par le classeur,
+       « Elaguer_plans_etape » = oui/non — et non True/False, qu'Excel relit
+       « VRAI » ou 1 selon sa langue. L'encadre dit ce qui va se passer :
+       « Les plans intermediaires seront CONSERVES » ou « SUPPRIMES », le mot
+       en rouge et en gras dans les DEUX sens — on ne sait pas d'avance
+       laquelle des deux issues surprendra le lecteur.
+    4. LE PREFIXE DE SCENARIO EST OBLIGATOIRE. Vide, il rendait les titres
+       d'avant, et deux scenarios cales sur le meme modele portaient les
+       MEMES titres : le second effacait les plans du premier, un par un, en
+       silence. C'est la SEULE perte de donnees que cette chaine sache
+       provoquer ; la porte est fermee, la composition refuse.
+    5. « RELIRE UN HYDROGRAMME DEJA CALCULE » QUITTE LA FENETRE. Outil de
+       diagnostic utilise trois fois l'an ; il vit en ligne de commande
+       (« pont_hecras.py hydrogramme »). Trois passe-plats de noyau.py sont
+       partis avec lui — lister_objets_modele, lire_hydrogramme,
+       elaguer_etapes — devenus sans appelant.
+  - LA CONSOLE NOIRE A DISPARU POUR DE BON, ET LE PREMIER CORRECTIF NE
+    SUFFISAIT PAS. La 0.7.21 demandait la console REDUITE
+    (SW_SHOWMINNOACTIVE) ; l'utilisateur l'a revue au premier plan. Le
+    reglage ne vaut que pour le processus qu'on CREE — or c'est le relais qui
+    cree le vrai interpreteur, a sa facon. Le calage part desormais par
+    PYTHONW.EXE, voisin de python.exe dans tout venv : binaire du sous-systeme
+    GRAPHIQUE, Windows ne lui alloue jamais de console, ni a lui ni a son
+    relais. Eprouve de bout en bout le 08/09 : processus lance, journal ecrit,
+    traceback complet capture. La sortie n'est pas perdue — elle n'a jamais
+    transite que par le journal.
   - PLUGIN EN 0.7.21 (08/09) — « ECRIRE, COMPOSER ET CONTROLER » PASSE A
     L'ONGLET 4, juste avant le lancement, dans un encadre « Controle du
     parametrage » (demande utilisateur). Il avait quitte le bas de la fenetre

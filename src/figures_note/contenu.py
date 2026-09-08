@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Contenu de la note methodologique V17.
+Contenu de la note methodologique V18.
 
 COUPE FRANCHE (decision utilisateur 30/08/2026) : ~40 % de mots en moins par
 RETRAIT de contenu, pas par reformulation. Ce qui est retire du corps :
@@ -17,12 +17,12 @@ caption code note.
 
 CONTENU = [
     ("title", "Calage d'apports amont sur des hydrogrammes cibles en aval"),
-    ("sous_titre", "Note méthodologique — Version 17"),
+    ("sous_titre", "Note méthodologique — Version 18"),
     ("p", "Détermine, pour un cours d'eau modélisé en 2D comportant plusieurs "
           "apports successifs, les débits à injecter en chaque point d'apport "
           "pour que le modèle restitue à chaque section de contrôle aval un "
           "hydrogramme cible imposé."),
-    ("note", "Version 17 (8 septembre 2026) — deux réponses d'hydraulicien "
+    ("note", "Version 18 (8 septembre 2026) — deux réponses d'hydraulicien "
              "y entrent : l'absence de boucle hydraulique est une HYPOTHÈSE "
              "DU MODÈLE que la chaîne ne vérifie pas (§ 1.2), et le verdict "
              "de volume porte sur la fenêtre de l'événement, pas sur la crue "
@@ -640,17 +640,21 @@ CONTENU = [
           "pris le nom de PROFIL EN LONG et la place qui lui revient, "
           "immédiatement sous le plan : le plan dit quelle géométrie on lit, "
           "le profil en long comment on la parcourt."),
-    ("p", "L'ACTION EST JUSTE AVANT LE LANCEMENT. « Écrire, composer et "
-          "contrôler » était permanent en bas de la fenêtre, visible depuis "
-          "les six onglets — y compris ceux où il n'a rien à faire. Il vit "
-          "désormais à l'onglet 4, dans un encadré CONTRÔLE DU PARAMÉTRAGE "
-          "qui précède le lancement : ce qu'il produit — le paquet, le "
-          "classeur, le compte rendu de contrôle — est précisément ce que cet "
-          "onglet donne à relire, et le composer ailleurs obligeait à revenir "
-          "en arrière. L'encadré « Écriture dans la géométrie », qui ne "
-          "portait aucune commande, est descendu dans l'aide : un cadre sans "
-          "geste, au milieu d'un onglet qui n'est fait que de gestes, se "
-          "lisait comme une étape à franchir."),
+    ("p", "L'ACTION VIT À L'ONGLET 2, dans un encadré CONTRÔLE DU "
+          "PARAMÉTRAGE qui suit la précision attendue : il est au contact des "
+          "tolérances qu'il écrit dans le classeur, et il précède le classeur "
+          "qu'il fabrique. « Écrire, composer et contrôler » a beaucoup "
+          "voyagé — bas de la fenêtre, onglet 1, onglet 4 — avant de s'y "
+          "ranger. L'encadré « Écriture dans la géométrie », qui ne portait "
+          "aucune commande, est descendu dans l'aide : un cadre sans geste, "
+          "au milieu d'un onglet qui n'est fait que de gestes, se lisait "
+          "comme une étape à franchir."),
+    ("p", "LE PRÉFIXE DE SCÉNARIO EST OBLIGATOIRE. Vide, il rendait les "
+          "titres d'avant — « sans_apport », « Apport_A1 » — et deux "
+          "scénarios calés sur le même modèle portaient alors les MÊMES "
+          "titres : le second effaçait les plans du premier, un par un, en "
+          "silence. C'est la seule perte de données que la chaîne sache "
+          "provoquer, et la fenêtre refuse désormais de composer sans lui."),
     ("table", [
         ["Onglet", "Contenu"],
         ["1. Modèle", "le FICHIER .prj du projet — et non le dossier qui le "
@@ -667,11 +671,10 @@ CONTENU = [
          "objectifs » où ils se saisissent."],
         ["3. Résultats", "dossier de sortie et ses deux sous-dossiers, "
          "relecture d'un hydrogramme déjà calculé, résumé de la "
-         "configuration, et le MÉNAGE DU MODÈLE — l'élagage des plans "
-         "d'étape d'un calage livré, sur demande et après confirmation."],
-        ["4. Lancer", "CONTRÔLE DU PARAMÉTRAGE — c'est ici qu'on écrit, "
-         "compose et contrôle, juste avant de lancer —, appariement "
-         "géométrique, et surtout COMBIEN "
+         "configuration, et le MÉNAGE DU MODÈLE — une case décide si les "
+         "plans d'étape sont conservés ou supprimés à la fin du calage, et "
+         "l'encadré le dit en toutes lettres."],
+        ["4. Lancer", "appariement géométrique, et surtout COMBIEN "
          "D'HYDROGRAMMES CIBLES RESTENT À SAISIR ; le premier apport à caler, "
          "le PRÉFIXE DE SCÉNARIO — sans lui, caler le Q10 après le Q100 sur "
          "le même modèle efface les plans du Q100 — et le lancement du calage "
@@ -698,9 +701,9 @@ CONTENU = [
           "CONSERVÉES — elles documentent le calage apport par apport et "
           "permettent de reprendre une séquence interrompue — au prix du "
           "disque : un modèle à trente apports garde trente et un jeux de "
-          "résultats. L'onglet 3 les élague SUR DEMANDE, jamais d'office, et "
-          "refuse de le faire si le calage n'a pas conclu : ses étapes sont "
-          "alors tout ce qu'il en reste."),
+          "résultats. Une case de l'onglet 3, cochée AVANT le calage, les "
+          "fait retirer à la fin — et l'élagage est refusé si le calage n'a "
+          "pas conclu : ses étapes sont alors tout ce qu'il en reste."),
     ("p", "La fenêtre est NON MODALE : le travail consiste précisément à "
           "dessiner des sections et des injections dans QGIS pendant qu'elle "
           "est ouverte. « Écrire, composer et contrôler » écrit d'abord les couches "

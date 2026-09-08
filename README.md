@@ -125,23 +125,24 @@ ce qu'on y dessine est écrit dans la géométrie par l'onglet 4.
 
 **2. Objectifs et précision** — l'**écart admis** sur le volume et sur le débit
 de pointe (le résultat, lui, se lit en pourcentage d'atteinte de la cible), le
-nombre maximal d'essais, et l'Excel des hydrogrammes objectifs.
+nombre maximal d'essais, le **contrôle du paramétrage** — c'est son bouton
+**Écrire, composer et contrôler** qui écrit dans la géométrie, compose et
+contrôle, seul geste irréversible de la fenêtre — et l'Excel des hydrogrammes
+objectifs.
 
 ![Onglet 2 — Objectifs et précision](docs/captures/onglet_2_objectifs.png)
 
-**3. Résultats** — dossiers de sortie et de suivi, relecture d'un hydrogramme
-déjà calculé, résumé de la configuration, et le **ménage du modèle** : une fois
-le calage livré, ses plans d'étape s'élaguent d'un bouton (jamais d'office, et
-jamais sans confirmation).
+**3. Résultats** — dossiers de sortie et de suivi, résumé de la configuration,
+et le **ménage du modèle** : une case décide si les plans d'étape sont
+conservés ou supprimés à la fin du calage, et l'encadré le dit en toutes
+lettres.
 
 ![Onglet 3 — Résultats](docs/captures/onglet_3_resultats.png)
 
 **4. Lancer** — l'appariement apport → section, l'état des cibles, le premier
-apport à caler, le **préfixe de scénario** (sans lui, caler le Q10 après le
-Q100 sur le même modèle efface les plans du Q100), puis **Contrôle du
-paramétrage** : c'est son bouton **Écrire, composer et contrôler** qui écrit
-dans la géométrie, compose et contrôle — seul geste irréversible de la fenêtre,
-et il précède le lancement.
+apport à caler, le **préfixe de scénario** — **obligatoire** : sans lui, caler
+le Q10 après le Q100 sur le même modèle effacerait les plans du Q100 —, puis le
+lancement.
 
 ![Onglet 4 — Lancer](docs/captures/onglet_4_lancer.png)
 

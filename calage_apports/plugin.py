@@ -44,6 +44,7 @@ from qgis.PyQt.QtWidgets import (
     QAbstractItemView,
     QAction,
     QApplication,
+    QCheckBox,
     QComboBox,
     QDialog,
     QDoubleSpinBox,
@@ -1330,18 +1331,20 @@ apport créé reçoit du même coup son hydrogramme dans le fichier
 Unsteady&nbsp;Flow, sinon il n'apporterait rien. La fenêtre de simulation n'est à corriger que si l'Unsteady&nbsp;Flow
 retenu couvre une <b>autre période</b> que le plan de référence.</li>
 <li><b>Onglet 2 — Objectifs et précision.</b> Ce qu'on vise, et avec quoi :
-la précision attendue sur le volume et sur le débit de pointe, puis le
-classeur — c'est dans sa feuille <i>Cibles</i> que se saisissent les
-hydrogrammes visés, une colonne par section.</li>
+la précision attendue sur le volume et sur le débit de pointe, puis
+<i>Contrôle du paramétrage</i> — <b>c'est là que tout s'écrit, se compose et
+se contrôle</b>, et le compte rendu qui s'ouvre est ce qu'on lit avant d'aller
+plus loin —, enfin le classeur : c'est dans sa feuille <i>Cibles</i> que se
+saisissent les hydrogrammes visés, une colonne par section.</li>
 <li><b>Onglet 3 — Résultats.</b> Dossier de résultats et dossier de suivi,
-relecture d'un hydrogramme déjà calculé, et le <i>ménage du modèle</i> :
-une fois le calage livré, ses plans d'étape s'élaguent d'un bouton — voir
-<a href="#s11">Ce que le calage laisse dans le modèle</a>.</li>
+et le <i>ménage du modèle</i> : une case décide du sort des plans d'étape à la
+fin du calage — voir <a href="#s11">Ce que le calage laisse dans le
+modèle</a>.</li>
 <li><b>Onglet 4 — Lancer.</b> Vérifier l'appariement et l'état des cibles,
-choisir le premier apport à caler, puis <i>Contrôle du paramétrage</i> —
-<b>c'est là que tout se compose et se contrôle</b>, et le compte rendu qui
-s'ouvre est ce qu'on lit avant de lancer. Puis lancer : le calage tourne en
-arrière-plan, QGIS reste utilisable.</li>
+choisir le premier apport à caler et le <b>préfixe de scénario</b>, qui est
+<b>obligatoire</b> : il nomme les plans de ce calage-ci, et c'est lui qui
+empêche un second scénario d'effacer les plans du premier. Puis lancer : le
+calage tourne en arrière-plan, QGIS reste utilisable.</li>
 <li><b>Onglet 5 — Suivi.</b> Où en est le calcul, apport par apport, rafraîchi
 tout seul. C'est là qu'on revient pendant les heures que dure un calage. La
 courbe y porte la cible et la section de l'apport en cours, et <b>derrière,
@@ -1495,12 +1498,18 @@ RAS&nbsp;Mapper.</p>
 qui a été obtenu apport par apport, et permettent de reprendre une séquence
 interrompue sans repartir du premier. Le prix est le disque — un modèle à
 trente apports garde trente et un jeux de résultats.</p>
-<p>Une fois le calage livré, <i>Ménage du modèle HEC-RAS</i> (onglet 3) les
-retire. Il ne touche qu'aux plans d'étape du préfixe indiqué : le plan de
-référence, le plan final et tout plan qui n'est pas de la chaîne restent. La
-liste s'affiche avant, et rien ne part sans confirmation. <b>Si le calage n'a
-pas conclu</b> — aucun plan <tt>…_avec_apports</tt> —, l'élagage est refusé :
-ses étapes sont alors tout ce qu'il en reste.</p>
+<p>La case <i>Ménage du modèle HEC-RAS</i> (onglet 3) décide de leur sort,
+<b>avant</b> le calage : cochée, la chaîne les retire à la fin ; décochée, ils
+restent. L'encadré dit en toutes lettres ce qui va se passer. L'élagage ne
+touche qu'aux plans d'étape du préfixe indiqué : le plan de référence, le plan
+final et tout plan qui n'est pas de la chaîne restent. <b>Si le calage n'a pas
+conclu</b> — aucun plan <tt>…_avec_apports</tt> —, il est refusé : ses étapes
+sont alors tout ce qu'il en reste.</p>
+<p>Oublié de cocher ? <tt>pont_hecras.py elaguer-etapes --dossier … --projet …
+--plan-reference … --prefixe …</tt> le fait encore après coup, depuis une
+console : sans <tt>--executer</tt>, il se contente de dire ce qui partirait.
+La relecture d'un hydrogramme déjà calculé a suivi le même chemin —
+<tt>pont_hecras.py hydrogramme</tt>.</p>
 
 <p><i>Hypothèses de validité, justification des tolérances et livrables :
 note méthodologique « methodologie_calage_amont_aval.docx », dans le dossier
@@ -2028,15 +2037,18 @@ class DialogueParametrage(QDialog):
         f2.addRow(self.label_geom_couches)
         v.addWidget(groupe_plan)
 
+        # LES COUCHES SUIVENT LE PLAN (0.7.22, demande utilisateur). C'est le
+        # geste qu'on fait juste apres l'avoir choisi : le plan dit quelle
+        # geometrie on lit, « Charger les couches » la met sur la carte. La
+        # 0.7.19 avait glisse le profil en long entre les deux, au motif qu'il
+        # decrit lui aussi le modele ; a l'usage, il separait deux gestes qui
+        # s'enchainent.
+        v.addWidget(self._groupe_couches_existantes())
+
         # L'AXE EST UN OBJET DU MODELE, pas un objectif. Il vivait a l'onglet
         # « 2. Profil en long », a cote de la precision attendue, avec
         # laquelle il n'a rien a voir : l'un se dessine sur la carte comme les
         # sections et les injections, l'autre se decide devant un tableau.
-        #   IL SUIT DESORMAIS LE PLAN (0.7.19) : le plan dit quelle geometrie
-        #   on lit, le profil en long dit comment on la parcourt — les deux
-        #   decrivent le modele, avant qu'on touche a la moindre couche. Il
-        #   fermait la marche derriere les couches, ou personne ne le
-        #   cherchait.
         v.addWidget(self._groupe_axe())
 
         # FENETRE DE SIMULATION.
@@ -2104,6 +2116,10 @@ class DialogueParametrage(QDialog):
         vf.addWidget(self.label_fenetre)
         v.addWidget(self.groupe_fenetre)
 
+        v.addStretch(1)
+        return page
+
+    def _groupe_couches_existantes(self):
         groupe_charger = QGroupBox("Couches existantes de la géométrie")
         v3 = QVBoxLayout(groupe_charger)
         v3.setSpacing(8)
@@ -2120,26 +2136,8 @@ class DialogueParametrage(QDialog):
         v3.addWidget(texte_aide(
             "Les sections et injections existantes arrivent sur la carte, "
             "prêtes à être complétées."))
-        v.addWidget(groupe_charger)
+        return groupe_charger
 
-        # DEUX ENCADRES ONT QUITTE CET ONGLET, ET POUR DES RAISONS OPPOSEES.
-        #
-        # « ECRITURE DANS LA GEOMETRIE » (0.7.19) ne portait AUCUNE commande :
-        # une explication, la convention de nommage, un compte rendu. Un
-        # encadre sans geste, au milieu d'un onglet qui n'est fait que de
-        # gestes, se lisait comme une etape a franchir. Son texte vit dans
-        # l'aide, § « Ecrire dans la geometrie » ; son compte rendu ouvre la
-        # boite de composition, d'ou il est enfin visible.
-        #
-        # « CONTROLE DU PARAMETRAGE » (0.7.21) porte, lui, LE geste — mais il
-        # est parti a l'onglet 4, juste avant le lancement. L'onglet 1 decrit
-        # le modele ; ce bouton, lui, consomme AUSSI les objectifs (onglet 2)
-        # et les dossiers (onglet 3), et ce qu'il produit — le paquet, le
-        # classeur, le compte rendu — est precisement ce qu'on relit avant de
-        # lancer. Le laisser ici obligeait a revenir en arriere pour composer
-        # ce que l'onglet 4 allait juger.
-        v.addStretch(1)
-        return page
 
     def _groupe_controle_parametrage(self):
         """
@@ -2251,14 +2249,14 @@ class DialogueParametrage(QDialog):
         # jour, un plan sous un nom qu'on n'a pas ecrit.
         self.edit_prefixe_scenario = QLineEdit()
         self.edit_prefixe_scenario.setPlaceholderText(
-            "Q100 — vide : pas de préfixe")
+            "Q100 — obligatoire")
         self.edit_prefixe_scenario.setToolTip(
             "Préfixe posé devant le titre de chaque plan créé par le "
             "calage : « Q100 » donne « Q100_sans_apport », "
             "« Q100_Apport_A1 » et, à l'arrivée, « Q100_avec_apports ».\n\n"
-            "INDISPENSABLE si plusieurs scénarios sont calés sur le même "
-            "modèle : sans lui, le calage du Q10 REMPLACE les plans du Q100, "
-            "qui portent exactement les mêmes titres.\n\n"
+            "OBLIGATOIRE, et c'est pour cela : sans lui, le calage du Q10 "
+            "REMPLACERAIT les plans du Q100, qui porteraient exactement les "
+            "mêmes titres.\n\n"
             "Le souligné est ajouté tout seul : « Q100 » et « Q100_ » "
             "donnent le même titre.\n\n"
             "Titre complet limité à 30 caractères — le champ « Short "
@@ -2789,6 +2787,13 @@ class DialogueParametrage(QDialog):
 
 
         v.addWidget(self._groupe_precision())
+
+        # LE CONTROLE SUIT LA PRECISION (0.7.22, demande utilisateur). Il
+        # avait deja migre du bas de la fenetre (0.7.19) vers l'onglet 1, puis
+        # vers l'onglet 4 (0.7.21). Ici, il est au contact de ce qu'il
+        # consomme le plus directement — les tolerances qu'il ecrit dans le
+        # classeur — et il precede le classeur lui-meme, qu'il fabrique.
+        v.addWidget(self._groupe_controle_parametrage())
         v.addWidget(self._groupe_classeur())
         v.addStretch(1)
         return page
@@ -2834,24 +2839,12 @@ class DialogueParametrage(QDialog):
             "le classeur d'itérations — consultable depuis un autre poste."))
         v.addWidget(groupe)
 
-        groupe_relire = QGroupBox("Relire un hydrogramme déjà calculé")
-        groupe_relire.setToolTip(
-            "Utile avant de caler : vérifier qu'une section répond, et que "
-            "les apports sont bien pris en compte.")
-        v3 = QVBoxLayout(groupe_relire)
-        v3.setSpacing(8)
-        bouton_relire = QPushButton("Choisir un fichier de résultats…")
-        bouton_relire.clicked.connect(self._relire_hydrogramme)
-        ligne_relire = QHBoxLayout()
-        ligne_relire.addWidget(bouton_relire)
-        ligne_relire.addStretch(1)
-        v3.addLayout(ligne_relire)
-        self.label_relecture = texte_etat()
-        v3.addWidget(self.label_relecture)
-        v3.addWidget(texte_aide(
-            "Exporte en CSV le débit calculé à une section, ou le débit "
-            "injecté à une ligne d'apport."))
-        v.addWidget(groupe_relire)
+        # « RELIRE UN HYDROGRAMME DEJA CALCULE » A QUITTE LA FENETRE (0.7.22,
+        # demande utilisateur). C'etait un outil de diagnostic — exporter en
+        # CSV le debit a une section — dans un onglet qui parle des sorties du
+        # calage. Il n'a pas disparu du projet : « pont_hecras.py hydrogramme
+        # --plan … --section … » le fait depuis une console, et c'est la sa
+        # place. Un onglet n'a pas a porter ce qu'on utilise trois fois l'an.
 
         # LE MENAGE VIT ICI, PAS A L'ONGLET 1. L'onglet 1 prepare le modele
         # AVANT le calage ; celui-ci parle de ce que le calage a PRODUIT, et
@@ -2864,23 +2857,31 @@ class DialogueParametrage(QDialog):
             "reprendre une séquence interrompue. Une fois le calage livré, "
             "ils ne servent plus qu'à occuper le disque : un modèle à trente "
             "apports en garde trente et un jeux de résultats."))
-        bouton_elaguer = QPushButton("Élaguer les plans d'étape…")
-        bouton_elaguer.setToolTip(
-            "Retire les plans d'étape du calage désigné par le préfixe de "
-            "scénario (onglet 4), et eux seuls. Le plan de référence, le plan "
-            "final « …_avec_apports » et tout plan qui n'est pas de la chaîne "
-            "restent.\n\n"
-            "Rien n'est supprimé sans confirmation : la liste s'affiche "
-            "d'abord. Et si le calage n'a pas conclu — pas de plan final —, "
-            "l'élagage est refusé : ses étapes sont alors tout ce qu'il en "
-            "reste.")
-        bouton_elaguer.clicked.connect(self._elaguer_etapes)
-        ligne_elaguer = QHBoxLayout()
-        ligne_elaguer.addWidget(bouton_elaguer)
-        ligne_elaguer.addStretch(1)
-        fm.addRow(ligne_elaguer)
-        self.label_elagage = texte_etat()
+        # UNE CASE, PAS UN BOUTON (0.7.22, demande utilisateur). Le bouton
+        # elaguait APRES COUP : il fallait y penser une fois le calage fini,
+        # et revenir dans la fenetre pour cela. La case se coche AVANT, avec
+        # le reste du parametrage, et c'est la CHAINE qui elague en fin de
+        # calage — au moment ou le plan final existe, donc ou l'operation est
+        # sure.
+        self.case_elaguer = QCheckBox(
+            "Élaguer les plans d'étape à la fin du calage")
+        self.case_elaguer.setToolTip(
+            "Retire les plans d'étape du calage — eux seuls. Le plan de "
+            "référence, le plan final « …_avec_apports » et tout plan qui "
+            "n'est pas de la chaîne restent.\n\n"
+            "N'a lieu QUE si le calage aboutit : sans plan final, ses étapes "
+            "sont tout ce qu'il en reste, et l'élagage est refusé.\n\n"
+            "Oublié ? « pont_hecras.py elaguer-etapes » le fait encore après "
+            "coup, depuis une console.")
+        self.case_elaguer.toggled.connect(self._dire_elagage)
+        fm.addRow(self.case_elaguer)
+        # CE QUI VA SE PASSER, EN UNE PHRASE ET EN COULEUR. Une case a cocher
+        # dit ce qu'elle FERA ; elle ne dit pas ce qu'il ADVIENDRA des plans,
+        # qui est la seule chose qui compte ici — et c'est irreversible.
+        self.label_elagage = QLabel()
+        self.label_elagage.setWordWrap(True)
         fm.addRow(self.label_elagage)
+        self._dire_elagage()
         v.addWidget(groupe_menage)
 
         groupe_resume = QGroupBox("Résumé de la configuration")
@@ -2894,130 +2895,20 @@ class DialogueParametrage(QDialog):
 
         return page
 
-    @avec_sablier
-    def _elaguer_etapes(self):
+    def _dire_elagage(self):
         """
-        Retire les plans d'etape d'un calage abouti, apres confirmation.
+        Dit ce qu'il adviendra des plans intermediaires, en toutes lettres.
 
-        DEUX APPELS, ET LE PREMIER NE TOUCHE A RIEN. Le pont rend d'abord la
-        LISTE de ce qui partirait ; on la montre, on demande, et le second
-        appel seul efface. Un compte rendu qui arrive apres coup n'aurait
-        aucune valeur ici : les resultats d'un plan efface ne se refont qu'en
-        relancant le calcul.
-
-        LE REFUS DU PONT EST UN DIAGNOSTIC, PAS UNE PANNE : « le calage n'a
-        pas conclu » veut dire que ses etapes sont tout ce qu'il en reste. On
-        l'affiche tel quel, sans boite d'erreur rouge.
+        LE MOT QUI COMPTE EST EN ROUGE ET EN GRAS, dans les deux sens :
+        « conservés » comme « supprimés ». Ce n'est pas une alerte — c'est
+        l'endroit ou l'oeil doit tomber, et l'on ne sait pas d'avance laquelle
+        des deux issues surprendra le lecteur.
         """
-        try:
-            if not self.info_projet:
-                raise ValueError(
-                    "Onglet 1 : choisir d'abord le dossier du projet HEC-RAS.")
-            plan = self.combo_plan.currentData()
-            if plan is None:
-                raise ValueError("Onglet 1 : choisir un plan de référence.")
-            prefixe = self.edit_prefixe_scenario.text().strip()
-
-            simulation = noyau.elaguer_etapes(
-                self._dossier_projet(), self.info_projet["nom_projet"],
-                str(plan["numero"]), prefixe)
-            if simulation.get("refus"):
-                dire(self.label_elagage,
-                     f"<span style='color:{ISL_ARDOISE}'>"
-                     f"{simulation['refus']}</span>")
-                return
-            etapes = simulation.get("etapes") or []
-            if not etapes:
-                dire(self.label_elagage,
-                     f"Aucun plan d'étape à retirer pour "
-                     f"« {prefixe or '(sans préfixe)'} » — le modèle est déjà "
-                     f"net.")
-                return
-
-            with sans_sablier(self):
-                reponse = QMessageBox.question(
-                    self, "Élaguer les plans d'étape",
-                    f"{len(etapes)} plan(s) d'étape vont être supprimés du "
-                    f"modèle, AVEC leurs résultats de calcul :\n\n"
-                    f"    p{', p'.join(etapes)}\n\n"
-                    f"Le plan final « {simulation['final']} » et le plan de "
-                    f"référence sont conservés.\n\n"
-                    f"Cette suppression est DÉFINITIVE : un plan effacé ne se "
-                    f"refait qu'en relançant son calcul. Continuer ?",
-                    QMessageBox.StandardButton.Yes
-                    | QMessageBox.StandardButton.No,
-                    QMessageBox.StandardButton.No)
-            if reponse != QMessageBox.StandardButton.Yes:
-                dire(self.label_elagage, "Élagage annulé — rien n'a été retiré.")
-                return
-
-            fait = noyau.elaguer_etapes(
-                self._dossier_projet(), self.info_projet["nom_projet"],
-                str(plan["numero"]), prefixe, executer=True)
-            retires = fait.get("supprimes") or []
-            dire(self.label_elagage,
-                 f"<span style='color:{ISL_VERT}'>{len(retires)} fichier(s) "
-                 f"d'objet retiré(s)</span> : {', '.join(retires)}. "
-                 f"Le plan « {fait['final']} » et ses résultats sont intacts.")
-        except Exception as e:
-            journaliser("Élagage des plans d'étape", e)
-            QMessageBox.critical(self, "Élagage", str(e))
-
-    @avec_sablier
-    def _relire_hydrogramme(self):
-        """Lit le débit calculé à une section ou à une injection, et l'exporte."""
-        try:
-            depart = self._dossier_projet()
-            with sans_sablier(self):
-                plan, _ = QFileDialog.getOpenFileName(
-                    self, "Fichier de résultats HEC-RAS", depart,
-                    "Résultats HEC-RAS (*.hdf)")
-            if not plan:
-                return
-
-            objets = noyau.lister_objets_modele(plan)
-            if not objets["sections"] and not objets["apports"]:
-                raise ValueError(
-                    "ce fichier de résultats ne contient ni section de "
-                    "contrôle ni ligne d'injection. Les créer dans l'onglet 1, "
-                    "puis relancer le calcul.")
-
-            # Relire un apport tel qu'il a ete injecte est utile pour verifier
-            # qu'un hydrogramme a bien ete pris en compte.
-            choix = ([(n, "Reference Lines") for n in objets["sections"]]
-                     + [(f"{n}  (injection)", "Boundary Conditions")
-                        for n in objets["apports"]])
-            libelles = [c[0] for c in choix]
-            with sans_sablier(self):
-                libelle, valide = QInputDialog.getItem(
-                    self, "Objet à relire",
-                    "Section de contrôle ou injection :", libelles, 0, False)
-            if not valide:
-                return
-            nom, groupe = choix[libelles.index(libelle)]
-            nom = nom.split("  (injection)")[0]
-
-            r = noyau.lire_hydrogramme(plan, nom, groupe=groupe)
-            message = (
-                f"« {nom} » : {r['pas_de_temps']} pas de temps sur "
-                f"{r['duree_h']:.1f} h, pointe {r['pointe_m3s']:.2f} m³/s, "
-                f"volume {r['volume_1000m3']:.0f} × 10³ m³.\n"
-                f"Exporté dans {os.path.basename(r['fichier'])}.")
-            if r.get("orientation_inversee"):
-                message += ("\nLa section est tracée à contre-courant : le "
-                            "débit a été ramené en convention positive vers "
-                            "l'aval.")
-            if r.get("ecoulement_reversible"):
-                message += ("\nATTENTION : l'écoulement change de sens au "
-                            "cours du temps. La méthode suppose un sens "
-                            "stable — résultat à interpréter avec prudence.")
-            dire(self.label_relecture, message)
-            QMessageBox.information(self, "Hydrogramme relu", message)
-        except Exception as e:
-            journaliser("Relecture d'un hydrogramme", e)
-            dire(self.label_relecture,
-                 f"<span style='color:{ISL_ROUGE}'>Échec : {e}</span>")
-            QMessageBox.critical(self, "Lecture", str(e))
+        supprime = self.case_elaguer.isChecked()
+        mot = "supprimés" if supprime else "conservés"
+        self.label_elagage.setText(
+            f"Les plans intermédiaires seront "
+            f"<b style='color:{ISL_ROUGE}'>{mot}</b>.")
 
     def _ecrire_dans_geometrie(self):
         """
@@ -3161,13 +3052,6 @@ class DialogueParametrage(QDialog):
         # le calcul depuis le debut. Un reglage se lit avant l'action, jamais
         # apres.
         v.addWidget(self._groupe_copies_de_travail())
-
-        # AVANT DE LANCER, ON COMPOSE ET L'ON CONTROLE. C'est l'ordre du
-        # travail, et desormais celui de l'onglet : l'encadre ci-dessous rend
-        # le compte rendu que le groupe « Validation » du haut resume, et le
-        # bouton « Lancer » qui suit n'a de sens qu'une fois ce compte rendu
-        # lu.
-        v.addWidget(self._groupe_controle_parametrage())
 
         groupe_lancer = QGroupBox("Calage")
         vl = QVBoxLayout(groupe_lancer)
@@ -4828,6 +4712,21 @@ class DialogueParametrage(QDialog):
             plan = self.combo_plan.currentData()
             if plan is None:
                 raise ValueError("Onglet 1 : choisir un plan de référence.")
+            # LE PREFIXE EST OBLIGATOIRE (0.7.22, demande utilisateur). Vide,
+            # il etait admis et rendait les titres d'avant — « sans_apport »,
+            # « Apport_A1 ». Deux scenarios cales sur le meme modele portaient
+            # alors les MEMES titres, et le second effacait les plans du
+            # premier, un par un, en silence. Le prefixe est ce qui rend les
+            # deux series etrangeres : le laisser facultatif, c'est laisser la
+            # porte ouverte a la seule perte de donnees que cette chaine
+            # sache provoquer.
+            if not self.edit_prefixe_scenario.text().strip():
+                raise ValueError(
+                    "Onglet 4 : renseigner le préfixe de scénario. Il nomme "
+                    "les plans de CE calage — « Q100 » donne "
+                    "« Q100_sans_apport », « Q100_avec_apports » — et c'est "
+                    "lui qui empêche un second scénario d'effacer les plans "
+                    "du premier.")
             c_sections = couche_vivante(self.couche_sections)
             c_injections = couche_vivante(self.couche_injections)
             if c_sections is None or c_injections is None:
@@ -4896,6 +4795,7 @@ class DialogueParametrage(QDialog):
                 nom_clone_geometrie=NOM_CLONE_GEOMETRIE_DEFAUT,
                 premier_apport=self._premier_apport(),
                 prefixe_scenario=self.edit_prefixe_scenario.text().strip(),
+                elaguer_etapes=self.case_elaguer.isChecked(),
                 sens_axe=self.combo_sens_axe.currentText(),
                 pk_origine_m=self.spin_pk_origine.value(),
                 nb_max_iterations=self.spin_nb_max_essais.value(),

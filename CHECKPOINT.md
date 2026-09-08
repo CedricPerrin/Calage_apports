@@ -46,6 +46,18 @@ elle exige QGIS.
 | **Deux défauts du banc de plus**, même motif que les huit précédents — il suppose le monde de son auteur : le mannequin de `QMessageBox` ignorait quatre méthodes que seule la branche « pas d'interpréteur » appelle, et un appariement impossible était compté comme quatre échecs au lieu d'un diagnostic sur le modèle | `STATUT.txt` § 1 |
 | **L'interpréteur HEC-RAS posé par le bouton « Installer… »**, depuis QGIS, sur un poste qui n'en avait pas — le point ouvert depuis le 30/08 est levé | `STATUT.txt` § 1 |
 
+### La 0.7.22 — remaniement d'ergonomie
+
+| | |
+|---|---|
+| **L'onglet 1 suit l'ordre des gestes** : projet, plan, couches, profil en long, fenêtre | `STATUT.txt` § 1 |
+| **« Contrôle du paramétrage » passe à l'onglet 2**, après la précision attendue — troisième déménagement, et le dernier a une raison qui tient | |
+| **L'élagage devient une case à cocher**, décidée avant le calage et appliquée par la chaîne à la fin. L'encadré dit « Les plans intermédiaires seront CONSERVÉS / SUPPRIMÉS », le mot en rouge dans les deux sens | |
+| **Le préfixe de scénario est obligatoire** — c'est ce qui empêche la seule perte de données que la chaîne sache provoquer | |
+| « Relire un hydrogramme » quitte la fenêtre ; trois passe-plats de `noyau.py` partent avec lui | |
+| **La console noire a disparu pour de bon** : le calage part par `pythonw.exe`, binaire graphique auquel Windows n'alloue jamais de console. Le correctif précédent — console réduite — ne valait que pour le processus créé, pas pour celui que le relais crée | |
+| Banc du plugin : **128 contrôles, 0 échec** | |
+
 ### La 0.7.21 — l'action passe à l'onglet 4
 
 | | |

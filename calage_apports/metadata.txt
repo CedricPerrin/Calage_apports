@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.7.21
+version=0.7.22
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,34 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.7.21 — « Écrire, composer et contrôler » passe à l'onglet 4, juste avant le lancement, dans « Contrôle du paramétrage ».
+changelog=0.7.22 — Remaniement d'ergonomie : l'action à l'onglet 2, l'élagage en case à cocher, le préfixe obligatoire.
+    L'ONGLET 1 SUIT L'ORDRE DES GESTES : projet, plan, puis « Couches
+    existantes » — on charge ce que le plan désigne —, puis le profil en long
+    qu'on trace dessus, puis la fenêtre de simulation.
+    « CONTRÔLE DU PARAMÉTRAGE » PASSE À L'ONGLET 2, après « Précision
+    attendue » : il est au contact des tolérances qu'il écrit dans le
+    classeur, et il précède le classeur qu'il fabrique.
+    L'ÉLAGAGE DES PLANS D'ÉTAPE DEVIENT UNE CASE À COCHER, décidée avant le
+    calage et appliquée par la chaîne à la fin — au moment où le plan final
+    existe, donc où l'opération est sûre. L'encadré dit en toutes lettres ce
+    qui va se passer : « Les plans intermédiaires seront CONSERVÉS » ou
+    « SUPPRIMÉS », le mot en rouge dans les deux sens. Le bouton d'élagage
+    après coup disparaît de la fenêtre ; « pont_hecras.py elaguer-etapes » le
+    fait encore depuis une console.
+    LE PRÉFIXE DE SCÉNARIO DEVIENT OBLIGATOIRE. Vide, il rendait les titres
+    d'avant — « sans_apport », « Apport_A1 » — et deux scénarios calés sur le
+    même modèle portaient alors les MÊMES titres : le second effaçait les
+    plans du premier, un par un, en silence. C'est la seule perte de données
+    que cette chaîne sache provoquer ; la porte est fermée.
+    « RELIRE UN HYDROGRAMME DÉJÀ CALCULÉ » QUITTE LA FENÊTRE. Outil de
+    diagnostic utilisé trois fois l'an, il vit désormais en ligne de commande.
+    ET LA CONSOLE NOIRE DISPARAÎT POUR DE BON. Le correctif de la 0.7.21 la
+    demandait réduite ; elle revenait au premier plan, parce que ce réglage ne
+    vaut que pour le processus qu'on crée — le relais, lui, en crée un autre à
+    sa façon. Le calage est maintenant lancé par PYTHONW.EXE, binaire du
+    sous-système graphique : Windows ne lui alloue jamais de console. La
+    sortie continue d'aller dans le journal.
+    0.7.21 — « Écrire, composer et contrôler » passe à l'onglet 4, juste avant le lancement, dans « Contrôle du paramétrage ».
     Le bouton avait quitté le bas de la fenêtre pour l'onglet 1 en 0.7.19, au
     motif que le plan, le profil en long et les couches y sont. Mais il
     consomme AUSSI les objectifs de l'onglet 2 et les dossiers de l'onglet 3,

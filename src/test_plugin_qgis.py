@@ -579,6 +579,22 @@ else:
     dlg.combo_axe.setLayer(QgsProject.instance().mapLayersByName("Axe")[0])
     dlg.edit_dossier_sortie.setText(str(ESSAI))
 
+    # LE PREFIXE DE SCENARIO EST OBLIGATOIRE (0.7.22). C'est ce qui rend
+    # etrangeres les series de plans de deux scenarios : sans lui, caler le
+    # Q10 apres le Q100 effacait les plans du Q100 un par un, en silence. Le
+    # banc verifie donc le REFUS avant de le renseigner — et il doit le
+    # renseigner, sans quoi tout ce qui suit tomberait sur ce refus.
+    BoiteMessage.critiques.clear()
+    dlg.edit_prefixe_scenario.setText("")
+    dlg._composer_et_controler()
+    _refus_prefixe = BoiteMessage.critiques[0] if BoiteMessage.critiques else ""
+    verifier("sans prefixe de scenario, la composition refuse et dit pourquoi",
+             "préfixe de scénario" in _refus_prefixe
+             and "onglet 4" in _refus_prefixe.lower(),
+             _refus_prefixe[:100] or "aucun refus — la branche est morte")
+    BoiteMessage.critiques.clear()
+    dlg.edit_prefixe_scenario.setText("ESSAI")
+
     dlg._composer_et_controler()
 
     # UN APPARIEMENT IMPOSSIBLE EST UN DIAGNOSTIC SUR LE MODELE, PAS UN ECHEC
@@ -1926,20 +1942,61 @@ verifier("l'onglet 1 ne porte plus ni l'écriture ni la mise à jour",
          and "Écrire, composer et contrôler" not in _boutons_modele,
          f"{_groupes_modele} | {_boutons_modele}")
 
-# L'ACTION EST JUSTE AVANT LE LANCEMENT (0.7.21). Ce que le bouton produit —
-# paquet, classeur, compte rendu — se lit a l'onglet 4 ; l'y placer evite
-# l'aller-retour qui consistait a composer a l'onglet 1 ce que l'onglet 4
-# allait juger.
-_page_lancer = dlg.onglets.widget(mod_plugin.ONGLET_LANCER)
-_groupes_lancer = [g.title() for g in _page_lancer.findChildren(_QGroupBoxA)]
-_boutons_lancer = [b.text() for b in _page_lancer.findChildren(_QPushButtonA)]
-verifier("« Écrire, composer et contrôler » vit a l'onglet 4",
-         "Écrire, composer et contrôler" in _boutons_lancer, _boutons_lancer)
-verifier("l'onglet 4 porte « Contrôle du paramétrage »",
-         "Contrôle du paramétrage" in _groupes_lancer, _groupes_lancer)
-verifier("et il precede « Calage » : on controle avant de lancer",
-         _groupes_lancer.index("Contrôle du paramétrage")
-         < _groupes_lancer.index("Calage"), _groupes_lancer)
+# L'ACTION SUIT LA PRECISION ATTENDUE (0.7.22). Elle a beaucoup voyage — bas
+# de la fenetre, onglet 1, onglet 4 — et se range ici au contact de ce qu'elle
+# ecrit dans le classeur.
+_page_objectifs = dlg.onglets.widget(1)
+_groupes_objectifs = [g.title() for g in _page_objectifs.findChildren(_QGroupBoxA)]
+_boutons_objectifs = [b.text() for b in _page_objectifs.findChildren(_QPushButtonA)]
+verifier("« Écrire, composer et contrôler » vit a l'onglet 2",
+         "Écrire, composer et contrôler" in _boutons_objectifs,
+         _boutons_objectifs)
+verifier("l'onglet 2 porte « Contrôle du paramétrage »",
+         "Contrôle du paramétrage" in _groupes_objectifs, _groupes_objectifs)
+verifier("et il suit « Précision attendue »",
+         _groupes_objectifs.index("Contrôle du paramétrage")
+         == _groupes_objectifs.index("Précision attendue") + 1,
+         _groupes_objectifs)
+verifier("l'onglet 4 ne porte plus que l'appariement et le lancement",
+         "Contrôle du paramétrage" not in
+         [g.title() for g in
+          dlg.onglets.widget(mod_plugin.ONGLET_LANCER).findChildren(_QGroupBoxA)])
+
+# « RELIRE UN HYDROGRAMME » A QUITTE LA FENETRE (0.7.22). L'outil vit encore,
+# en ligne de commande ; c'est l'onglet qui n'avait pas a le porter.
+verifier("l'onglet 3 ne porte plus la relecture d'hydrogramme",
+         "Relire un hydrogramme déjà calculé" not in
+         [g.title() for g in dlg.onglets.widget(2).findChildren(_QGroupBoxA)])
+
+# L'ELAGAGE EST UNE CASE, ET ELLE DIT CE QU'ELLE FERA. Le mot qui compte —
+# « conservés » ou « supprimés » — est en rouge dans les deux sens : on ne
+# sait pas d'avance laquelle des deux issues surprendra le lecteur.
+dlg.case_elaguer.setChecked(False)
+verifier("case decochee : les plans intermediaires sont dits CONSERVES",
+         "conservés" in dlg.label_elagage.text()
+         and mod_plugin.ISL_ROUGE in dlg.label_elagage.text(),
+         dlg.label_elagage.text())
+dlg.case_elaguer.setChecked(True)
+verifier("case cochee : ils sont dits SUPPRIMES",
+         "supprimés" in dlg.label_elagage.text()
+         and mod_plugin.ISL_ROUGE in dlg.label_elagage.text(),
+         dlg.label_elagage.text())
+dlg.case_elaguer.setChecked(False)
+
+# ET LE CHOIX VOYAGE JUSQU'A LA CHAINE, par le classeur — c'est elle qui
+# elague, en fin de calage, quand le plan final existe.
+def _parametres_essai(**extra):
+    return mod_plugin.noyau.parametres_calage(
+        ".", "P", "7.0.1", "Z", "01", "01", "01", "plan", "G", "",
+        "amont_aval", 0.0, 8, 5.0, 2.0, ".", "r", "s",
+        prefixe_scenario="Q100", **extra)
+
+
+verifier("le parametre d'elagage part dans le classeur",
+         _parametres_essai(elaguer_etapes=True)["Elaguer_plans_etape"] == "oui"
+         and _parametres_essai()["Elaguer_plans_etape"] == "non",
+         f"coche -> {_parametres_essai(elaguer_etapes=True)['Elaguer_plans_etape']} "
+         f"| decoche -> {_parametres_essai()['Elaguer_plans_etape']}")
 # LES SECTIONS DEJA CALEES SE TRACENT DERRIERE LA PAIRE COURANTE. Le banc
 # n'eprouve pas l'apparence, mais il peut verifier que le widget ACCEPTE les
 # deux jeux et les retient : sans cela, une signature changee d'un cote et pas
@@ -1961,31 +2018,29 @@ verifier("et les oublie quand il n'y a plus de calage suivi",
          dlg.courbe_suivi.precedentes == []
          and dlg.courbe_suivi.courbes is None)
 
-# LE MENAGE EST A L'ONGLET 3, ET IL DEMANDE AVANT. Le bouton efface des
-# resultats de calcul : le banc verifie qu'il existe, qu'il est la ou on le
-# cherche, et surtout que sans projet charge il REFUSE en nommant l'onglet.
+# LE MENAGE EST A L'ONGLET 3, ET C'EST UNE CASE (0.7.22). Elle se coche avant
+# le calage ; c'est la chaine qui elague a la fin, quand le plan final existe.
 _page_resultats = dlg.onglets.widget(2)
 _groupes_resultats = [g.title() for g in _page_resultats.findChildren(_QGroupBoxA)]
 verifier("l'onglet 3 porte « Ménage du modèle HEC-RAS »",
          "Ménage du modèle HEC-RAS" in _groupes_resultats, _groupes_resultats)
-_boutons_resultats = [b.text() for b in _page_resultats.findChildren(_QPushButtonA)]
-verifier("« Élaguer les plans d'étape… » y est",
-         "Élaguer les plans d'étape…" in _boutons_resultats, _boutons_resultats)
-BoiteMessage.critiques.clear()
-dlg._elaguer_etapes()
-verifier("sans projet, l'elagage refuse et nomme l'onglet",
-         bool(BoiteMessage.critiques)
-         and "onglet 1" in BoiteMessage.critiques[0].lower(),
-         BoiteMessage.critiques[0][:80] if BoiteMessage.critiques else "aucun refus")
-BoiteMessage.critiques.clear()
+verifier("l'elagage est une case a cocher, plus un bouton",
+         "Élaguer les plans d'étape…" not in
+         [b.text() for b in _page_resultats.findChildren(_QPushButtonA)]
+         and dlg.case_elaguer.parent() is not None)
+verifier("et elle est DECOCHEE par defaut : on ne supprime rien sans le dire",
+         not dlg.case_elaguer.isChecked())
 
-# L'ORDRE DES ENCADRES EST UN CONTENU : le plan dit quelle geometrie on
-# lit, le profil en long comment on la parcourt. Les separer par les
-# couches renvoyait le second en fin d'onglet, ou personne ne le cherchait.
-verifier("« Profil en long » suit immediatement le plan",
-         "Profil en long" in _groupes_modele
-         and _groupes_modele.index("Profil en long")
-         == _groupes_modele.index("Plan, géométrie et Unsteady Flow") + 1,
+# L'ORDRE DES ENCADRES EST UN CONTENU, et il suit l'ordre des gestes
+# (0.7.22) : on choisit le projet, puis le plan, on CHARGE les couches qu'il
+# designe, on trace le profil en long dessus, et l'on ne touche a la fenetre
+# de simulation que si l'Unsteady couvre une autre periode.
+verifier("l'onglet 1 suit l'ordre des gestes",
+         _groupes_modele == ["Projet HEC-RAS",
+                             "Plan, géométrie et Unsteady Flow",
+                             "Couches existantes de la géométrie",
+                             "Profil en long",
+                             "Fenêtre de simulation"],
          _groupes_modele)
 # La fenetre doit pouvoir rester ouverte pendant qu'on dessine dans QGIS :
 # modale, elle bloquerait la carte et obligerait a fermer/rouvrir.
