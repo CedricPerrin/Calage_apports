@@ -34,7 +34,33 @@ DOSSIER = Path(__file__).resolve().parent
 DEPOT = DOSSIER.parent  # depot du projet : calage_apports/ est un sibling
                         # de src/, pas de ce fichier
 SOURCE = DEPOT / "calage_apports"
-ARCHIVE = DEPOT / "calage_apports.zip"
+
+
+def _version():
+    """
+    Le numero de version, lu dans metadata.txt — la SEULE source.
+
+    Le retranscrire ici en donnerait deux, et c'est la copie qui aurait tort
+    le jour ou l'on oublierait de la suivre.
+    """
+    for ligne in (SOURCE / "metadata.txt").read_text(
+            encoding="utf-8").splitlines():
+        if ligne.startswith("version="):
+            return ligne.split("=", 1)[1].strip()
+    raise SystemExit(f"{SOURCE / 'metadata.txt'} ne declare pas de version=")
+
+
+# L'ARCHIVE PORTE SA VERSION DANS SON NOM (demande utilisateur, 08/09/2026).
+# « calage_apports.zip » tout court ne disait rien : sur un poste distant, on
+# installait une archive sans savoir laquelle, et deux essais a une heure
+# d'intervalle portaient le meme nom.
+#
+# UNE SEULE ARCHIVE A LA FOIS DANS LE DEPOT. Les anciennes sont retirees a
+# chaque construction — sans quoi le depot accumulerait 400 ko par version,
+# et l'on ne saurait plus laquelle installer. L'historique des versions, lui,
+# vit dans git et dans le changelog de metadata.txt.
+ARCHIVE = DEPOT / f"calage_apports_{_version()}.zip"
+MOTIF_ARCHIVES = "calage_apports*.zip"
 
 # Mots interdits dans ce qui est distribue : noms d'affaires, identifiants de
 # cas d'essai, dossiers de synchronisation.
@@ -273,8 +299,10 @@ def construire():
             f"la chaine calculee ne contient pas {manquants} : le plugin ne "
             f"reconnaitrait pas sa propre copie embarquee.")
 
-    if ARCHIVE.exists():
-        ARCHIVE.unlink()
+    # Les archives des versions precedentes partent avec l'ancienne : une
+    # seule doit rester, celle qu'on vient de construire.
+    for ancienne in sorted(DEPOT.glob(MOTIF_ARCHIVES)):
+        ancienne.unlink()
     # as_posix() n'est PAS cosmetique : une archive ZIP separe ses chemins par
     # « / ». Sous Windows, relative_to() rend des « \ », et l'entree produite
     # devient un fichier dont le nom contient un antislash au lieu d'un

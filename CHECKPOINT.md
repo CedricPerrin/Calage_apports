@@ -97,7 +97,7 @@ elle exige QGIS.
    matières au passage : la reconstruction la perd. Quatre tentatives
    d'export piloté ont échoué, sans que le document y soit pour quelque
    chose.
-1. **Réinstaller le plugin depuis `calage_apports.zip`** (0.7.19) —
+1. **Réinstaller le plugin depuis `calage_apports_<version>.zip`** —
    Extensions → Installer depuis un ZIP — puis rejouer `test_plugin_qgis.py` :
    sept contrôles neufs depuis le 6. Sans cela le plugin installé porte encore
    le KGE, la figure fausse, et l'onglet 1 d'avant.

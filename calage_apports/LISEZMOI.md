@@ -52,8 +52,11 @@ et figerait l'interface.
 
 ## Installation
 
-**Depuis l'archive.** `calage_apports.zip` est **à la racine du dépôt** :
-la télécharger suffit, il n'y a rien à reconstruire. Puis, dans QGIS :
+**Depuis l'archive.** `calage_apports_<version>.zip` — par exemple
+`calage_apports_0.7.21.zip` — est **à la racine du dépôt** : la télécharger
+suffit, il n'y a rien à reconstruire. Le nom porte la version pour qu'on
+sache, sur un poste distant, ce qu'on installe ; il n'y en a jamais qu'une
+dans le dépôt, la plus récente. Puis, dans QGIS :
 *Extensions → Installer/Gérer les extensions → Installer depuis un ZIP*,
 la choisir, et cocher **Calage des apports** dans *Extensions installées*.
 

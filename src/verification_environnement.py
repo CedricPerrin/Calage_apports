@@ -365,8 +365,14 @@ except Exception:
               bloquant=False)
 controler("plugin QGIS", (RACINE / "calage_apports" / "metadata.txt").exists(),
           str(RACINE / "calage_apports"), bloquant=False)
-controler("archive d'installation", (RACINE / "calage_apports.zip").exists(),
-          "a installer par Extensions > Installer depuis un ZIP",
+# PAR MOTIF, PAS PAR NOM EXACT : l'archive porte sa version depuis le
+# 08/09/2026 — « calage_apports_0.7.21.zip ». Un nom fige aurait annonce
+# l'archive manquante a chaque publication.
+_archives = sorted(RACINE.glob("calage_apports*.zip"))
+controler("archive d'installation", bool(_archives),
+          (_archives[-1].name if _archives
+           else "a construire par src/faire_zip.py") +
+          " — a installer par Extensions > Installer depuis un ZIP",
           bloquant=False)
 controler("test des actions du plugin",
           (DOSSIER / "test_plugin_qgis.py").exists(),
