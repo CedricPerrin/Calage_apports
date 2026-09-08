@@ -12,7 +12,13 @@ venv/
 # lancer faire_zip.py — trois etapes pour ce qui doit en compter une. Elle
 # se reconstruit a l'identique (`python src/faire_zip.py`), et le banc
 # adverse verifie chaque copie embarquee avant qu'elle ne parte.
+#   LE MOTIF SUIT SON NOM VERSIONNE depuis le 08/09/2026
+# (« calage_apports_0.7.22.zip »). Ecrit « !calage_apports.zip », il ne la
+# rattrapait plus : le commit est parti SANS elle, et le depot annoncait une
+# archive qui n'y etait pas. Le nom nu reste couvert, pour les depots deja
+# clones.
 !calage_apports.zip
+!calage_apports_*.zip
 
 # Cas de test HEC-RAS (donnees volumineuses, non versionnees)
 01-cas_test/
