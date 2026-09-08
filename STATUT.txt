@@ -52,6 +52,24 @@ CE QUI EST EPROUVE
   - faire_zip.py rend « archive conforme » ; essai_garde_fou_archive.py, qui
     injecte trois fautes et verifie qu'elles sont refusees, rend « TOUT
     PASSE ».
+    LE 08/09, IL A MORDU POUR DE VRAI, ET SUR CE POSTE SEULEMENT. Quatre noms
+    de cas reels vivaient dans des COMMENTAIRES de la chaine embarquee —
+    calage.fenetre_injection et criteres (deux fois dans le banc, une dans le
+    commentaire de rapport_volume_serie). Les deux bancs les refusaient : le
+    zip repartait « ECHEC », et le garde-fou echouait a son dernier pas
+    (« source retablie, archive TOUJOURS REFUSEE »).
+      POURQUOI ILS AVAIENT PASSE : ces commentaires datent du 03 au 05/09, et
+    les bancs ont ete rejoues le 07 depuis un clone LINUX, donc SANS
+    .affaires — le garde-fou y eprouve le controle sur un mot qu'il fabrique
+    et dit que la liste reste a fournir. Il n'etait pas muet, il ne
+    surveillait rien de reel. C'est exactement ce dont CHECKPOINT.md
+    prevenait : « avant de committer depuis un clone neuf, se rappeler qu'un
+    nom de client passerait ».
+      CE QUI A ETE FAIT : la mesure, sa date et ses chiffres restent mot pour
+    mot ; le nom du cas est remplace par un renvoi a la section 5 de ce
+    fichier, qui ne quitte pas le depot. La chaine, elle, part dans une
+    archive qui s'installe sur d'autres postes — c'est toute la difference
+    avec les noms de la section 5, assumes ici (§ 6, A TRANCHER).
   - DEUX calages complets sur modele reel ont abouti (section 5).
   - LE BOUTON « INSTALLER L'ENVIRONNEMENT PYTHON HEC-RAS » EST EPROUVE, mene a
     bout le 06/09 DANS le processus QGIS et par ses deux chemins : creation a
@@ -59,6 +77,44 @@ CE QUI EST EPROUVE
     et verifies en 56 s. C'est le lancement depuis QGIS qui comptait — c'est
     la, et nulle part ailleurs, que son PYTHONHOME fuyait dans les
     sous-processus de pip.
+  - PLUGIN EN 0.7.19 (08/09) — L'ONGLET 1 PORTE L'ACTION QU'IL PREPARE.
+    « Ecrire, composer et controler » quitte le bas de la fenetre, ou il etait
+    permanent et visible depuis les six onglets, pour un encadre « Mise a jour
+    du modele » qui termine l'onglet 1 — au bout de tout ce qu'il consomme.
+    L'encadre « Ecriture dans la geometrie » ne portait AUCUNE commande : son
+    texte descend dans l'aide (§ « Ecrire dans la geometrie »), et son compte
+    rendu — label_ecriture, dont le code disait lui-meme qu'il etait invisible
+    depuis l'onglet d'ou l'on clique — OUVRE desormais la boite de
+    composition. « Axe hydraulique » devient « Profil en long » et remonte
+    sous le plan. L'aide perd « Sur un autre poste », qui ne disait rien de
+    plus que « Premiere utilisation ». CONVENTION_NOMS et INFOBULLE_CONVENTION
+    sont retires : la convention ne vit plus qu'a un endroit, l'aide.
+    LES DEUX DECISIONS DU 08/09 y sont ecrites (§ 6).
+    LE BANC A GAGNE SIX CONTROLES (sommaire de l'aide contre ses ancres,
+    presence du bouton et des encadres a l'onglet 1, ordre plan -> profil en
+    long), mais il exige QGIS et n'a pas ete rejoue.
+      DEUX DEFAUTS D'AFFICHAGE, TROUVES PAR LES CAPTURES ET CORRIGES. Ils ne
+    se voient pas au banc — il n'eprouve pas l'apparence — et personne ne les
+    aurait vus sans une image :
+      1. LE LIBELLE DU BOUTON SORTAIT COUPE A MI-HAUTEUR. Dans une fenetre
+         trop courte, la zone defilante d'un onglet COMPRIME son contenu au
+         lieu de faire apparaitre une barre : le dernier encadre passe sous sa
+         taille utile, et le bouton y tombait a 20 px pour 31 demandes. Un
+         plancher de hauteur, calcule sur la police et le remplissage de la
+         feuille de style, l'en soustrait. LE MECANISME RESTE : tout dernier
+         encadre d'onglet est exposé, et c'est a regarder a l'oeil (§ 6).
+      2. LA PHRASE DE L'ENCADRE TENAIT SUR DEUX LIGNES ET LA SECONDE SORTAIT
+         COUPEE. setWordWrap() ne change pas la politique de taille : QLabel
+         annonce la hauteur d'UNE ligne. Le texte a ete ramene a une ligne —
+         le detail vit dans l'infobulle et dans l'aide — plutot que de forcer
+         une hauteur en dur.
+      LES SIX CAPTURES SONT REFAITES, ET PAR UN SCRIPT : src/captures_plugin.py,
+    sous le Python de QGIS, avec un projet de demonstration et les deux
+    emplacements du poste mis en scene — le README part sur GitHub. Deux
+    pieges y sont ecrits, mesures : la plateforme « offscreen » n'a AUCUNE
+    police systeme (toutes les metriques doublent, la barre d'onglets reclame
+    1212 px au lieu de 662), et un QgsApplication construit a la main
+    n'herite pas de la police d'interface de QGIS.
   - PLUGIN EN 0.7.18 (07/09) — trois versions dans la journee. 0.7.16 : LE
     KGE, ALPHA ET BETA SONT RETIRES DU CODE :
     la figure de convergence des livrables finaux tracait beta sous le
@@ -2181,9 +2237,21 @@ A FOURNIR PAR L'UTILISATEUR
     saisie survit dans le source. Coller les 418 instants — le Q100 emploie
     0 a 208,5 h au pas de 0,5 h sur le meme nombre de lignes —, puis
     recomposer. Le plugin refuse de lancer sans (5.7, fin).
-  - les hydrogrammes cibles (HSMF) des affaires a venir ;
-  - la confirmation qu'il n'y a pas de boucle hydraulique (hypothese d'ordre
-    total, § 1.2 de la note).
+  - les hydrogrammes cibles (HSMF) des affaires a venir.
+  (LA CONFIRMATION QU'IL N'Y A PAS DE BOUCLE HYDRAULIQUE EST DONNEE — 08/09/2026,
+  utilisateur. L'hypothese d'ordre total (§ 1.2 de la note) tient donc pour les
+  modeles en cours.
+    ELLE RESTE UNE HYPOTHESE DU MODELE, ET LA CHAINE NE LA VERIFIE PAS : aucun
+  controle ne detecte une boucle, et un calage se deroulerait sans rien dire
+  sur un reseau qui en porte une. C'est desormais ECRIT la ou on le lit avant
+  d'agir, et non plus seulement ici : aide du plugin § « A trancher avant de
+  commencer », note § 1.2 « Hypotheses de validite » et « Trois questions
+  bloquantes », README.
+    CE QUE CELA OUVRE : le jacobien est triangulaire, donc le levier de
+  docs/idees_V2_plugin.md § 1 — nb_calculs = nb_essais au lieu de nb_apports x
+  nb_essais, facteur 18 sur un modele a 30 apports — n'attend plus une reponse
+  d'hydraulicien. Il reste entier comme chantier de code, et c'est lui qui
+  reecrirait la boucle dont la troisieme extraction du lot 5 a ete ecartee.)
 
 A FAIRE, PAR ORDRE DE PRIORITE
   - RELEVER LONGUEUR_MAX_TITRE_PLAN SI L'ESSAI LE PERMET. Le 30 est le plus
@@ -2204,6 +2272,29 @@ A FAIRE, PAR ORDRE DE PRIORITE
   classeur d'iterations, la version de ras-commander, et la moitie du
   bornement a la fenetre. Un point ouvert ne se perime pas tout seul : il
   reste ecrit tel qu'il a ete pose, et le code, lui, avance.
+  - LA NOTE EST EN V16 (08/09/2026) — LE .DOCX SEULEMENT. contenu.py porte
+    les deux decisions du jour — § 1.2 « Hypotheses de validite » et « Trois
+    questions bloquantes » disent que l'absence de boucle est une HYPOTHESE DU
+    MODELE que la chaine ne verifie pas ; § 1.4 dit que le verdict porte sur
+    la fenetre, et pourquoi — plus l'onglet 1 remanie au chapitre du plugin.
+    Reconstruite par construire_docx.py sur son propre .docx pris pour
+    gabarit, figures refaites par figures_note.py ; 8 911 mots, 22 tableaux,
+    8 figures.
+      LE .PDF RESTE EN V15, ET CE N'EST PAS FAUTE D'AVOIR ESSAYE. Word se fige
+    dans ExportAsFixedFormat sur ce poste : quatre tentatives, jusqu'a treize
+    minutes, le processus repond et consomme du CPU mais n'ecrit rien. CE
+    N'EST PAS LE DOCUMENT — la note de la version PRECEDENTE, sortie de git et
+    inchangee, se fige exactement pareil ; l'ouverture, elle, prend deux
+    secondes. Ecarte au passage : le verrou de fichier (le .pdf est libre),
+    l'imprimante par defaut (« OneNote (version de bureau) – Protegé », un
+    pilote virtuel dont Word se sert pour paginer — bascule sur « Microsoft
+    Print to PDF », meme blocage ; la valeur d'origine a ete retablie), la
+    table des matieres (le document reconstruit n'en porte AUCUNE et n'a AUCUN
+    champ — python-docx ne les recree pas).
+      A FAIRE A LA MAIN, avec la relecture a l'oeil : ouvrir le .docx dans
+    Word et Enregistrer sous > PDF. Et pendant qu'il est ouvert, LUI REMETTRE
+    UNE TABLE DES MATIERES : la reconstruction la perd a chaque fois, ce que
+    ce fichier n'avait jamais dit.
   - VERIFIER LA NOTE A L'OEIL. Elle a ete reconstruite le 01/09 (V15, 25
     pages, 8 334 mots, 22 tableaux, 8 figures) : § 1.4 porte la regle de
     couverture, § 1.6 un h3 sur la duree ajustee, § 2.3 la reecriture de
@@ -2224,6 +2315,13 @@ A FAIRE, PAR ORDRE DE PRIORITE
       methode en vigueur, l'annexe B.3 reste aux incidents cote MODELE
       (bilan de masse, blocs orphelins). L'historique des defauts de la chaine
       vit dans ce fichier et dans git.
+  - REGARDER LES FENETRES ETROITES. Le defaut du bouton coupe (§ 1) n'etait
+    qu'un cas : la zone defilante de chaque onglet comprime son contenu au
+    lieu de faire apparaitre une barre, et c'est le DERNIER encadre qui
+    encaisse. Le plancher pose sur le bouton principal ne protege que lui. Ce
+    qui le reglerait vraiment : imposer a la page sa hauteur utile, pour que
+    la barre apparaisse au lieu que les widgets maigrissent. A NE PAS FAIRE A
+    L'AVEUGLE — cela touche les six onglets, et il faut l'oeil sur QGIS.
   - EPROUVER LE BOUTON « INSTALLER… » SUR UN POSTE NEUF. C'est le seul
     chemin qui n'ait jamais tourne de bout en bout. Les six correctifs du
     30/08, eux, sont passes sous QGIS le 01/09 au soir (§ 1).
@@ -2316,7 +2414,19 @@ A FAIRE, PAR ORDRE DE PRIORITE
     fenetres, si le cas se presente.
 
 A TRANCHER
-  - LE VERDICT DE VOLUME PORTE SUR LA FENETRE JUGEE, PAS SUR LA CRUE. Mesure
+  - LE VERDICT DE VOLUME PORTE SUR LA FENETRE JUGEE, PAS SUR LA CRUE —
+    TRANCHE LE 08/09/2026, ET ON NE CHANGE RIEN. « Le concept de fenetre a ete
+    fait pour ca » (decision utilisateur). fenetre_injection garde donc son
+    perte_max sur le DEFICIT, la fenetre ne s'elargit pas au volume, et aucun
+    verdict deja rendu ne bouge. Ce qui etait en place demeure, et suffit : le
+    Diagnostic porte le rapport de volume sur TOUTE la serie et la part que la
+    fenetre retient, et une reserve NON bloquante les nomme quand les deux
+    lectures divergent — dire, sans juger (2.2 bis).
+      CE QUI CHANGE : l'aide du plugin (« Comment lire le resultat ») et la
+    note (§ 1.4) l'ENONCENT, au lieu de laisser le lecteur decouvrir l'ecart
+    dans un classeur et y voir un defaut. La question « faut-il un jour
+    elargir la fenetre au volume plutot qu'au deficit ? » est CLOSE : non.
+      LA MESURE QUI AVAIT POSE LA QUESTION, pour memoire. Mesure
     du 03/09 sur les six apports d'Ardanavy, directement dans le plan final :
     la fenetre retient 75 a 99 % du volume de crue selon l'apport, et LA OU
     ELLE COUPE, LE MODELE DEPASSE LA CIBLE — sur la decrue de ARD11, 61 % de

@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.7.18
+version=0.7.19
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,35 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.7.18 — L'apport peu identifiable est inscrit en réserve dans le classeur et la note.
+changelog=0.7.19 — L'onglet 1 porte l'action qu'il prépare, et l'encadré sans geste descend dans l'aide.
+    « Écrire, composer et contrôler » vivait en bas de la fenêtre, permanent,
+    visible depuis les six onglets — y compris ceux où il n'a rien à faire.
+    Tout ce qu'il consomme est pourtant à l'onglet 1 : le plan, le profil en
+    long, les couches. Il le termine désormais, dans un encadré « Mise à jour
+    du modèle ». L'encadré « Écriture dans la géométrie » ne portait AUCUNE
+    commande — une explication, la convention de nommage, un compte rendu — et
+    se lisait quand même comme une étape à franchir : son texte est descendu
+    dans l'aide, § « Écrire dans la géométrie », et son compte rendu ouvre
+    maintenant la boîte de composition, d'où il est enfin visible depuis
+    l'endroit où l'on a cliqué. « Axe hydraulique » devient « Profil en long »
+    et remonte sous le plan : le plan dit quelle géométrie on lit, le profil en
+    long comment on la parcourt. L'aide perd « Sur un autre poste », qui ne
+    disait rien de plus que « Première utilisation ». Deux décisions de
+    l'hydraulicien y sont écrites : l'absence de boucle hydraulique est une
+    HYPOTHÈSE DU MODÈLE, posée une fois et jamais vérifiée par la chaîne ; le
+    verdict de volume porte sur la fenêtre de l'événement, pas sur la crue
+    entière, et c'est ce pour quoi la fenêtre existe.
+    DEUX DÉFAUTS D'AFFICHAGE au passage, trouvés en refaisant les captures du
+    README — le banc ne les voit pas, il n'éprouve pas l'apparence. Le libellé
+    du bouton principal sortait coupé à mi-hauteur : dans une fenêtre trop
+    courte, la zone défilante d'un onglet comprime son contenu au lieu de
+    faire apparaître une barre, et le dernier encadré passe sous sa taille
+    utile — 20 px pour 31 demandés. Un plancher de hauteur l'en soustrait. Et
+    la phrase de l'encadré, sur deux lignes, perdait la seconde :
+    setWordWrap() ne change pas la politique de taille, QLabel continue
+    d'annoncer la hauteur d'une ligne. Elle est ramenée à une ligne, le détail
+    vivant désormais dans l'infobulle du bouton et dans l'aide.
+    0.7.18 — L'apport peu identifiable est inscrit en réserve dans le classeur et la note.
     Quand un apport ne pèse presque rien devant le débit qui transite déjà à
     sa section, la bande de tolérance admise à la section est aussi large que
     l'apport lui-même : la section est calée, l'hydrogramme d'apport qui en

@@ -329,10 +329,11 @@ class Diagnostic:
     # coupe, le modele peut DEPASSER la cible sans que rien ne le dise :
     # fenetre_injection() ferme quand 99 % du DEFICIT est couvert, et un
     # excedent ne compte pas dans un deficit — il est donc exclu PAR
-    # CONSTRUCTION, pas par accident de reglage. Mesure du 03/09/2026 sur
-    # Ardanavy, refaite le 04/09 sur un calage independant : 100,3 % sur la
+    # CONSTRUCTION, pas par accident de reglage. Mesure du 03/09/2026 sur un
+    # modele reel, refaite le 04/09 sur un calage independant : 100,3 % sur la
     # fenetre 4,5-19,7 h, 111,7 % sur la serie entiere, 0,5 hm3 de trop dans
-    # la decrue.
+    # la decrue. Le cas est nomme dans STATUT.txt § 5, qui ne quitte pas le
+    # depot ; ici, la chaine part dans une archive.
     #
     # « rapport_volume_serie » est le meme rapport pris sur toute la fenetre
     # commune aux deux series, et « part_cible_jugee » la part du volume de la
@@ -1117,12 +1118,14 @@ if __name__ == "__main__":
               "repli sur la serie entiere")
 
     print("\n--- 7 ter. Ce que la fenetre laisse dehors est MESURE, pas juge ---")
-    # LE CAS D'ARDANAVY, EN MINIATURE. La fenetre jugee ferme dans la DECRUE,
+    # LE CAS REEL DE STATUT.txt § 5, EN MINIATURE. La fenetre jugee ferme
+    # dans la DECRUE,
     # parce que fenetre_injection() la clot quand 99 % du DEFICIT est couvert
     # et qu'un excedent ne compte pas dans un deficit. Le modele deverse
     # ensuite plus que la cible : le verdict reste a 100 %, la serie entiere
-    # dement. Mesure reelle du 03 et du 04/09/2026 : ARD11 rend 100,3 % sur
-    # 4,5-19,7 h et 111,7 % sur la crue entiere, deux calages independants.
+    # dement. Mesure reelle du 03 et du 04/09/2026 : un apport rend 100,3 %
+    # sur 4,5-19,7 h et 111,7 % sur la crue entiere, deux calages
+    # independants.
     _t7t = np.linspace(0.0, 48.0, 481)
     _cible7t = hydrogramme(_t7t, pic=100.0, t_pic=6.0, forme=3.0)
     # Meme crue, meme pointe, mais une decrue qui ne redescend pas : le modele

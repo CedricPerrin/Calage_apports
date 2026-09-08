@@ -737,8 +737,9 @@ def fenetre_injection(temps, ecart, seuil_bas=0.005, seuil_haut=0.99,
     plus bas se comparent en m3, mais l'un est une part du DEFICIT cumule et
     l'autre une part du VOLUME DE LA CIBLE ; le premier est presque toujours
     le plus petit, si bien que le second ne mord jamais. Mesure du 03/09/2026
-    sur ARD10 : 25 % du volume de crue hors fenetre la ou le commentaire
-    promettait 2,5 %.
+    sur un apport d'un modele reel (le cas est nomme dans STATUT.txt § 5) :
+    25 % du volume de crue hors fenetre la ou le commentaire promettait
+    2,5 %.
       LE CORRIGER ICI REVIENDRAIT A ELARGIR LA FENETRE JUGEE, donc a rendre
     non conformes des apports qu'aucune valeur d'apport ne pourrait sauver —
     un apport ne sait qu'ajouter du debit, et ce qui deborde hors fenetre est

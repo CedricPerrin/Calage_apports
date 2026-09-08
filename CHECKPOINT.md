@@ -4,20 +4,45 @@ Point de reprise pour ouvrir une nouvelle conversation avec un contexte
 minimal. L'état courant et les règles en vigueur restent dans `STATUT.txt` ;
 ce fichier ne dit que **où on en est** et **par quoi reprendre**.
 
-## ▶ Reprendre ici — état au 7 septembre 2026
+## ▶ Reprendre ici — état au 8 septembre 2026
 
-Tout est sur **`main`**, poussé — les huit commits du 7 fusionnés en avance
-rapide depuis `claude/project-files-overview-ld982p`, qui reste sur l'origine.
+Tout est sur **`main`**. La branche `claude/project-files-overview-ld982p` a
+été **supprimée** le 8 : elle pointait sur le même commit que `main`, sans
+aucun commit propre.
 
 **Plugin en 0.7.18**, archive **reconstruite et versionnée** — `calage_apports.zip`
 porte la 0.7.18, construite sous Linux : les vingt fichiers embarqués sont en
 fins de ligne LF, identiques à l'octet aux sources ; la prochaine construction
-Windows les remettra en CRLF. **Pas encore réinstallée dans QGIS.** Bancs,
-depuis un clone Linux : les **quatorze exécutables hors HEC-RAS/QGIS sont
-verts**, dont `calage` contre sa référence regelée, `noyau`, `faire_zip`
-« archive conforme », `essai_garde_fou_archive` « TOUT PASSE ». La suite du
-plugin (172 contrôles au 6, un de plus depuis) n'a pas été rejouée : elle
-exige QGIS.
+Windows les remettra en CRLF. **Pas encore réinstallée dans QGIS.** Bancs rejoués le 8 **depuis
+le poste**, donc avec `.affaires` : `calage` contre sa référence regelée,
+`criteres`, `suivi`, `livrables`, `style_classeur`, `creer_template`,
+`faire_zip` « archive conforme » et `essai_garde_fou_archive` « TOUT PASSE » —
+ces deux derniers **après** le retrait des quatre noms de cas. Trois bancs
+n'ont pas pu tourner ici, faute de `geopandas` et de `h5py` dans le Python
+ordinaire : `geometrie`, `controle_donnees`, `elaguer_projet` — il leur faut
+l'interpréteur HEC-RAS, que `CALAGE_PYTHON` ne désigne plus sur ce poste. La
+suite du plugin (172 contrôles au 6, sept de plus depuis) n'a pas été rejouée :
+elle exige QGIS.
+
+### Ce que la journée du 8 a donné
+
+**Deux décisions d'hydraulicien, et un onglet 1 remanié.** Le plugin passe en
+**0.7.19** — non réinstallé, non vu sous QGIS.
+
+| | |
+|---|---|
+| **Il n'y a pas de boucle hydraulique** — confirmé. L'hypothèse d'ordre total tient. Elle est désormais écrite **comme une hypothèse du modèle, que la chaîne ne vérifie pas** : aide du plugin, note § 1.2 et « Trois questions bloquantes », README | `STATUT.txt` § 6, À FOURNIR |
+| **Le verdict de volume reste sur la fenêtre** — « le concept de fenêtre a été fait pour ça ». Rien ne change dans le code ; l'aide et la note l'énoncent, la question d'élargir la fenêtre est close | `STATUT.txt` § 6, À TRANCHER |
+| **« Écrire, composer et contrôler » ferme l'onglet 1**, dans un encadré « Mise à jour du modèle » — il était permanent en bas de la fenêtre, visible depuis six onglets dont cinq n'en font rien | |
+| **L'encadré « Écriture dans la géométrie » descend dans l'aide** — il ne portait aucune commande, et se lisait pourtant comme une étape. Son compte rendu ouvre maintenant la boîte de composition, d'où il est enfin visible | |
+| **« Axe hydraulique » devient « Profil en long »**, et remonte sous le plan | |
+| **L'aide perd « Sur un autre poste »** — elle ne disait rien de plus que « Première utilisation » | |
+| **Le garde-fou d'archive a mordu pour de vrai** — quatre noms de cas réels dormaient dans des commentaires de la chaîne embarquée, invisibles depuis le clone Linux du 7, qui n'avait pas `.affaires`. La mesure reste, le nom renvoie à `STATUT.txt` § 5. `faire_zip` rend de nouveau « archive conforme », le garde-fou « TOUT PASSE » | `STATUT.txt` § 1 |
+| **L'archive porte la 0.7.19**, reconstruite sous Windows — les vingt fichiers sont donc en CRLF | |
+| **La note passe en V16** — `contenu.py` § 1.2, § 1.4 et le chapitre du plugin ; `.docx` reconstruit, 8 911 mots. **Le `.pdf` reste en V15** : Word se fige dans son export sur ce poste, et pas à cause du document — la note d'avant, sortie de git, se fige pareil | `STATUT.txt` § 6 |
+| **Les six captures sont refaites, et par un script** — `src/captures_plugin.py`, avec un projet de démonstration et les chemins du poste mis en scène | `STATUT.txt` § 1 |
+| **Deux défauts d'affichage trouvés PAR les captures** — le libellé du bouton coupé à mi-hauteur dans une fenêtre trop courte, et une phrase à deux lignes dont la seconde sortait rognée. Le banc ne les voit pas : il n'éprouve pas l'apparence | `STATUT.txt` § 1 |
+| Six contrôles de plus au banc du plugin, non rejoués (ils exigent QGIS) | |
 
 ### Ce que la journée du 7 a donné
 
@@ -46,31 +71,44 @@ exige QGIS.
 
 ### Ce qui reste, et rien d'autre
 
-0. **Réinstaller le plugin depuis `calage_apports.zip`** (0.7.18) —
+0. **Le `.pdf` de la note, à réexporter à la main** — ouvrir le `.docx`
+   (V16) dans Word, *Enregistrer sous > PDF*, et lui remettre une table des
+   matières au passage : la reconstruction la perd. Quatre tentatives
+   d'export piloté ont échoué, sans que le document y soit pour quelque
+   chose.
+1. **Réinstaller le plugin depuis `calage_apports.zip`** (0.7.19) —
    Extensions → Installer depuis un ZIP — puis rejouer `test_plugin_qgis.py` :
-   un contrôle neuf, deux boîtes à poignée. Sans cela le plugin installé porte
-   encore le KGE et la figure fausse.
-1. **Regarder la fenêtre.** Quatorze versions d'interface publiées en un
+   sept contrôles neufs depuis le 6. Sans cela le plugin installé porte encore
+   le KGE, la figure fausse, et l'onglet 1 d'avant.
+2. **Regarder la fenêtre.** Quatorze versions d'interface publiées en un
    jour — 0.7.1 à 0.7.14 — toutes vérifiées au banc, aucune sous les yeux de
    l'utilisateur. En particulier :
    **Entrée ne fait plus rien**, nulle part — c'est le prix assumé du
    désarmement du geste irréversible, et il se voit.
-2. **Le suivi pendant un vrai calage.** L'état du calage précédent qui ne se
+   **Et depuis la 0.7.19, l'onglet 1 a changé de forme** : le bouton d'action
+   y est descendu, un encadré en est parti, un autre a changé de nom et de
+   place. Les captures sont à jour — mais une capture n'est pas un usage :
+   c'est une fenêtre construite hors QGIS, jamais cliquée.
+   **À regarder en priorité : les fenêtres étroites.** La zone défilante de
+   chaque onglet comprime son contenu au lieu de faire apparaître une barre,
+   et c'est le dernier encadré qui encaisse — le plancher posé sur le bouton
+   principal ne protège que lui.
+3. **Le suivi pendant un vrai calage.** L'état du calage précédent qui ne se
    peint plus, « mort au démarrage » distingué de « pas encore parti », le
    fil qui dit « calage lancé », la question posée si l'on recompose pendant
    qu'un calcul tourne : tout cela est éprouvé sur des états **fabriqués**,
    jamais sur un calage qui tourne. Y regarder aussi la **figure de
    convergence** corrigée, dans `suivi/` et dans `resultats_finaux/`.
-3. **Trois garde-fous jamais rencontrés en réel** — volume plancher, apport
+4. **Trois garde-fous jamais rencontrés en réel** — volume plancher, apport
    refusé, modèle incohérent. Seul le banc les couvre.
-4. **L'hypothèse d'ordre total.** Le seul vrai levier qui reste : si le
-   jacobien est triangulaire, le coût cesse de dépendre du nombre d'apports —
+5. **L'hypothèse d'ordre total — désormais CONFIRMÉE (8 septembre).** Le seul
+   vrai levier qui reste, et il n'attend plus personne : le jacobien est
+   triangulaire, donc le coût cesse de dépendre du nombre d'apports —
    `nb_calculs = nb_essais` au lieu de `nb_apports × nb_essais`, soit un
    facteur **18 sur un modèle à 30 apports** d'après le tableau de
-   `docs/idees_V2_plugin.md` § 1 — et c'est ce
-   chantier qui réécrirait la boucle dont la troisième extraction a été
-   écartée. `STATUT.txt` la liste toujours comme **non confirmée**. C'est une
-   question d'hydraulicien, pas de code.
+   `docs/idees_V2_plugin.md` § 1. C'est ce chantier qui réécrirait la boucle
+   dont la troisième extraction a été écartée. Ce n'est plus une question
+   d'hydraulicien : c'est du code, et c'est le plus gros qui reste.
 
 ### Le poste de travail, pour y revenir
 

@@ -7,6 +7,15 @@ Pour chaque apport, de l'amont vers l'aval : estimer, calculer, comparer à la
 cible, corriger, répéter jusqu'à concordance, puis vérifier la cohérence des
 sections amont avant de passer au suivant.
 
+**Le réseau ne comporte pas de boucle hydraulique : c'est une hypothèse du
+modèle, posée par l'hydraulicien, et rien dans la chaîne ne la vérifie.**
+L'ordre total amont → aval est ce qui donne un sens à « section suivante » ;
+sur un réseau bouclé — bras qui se rejoignent, casiers interconnectés — un
+apport alimenterait plusieurs sections par des chemins distincts, et la
+méthode ne s'applique pas. Confirmée par l'hydraulicien le 8 septembre 2026
+pour les modèles en cours. Les hypothèses de validité sont au § 1.2 de la
+note méthodologique.
+
 La boucle ([src/calage.py](src/calage.py)) est **indépendante du solveur** : elle
 n'en connaît qu'une interface de neuf méthodes, dont six à écrire. Elle est donc
 testable sans HEC-RAS, dont la déclinaison vit dans
@@ -72,6 +81,7 @@ distribué : le plugin en embarque une copie autonome à l'installation.
 | [src/reference_calage_fictif.json](src/reference_calage_fictif.json) | Sortie figée d'un calage sur `ModeleFictif`, comparée à chaque passage du banc. **Ne pas modifier à la main** : `python calage.py --figer-reference` la réécrit |
 | [src/elaguer_projet.py](src/elaguer_projet.py) | Rattrapage : élague les plans laissés par l'**ancienne** chaîne |
 | [src/reconstruire_livrables.py](src/reconstruire_livrables.py) | Rattrapage : reconstruit les livrables d'un calage **terminé**, en lecture seule sur le modèle |
+| [src/captures_plugin.py](src/captures_plugin.py) | Refait les six captures de ce README, sous le Python de QGIS — une capture périmée ressemble à une capture |
 | `src/figures_note/` | Reconstruction de la note méthodologique |
 | [methodologie_calage_amont_aval.docx](methodologie_calage_amont_aval.docx) | Note méthodologique : mode opératoire, méthode, application HEC-RAS/QGIS, livrables |
 | [calage_apports.zip](calage_apports.zip) | **L'archive à installer dans QGIS** — versionnée, prête à l'emploi |
@@ -94,12 +104,17 @@ référence, la seconde en **aval** de la première.
 
 ## La fenêtre du plugin
 
-Six onglets, dans l'ordre des décisions.
+Six onglets, dans l'ordre des décisions. Les images ci-dessous sont refaites
+par [src/captures_plugin.py](src/captures_plugin.py), avec un projet de
+démonstration : elles suivent donc l'interface au lieu de dater d'un jour où
+quelqu'un a pensé à appuyer sur *Impr. écran*.
 
 **1. Modèle** — le projet HEC-RAS (**on désigne le fichier `.prj`, pas le
-dossier**), le plan de référence, la géométrie, la zone 2D, l'axe hydraulique et
-la fenêtre de simulation. C'est d'ici que les couches du modèle arrivent sur la
-carte, éditables.
+dossier**), le plan de référence, la géométrie, la zone 2D, le **profil en
+long** — l'axe, son sens, le PK d'origine — et la fenêtre de simulation. C'est
+d'ici que les couches du modèle arrivent sur la carte, éditables, et l'onglet
+se termine par **Mise à jour du modèle**, dont le bouton **Écrire, composer et
+contrôler** est le seul geste irréversible de la fenêtre.
 
 ![Onglet 1 — Modèle](docs/captures/onglet_1_modele.png)
 

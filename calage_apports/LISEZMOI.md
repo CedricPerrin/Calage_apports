@@ -10,7 +10,7 @@ onglets — l'ordre des onglets est celui des décisions.
 
 | Onglet | Rôle |
 |---|---|
-| 1. Modèle | le **fichier `.prj`** du projet HEC-RAS — et non le dossier qui le contient —, plan de référence, géométrie, zone 2D, fenêtre de simulation, **axe hydraulique**. Charge les sections, injections et emprises **existantes** en couches **éditables**, et écrit dans le `.gXX` celles qu'on y dessine (sauvegarde horodatée) |
+| 1. Modèle | le **fichier `.prj`** du projet HEC-RAS — et non le dossier qui le contient —, plan de référence, géométrie, zone 2D, **profil en long** (l'axe, son sens, le PK d'origine), fenêtre de simulation. Charge les sections, injections et emprises **existantes** en couches **éditables**, et se termine par **Mise à jour du modèle**, qui écrit dans le `.gXX` celles qu'on y dessine (sauvegarde horodatée) |
 | 2. Objectifs et précision | ce qu'on vise et avec quoi : l'**écart admis** sur le volume et sur le débit de pointe — le résultat, lui, se lit en pourcentage d'atteinte de la cible —, le nombre maximal d'essais, et l'**Excel des hydrogrammes objectifs** où ils se saisissent (ouverture, reprise d'un calcul précédent, pente des apports) |
 | 3. Résultats | dossiers de sortie et de suivi, relecture d'un hydrogramme calculé (export CSV), résumé de la configuration |
 | 4. Lancer | appariement apport → section, état des cibles, premier apport à caler, **préfixe de scénario** (« Q100 » : sans lui, caler le Q10 après le Q100 sur le même modèle efface les plans du Q100), **lancement du calage** en arrière-plan |
@@ -20,8 +20,10 @@ onglets — l'ordre des onglets est celui des décisions.
 **Les six onglets sont en images** dans le README du dépôt, section « La
 fenêtre du plugin » — une capture par onglet.
 
-Le bouton **Écrire, composer et contrôler**, permanent en bas de la fenêtre,
-fait les trois choses que son nom annonce, dans cet ordre :
+Le bouton **Écrire, composer et contrôler** ferme l'onglet 1, dans l'encadré
+**Mise à jour du modèle** — au bout de ce qu'il consomme : le plan, le profil
+en long, les couches. Il fait les trois choses que son nom annonce, dans cet
+ordre :
 
 1. il **écrit dans la géométrie HEC-RAS** les sections et injections dessinées
    à l'onglet 1, en remplaçant tout objet de même nom — **c'est le seul geste
@@ -32,7 +34,12 @@ fait les trois choses que son nom annonce, dans cet ordre :
    **couche des PK à la carte**.
 
 Si la composition échoue après l'étape 1, le message le dit : le modèle a déjà
-été modifié.
+été modifié. Sinon, le compte rendu de composition **ouvre par ce qui a été
+écrit** dans la géométrie.
+
+Le mode opératoire complet vit dans l'onglet **Aide et configuration** ; ce
+qu'écrit l'étape 1, et pourquoi elle n'a pas de bouton à elle, y tient une
+section — *Écrire dans la géométrie*.
 
 La fenêtre reste ouverte pendant qu'on dessine : c'est précisément le travail.
 

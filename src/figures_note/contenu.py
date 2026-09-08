@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Contenu de la note methodologique V15.
+Contenu de la note methodologique V16.
 
 COUPE FRANCHE (decision utilisateur 30/08/2026) : ~40 % de mots en moins par
 RETRAIT de contenu, pas par reformulation. Ce qui est retire du corps :
@@ -17,15 +17,19 @@ caption code note.
 
 CONTENU = [
     ("title", "Calage d'apports amont sur des hydrogrammes cibles en aval"),
-    ("sous_titre", "Note méthodologique — Version 15"),
+    ("sous_titre", "Note méthodologique — Version 16"),
     ("p", "Détermine, pour un cours d'eau modélisé en 2D comportant plusieurs "
           "apports successifs, les débits à injecter en chaque point d'apport "
           "pour que le modèle restitue à chaque section de contrôle aval un "
           "hydrogramme cible imposé."),
-    ("note", "Version 15 — les justifications historiques (essais, mesures, "
-             "approches écartées) sont regroupées en annexe B ; le corps "
-             "n'énonce que la règle en vigueur. Six figures remplacent les "
-             "développements qu'elles disent mieux."),
+    ("note", "Version 16 (8 septembre 2026) — deux réponses d'hydraulicien "
+             "y entrent : l'absence de boucle hydraulique est une HYPOTHÈSE "
+             "DU MODÈLE que la chaîne ne vérifie pas (§ 1.2), et le verdict "
+             "de volume porte sur la fenêtre de l'événement, pas sur la crue "
+             "entière (§ 1.4). Depuis la V15, les justifications historiques "
+             "(essais, mesures, approches écartées) sont regroupées en "
+             "annexe B ; le corps n'énonce que la règle en vigueur. Six "
+             "figures remplacent les développements qu'elles disent mieux."),
     ("table", [
         ["Partie", "Contenu"],
         ["Mode opératoire", "ce qu'il faut préparer, et dans quel ordre. À "
@@ -49,7 +53,9 @@ CONTENU = [
         ["Le réseau comporte-t-il une boucle hydraulique ?",
          "La méthode exige un ordre total amont → aval (§ 1.2). Sur un réseau "
          "bouclé — bras se rejoignant, casiers interconnectés — elle n'est pas "
-         "applicable en l'état."],
+         "applicable en l'état. C'est une HYPOTHÈSE DU MODÈLE : elle est posée "
+         "par l'hydraulicien, une fois, avant de commencer, et rien dans la "
+         "chaîne ne la vérifie."],
         ["Combien de temps dure un calcul complet ?",
          "Coût total ≈ N × k calculs, k ≈ 2 à 4 essais par apport, plus un "
          "calcul de référence. À 2 h le calcul, sept apports font trois à cinq "
@@ -127,7 +133,11 @@ CONTENU = [
         ["Ordre total amont → aval", "les sections doivent s'ordonner sans "
          "ambiguïté le long d'un chemin d'écoulement. La plus contraignante : "
          "elle INTERDIT les réseaux bouclés, où « section suivante » n'a plus "
-         "de sens."],
+         "de sens. HYPOTHÈSE DU MODÈLE, jamais vérifiée par la chaîne : "
+         "aucun contrôle ne détecte une boucle, et le calage se déroulerait "
+         "sans rien dire sur un réseau qui en porte une. C'est à "
+         "l'hydraulicien de répondre — confirmé pour les modèles en cours le "
+         "8 septembre 2026."],
         ["Un seul apport nouveau par section", "sinon : regrouper les apports, "
          "ou ajouter des sections intermédiaires. Une section sans apport "
          "nouveau reste utile comme point de vérification."],
@@ -190,6 +200,16 @@ CONTENU = [
           "un indicateur agrégé : un nombre unique peut rester flatteur alors "
           "qu'une composante dérive. Ce sont des BANDES — « ± 5 % » veut dire "
           "[95 ; 105], et il n'y a rien à gagner une fois dedans."),
+    ("p", "LE VERDICT PORTE SUR LA FENÊTRE DE L'ÉVÉNEMENT, PAS SUR LA CRUE "
+          "ENTIÈRE, et c'est délibéré — décision du 8 septembre 2026 : la "
+          "fenêtre a été introduite pour cela, juger l'apport là où "
+          "l'événement se joue, sans laisser une queue de décrue peser sur le "
+          "volume. Le rapport de volume sur TOUTE la série est tout de même "
+          "porté au Diagnostic, avec la part du volume que la fenêtre "
+          "retient ; quand les deux lectures divergent, une réserve NON "
+          "bloquante les nomme, au classeur, à la note de synthèse et au "
+          "suivi. Elle DIT, elle ne juge pas — et aucun verdict déjà rendu "
+          "ne bouge."),
     ("h3", "Le décalage temporel : mesuré, jamais jugé"),
     ("p", "Δt est l'écart entre L'HEURE DU PIC calculé et celle du pic cible — "
           "le geste même de l'opérateur. Aucune borne ne lui est appliquée, et "
@@ -613,14 +633,27 @@ CONTENU = [
     ("p", "L'ORDRE DES ONGLETS EST CELUI DES DÉCISIONS, et il a changé en "
           "septembre 2026 : l'axe hydraulique a rejoint l'onglet 1, où il se "
           "trace comme les sections et les injections, au lieu de voisiner "
-          "avec des objectifs chiffrés auxquels il n'a rien à voir."),
+          "avec des objectifs chiffrés auxquels il n'a rien à voir. Il y a "
+          "pris le nom de PROFIL EN LONG et la place qui lui revient, "
+          "immédiatement sous le plan : le plan dit quelle géométrie on lit, "
+          "le profil en long comment on la parcourt."),
+    ("p", "L'ACTION EST AU BOUT DE L'ONGLET QUI LA PRÉPARE. « Écrire, "
+          "composer et contrôler » était permanent en bas de la fenêtre, "
+          "visible depuis les six onglets — y compris ceux où il n'a rien à "
+          "faire. Il ferme désormais l'onglet 1, dans un encadré MISE À JOUR "
+          "DU MODÈLE, au bout de tout ce qu'il consomme. L'encadré « Écriture "
+          "dans la géométrie », qui ne portait aucune commande, est descendu "
+          "dans l'aide : un cadre sans geste, au milieu d'un onglet qui n'est "
+          "fait que de gestes, se lisait comme une étape à franchir."),
     ("table", [
         ["Onglet", "Contenu"],
         ["1. Modèle", "le FICHIER .prj du projet — et non le dossier qui le "
          "contient : rien ne distingue à l'œil un dossier de modèle d'un "
          "autre —, le plan de référence, la géométrie et le fichier de débit, "
-         "la zone 2D, la fenêtre de simulation, et l'AXE HYDRAULIQUE ; "
-         "chargement des couches, qui deviennent éditables dans QGIS."],
+         "le PROFIL EN LONG (l'axe, son sens, le PK d'origine), la zone 2D et "
+         "la fenêtre de simulation ; chargement des couches, qui deviennent "
+         "éditables dans QGIS ; puis MISE À JOUR DU MODÈLE, qui écrit, "
+         "compose et contrôle."],
         ["2. Objectifs et précision", "ce qu'on vise et avec quoi : l'ÉCART "
          "ADMIS sur le volume et sur le débit de pointe — le résultat, lui, "
          "se lit en pourcentage d'atteinte de la cible —, le bilan de masse "

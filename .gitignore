@@ -21,6 +21,9 @@ venv/
 *.hdf
 *.vrt
 *.tmp
+# Fichiers de verrouillage de Word, poses des qu'un .docx est ouvert —
+# y compris par l'export PDF, qui passe par Word.
+~$*
 
 # Rasters
 *.tif

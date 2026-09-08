@@ -123,17 +123,6 @@ PREFIXE_SECTION = "SC"      # sections de controle     : SC1, SC2...
 # IN_... et OUT_... restent aux entrees permanentes et aux exutoires, qui ne
 # sont pas cales : c'est deja l'usage du modele d'essai, et il est parlant.
 
-CONVENTION_NOMS = (
-    "Objets sans nom : nommés <b>A1, A2…</b> (apports) et <b>SC1, SC2…</b> "
-    "(sections). Le numéro d'une section ne reprend pas celui de son apport — "
-    "l'appariement est géométrique, et le lien réel s'affiche à l'onglet 4."
-)
-INFOBULLE_CONVENTION = (
-    "A1, A2… apports à caler ; SC1, SC2… sections de contrôle ; IN_… entrées "
-    "permanentes ; OUT_… exutoires. Les noms doivent correspondre exactement "
-    "à ceux de la géométrie HEC-RAS : la convention n'est appliquée qu'aux "
-    "objets créés sans nom, et ne renomme jamais l'existant."
-)
 
 
 # ---------------------------------------------------------------------------
@@ -268,9 +257,10 @@ def couche_vers_gdf(couche, champ_nom=None, selection_seule=False,
     au-dela, la geometrie est refusee, car un PK n'y a pas de sens.
 
     prefixe_defaut : nomme les entites SANS nom selon la convention retenue
-        (voir CONVENTION_NOMS). A defaut, elles heritaient du nom de la
-        couche suivi d'un numero — lisible, mais qui ne dit pas le role de
-        l'objet dans le calage.
+        (PREFIXE_APPORT, PREFIXE_SECTION ci-dessus ; l'aide la dit en toutes
+        lettres, § « Nommer les objets »). A defaut, elles heritaient du nom
+        de la couche suivi d'un numero — lisible, mais qui ne dit pas le role
+        de l'objet dans le calage.
     noms_pris : noms deja utilises dans le modele, a ne pas reprendre. Deux
         objets homonymes dans une geometrie HEC-RAS rendraient l'appariement
         indecidable.
@@ -1205,13 +1195,13 @@ de contrôle reproduise un hydrogramme cible.</p>
 <li><a href="#s1">Première utilisation — ce qu'il faut installer</a></li>
 <li><a href="#s2">À trancher avant de commencer</a></li>
 <li><a href="#s3">Le déroulement, onglet par onglet</a></li>
-<li><a href="#s4">Comment l'apport est ajusté</a></li>
-<li><a href="#s5">Comment lire le résultat</a></li>
-<li><a href="#s6">Quand la cible est hors d'atteinte</a></li>
-<li><a href="#s7">Nommer les objets</a></li>
-<li><a href="#s8">Un apport créé part de zéro</a></li>
-<li><a href="#s9">Pièges à connaître</a></li>
-<li><a href="#s10">Sur un autre poste</a></li>
+<li><a href="#s4">Écrire dans la géométrie</a></li>
+<li><a href="#s5">Comment l'apport est ajusté</a></li>
+<li><a href="#s6">Comment lire le résultat</a></li>
+<li><a href="#s7">Quand la cible est hors d'atteinte</a></li>
+<li><a href="#s8">Nommer les objets</a></li>
+<li><a href="#s9">Un apport créé part de zéro</a></li>
+<li><a href="#s10">Pièges à connaître</a></li>
 </ul>
 
 <h3><a name="s1"></a>Première utilisation — ce qu'il faut installer</h3>
@@ -1245,9 +1235,14 @@ interpréteur à part. C'est une contrainte mesurée, pas un choix.</p>
 
 <h3><a name="s2"></a>À trancher avant de commencer</h3>
 <ul>
-<li><b>Ordre amont → aval strict ?</b> La méthode ne s'applique pas à un
-réseau bouclé, où un apport alimenterait plusieurs sections par des chemins
-distincts.</li>
+<li><b>Ordre amont → aval strict ?</b> C'est une <b>hypothèse du
+modèle</b> : elle est posée par l'hydraulicien, une fois, avant de commencer,
+et <b>rien dans la chaîne ne la vérifie</b>. La méthode ne s'applique pas à un
+réseau bouclé — bras qui se rejoignent, casiers interconnectés —, où un apport
+alimenterait plusieurs sections par des chemins distincts et où « section
+suivante » n'aurait plus de sens. Répondre non ici, c'est engager tout le
+reste : les hypothèses de validité sont au § 1.2 de la note
+méthodologique.</li>
 <li><b>Durée d'un calcul complet ?</b> C'est ce chiffre qui dimensionne
 tout : compter 3 à 5 calculs par apport.</li>
 <li><b>Hydrogrammes cibles disponibles</b> pour chaque section ?</li>
@@ -1255,16 +1250,16 @@ tout : compter 3 à 5 calculs par apport.</li>
 
 <h3><a name="s3"></a>Le déroulement, onglet par onglet</h3>
 <ol>
-<li><b>Onglet 1 — Modèle.</b> Dossier du projet, plan de référence, axe
-hydraulique, puis
+<li><b>Onglet 1 — Modèle.</b> Dossier du projet, plan de référence,
+<i>profil en long</i>, puis
 <i>Charger les couches du modèle</i> : sections, injections et maillage
 s'affichent sur la carte. Y dessiner les sections de contrôle qui manquent —
-sans elles, le calage n'a aucun endroit où lire un débit. Elles sont écrites
-dans la géométrie au clic sur <i>Écrire, composer et contrôler</i>, et un apport créé
-reçoit du même coup son hydrogramme dans le fichier Unsteady&nbsp;Flow, sinon
-il n'apporterait rien. La fenêtre de simulation n'est à corriger que si
-l'Unsteady&nbsp;Flow retenu couvre une <b>autre période</b> que le plan de
-référence.</li>
+sans elles, le calage n'a aucun endroit où lire un débit. L'onglet se termine
+par <i>Mise à jour du modèle</i>, et c'est son bouton <i>Écrire, composer et
+contrôler</i> qui les écrit dans la géométrie ; un apport créé reçoit du même
+coup son hydrogramme dans le fichier Unsteady&nbsp;Flow, sinon il n'apporterait
+rien. La fenêtre de simulation n'est à corriger que si l'Unsteady&nbsp;Flow
+retenu couvre une <b>autre période</b> que le plan de référence.</li>
 <li><b>Onglet 2 — Objectifs et précision.</b> Ce qu'on vise, et avec quoi :
 la précision attendue sur le volume et sur le débit de pointe, puis le
 classeur — c'est dans sa feuille <i>Cibles</i> que se saisissent les
@@ -1277,7 +1272,27 @@ arrière-plan : QGIS reste utilisable.</li>
 tout seul. C'est là qu'on revient pendant les heures que dure un calage.</li>
 </ol>
 
-<h3><a name="s4"></a>Comment l'apport est ajusté</h3>
+<h3><a name="s4"></a>Écrire dans la géométrie</h3>
+<p><b>Indispensable tant que les sections de contrôle n'existent pas dans le
+modèle</b> — le calage n'aurait aucun endroit où lire un débit. Les dessiner
+ou les compléter dans les couches chargées à l'onglet 1 : elles sont écrites
+dans la géométrie HEC-RAS au clic sur <i>Écrire, composer et contrôler</i>
+— l'encadré <i>Mise à jour du modèle</i>, au bout de l'onglet 1 —,
+en <b>remplaçant tout objet de même nom</b> déjà présent, sections comme
+injections. Une sauvegarde horodatée du fichier de géométrie précède
+l'écriture, et le compte rendu de composition dit ce qui a été écrit.</p>
+<p>La source est <b>unique</b> : ce que QGIS montre fait foi — les couches
+chargées par <i>Charger les couches du modèle</i>, dessinées ou complétées
+par-dessus. Il n'y a pas de bouton à part, parce que les sections doivent
+être <i>dans</i> le modèle avant que le paquet soit composé, sans quoi le
+calage n'aurait rien à relire.</p>
+<p>Un apport créé reçoit du même coup son hydrogramme dans l'Unsteady&nbsp;Flow,
+et sa pente vient du classeur (onglet 2) ou, à défaut, du profil en long.</p>
+<p>Le fichier prétraité (<tt>.hdf</tt>) ne porte les nouveaux objets qu'au
+<b>prochain calcul</b> ; <i>Charger les couches du modèle</i> les montre dès
+maintenant, en lisant le fichier texte, qui fait foi.</p>
+
+<h3><a name="s5"></a>Comment l'apport est ajusté</h3>
 <p>Une seule règle, appliquée ligne à ligne, et c'est exactement le calcul
 manuel de la note méthodologique :</p>
 <p align="center"><tt><b>apport(n+1) = max( 0 , apport(n) + [ cible(t−Δt) −
@@ -1301,7 +1316,7 @@ obtenu à la section. Il est calculé sur <b>toute la durée simulée</b> : la
 fenêtre de l'événement principal ne restreint que le <i>jugement</i> et les
 <i>figures</i>, jamais ce qui est injecté.</p>
 
-<h3><a name="s5"></a>Comment lire le résultat</h3>
+<h3><a name="s6"></a>Comment lire le résultat</h3>
 <p>Tout est donné en <b>pourcentage d'atteinte de la cible</b>. Trois
 exigences, satisfaites <b>en même temps</b> :</p>
 <ul>
@@ -1323,13 +1338,20 @@ pour un débit de pointe à 53&nbsp;% de la cible. Le décalage temporel, lui,
 n'est pas un critère mais un garde-fou : important sans défaut de volume ni
 de forme, il désigne un problème de propagation que l'apport ne corrigerait
 pas. C'est le <b>meilleur</b> essai qui est conservé, jamais le dernier.</p>
+<p><b>Le verdict porte sur la fenêtre de l'événement, pas sur la crue
+entière</b>, et c'est délibéré : la fenêtre existe pour cela — juger l'apport
+là où l'événement se joue, sans laisser une queue de décrue peser sur le
+volume. Le rapport de volume sur <i>toute</i> la série est tout de même donné,
+avec la part du volume que la fenêtre retient ; quand les deux lectures
+divergent, une réserve <b>non bloquante</b> le nomme, au classeur, à la note
+de synthèse et au suivi. Elle <i>dit</i>, elle ne juge pas.</p>
 <p>Le classeur d'itérations, écrit dans le dossier de suivi, se <b>refait à la
 main</b> : par apport, un bloc de quatre colonnes par essai — la section
 obtenue, la cible décalée, leur écart, l'apport injecté — et l'apport d'un
 bloc est l'apport du précédent plus son écart, ramené à zéro s'il devient
 négatif.</p>
 
-<h3><a name="s6"></a>Quand la cible est hors d'atteinte</h3>
+<h3><a name="s7"></a>Quand la cible est hors d'atteinte</h3>
 <p>Un apport ne peut qu'<b>ajouter</b> du débit : si la section reçoit déjà
 plus que la cible sur toute la durée, aucun apport positif ne l'y ramène. Ce
 refus est prononcé <b>avant le moindre calcul</b>, donc sans rien coûter, et
@@ -1345,7 +1367,7 @@ retirer, et le volume ne peut plus repasser sous 100&nbsp;%. Si cet excédent
 dépasse à lui seul la tolérance de volume, la concordance est impossible par
 construction — mesuré sur un cas de recette, 2,12&nbsp;% du volume cible.</p>
 
-<h3><a name="s7"></a>Nommer les objets</h3>
+<h3><a name="s8"></a>Nommer les objets</h3>
 <p>Les noms doivent correspondre <b>exactement</b> à ceux de la géométrie
 HEC-RAS : c'est par eux que le classeur, l'Unsteady&nbsp;Flow et les résultats
 se rejoignent. La convention ne sert donc qu'à la création, et ne renomme
@@ -1358,14 +1380,14 @@ d'elle — et le lien réellement calculé s'affiche à l'onglet 4. Une injectio
 sans section en aval n'est pas calée, ce qui est normal ; une section sans
 injection en amont est en revanche une erreur.</p>
 
-<h3><a name="s8"></a>Un apport créé part de zéro</h3>
+<h3><a name="s9"></a>Un apport créé part de zéro</h3>
 <p>Il reçoit un hydrogramme <b>nul</b>, sur la base de temps du modèle. Rien
 à saisir : le calage commence par un calcul sans les apports, mesure ce que
 chaque section reçoit déjà, et la première estimation est la différence avec
 la cible. Le classeur ne demande donc aucune forme d'apport — on y saisit ce
 qu'on veut <i>obtenir à la section</i>, pas ce qu'on injecte.</p>
 
-<h3><a name="s9"></a>Pièges à connaître</h3>
+<h3><a name="s10"></a>Pièges à connaître</h3>
 <ul>
 <li>Le <b>signe du débit</b> à une section dépend du sens où la ligne a été
 tracée. Il est ramené en convention positive vers l'aval, et l'inversion est
@@ -1379,13 +1401,6 @@ absente pour l'autre, et la ligne n'apporte aucun débit.</li>
 <li>Les <b>calculs longs</b> ne tournent jamais dans QGIS : HEC-RAS et QGIS
 ne peuvent pas partager la même bibliothèque HDF5.</li>
 </ul>
-
-<h3><a name="s10"></a>Sur un autre poste</h3>
-<p>Rien de plus que la <i>première utilisation</i> ci-dessus : les deux mêmes
-emplacements, cherchés tout seuls, et le groupe <i>Paramètres du poste</i> pour
-le cas contraire. Ni QGIS ni HEC-RAS n'ont à être désignés — le premier exécute
-le plugin, le second est lancé par ras-commander d'après la version lue dans le
-modèle.</p>
 
 <p><i>Hypothèses de validité, justification des tolérances et livrables :
 note méthodologique « methodologie_calage_amont_aval.docx », dans le dossier
@@ -1531,7 +1546,8 @@ class DialogueParametrage(QDialog):
       Aide et configuration — mode operatoire, pieges connus, et les deux
          emplacements du poste.
 
-    Le bouton « Écrire, composer et contrôler », permanent en bas de la fenetre,
+    Le bouton « Écrire, composer et contrôler », au bout de l'onglet 1 dans
+    l'encadre « Mise a jour du modele »,
     ECRIT D'ABORD les couches de l'onglet 1 dans la geometrie HEC-RAS —
     TOUJOURS EN REMPLACANT l'objet de meme nom deja present, sections comme
     injections : ce que QGIS montre fait foi, il n'y a plus de choix a faire
@@ -1608,9 +1624,9 @@ class DialogueParametrage(QDialog):
         # premier onglet. Le detail passe en infobulle, ou il ne coute rien.
         for page, titre, infobulle in (
             (self._onglet_modele(), "1. Modèle",
-             "Projet HEC-RAS, plan de référence, zone 2D, axe hydraulique, "
-             "chargement des couches existantes et écriture des nouveaux "
-             "objets."),
+             "Projet HEC-RAS, plan de référence, zone 2D, profil en long, "
+             "chargement des couches existantes, puis mise à jour du "
+             "modèle."),
             (self._onglet_objectifs(), "2. Objectifs et précision",
              "Précision attendue sur le volume et la pointe, nombre maximal "
              "d'essais, et le classeur où se saisissent les hydrogrammes "
@@ -1676,24 +1692,16 @@ class DialogueParametrage(QDialog):
         self.label_fil.setTextFormat(Qt.TextFormat.RichText)
         agencement.addWidget(self.label_fil)
 
+        # « ECRIRE, COMPOSER ET CONTROLER » N'EST PLUS ICI (0.7.19) : il a
+        # rejoint l'onglet 1, encadre « Mise a jour du modele », au bout de ce
+        # qu'il consomme. Le bas de la fenetre ne porte donc plus que le fil
+        # conducteur et « Fermer ».
         boutons = QHBoxLayout()
         boutons.setSpacing(8)
         boutons.addStretch(1)
-        bouton_composer = QPushButton("Écrire, composer et contrôler")
-        # Mise en avant par le STYLE, jamais par la touche Entree : ce bouton
-        # ecrit dans la geometrie HEC-RAS. Voir keyPressEvent().
-        bouton_composer.setObjectName("boutonPrincipal")
-        bouton_composer.setMinimumWidth(190)
-        bouton_composer.setToolTip(
-            "Écrit d'abord les sections et injections de l'onglet 1 dans la "
-            "géométrie HEC-RAS (en remplaçant tout objet de même nom déjà "
-            "présent), puis les shapefiles et le classeur, puis lance tous "
-            "les contrôles et reporte les anomalies sur la carte.")
-        bouton_composer.clicked.connect(self._composer_et_controler)
         bouton_fermer = QPushButton("Fermer")
         bouton_fermer.setMinimumWidth(90)
         bouton_fermer.clicked.connect(self.accept)
-        boutons.addWidget(bouton_composer)
         boutons.addWidget(bouton_fermer)
         agencement.addLayout(boutons)
 
@@ -1793,7 +1801,7 @@ class DialogueParametrage(QDialog):
         etapes = [
             ("Modèle chargé", self.info_projet is not None
              and couche_vivante(self.couche_sections) is not None),
-            ("Axe hydraulique",
+            ("Profil en long",
              couche_vivante(self.combo_axe.currentLayer()) is not None),
             ("Dossier de sortie", bool(self.edit_dossier_sortie.text().strip())),
             ("Paquet composé", bool(self.classeur)),
@@ -1904,6 +1912,17 @@ class DialogueParametrage(QDialog):
         f2.addRow(self.label_geom_couches)
         v.addWidget(groupe_plan)
 
+        # L'AXE EST UN OBJET DU MODELE, pas un objectif. Il vivait a l'onglet
+        # « 2. Profil en long », a cote de la precision attendue, avec
+        # laquelle il n'a rien a voir : l'un se dessine sur la carte comme les
+        # sections et les injections, l'autre se decide devant un tableau.
+        #   IL SUIT DESORMAIS LE PLAN (0.7.19) : le plan dit quelle geometrie
+        #   on lit, le profil en long dit comment on la parcourt — les deux
+        #   decrivent le modele, avant qu'on touche a la moindre couche. Il
+        #   fermait la marche derriere les couches, ou personne ne le
+        #   cherchait.
+        v.addWidget(self._groupe_axe())
+
         # FENETRE DE SIMULATION.
         #
         # Le plan de calcul est toujours un clone du plan de référence : il en
@@ -1987,49 +2006,84 @@ class DialogueParametrage(QDialog):
             "prêtes à être complétées."))
         v.addWidget(groupe_charger)
 
-        # Ecrite AUTOMATIQUEMENT au clic sur « Ecrire, composer et controler », pas
-        # via une action a part : le fichier .gXX, la zone 2D et le fichier
-        # Unsteady sont deja choisis juste au-dessus, et il faut que les
-        # sections soient DANS le modele avant que le paquet soit compose,
-        # sinon le calage n'a rien a relire. Source UNIQUE : les couches
-        # chargees ci-dessus (« Charger les couches du modele »), dessinees
-        # ou completees par-dessus dans QGIS — ce que QGIS montre fait foi,
-        # et REMPLACE systematiquement l'objet de meme nom deja present dans
-        # la geometrie HEC-RAS, sections comme injections.
-        groupe_ecrire = QGroupBox("Écriture dans la géométrie")
-        f3b = formulaire(groupe_ecrire)
-        explication = QLabel(
-            "<b>Indispensable tant que les sections de contrôle n'existent "
-            "pas dans le modèle</b> — le calage n'aurait aucun endroit où "
-            "lire un débit. Les dessiner ou les compléter dans les couches "
-            "chargées ci-dessus : elles sont écrites automatiquement dans "
-            "la géométrie HEC-RAS — en remplaçant tout objet de même nom "
-            "déjà présent — au clic sur « Écrire, composer et contrôler ».")
-        explication.setWordWrap(True)
-        f3b.addRow(explication)
-        f3b.addRow(texte_aide(CONVENTION_NOMS, INFOBULLE_CONVENTION))
-
-        # La pente de la ligne d'energie n'est PLUS saisie ici : elle depend de
-        # chaque apport, pas du lot. A la creation, la valeur provisoire
-        # ci-dessous suffit — le calage la remplace par celle du classeur, ou
-        # a defaut par la pente locale du fond.
-        f3b.addRow(texte_aide(
-            "Un apport créé reçoit son hydrogramme dans l'Unsteady Flow, et "
-            "sa pente vient du classeur (onglet 2) ou du profil en long."))
-
-        self.label_ecriture = texte_etat()
-        f3b.addRow(self.label_ecriture)
-        v.addWidget(groupe_ecrire)
-
-        # L'AXE EST UN OBJET DU MODELE, pas un objectif. Il vivait a l'onglet
-        # « 2. Profil en long », a cote de la precision attendue, avec
-        # laquelle il n'a rien a voir : l'un se dessine sur la carte comme les
-        # sections et les injections, l'autre se decide devant un tableau. Il
-        # rejoint donc les couches, ou il se trace.
-        v.addWidget(self._groupe_axe())
+        # LE GROUPE « ECRITURE DANS LA GEOMETRIE » A QUITTE CET ONGLET
+        # (0.7.19, demande utilisateur). Il ne portait AUCUNE commande : une
+        # explication, la convention de nommage, un compte rendu. Or
+        # l'ecriture n'a jamais eu de bouton a elle — elle a lieu au clic sur
+        # « Ecrire, composer et controler », parce que les sections doivent
+        # etre DANS le modele avant que le paquet soit compose, sinon le
+        # calage n'a rien a relire. Un encadre sans geste, au milieu d'un
+        # onglet qui n'est fait que de gestes, se lisait comme une etape a
+        # franchir. Le texte vit desormais dans l'aide, § « Ecrire dans la
+        # geometrie » ; le compte rendu ouvre la boite de composition, d'ou
+        # il est enfin visible depuis l'endroit ou l'on a clique.
+        v.addWidget(self._groupe_mise_a_jour())
 
         v.addStretch(1)
         return page
+
+    def _groupe_mise_a_jour(self):
+        """
+        L'ACTION EST AU BOUT DE L'ONGLET QUI LA PREPARE (0.7.19, demande
+        utilisateur). « Ecrire, composer et controler » vivait en bas de la
+        fenetre, permanent, visible depuis les six onglets — y compris ceux
+        ou il n'a rien a faire. Or tout ce qu'il consomme est ICI : le plan,
+        le profil en long, les couches. Il ferme donc l'onglet 1, dans un
+        encadre qui dit ce qu'il fait au modele.
+
+        CE QUE CELA COUTE : il faut revenir a l'onglet 1 pour recomposer. La
+        recomposition au fil de l'ajustement des couches reste le cas normal,
+        et c'est aussi a l'onglet 1 que les couches s'ajustent.
+        """
+        groupe = QGroupBox("Mise à jour du modèle")
+        v = QVBoxLayout(groupe)
+        v.setSpacing(8)
+
+        # UNE SEULE LIGNE, ET C'EST DELIBERE. La phrase complete — remplacement
+        # des objets de meme nom, sauvegarde horodatee, ordre des trois etapes
+        # — tenait sur deux lignes, et la SECONDE SORTAIT COUPEE EN DEUX :
+        # setWordWrap() ne change pas la politique de taille, QLabel continue
+        # d'annoncer la hauteur d'une ligne, et le dernier encadre d'un onglet
+        # se dimensionne dessus (ailleurs, le voisinage donne la hauteur qui
+        # manque). Constate sur la capture du 8 septembre. Plutot que de forcer
+        # une hauteur en dur, le texte dit ici le strict necessaire : le detail
+        # vit dans l'infobulle du bouton et dans l'aide, § « Ecrire dans la
+        # geometrie ».
+        explication = QLabel(
+            "Écrit dans la géométrie, compose le paquet, contrôle. "
+            "<b>Seul geste irréversible de la fenêtre.</b>")
+        explication.setWordWrap(True)
+        v.addWidget(explication)
+
+        bouton_composer = QPushButton("Écrire, composer et contrôler")
+        # Mise en avant par le STYLE, jamais par la touche Entree : ce bouton
+        # ecrit dans la geometrie HEC-RAS. Voir keyPressEvent().
+        bouton_composer.setObjectName("boutonPrincipal")
+        bouton_composer.setMinimumWidth(190)
+        bouton_composer.setToolTip(
+            "Écrit d'abord les sections et injections de cet onglet dans la "
+            "géométrie HEC-RAS (en remplaçant tout objet de même nom déjà "
+            "présent, après une sauvegarde horodatée du fichier), puis les "
+            "shapefiles et le classeur, puis lance tous les contrôles et "
+            "reporte les anomalies sur la carte.\n\n"
+            "Le détail est à l'onglet « Aide et configuration », "
+            "§ « Écrire dans la géométrie ».")
+        bouton_composer.clicked.connect(self._composer_et_controler)
+        # SA HAUTEUR NE SE NEGOCIE PAS. Dans une fenetre trop courte, la zone
+        # defilante COMPRIME le contenu au lieu de faire apparaitre une barre :
+        # le dernier encadre de l'onglet passe sous sa taille utile, et ce
+        # bouton-ci sortait ecrase, son libelle coupe a mi-hauteur — mesure du
+        # 8 septembre, 20 px pour 31 demandes. Un plancher suffit a le
+        # soustraire au partage. Il se calcule sur la police et le remplissage
+        # de la feuille de style (6 px en haut, 6 en bas, 1 de bordure) :
+        # sizeHint() ne vaut rien ici, le bouton n'est pas encore habille.
+        bouton_composer.setMinimumHeight(
+            bouton_composer.fontMetrics().height() + 2 * 6 + 2 * 1)
+        ligne = QHBoxLayout()
+        ligne.addWidget(bouton_composer)
+        ligne.addStretch(1)
+        v.addLayout(ligne)
+        return groupe
 
     def _groupe_copies_de_travail(self):
         groupe = QGroupBox("Apports à déterminer")
@@ -2381,8 +2435,8 @@ class DialogueParametrage(QDialog):
              + (" Géométrie jamais prétraitée par HEC-RAS : maillage "
                 "indisponible, contour(s) de zone 2D lu(s) directement dans "
                 "le fichier géométrie. Dessiner les sections et injections "
-                "manquantes, puis « Écrire, composer et contrôler » — le maillage "
-                "apparaîtra au premier calcul."
+                "manquantes, puis « Écrire, composer et contrôler » (bas de "
+                "l'onglet 1) — le maillage apparaîtra au premier calcul."
                 if not pretraitee else
                 f" Maillage natif : {groupes} donnée(s)."
                 if maillage.isValid() else
@@ -2408,7 +2462,7 @@ class DialogueParametrage(QDialog):
     # widgets a chaque fois, avec le risque que cela porte.
 
     def _groupe_axe(self):
-        groupe_axe = QGroupBox("Axe hydraulique")
+        groupe_axe = QGroupBox("Profil en long")
         groupe_axe.setToolTip(
             "Une polyligne unique, dessinée de l'amont vers l'aval, en "
             "projection métrique : elle donne les PK et le profil en long.")
@@ -2419,7 +2473,7 @@ class DialogueParametrage(QDialog):
         # NE L'AIT CHOISI. Sans elle, currentLayer() n'est jamais None des
         # qu'une couche ligne existe dans le projet — et « Charger les couches
         # du modele » en ajoute deux, fabriquees par le plugin lui-meme. Trois
-        # consequences : le fil conducteur cochait « Axe hydraulique » pour un
+        # consequences : le fil conducteur cochait « Profil en long » pour un
         # geste jamais fait, la branche « (non choisi) » du resume etait morte,
         # et le garde-fou qui refuse de composer sans axe etait inatteignable.
         # Ce que cela coute : un choix explicite, meme quand le projet n'a
@@ -2833,7 +2887,6 @@ class DialogueParametrage(QDialog):
                      "prochain calcul ; « Charger les couches du modèle » "
                      "les montre dès maintenant, en lisant le fichier "
                      "texte, qui fait foi.")
-        dire(self.label_ecriture, message)
         return message
 
     def _parcourir_dossier_sortie(self):
@@ -4299,7 +4352,8 @@ class DialogueParametrage(QDialog):
             f"{len(bilan['colonnes'])} colonne(s), de "
             f"{bilan['duree_avant_h']:.2f} h à {bilan['duree_apres_h']:.2f} h, "
             f"au pas de {60 * bilan['pas_h']:g} min.\n\n"
-            f"Relancer « Écrire, composer et contrôler » pour vérifier.")
+            f"Relancer « Écrire, composer et contrôler » (bas de l'onglet 1) "
+            f"pour vérifier.")
 
     def _ouvrir_classeur(self):
         if not self.classeur:
@@ -4481,8 +4535,10 @@ class DialogueParametrage(QDialog):
         # controler. Tout ce qui echoue apres l'ecriture remonte au meme
         # « except » final, qui n'affichait que le texte de l'erreur : on
         # lisait un echec et l'on concluait que rien n'avait eu lieu, alors
-        # que le modele venait d'etre modifie. Son seul temoin, label_ecriture,
-        # vit a l'onglet 1 — invisible depuis l'onglet d'ou l'on a clique.
+        # que le modele venait d'etre modifie. Le compte rendu de l'ecriture
+        # OUVRE desormais la boite de composition : quand elle s'ouvre, il dit
+        # ce qui a ete ecrit ; quand elle ne s'ouvre pas, ce drapeau le dit a
+        # sa place.
         geometrie_reecrite = False
         # AVANT TOUT LE RESTE : recomposer pendant qu'un calage tourne
         # reecrit la geometrie et le classeur que ce calage est en train de
@@ -4521,12 +4577,10 @@ class DialogueParametrage(QDialog):
             # pour que le calage ait un endroit ou lire un debit. Onglet 1,
             # ex-bouton « Ecrire dans la geometrie » — desormais automatique
             # a chaque composition, en mode remplacement systematique.
-            try:
-                self._ecrire_dans_geometrie()
-            except Exception as e:
-                dire(self.label_ecriture,
-                     f"<span style='color:{ISL_ROUGE}'>Échec : {e}</span>")
-                raise
+            # L'ECHEC REMONTE TEL QUEL au « except » final, qui l'affiche :
+            # le doubler dans un label de l'onglet 1 n'ajoutait rien, et
+            # c'est ce label qui vient d'etre retire.
+            compte_rendu_ecriture = self._ecrire_dans_geometrie()
             # Pose APRES le bloc ci-dessus : un echec de l'ecriture elle-meme
             # ne doit pas heriter du message « deja reecrite ».
             geometrie_reecrite = True
@@ -4643,7 +4697,8 @@ class DialogueParametrage(QDialog):
 
             self._rendre_compte_du_controle(
                 "Composition et contrôle", anomalies, tableau, prolongation,
-                avant=f"Paquet composé dans {dossier_sortie}\n",
+                avant=f"{compte_rendu_ecriture}\n\n"
+                      f"Paquet composé dans {dossier_sortie}\n",
                 apres=(f"\nPente des apports : {len(pentes)}/"
                        f"{len(self.appariement['paires'])} pré-remplie(s)"
                        + (f" — {motif_pentes}" if motif_pentes else "")))

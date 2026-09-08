@@ -963,8 +963,9 @@ else:
         dlg2.couche_sections.updateExtents()
 
     _echec = None
+    _compte_rendu = ""
     try:
-        dlg2._ecrire_dans_geometrie()
+        _compte_rendu = dlg2._ecrire_dans_geometrie()
     except Exception as e:
         _echec = str(e)
     verifier("aucune erreur remontee", _echec is None, _echec or "")
@@ -993,9 +994,12 @@ else:
     verifier("l'ecriture n'emporte aucun bloc voisin de la geometrie",
              not _perdus, f"{_perdus}" if _perdus else "tous conserves")
 
-    verifier("compte rendu affiche dans l'onglet",
-             bool(dlg2.label_ecriture.text()),
-             dlg2.label_ecriture.text()[:80])
+    # LE COMPTE RENDU N'EST PLUS UN LABEL DE L'ONGLET 1 (0.7.19) : il est
+    # RENDU a l'appelant, qui l'ouvre en tete de la boite de composition — la
+    # seule visible depuis l'endroit ou l'on a clique.
+    verifier("l'ecriture rend son compte rendu a l'appelant",
+             bool(_compte_rendu) and "crit dans" in _compte_rendu,
+             _compte_rendu[:80])
     # LE PROJET CLIENT : compare a SON PROPRE etat d'avant, pas a la copie.
     # Comparer source et copie ne prouvait rien — une ecriture fidele les
     # rend identiques, et l'assertion se retournait contre le correctif.
@@ -1756,6 +1760,53 @@ verifier("l'aide couvre le mode operatoire",
 # vocabulaire de l'interface et celui des livrables doivent rester le meme.
 verifier("l'aide ne parle plus en KGE",
          "KGE" not in mod_plugin.AIDE_HTML)
+# LE SOMMAIRE TOMBE SUR SES ANCRES, ET DANS L'ORDRE. Les sections ont ete
+# renumerotees en 0.7.19 — « Sur un autre poste » retiree, « Ecrire dans la
+# geometrie » ajoutee — et un lien mort ne se voit PAS : Qt ne bouge pas, la
+# page reste ou elle est, et le lecteur croit avoir mal clique.
+_ancres_aide = re.findall(r'name="(s[0-9]+)"', mod_plugin.AIDE_HTML)
+_liens_aide = re.findall(r'href="#(s[0-9]+)"', mod_plugin.AIDE_HTML)
+verifier("chaque lien du sommaire de l'aide tombe sur son ancre, dans l'ordre",
+         _liens_aide == _ancres_aide
+         and len(set(_ancres_aide)) == len(_ancres_aide),
+         f"sommaire {_liens_aide} / ancres {_ancres_aide}")
+verifier("l'aide a recueilli l'ecriture dans la geometrie",
+         "Écrire dans la géométrie" in mod_plugin.AIDE_HTML
+         and "Sur un autre poste" not in mod_plugin.AIDE_HTML)
+# L'ABSENCE DE BOUCLE HYDRAULIQUE EST DITE COMME UNE HYPOTHESE, jamais
+# comme un fait : la chaine ne la verifie nulle part, et c'est
+# l'hydraulicien qui repond. Confirmee par l'utilisateur le 08/09/2026
+# pour les modeles en cours.
+verifier("l'aide pose l'absence de boucle comme une hypothese du modele",
+         "hypothèse du" in mod_plugin.AIDE_HTML
+         and "rien dans la chaîne ne la vérifie" in mod_plugin.AIDE_HTML)
+# LE VERDICT PORTE SUR LA FENETRE, ET L'AIDE LE DIT. Decision du
+# 08/09/2026 : la fenetre a ete introduite pour cela. Sans cette phrase, un
+# lecteur qui compare au volume de la crue entiere croit a un defaut.
+verifier("l'aide dit que le verdict porte sur la fenetre",
+         "pas sur la crue" in mod_plugin.AIDE_HTML)
+
+# L'ACTION A REJOINT L'ONGLET QUI LA PREPARE (0.7.19).
+from qgis.PyQt.QtWidgets import QGroupBox as _QGroupBoxA  # noqa: E402
+from qgis.PyQt.QtWidgets import QPushButton as _QPushButtonA  # noqa: E402
+_page_modele = dlg.onglets.widget(mod_plugin.ONGLET_MODELE)
+_boutons_modele = [b.text() for b in _page_modele.findChildren(_QPushButtonA)]
+verifier("« Écrire, composer et contrôler » vit a l'onglet 1",
+         "Écrire, composer et contrôler" in _boutons_modele, _boutons_modele)
+_groupes_modele = [g.title() for g in _page_modele.findChildren(_QGroupBoxA)]
+verifier("l'onglet 1 porte « Mise à jour du modèle », et plus « Écriture "
+         "dans la géométrie »",
+         "Mise à jour du modèle" in _groupes_modele
+         and "Écriture dans la géométrie" not in _groupes_modele,
+         _groupes_modele)
+# L'ORDRE DES ENCADRES EST UN CONTENU : le plan dit quelle geometrie on
+# lit, le profil en long comment on la parcourt. Les separer par les
+# couches renvoyait le second en fin d'onglet, ou personne ne le cherchait.
+verifier("« Profil en long » suit immediatement le plan",
+         "Profil en long" in _groupes_modele
+         and _groupes_modele.index("Profil en long")
+         == _groupes_modele.index("Plan, géométrie et Unsteady Flow") + 1,
+         _groupes_modele)
 # La fenetre doit pouvoir rester ouverte pendant qu'on dessine dans QGIS :
 # modale, elle bloquerait la carte et obligerait a fermer/rouvrir.
 p.composer()
