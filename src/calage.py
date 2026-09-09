@@ -3582,9 +3582,7 @@ if __name__ == "__main__":
     #
     # CE TEST NE DIT PAS CE QUE LE CODE DEVRAIT FAIRE. Il enregistre ce qu'il
     # FAIT, dans un fichier de reference versionne, et refuse toute
-    # difference. C'est le filet a tendre AVANT de decouper caler(), et a
-    # fortiori avant le calage simultane de docs/idees_V2_plugin.md, qui
-    # reecrit ce coeur entierement.
+    # difference. C'est le filet a tendre AVANT de decouper caler().
     #
     # QUAND LE CHANGEMENT EST VOULU : « python calage.py --figer-reference »
     # reecrit le fichier. Le refuser sans ce geste explicite est tout

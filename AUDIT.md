@@ -375,8 +375,7 @@ La dette est **concentrée en un point**.
 
 **Coût actuel.** Toute correction dans la boucle demande de tenir 699 lignes en
 tête. C'est là que sont nés les incidents des 03/08 et 07/08 (Δt confondu avec
-φ, invariant 12), et c'est la fonction que l'idée V2 « calage simultané »
-devrait réécrire.
+φ, invariant 12).
 
 **Correctif minimal — et je ne le recommande pas maintenant.** Extraire les
 **étapes déjà nommées dans les commentaires** (« étape 7 », vérification
@@ -417,9 +416,8 @@ refactor ici sans test de caractérisation numérique est un pari.
 > mal rangées — les deux qui l'étaient sont sorties sans peine — mais à
 > **l'étendue de l'état que porte le corps de la boucle par apport**. Le
 > réduire demande de regrouper cet état, donc un changement de conception, et
-> non plus un déplacement. C'est le même chantier que l'idée V2 « calage
-> simultané » (`docs/idees_V2_plugin.md` § 1), qui réécrit cette boucle de
-> toute façon. **À traiter là, ou pas du tout** — pas en troisième extraction.
+> non plus un déplacement. **À traiter comme tel, ou pas du tout** — pas en
+> troisième extraction.
 
 ---
 
@@ -837,8 +835,8 @@ une décision, pas par un abandon** :
   quinze variables locales à passer. Voir le constat P1-4.
 
 **Ce qui reste de `caler()` ne relève plus de l'extraction** mais de l'étendue
-de l'état porté par la boucle par apport — c'est-à-dire du chantier « calage
-simultané » (`docs/idees_V2_plugin.md` § 1), qui réécrit cette boucle.
+de l'état porté par la boucle par apport — c'est-à-dire d'un changement de
+conception, et non d'un déplacement.
 
 ---
 

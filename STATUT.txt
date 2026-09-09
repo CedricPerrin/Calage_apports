@@ -301,7 +301,7 @@ CE QUI EST EPROUVE
     reecrit la reference. Le refuser sans ce geste explicite est tout
     l'interet — une reference qui se met a jour seule ne prouve rien.
       C'EST LE PREALABLE DE TOUT TRAVAIL SUR caler() (699 lignes, complexite
-    81) et, a plus forte raison, du calage simultane de docs/idees_V2.
+    81).
   - STYLE_CLASSEUR.PY A ENFIN UN BANC — treize controles, 05/09. Il etait
     compte parmi les bancs verts ici meme et n'en portait AUCUN : « python
     style_classeur.py » sortait 0 sans un mot. Et creer_template.py n'ecrit
@@ -2377,12 +2377,7 @@ A FOURNIR PAR L'UTILISATEUR
   sur un reseau qui en porte une. C'est desormais ECRIT la ou on le lit avant
   d'agir, et non plus seulement ici : aide du plugin § « A trancher avant de
   commencer », note § 1.2 « Hypotheses de validite » et « Trois questions
-  bloquantes », README.
-    CE QUE CELA OUVRE : le jacobien est triangulaire, donc le levier de
-  docs/idees_V2_plugin.md § 1 — nb_calculs = nb_essais au lieu de nb_apports x
-  nb_essais, facteur 18 sur un modele a 30 apports — n'attend plus une reponse
-  d'hydraulicien. Il reste entier comme chantier de code, et c'est lui qui
-  reecrirait la boucle dont la troisieme extraction du lot 5 a ete ecartee.)
+  bloquantes », README.)
 
 A FAIRE, PAR ORDRE DE PRIORITE
   - RELEVER LONGUEUR_MAX_TITRE_PLAN SI L'ESSAI LE PERMET. Le 30 est le plus

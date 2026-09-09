@@ -87,7 +87,7 @@ elle exige QGIS.
 | **Les deux comptes rendus de contrôle sont une seule boîte** — le recontrôle d'un classeur avait perdu sa poignée | `STATUT.txt` § 6 |
 | **Deux bancs passent désormais depuis un clone Linux** — `noyau` (disposition d'un venv) et le garde-fou d'archive (chemins POSIX, qu'il ne voyait pas) | |
 | **La note se reconstruit sans qu'on lui porte ses deux figures d'origine** — elles sont lues dans le gabarit | |
-| **Trois affirmations de `STATUT.txt` corrigées** : le PDF n'était pas en retard (Version 15), `reprises_max` n'est pas « inerte » mais retiré, l'ordre total est en § 1.2 de la note — c'est `idees_V2_plugin.md` qui disait § 1.3 | |
+| **Trois affirmations de `STATUT.txt` corrigées** : le PDF n'était pas en retard (Version 15), `reprises_max` n'est pas « inerte » mais retiré, l'ordre total est en § 1.2 de la note | |
 | Lecture complète du dépôt, 54 fichiers, doc et code | |
 
 ### Ce que la journée du 6 a donné
@@ -134,14 +134,6 @@ elle exige QGIS.
    convergence** corrigée, dans `suivi/` et dans `resultats_finaux/`.
 4. **Trois garde-fous jamais rencontrés en réel** — volume plancher, apport
    refusé, modèle incohérent. Seul le banc les couvre.
-5. **L'hypothèse d'ordre total — désormais CONFIRMÉE (8 septembre).** Le seul
-   vrai levier qui reste, et il n'attend plus personne : le jacobien est
-   triangulaire, donc le coût cesse de dépendre du nombre d'apports —
-   `nb_calculs = nb_essais` au lieu de `nb_apports × nb_essais`, soit un
-   facteur **18 sur un modèle à 30 apports** d'après le tableau de
-   `docs/idees_V2_plugin.md` § 1. C'est ce chantier qui réécrirait la boucle
-   dont la troisième extraction a été écartée. Ce n'est plus une question
-   d'hydraulicien : c'est du code, et c'est le plus gros qui reste.
 
 ### Le poste de travail, pour y revenir
 
