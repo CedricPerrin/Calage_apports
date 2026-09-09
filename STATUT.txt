@@ -102,6 +102,66 @@ CE QUI EST EPROUVE
     et verifies en 56 s. C'est le lancement depuis QGIS qui comptait — c'est
     la, et nulle part ailleurs, que son PYTHONHOME fuyait dans les
     sous-processus de pip.
+  - PLUGIN EN 0.7.24 (09/09) — QUATRE DEMANDES D'ERGONOMIE.
+    1. LES ONGLETS 2 ET 3 S'INVERSENT : « Resultats » d'abord — ou tout ira —,
+       « Objectifs et precision » ensuite. Deux constantes nommees,
+       ONGLET_RESULTATS et ONGLET_OBJECTIFS, remplacent les widget(1) et
+       widget(2) que le banc comptait a la main : il regardait le bon widget
+       par coincidence, et rien ne l'aurait averti.
+    2. « CONTROLE PARAMETRAGE » QUITTE LES ONGLETS et redescend au bas de la
+       fenetre, a cote de « Fermer », ou il vivait jusqu'a la 0.7.19. Son nom
+       raccourcit. QUATRE DEMENAGEMENTS EN CINQ VERSIONS ont fini par le dire —
+       bas de fenetre, onglet 1, onglet 4, onglet 2, chacun pour une raison
+       vraie : ce geste CONSOMME LES TROIS PREMIERS ONGLETS ET PREPARE LE
+       QUATRIEME, il n'appartient a aucun.
+         ET IL DIT SI C'EST LE MOMENT : vert quand le modele, le profil en long
+       et le dossier de sortie sont la, gris sinon, avec le manquant en
+       infobulle. Gris aussi pendant qu'un calage tourne, en nommant son
+       processus. C'est ce qui l'avait chasse du bas de la fenetre en 0.7.19 :
+       permanent, il ne disait rien. Il reste CLIQUABLE en gris — desactive, il
+       n'aurait aucun moyen de dire pourquoi.
+         L'ETAT VIENT DES MEMES ETAPES QUE LE FIL CONDUCTEUR, et par le meme
+       appel : deux lectures qui divergeraient donneraient un bouton vert sous
+       un fil qui reclame encore une etape.
+    3. CE QUE PORTENT LES HYDROGRAMMES CIBLES, a l'onglet « Objectifs et
+       precision » : pointe, heure du pic et volume de chaque apport, relus
+       dans l'Excel a chaque composition et a chaque reprise
+       (noyau.resume_cibles, trapezes sur Temps_h). Une cible collee dans la
+       mauvaise colonne, un facteur d'unite ou une colonne restee vide s'y
+       voient AVANT les heures de calcul. C'est une LECTURE, jamais un
+       verdict : aucun seuil ne s'y applique.
+    4. HEC-RAS OUVERT : LA QUESTION EST POSEE AU LANCEMENT. La chaine
+       l'ecrivait dans son journal, a la ligne 15, que personne ne lit pendant
+       qu'un calcul demarre. Une question et NON un verrou : tasklist ne dit
+       que « Ras.exe tourne », pas sur quel projet.
+         noyau.hecras_ouvert est le JUMEAU de pilote_hecras.hecras_ouvert — le
+       Python de QGIS ne peut pas importer pilote_hecras, qui exige h5py et
+       ras-commander. Meme motif que la politique d'encodage tripliquee
+       (§ 2.11) : toute correction va aux deux.
+    BANC DU NOYAU : section 12, quatre controles. BANC DU PLUGIN : douze
+    controles neufs, NON REJOUES — ils exigent QGIS.
+    LES CAPTURES DU README DATENT DE LA 0.7.19, et le README le dit.
+  - PLUGIN EN 0.7.23 (09/09) — LA FENETRE JUGEE EST EN TEMPS DE SIMULATION,
+    ET LE DIAGNOSTIC LA LISAIT SUR LA BASE DE TEMPS DE LA CIBLE. Regle
+    complete en § 2.2 ; ce qu'il a coute, en clair :
+      SUR UN MODELE REEL, LE 08/09 : cible culminant a 0,50 h, decalage retenu
+    de +2,60 h, fenetre ouverte a 2,10 h. Le pic de la cible tombait HORS
+    FENETRE ; le maximum retenu pour elle valait 0,93 m3/s au lieu de 3,25.
+    Une section calee A 0,1 % PRES a ete annoncee a 350 % de pointe et 370 %
+    de volume, refusee sur « le modele repond de facon trop non lineaire »
+    apres trois essais et SEPT HEURES de calcul — et les onze apports suivants
+    n'ont pas ete traites.
+      LE CORRECTIF : diagnostiquer() recoit decalage_fenetre_h, le Dt que la
+    correction emploie. La cible se lit sur « fenetre - Dt », le calcul sur
+    « fenetre ». Le decalage rapporte redevient celui de la correction.
+      UN DECALAGE PLUS LONG QUE LA FENETRE QU'IL DECALE EST DESORMAIS
+    BLOQUANT : l'alerte existait sans bloquer, et ce cas n'etait refuse que
+    par l'effet du defaut ci-dessus.
+      CE QUI NE BOUGE PAS : l'apport injecte, la correction, le nombre de
+    calculs. La reference de caracterisation le confirme — aucun ecart sur les
+    trajectoires, seulement sur les diagnostics.
+      BANC : criteres § 7 quinquies, neuf controles, avec les chiffres reels
+    du cas. Reference REGELEE.
   - PLUGIN EN 0.7.22 (08/09) — REMANIEMENT D'ERGONOMIE (demande
     utilisateur), CINQ POINTS.
     1. L'ONGLET 1 SUIT L'ORDRE DES GESTES : projet, plan, « Couches
@@ -588,6 +648,33 @@ exposee : c'est une valeur, pas un reglage). Elle ne coute aucun calcul.
   partait a 109 % avec r = 0,95. C'est le § 7 bis du banc de criteres.
   LE REECHANTILLONNAGE, LUI, RESTE SUR LA GRILLE COMMUNE aux deux series :
   le restreindre annulerait le decalage au lieu de le mesurer.
+  ELLE EST EN TEMPS DE SIMULATION, ET LA CIBLE SE LIT SUR « FENETRE - Dt ».
+  fenetre_injection la mesure sur « cible(t - Dt) - section(t) » : chaque
+  valeur est indexee par un instant de SIMULATION, meme si le tableau est
+  porte par temps_cible. Sur la base de temps de la cible, la meme fenetre
+  vaut donc « fenetre - Dt ». diagnostiquer() recoit ce Dt par
+  decalage_fenetre_h — celui que la CORRECTION emploie, fige une fois par
+  apport — et lit la cible sur « fenetre - Dt », le calcul sur « fenetre ».
+  Pic, volume, forme, couverture et recherche du pic passent tous par la.
+    LES CONFONDRE A COUTE UN CALAGE ENTIER, le 08/09/2026. Dt de +2,60 h sur
+  une cible culminant a 0,50 h, fenetre ouverte a 2,10 h : tout le pic de la
+  cible tombait dehors, son maximum retenu valait 0,93 m3/s au lieu de 3,25,
+  et une section calee a 0,1 % pres etait annoncee a 350 % de pointe et 370 %
+  de volume. Le decalage RAPPORTE etait le troisieme symptome du meme
+  defaut — le masque tronquait le pic de la cible, argmax retombait sur le
+  bord gauche de la fenetre, et la difference d'indices rendait +1,00 h au
+  lieu de +2,60. Seule la FORME etait juste : elle applique le decalage des
+  deux cotes.
+    QUAND LE DEFAUT MORD : lorsque Dt depasse le temps de montee de la cible,
+  plus la marge de 1 h. Une cible qui culmine tard ne le voit jamais — c'est
+  pourquoi les trois calages livres n'en portent pas la trace, leurs cibles
+  culminant entre 11 et 16 h.
+    UN DECALAGE PLUS LONG QUE LA FENETRE QU'IL DECALE EST BLOQUANT depuis le
+  09/09/2026. Ce n'est pas juger le decalage — il reste mesure et rapporte
+  sans seuil — c'est constater que LA COMPARAISON N'A PLUS D'OBJET. Il
+  n'etait refuse jusque-la que PAR ACCIDENT, l'effet du defaut ci-dessus
+  rendant des pourcentages absurdes ; la fenetre reparee, le banc rendait
+  « conforme » un apport cale onze heures trop tot.
 
 2.2 bis  CE QUI MANQUE A LA FENETRE JUGEE EST TOUJOURS DIT
 --------------------------------------------------------------------------
@@ -2530,8 +2617,13 @@ A FAIRE, PAR ORDRE DE PRIORITE
       pont_hecras controler-modele fait deja le reste du pre-vol : noms
     declares contre geometrie, apports presents dans l'unsteady, durees,
     residus d'edition.
-  - LE DECALAGE FIGE DE caler() N'EST PAS BORNE PAR LA FENETRE, et il ne
-    peut pas l'etre simplement : la fenetre est DEDUITE de l'ecart, qui est
+  - LE DECALAGE FIGE DE caler() N'EST PAS BORNE PAR LA FENETRE. LA MOITIE
+    DIAGNOSTIC DE CE POINT EST REFERMEE (09/09/2026) : diagnostiquer() recoit
+    desormais le Dt de la correction et place la fenetre avec lui, si bien
+    que les deux mesures ne peuvent plus decrire deux intervalles differents
+    (§ 2.2). CE QUI RESTE OUVERT est la mesure elle-meme, ci-dessous — et il
+    ne peut pas etre borne simplement : la fenetre est DEDUITE de l'ecart,
+    qui est
     lui-meme calcule avec ce decalage (calage.caler, l. ~903 puis ~953). La
     poule et l'oeuf. diagnostiquer() borne le sien depuis le 01/09 au soir,
     mais calage.decalage_minimisant_ecart, qui mesure celui que la CORRECTION

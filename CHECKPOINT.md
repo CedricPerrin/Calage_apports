@@ -4,25 +4,91 @@ Point de reprise pour ouvrir une nouvelle conversation avec un contexte
 minimal. L'état courant et les règles en vigueur restent dans `STATUT.txt` ;
 ce fichier ne dit que **où on en est** et **par quoi reprendre**.
 
-## ▶ Reprendre ici — état au 8 septembre 2026
+## ▶ Reprendre ici — état au 9 septembre 2026, 18 h
 
-Tout est sur **`main`**. La branche `claude/project-files-overview-ld982p` a
-été **supprimée** le 8 : elle pointait sur le même commit que `main`, sans
-aucun commit propre.
+Tout est sur **`main`**, **4 commits d'avance sur `origin/main`, non poussés** :
 
-**Plugin en 0.7.18**, archive **reconstruite et versionnée** — `calage_apports.zip`
-porte la 0.7.18, construite sous Linux : les vingt fichiers embarqués sont en
-fins de ligne LF, identiques à l'octet aux sources ; la prochaine construction
-Windows les remettra en CRLF. **Pas encore réinstallée dans QGIS.** Bancs rejoués le 8 **depuis
-le poste**, donc avec `.affaires` : `calage` contre sa référence regelée,
-`criteres`, `suivi`, `livrables`, `style_classeur`, `creer_template`,
-`faire_zip` « archive conforme » et `essai_garde_fou_archive` « TOUT PASSE » —
-ces deux derniers **après** le retrait des quatre noms de cas. Trois bancs
-n'ont pas pu tourner ici, faute de `geopandas` et de `h5py` dans le Python
-ordinaire : `geometrie`, `controle_donnees`, `elaguer_projet` — il leur faut
-l'interpréteur HEC-RAS, que `CALAGE_PYTHON` ne désigne plus sur ce poste. La
-suite du plugin (172 contrôles au 6, sept de plus depuis) n'a pas été rejouée :
-elle exige QGIS.
+```
+f32070e  Ce que le calage vise : volume, pointe, forme — pas l'heure du pic
+3cac4f8  0.7.24 — Les onglets du milieu s'inversent, le bouton de controle redescend…
+0302ccd  La fenetre jugee est en temps de simulation, le diagnostic la lisait ailleurs
+349d503  Deux idees de V2 sont retirees, et les renvois qui les portaient
+```
+
+**Plugin en 0.7.24**, archive `calage_apports_0.7.24.zip` suivie par git,
+« archive conforme », garde-fou « TOUT PASSE ». **La 0.7.23 est celle qui
+tourne sur le poste `lsso`** — elle n'a pas d'archive dans le dépôt,
+`faire_zip.py` remplaçant l'archive à chaque construction. **La 0.7.24 n'est
+installée nulle part.**
+
+### ⏳ UN CALAGE TOURNE — à reprendre en premier
+
+**ARDANAVY Q20 V3**, lancé le 9 à 08 h 50, processus **10500**, avec la
+**0.7.23**.
+
+| | |
+|---|---|
+| Journal | `T:\…\1-ARDANAVY\3-Apports\ARDANAVY_Apports_Q20_V3\calage_20260909_085049.log` |
+| Suivi | le dossier `suivi\` à côté |
+| Avancement au 9 à 17 h 57 | **4 apports validés sur 6**, ARD10 en cours, fin prévue **22 h 01** |
+| Bilan de masse | 0,015 % pour un seuil à 5 % |
+
+| apport | essais | volume | pointe | forme | Δt diag. |
+|---|---:|---:|---:|---:|---:|
+| ARD06 | 2 | 100,0 % | 100,7 % | 99,7 % | −1,4 h |
+| ARD07 | 2 | 100,7 % | 98,3 % | 99,9 % | −0,8 h |
+| ARD08 | 2 | 100,6 % | 100,3 % | 100,0 % | −1,7 h |
+| ARD09 | 1 | 98,2 % | 101,7 % | 99,0 % | −1,6 h |
+
+**Par quoi reprendre :** ouvrir l'onglet 5 « Suivi » du plugin, ou lire
+`suivi/avancement.json`. Si le calage a conclu, relire son verdict et ses
+livrables ; s'il s'est arrêté, le journal nomme la cause.
+
+**L'identifiabilité chute vers l'aval**, et c'est à porter au client :
+l'apport pèse 56 % de la pointe à ARD06, 36 % à ARD07, 27 % à ARD08, 12 % à
+ARD09, 8 % à ARD10. À 8 %, l'hydrogramme retenu peut s'écarter de ~62 % du
+véritable sans que la section cesse d'être conforme (règle en `STATUT.txt`
+§ 2.5). La réserve automatique ne se lève qu'en dessous de 5 %.
+
+**Deux lancements ont échoué avant celui-ci, le même jour :**
+
+1. **08 h 46** — le calcul de référence est sorti en échec après 201 s. Cause :
+   le **prétraitement 2D était périmé**, la composition de 08 h 40 ayant
+   réécrit `Ardanavy.g03` dont le `.hdf` datait de trois jours. La chaîne
+   l'avait annoncé, ligne 72 de son propre journal. Ce run raté a régénéré le
+   `.hdf` — c'est ce qui a permis au suivant d'aboutir.
+2. **HEC-RAS était ouvert** pendant les deux. La 0.7.24 pose désormais la
+   question au lancement.
+
+### Ce que la journée du 9 a donné
+
+**Un défaut de verdict trouvé en production, corrigé, et quatre demandes
+d'ergonomie.**
+
+| | |
+|---|---|
+| **LA FENÊTRE JUGÉE EST EN TEMPS DE SIMULATION, et le diagnostic la lisait sur la base de temps de la cible.** Δt de +2,60 h sur une cible culminant à 0,50 h : le pic de la cible tombait hors fenêtre, une section calée à 0,1 % près était annoncée à **350 % de pointe et 370 % de volume**, refusée après trois essais et sept heures. Onze apports non traités | `STATUT.txt` § 2.2, commit `0302ccd` |
+| **Un décalage plus long que la fenêtre qu'il décale devient BLOQUANT** — il n'était refusé que par l'effet du défaut ci-dessus | idem |
+| **Décision : le calage vise le volume, la pointe et la forme. Pas l'heure du pic.** Le volume injecté n'est pas un levier (0,03 % d'écart de Δt = 0 à −3 h) et le prendre pour objectif serait dégénéré : son minimum est zéro | `STATUT.txt` § 2.1 |
+| **Ce n'était pas une régression** — `decalage_minimisant_ecart` et `_temps_du_pic` sont mot pour mot ceux du 31/08, et cette chaîne rejouée rend le même −1,60 h | idem |
+| **0.7.24 : les onglets 2 et 3 s'inversent**, « Contrôle paramétrage » quitte les onglets pour le bas de la fenêtre — vert quand c'est le moment, gris sinon —, l'onglet « Objectifs » chiffre pointe, heure du pic et volume de chaque cible, et HEC-RAS ouvert fait poser une question au lancement | commit `3cac4f8` |
+| **L'analyse « jacobien triangulaire / calage simultané » est retirée du dépôt** — demande utilisateur. `docs/idees_V2_plugin.md` ne garde que ses deux idées sans rapport. L'historique git la porte toujours | commit `349d503` |
+
+### Bancs — ce qui a été rejoué le 9, et ce qui ne l'a pas été
+
+**Verts, depuis le poste :** `calage` (référence **regelée**), `criteres`
+(section 7 quinquies, neuf contrôles neufs), `noyau` (section 12, quatre
+contrôles neufs), `suivi`, `livrables`, `geometrie`, `controle_donnees`,
+`elaguer_projet`, `pilote_hecras`, `pont_hecras`, `style_classeur`,
+`creer_template`, `verification_environnement`, `faire_zip`,
+`essai_garde_fou_archive`.
+
+**`CALAGE_PYTHON` n'est plus posée sur ce poste, et ce n'est pas un obstacle :**
+`D:\1-Python\.venv\Scripts\python.exe` porte les treize paquets, geopandas et
+h5py compris. C'est lui qui a fait tourner les quinze bancs.
+
+**NON REJOUÉ : `test_plugin_qgis.py`** — douze contrôles neufs pour la 0.7.24,
+et il exige QGIS.
 
 ### Ce que la journée du 8 a donné
 
@@ -104,35 +170,42 @@ elle exige QGIS.
 
 ### Ce qui reste, et rien d'autre
 
-0. **Le `.pdf` de la note, à réexporter à la main** — ouvrir le `.docx`
-   (V16) dans Word, *Enregistrer sous > PDF*, et lui remettre une table des
+0. **Le calage ARDANAVY Q20 V3.** Voir « Un calage tourne » plus haut : le
+   relire d'abord, avant tout le reste.
+1. **Installer la 0.7.24 et rejouer `test_plugin_qgis.py`** — Extensions →
+   Installer depuis un ZIP, `calage_apports_0.7.24.zip`. **Pas pendant un
+   calage.** Douze contrôles neufs, et ils exigent QGIS. Sans cela le poste
+   garde la 0.7.23 : elle porte le correctif de la fenêtre, mais pas l'ordre
+   des onglets, ni le bouton du bas, ni le tableau des cibles, ni la question
+   sur HEC-RAS ouvert.
+2. **Refaire les captures du README** — `python src/captures_plugin.py` sous
+   l'interpréteur de QGIS. Elles datent de la 0.7.19 et montrent l'ancien
+   ordre des onglets ; le README le dit désormais, ce qui ferme le risque de
+   les croire à jour, pas celui de les laisser fausses.
+3. **Le `.pdf` de la note, à réexporter à la main** — ouvrir le `.docx`
+   (V17) dans Word, *Enregistrer sous > PDF*, et lui remettre une table des
    matières au passage : la reconstruction la perd. Quatre tentatives
    d'export piloté ont échoué, sans que le document y soit pour quelque
-   chose.
-1. **Réinstaller le plugin depuis `calage_apports_<version>.zip`** —
-   Extensions → Installer depuis un ZIP — puis rejouer `test_plugin_qgis.py` :
-   sept contrôles neufs depuis le 6. Sans cela le plugin installé porte encore
-   le KGE, la figure fausse, et l'onglet 1 d'avant.
-2. **Regarder la fenêtre.** Quatorze versions d'interface publiées en un
-   jour — 0.7.1 à 0.7.14 — toutes vérifiées au banc, aucune sous les yeux de
-   l'utilisateur. En particulier :
-   **Entrée ne fait plus rien**, nulle part — c'est le prix assumé du
-   désarmement du geste irréversible, et il se voit.
-   **Et depuis la 0.7.19, l'onglet 1 a changé de forme** : le bouton d'action
-   y est descendu, un encadré en est parti, un autre a changé de nom et de
-   place. Les captures sont à jour — mais une capture n'est pas un usage :
-   c'est une fenêtre construite hors QGIS, jamais cliquée.
+   chose. **La note ne parle encore ni du correctif de la fenêtre ni de la
+   0.7.24** — `contenu.py` est à reprendre avant l'export.
+4. **Regarder la fenêtre**, et cette fois il y a de quoi : la 0.7.24 déplace
+   deux onglets et sort un bouton des onglets, sans qu'aucun œil ne l'ait vu
+   sous QGIS.
    **À regarder en priorité : les fenêtres étroites.** La zone défilante de
    chaque onglet comprime son contenu au lieu de faire apparaître une barre,
    et c'est le dernier encadré qui encaisse — le plancher posé sur le bouton
-   principal ne protège que lui.
-3. **Le suivi pendant un vrai calage.** L'état du calage précédent qui ne se
+   principal ne protège que lui, et le nouveau tableau des cibles est
+   justement le dernier encadré de son onglet (il porte son propre plancher,
+   calculé sur le nombre de lignes — à vérifier à l'œil).
+   **Entrée ne fait toujours rien**, nulle part — prix assumé du désarmement
+   du geste irréversible.
+5. **Le suivi pendant un vrai calage.** L'état du calage précédent qui ne se
    peint plus, « mort au démarrage » distingué de « pas encore parti », le
    fil qui dit « calage lancé », la question posée si l'on recompose pendant
    qu'un calcul tourne : tout cela est éprouvé sur des états **fabriqués**,
    jamais sur un calage qui tourne. Y regarder aussi la **figure de
    convergence** corrigée, dans `suivi/` et dans `resultats_finaux/`.
-4. **Trois garde-fous jamais rencontrés en réel** — volume plancher, apport
+6. **Trois garde-fous jamais rencontrés en réel** — volume plancher, apport
    refusé, modèle incohérent. Seul le banc les couvre.
 
 ### Le poste de travail, pour y revenir
