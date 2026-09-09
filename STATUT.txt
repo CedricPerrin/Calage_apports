@@ -497,6 +497,39 @@ LE DECALAGE EST MESURE, RAPPORTE, JAMAIS JUGE. Aucun seuil ne s'y applique.
 L'amplitude ne distingue pas un temps de transfert d'un appariement de pics
 sans rapport : les deux peuvent valoir cinq heures.
 
+CE QUE LE CALAGE VISE : LE VOLUME, LE DEBIT DE POINTE ET LA FORME. PAS LE
+CALAGE TEMPOREL DU PIC — decision utilisateur du 09/09/2026, et elle ferme la
+question pour de bon.
+  CE QUI L'AVAIT POSEE. Sur ARD06 (Q20, 09/09), le decalage retenu vaut
+-1,60 h : c'est l'ecart entre le pic du RESIDUEL (9,40 h) et celui de la CIBLE
+(11,00 h). Or le transfert reel entre l'injection et la section, mesure sur
+les deux essais, vaut +0,30 h puis +0,70 h — deux a cinq fois moins. L'apport
+retenu pique donc a 8,90 h, la section repond a 9,60 h, et la cible pique a
+11,00 h : la section reproduit sa cible 1,4 h en avance, et le verdict la
+declare a 100,7 % de pointe parce que recaler() neutralise ce decalage avant
+de comparer.
+  CE N'EST PAS UN DEFAUT, C'EST LE PERIMETRE. Les trois grandeurs jugees sont
+tenues ; l'heure du pic n'en fait pas partie et n'a jamais eu a en faire
+partie. Un livrable est donc a lire ainsi : cet apport produit CE volume, CE
+pic et CETTE forme a la section — pas « a cette heure-la ».
+  ET LE VOLUME INJECTE N'EST PAS UN LEVIER, contrairement a ce qu'on pourrait
+croire en regardant le decalage. Il vaut, a quelques millimes pres,
+« volume de la cible moins volume que la section recoit deja » : 1,91 - 0,84 =
+1,07 hm3 sur ARD06. MESURE : de Dt = 0 a Dt = -3 h, le volume injecte va de
+1,0689 a 1,0695 hm3, soit 0,03 % d'ecart. Le decalage ne change pas COMBIEN on
+injecte, seulement QUAND.
+  ET LE PRENDRE POUR OBJECTIF SERAIT DEGENERE : le minimum absolu du volume
+injecte est toujours ZERO, atteint en decalant la cible jusqu'a ce qu'elle
+passe sous le residuel — il n'y a alors plus rien a combler. Mesure sur SUH01,
+dont l'apport ne pese que 1,2 % de la pointe : 0,0002 hm3 au lieu de 0,0195,
+soit « 99 % de gain » pour un calage qui ne cale plus. C'est le refus n° 2 de
+la section 2.4, pris par l'autre bout.
+  CE N'EST PAS UNE REGRESSION, VERIFIE LE 09/09 : decalage_minimisant_ecart et
+_temps_du_pic sont mot pour mot ceux du 31/08, et la chaine de cette date
+rejouee sur les memes series rend le meme -1,60 h et le meme apport (pic
+50,16 m3/s a 9,40 h, 1,0692 hm3). Le Q100 du meme modele portait -1,70 h sur
+cette meme section.
+
 L'APPORT N'A PAS A ETRE PHYSIQUE NI LISSE. Ce n'est pas un hydrogramme
 observe, c'est LA COMMANDE D'UN ASSERVISSEMENT : seul compte le debit obtenu
 A LA SECTION, et l'apport peut varier brutalement d'un pas au suivant.
