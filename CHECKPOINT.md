@@ -4,7 +4,7 @@ Point de reprise pour ouvrir une nouvelle conversation avec un contexte
 minimal. L'état courant et les règles en vigueur restent dans `STATUT.txt` ;
 ce fichier ne dit que **où on en est** et **par quoi reprendre**.
 
-## ▶ Reprendre ici — état au 9 septembre 2026, 18 h
+## ▶ Reprendre ici — état au 9 septembre 2026, 23 h
 
 Tout est sur **`main`**, **4 commits d'avance sur `origin/main`, non poussés** :
 
@@ -21,34 +21,50 @@ tourne sur le poste `lsso`** — elle n'a pas d'archive dans le dépôt,
 `faire_zip.py` remplaçant l'archive à chaque construction. **La 0.7.24 n'est
 installée nulle part.**
 
-### ⏳ UN CALAGE TOURNE — à reprendre en premier
+### ✅ ARDANAVY Q20 V3 — TERMINÉ ET CONFORME
 
-**ARDANAVY Q20 V3**, lancé le 9 à 08 h 50, processus **10500**, avec la
-**0.7.23**.
+Lancé le 9 à 08 h 50 avec la **0.7.23**, conclu à **22 h 35**. **6 apports
+sur 6**, 11 calculs, 13 h 44. Plan final **p12**. Livrables écrits dans
+`resultats_finaux\` (15 fichiers). `alertes_chaine` vide.
 
-| | |
-|---|---|
-| Journal | `T:\…\1-ARDANAVY\3-Apports\ARDANAVY_Apports_Q20_V3\calage_20260909_085049.log` |
-| Suivi | le dossier `suivi\` à côté |
-| Avancement au 9 à 17 h 57 | **4 apports validés sur 6**, ARD10 en cours, fin prévue **22 h 01** |
-| Bilan de masse | 0,015 % pour un seuil à 5 % |
-
-| apport | essais | volume | pointe | forme | Δt diag. |
+| apport | essais | volume | pointe | forme | Δt appliqué |
 |---|---:|---:|---:|---:|---:|
-| ARD06 | 2 | 100,0 % | 100,7 % | 99,7 % | −1,4 h |
+| ARD06 | 2 | 100,0 % | 100,7 % | 99,7 % | −1,6 h |
 | ARD07 | 2 | 100,7 % | 98,3 % | 99,9 % | −0,8 h |
 | ARD08 | 2 | 100,6 % | 100,3 % | 100,0 % | −1,7 h |
 | ARD09 | 1 | 98,2 % | 101,7 % | 99,0 % | −1,6 h |
+| ARD10 | 1 | 99,9 % | 99,3 % | 100,0 % | −0,5 h |
+| ARD11 | 2 | 100,3 % | 99,3 % | 99,3 % | +0,1 h |
 
-**Par quoi reprendre :** ouvrir l'onglet 5 « Suivi » du plugin, ou lire
-`suivi/avancement.json`. Si le calage a conclu, relire son verdict et ses
-livrables ; s'il s'est arrêté, le journal nomme la cause.
+Écart maximal 1,9 % en volume, 1,7 % en pointe. Bilan de masse **0,015 %**
+pour un seuil à 5 %.
+
+**Cohérence du décalage : aucune alerte.** Étendue 1,8 h pour un seuil de
+2,3 h ; pic du modèle +1,28 h par section, pic des cibles +1,00 h. Mesure
+identique à celle du Q100 de ce modèle.
+
+**Deux réserves de périmètre**, non bloquantes, dans `synthese.md` : une
+fenêtre qui retient 72 % du volume cible (106,7 % sur toute la série) et une
+autre 76 % (111,7 %). Règle en `STATUT.txt` § 2.2 bis — ce qui est hors
+fenêtre n'est pas jugé et ne peut pas l'être, un apport ne sachant qu'ajouter
+du débit.
+
+**ARD11 a demandé deux essais pour une raison qui mérite d'être connue** :
+sa section porte DEUX pics quasi égaux à l'essai 1 — 145,15 m³/s à 14,40 h et
+142,87 à 16,10 h, soit 1,6 % d'écart. L'appariement par le pic a pris le
+mauvais, rendu un Δt diagnostic de −1,60 h contre +0,10 appliqué, et annoncé
+82,7 % de volume et 86,9 % de forme. Le Q100 avait donné 82,8 / 102,9 au même
+endroit, et s'était redressé de la même façon à l'essai 2. Ce n'est donc ni
+un défaut neuf ni un effet du correctif du 9.
 
 **L'identifiabilité chute vers l'aval**, et c'est à porter au client :
 l'apport pèse 56 % de la pointe à ARD06, 36 % à ARD07, 27 % à ARD08, 12 % à
-ARD09, 8 % à ARD10. À 8 %, l'hydrogramme retenu peut s'écarter de ~62 % du
-véritable sans que la section cesse d'être conforme (règle en `STATUT.txt`
-§ 2.5). La réserve automatique ne se lève qu'en dessous de 5 %.
+ARD09, 8 % à ARD10, 8,7 % à ARD11. À 8 %, l'hydrogramme retenu peut
+s'écarter de ~62 % du véritable sans que la section cesse d'être conforme
+(règle en `STATUT.txt` § 2.5). La réserve automatique ne se lève qu'en
+dessous de 5 %, donc aucune n'a été émise. **Sur ces trois sections,
+l'hydrogramme d'apport livré est une valeur de commande, pas une estimation
+hydrologique.**
 
 **Deux lancements ont échoué avant celui-ci, le même jour :**
 
@@ -170,8 +186,11 @@ et il exige QGIS.
 
 ### Ce qui reste, et rien d'autre
 
-0. **Le calage ARDANAVY Q20 V3.** Voir « Un calage tourne » plus haut : le
-   relire d'abord, avant tout le reste.
+0. **Relire les livrables d'ARDANAVY Q20 V3** — `resultats_finaux\`, à
+   l'œil : `synthese.md`, `tableaux_calage.xlsx`, le profil en long, les six
+   comparaisons. Le calage est conforme ; ce sont ses SORTIES qui n'ont pas
+   encore été regardées. Pas de figure de convergence pour ARD09 et ARD10 :
+   un seul essai, rien à tracer.
 1. **Installer la 0.7.24 et rejouer `test_plugin_qgis.py`** — Extensions →
    Installer depuis un ZIP, `calage_apports_0.7.24.zip`. **Pas pendant un
    calage.** Douze contrôles neufs, et ils exigent QGIS. Sans cela le poste

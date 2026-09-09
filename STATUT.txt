@@ -2303,6 +2303,71 @@ rend None, to_numeric() un scalaire.
   stricte croissance restant du ressort de controle_donnees (non exige au
   lancement).
 
+5.8  ARDANAVY Q20 — LE QUATRIEME CALAGE COMPLET (09/09/2026)
+--------------------------------------------------------------------------
+CONFORME. 6 apports sur 6, 11 calculs, 13 h 44 — du 09/09 08 h 50 au 22 h 35.
+Plan final p12, livrables complets au premier passage (15 fichiers). Sorties
+sous « <modele>\3-Apports\ARDANAVY_Apports_Q20_V3 ». Ecart maximal 1,9 % en
+volume, 1,7 % en pointe. Bilan de masse 0,015 % pour un seuil a 5 %.
+  Volumes 98,2 a 100,7 %, pointes 98,3 a 101,7 %, formes 99,0 a 100,0 %.
+QUATRE APPORTS EN DEUX ESSAIS, DEUX EN UN SEUL.
+
+C'EST LE PREMIER CALAGE MENE AVEC LE CORRECTIF DE LA FENETRE (0.7.23, § 2.2).
+Aucun de ses six apports n'aurait declenche le defaut — leurs cibles culminent
+entre 11 et 16 h pour des Dt de 0,1 a 1,7 h — mais il etablit que le correctif
+ne casse rien sur un cas ou il n'a rien a corriger.
+
+COHERENCE DU DECALAGE : AUCUNE ALERTE, et la mesure REPETE celle du Q100 du
+meme modele. Pic du modele +1,28 h par section (Q100 : +1,25), pic des cibles
++1,00 h (Q100 : +1,00), etendue de Dt 1,8 h (Q100 : 1,8) pour un seuil a 2,3 h.
+DEUX CRUES DIFFERENTES SUR LE MEME MODELE RENDENT LA MEME MESURE : c'est la
+premiere fois que ce critere est verifie deux fois sur un meme modele, et il
+est reproductible.
+
+ARD11 A DEMANDE DEUX ESSAIS, ET LE MOTIF MERITE D'ETRE CONNU : SA SECTION
+PORTE DEUX PICS QUASI EGAUX. A l'essai 1, la section culmine a 145,15 m3/s a
+14,40 h et a 142,87 a 16,10 h — 1,6 % d'ecart. _decalage_pas prend le plus
+haut : le Dt diagnostic sort a -1,60 h quand la correction en applique +0,10,
+et le verdict tombe a 82,7 % de volume et 86,9 % de forme.
+  D'OU VIENT LE SECOND PIC : a ARD11 le residuel atteint deja 128,8 m3/s pour
+une cible a 141,0 — 8,7 % de deficit AU PIC seulement, bien davantage sur la
+montee. L'apport se construit donc en amont du pic (il culmine a 13,90 h) et
+sa contribution fabrique un maximum a 14,40 h qui depasse de peu le maximum
+naturel a 16,10 h.
+  CE N'EST NI NEUF NI UN EFFET DU CORRECTIF : le Q100 rendait 82,8 / 102,9 au
+meme endroit, au dixieme pres, et se redressait de la meme facon a l'essai 2 —
+la seconde injection remodele la section, et le pic naturel reprend le dessus.
+  A SURVEILLER : une section dont deux pics se tiennent a moins de 2 % est le
+cas ou l'appariement par le pic bascule. Il coute un essai ; il pourrait
+couter un calage si les six essais n'y suffisaient pas.
+
+L'IDENTIFIABILITE CHUTE VERS L'AVAL, ET AUCUNE RESERVE NE S'EST LEVEE. Part de
+l'apport dans le debit de pointe de sa section : 56 % a ARD06, 36 % a ARD07,
+27 % a ARD08, 12 % a ARD09, 8 % a ARD10, 8,7 % a ARD11. A 8 %, l'hydrogramme
+retenu peut s'ecarter de l'ordre de 62 % du veritable sans que la section
+cesse d'etre conforme (§ 2.5). Le seuil de la reserve automatique est a 5 % :
+elle ne s'est donc levee nulle part.
+  A PORTER AU CLIENT SUR LES TROIS SECTIONS AVAL : la section est calee ;
+l'hydrogramme d'apport livre y est une valeur de commande, pas une estimation
+hydrologique.
+
+DEUX RESERVES DE PERIMETRE dans la note de synthese, non bloquantes : une
+fenetre qui retient 72 % du volume de la cible (106,7 % sur toute la serie) et
+une autre 76 % (111,7 %). Meme profil que le Q100, ou ARD11 rendait 111,7 %.
+Regle en 2.2 bis.
+
+DEUX LANCEMENTS ONT ECHOUE AVANT CELUI-LA, LE MEME JOUR.
+  1. 08 h 46 — le calcul de reference est sorti en echec apres 201 s, sur un
+     « compute_plan a retourne un echec » sans message exploitable dans
+     _compute_p02.log. CAUSE : LE PRETRAITEMENT 2D ETAIT PERIME. La
+     composition de 08 h 40 avait reecrit Ardanavy.g03, dont le .hdf datait de
+     trois jours. La chaine l'avait ANNONCE, ligne 72 de son propre journal,
+     avec le remede exact. Ce run rate a regenere le .hdf a 08 h 47 — c'est ce
+     qui a permis au suivant d'aboutir.
+  2. HEC-RAS ETAIT OUVERT pendant les deux, et la chaine l'avait ecrit
+     ligne 15. Personne ne lit un journal pendant qu'un calcul demarre : la
+     0.7.24 pose desormais la question dans la fenetre, au clic sur Lancer.
+
 5.4  CE QUE LES CAS REELS ONT APPRIS, ENSEMBLE
 --------------------------------------------------------------------------
   - CALER LA SECTION ET DETERMINER L'APPORT SONT DEUX QUESTIONS DISTINCTES.
@@ -2518,7 +2583,28 @@ A FAIRE, PAR ORDRE DE PRIORITE
   classeur d'iterations, la version de ras-commander, et la moitie du
   bornement a la fenetre. Un point ouvert ne se perime pas tout seul : il
   reste ecrit tel qu'il a ete pose, et le code, lui, avance.
-  - LA NOTE EST EN V17 (08/09/2026) — LE .DOCX SEULEMENT. La V16 avait ete
+  - LA NOTE EST EN V19, .DOCX ET .PDF (09/09/2026). 10 137 mots, 22
+    tableaux, 8 figures, 29 pages.
+      CE QU'ELLE PORTE DE NEUF : le correctif de la fenetre et ce que le
+    confondre a coute (§ 1.4), la decision « volume, pointe, forme, pas
+    l'heure du pic » (§ 1.4), le chapitre du plugin remis a la 0.7.24, et
+    DEUX CHIFFRES RECTIFIES — le tableau de coherence creditait le modele B
+    de +2,30 h par section et d'une etendue de 7,0 h, mesure prise sur le
+    modele PRIVE DE SES APPORTS et corrigee ici depuis le 02/09 sans que la
+    note l'ait suivi. Un troisieme cas reel s'y ajoute.
+      L'EXPORT PDF A FONCTIONNE, APRES QUATRE ECHECS. Word a rendu le
+    document en quelques secondes le 09/09 a 22 h 54, par le meme
+    ExportAsFixedFormat qui se figeait jusqu'a treize minutes les 08 et 09.
+    LA CAUSE DES ECHECS PRECEDENTS N'EST PAS ETABLIE — ni le document, ni le
+    verrou de fichier, ni l'imprimante par defaut n'avaient ete retenus a
+    l'epoque. Ne pas conclure que c'est repare : conclure que cela passe
+    parfois, et reessayer avant de le faire a la main.
+      IL RESTE UNE CHOSE A FAIRE A LA MAIN : LA TABLE DES MATIERES. Le .docx
+    reconstruit n'en porte AUCUNE — python-docx ne recree pas les champs — et
+    le PDF n'en a donc pas. L'ajouter dans Word avant l'export si le document
+    part au client.
+  - (ANCIEN POINT, CONSERVE POUR CE QU'IL APPREND) LA NOTE ETAIT EN V17
+    (08/09/2026) — LE .DOCX SEULEMENT. La V16 avait ete
     reconstruite le matin, AVANT les 0.7.20 et 0.7.21 : son chapitre du
     plugin decrivait deja une interface perimee de trois heures. La V17 la
     rattrape — action a l'onglet 4, elagage des etapes, sections calees au

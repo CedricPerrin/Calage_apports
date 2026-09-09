@@ -17,22 +17,29 @@ caption code note.
 
 CONTENU = [
     ("title", "Calage d'apports amont sur des hydrogrammes cibles en aval"),
-    ("sous_titre", "Note méthodologique — Version 18"),
+    ("sous_titre", "Note méthodologique — Version 19"),
     ("p", "Détermine, pour un cours d'eau modélisé en 2D comportant plusieurs "
           "apports successifs, les débits à injecter en chaque point d'apport "
           "pour que le modèle restitue à chaque section de contrôle aval un "
           "hydrogramme cible imposé."),
-    ("note", "Version 18 (8 septembre 2026) — deux réponses d'hydraulicien "
-             "y entrent : l'absence de boucle hydraulique est une HYPOTHÈSE "
-             "DU MODÈLE que la chaîne ne vérifie pas (§ 1.2), et le verdict "
-             "de volume porte sur la fenêtre de l'événement, pas sur la crue "
-             "entière (§ 1.4) ; et le chapitre du plugin suit une interface "
-             "qui a bougé le même jour — l'action est passée à l'onglet 4, "
-             "les plans d'étape s'élaguent sur demande, le suivi montre les "
-             "sections déjà calées. Depuis la V15, les justifications historiques "
-             "(essais, mesures, approches écartées) sont regroupées en "
-             "annexe B ; le corps n'énonce que la règle en vigueur. Six "
-             "figures remplacent les développements qu'elles disent mieux."),
+    ("note", "Version 19 (9 septembre 2026) — un défaut de verdict trouvé "
+             "en production, et une décision qui en découle. La fenêtre de "
+             "jugement est exprimée en TEMPS DE SIMULATION, et le diagnostic "
+             "la lisait sur la base de temps de la cible : les deux diffèrent "
+             "de Δt, et sur un cas réel une section calée à 0,1 % près a été "
+             "annoncée à 350 % de pointe (§ 1.4). Corrigé. La décision : le "
+             "calage vise le VOLUME, la POINTE et la FORME, pas le calage "
+             "temporel du pic (§ 1.4). Deux chiffres du tableau de cohérence "
+             "sont rectifiés — ils venaient d'une mesure prise sur un modèle "
+             "privé de ses apports —, et un troisième cas réel s'y ajoute. Le "
+             "chapitre du plugin suit l'interface : onglets 2 et 3 inversés, "
+             "l'action redescendue au bas de la fenêtre, les hydrogrammes "
+             "cibles chiffrés dès leur saisie, et une question posée quand "
+             "HEC-RAS est ouvert. Depuis la V15, les justifications "
+             "historiques (essais, mesures, approches écartées) sont "
+             "regroupées en annexe B ; le corps n'énonce que la règle en "
+             "vigueur. Six figures remplacent les développements qu'elles "
+             "disent mieux."),
     ("table", [
         ["Partie", "Contenu"],
         ["Mode opératoire", "ce qu'il faut préparer, et dans quel ordre. À "
@@ -223,6 +230,28 @@ CONTENU = [
           "décalage important sans défaut de volume ni de forme désigne un "
           "problème de propagation, que l'apport aggraverait s'il tentait de "
           "le corriger."),
+    ("p", "CE QUE LE CALAGE VISE : LE VOLUME, LE DÉBIT DE POINTE ET LA "
+          "FORME. Pas le calage temporel du pic. Un livrable se lit donc "
+          "ainsi : cet apport produit CE volume, CE pic et CETTE forme à la "
+          "section — pas « à cette heure-là ». La décision est de "
+          "l'hydraulicien, et elle est prise."),
+    ("note", "Ce qui l'avait posée, sur un cas réel de septembre 2026 : le "
+             "décalage retenu valait −1,60 h — l'écart entre le pic du "
+             "résiduel et celui de la cible — quand le transfert réellement "
+             "observé entre l'injection et la section valait 0,30 puis "
+             "0,70 h. La section reproduit donc sa cible 1,4 h en avance, et "
+             "le verdict la déclare à 100,7 % de pointe, le recalage "
+             "neutralisant ce décalage avant de comparer. Ce n'est pas un "
+             "défaut : c'est le périmètre."),
+    ("note", "Et le VOLUME INJECTÉ n'est pas un levier, contrairement à ce "
+             "qu'on pourrait croire. Il vaut, à quelques millièmes près, "
+             "« volume de la cible moins volume que la section reçoit "
+             "déjà » : mesuré sur ce cas, il va de 1,0689 à 1,0695 hm³ "
+             "quand Δt parcourt 0 à −3 h, soit 0,03 % d'écart. Le décalage "
+             "ne change pas COMBIEN on injecte, seulement QUAND. Et le "
+             "prendre pour objectif serait dégénéré : son minimum absolu est "
+             "zéro, atteint en décalant la cible jusqu'à ce qu'elle passe "
+             "sous le résiduel — il n'y a alors plus rien à combler."),
     ("p", "CE QUI EST JUGÉ, EN REVANCHE, C'EST SA COHÉRENCE LE LONG DE "
           "L'AXE. Un Δt identique à toutes les sections ne dit rien de "
           "suspect : c'est une origine de temps qui diffère. Un Δt qui DÉRIVE "
@@ -236,14 +265,30 @@ CONTENU = [
           "seuil est relatif — 15 % — parce qu'une dérive de 4 h sur des crues "
           "de 25 h ne dit pas la même chose que sur des crues de 100 h."),
     ("table", [
-        ["Deux modèles réels", "Ce qui a été mesuré"],
-        ["Modèle A, 8 apports",
-         "pic du modèle +0,26 h par section, pic des cibles +0,84 ; étendue de "
-         "Δt 4,4 h. Le modèle route PLUS VITE que ses cibles ne le supposent."],
-        ["Modèle B, 6 apports",
-         "pic du modèle +2,30 h par section, pic des cibles +1,00 ; étendue de "
-         "Δt 7,0 h. Le modèle route PLUS LENTEMENT — signe inverse."],
+        ["Trois calages réels", "Ce qui a été mesuré"],
+        ["Modèle A, 12 apports",
+         "pic du modèle +0,26 h par section, pic des cibles +0,84 ; étendue "
+         "de Δt 6,6 h pour un seuil à 4,2 h. ALERTE : le modèle route plus "
+         "vite que ses cibles ne le supposent."],
+        ["Modèle B, 6 apports (crue de projet)",
+         "pic du modèle +1,25 h par section, pic des cibles +1,00 ; étendue "
+         "de Δt 1,8 h pour un seuil à 2,3 h. Aucune alerte : ce modèle est "
+         "cohérent."],
+        ["Modèle B, 6 apports (crue courante)",
+         "pic du modèle +1,28 h par section, pic des cibles +1,00 ; étendue "
+         "de Δt 1,8 h pour un seuil à 2,3 h. Aucune alerte — le même modèle "
+         "rend la même mesure sur une autre crue."],
     ]),
+    ("note", "Le modèle B a longtemps été crédité de +2,30 h par section et "
+             "d'une étendue de 7,0 h, présentés ici comme le signe inverse du "
+             "modèle A. CETTE MESURE ÉTAIT FAUSSE : elle avait été prise sur "
+             "le modèle PRIVÉ DE SES APPORTS, où les sections aval sont "
+             "affamées et voient leur pic arriver de plus en plus tard — la "
+             "méthode étant séquentielle, le Δt d'un apport se mesure sur un "
+             "résiduel où l'amont est DÉJÀ calé. Les deux relectures, sur le "
+             "plan de référence et sur le plan final, l'ont établi. Le "
+             "critère ne dispose donc que d'UN cas alerté, et le seuil de "
+             "15 % ne repose que sur lui."),
     ("note", "Réserve à porter au client — la mesure ne coûte aucune "
              "simulation et sort dès l'état de référence, mais elle ne tranche "
              "pas : les sections seront calées, à 99–101 % de volume. Ce que "
@@ -263,10 +308,28 @@ CONTENU = [
           "origine annulerait le décalage entre elles ; et les volumes se "
           "comparent sur la fenêtre où les DEUX séries existent — les intégrer "
           "chacun sur son étendue reviendrait à comparer 36 h à 48 h."),
-    ("note", "Réserve non levée — volume, pointe et couverture sont bien "
-             "restreints à la fenêtre de jugement, mais la corrélation et le "
-             "recalage travaillent encore sur la grille qui englobe les deux "
-             "séries."),
+    ("p", "LA FENÊTRE EST EXPRIMÉE EN TEMPS DE SIMULATION, et la cible se "
+          "lit sur « fenêtre − Δt ». Elle est détectée sur l'écart au "
+          "résiduel — « cible(t − Δt) − section(t) » —, dont l'indice est un "
+          "instant de simulation. Sur la base de temps de la cible, la même "
+          "fenêtre est donc décalée de Δt. Le pic, le volume, la forme, la "
+          "couverture et la recherche du pic passent tous par cette "
+          "conversion."),
+    ("note", "Les confondre a coûté un calage entier en septembre 2026. Sur "
+             "une cible culminant à 0,50 h avec un Δt de +2,60 h et une "
+             "fenêtre ouverte à 2,10 h, tout le pic de la cible tombait hors "
+             "fenêtre : le maximum retenu pour elle valait 0,93 m³/s au lieu "
+             "de 3,25, et une section calée à 0,1 % près était annoncée à "
+             "350 % de pointe et 370 % de volume, puis refusée après trois "
+             "essais et sept heures de calcul. Le défaut ne mord que lorsque "
+             "Δt dépasse le temps de montée de la cible : une cible qui "
+             "culmine tard ne le voit jamais."),
+    ("p", "UN DÉCALAGE PLUS LONG QUE LA FENÊTRE QU'IL DÉCALE EST BLOQUANT. "
+          "Ce n'est pas juger le décalage — il reste mesuré et rapporté sans "
+          "seuil — c'est constater que la comparaison n'a plus d'objet : les "
+          "pourcentages seraient justes sur des grandeurs qui ne se "
+          "correspondent pas. Le motif nomme la cause et renvoie aux cibles "
+          "et à leur base de temps."),
     ("p", "CE QUI MANQUE À LA FENÊTRE JUGÉE EST TOUJOURS DIT, et chiffré en "
           "heures. Au-delà de 10 % non simulés, la comparaison est déclarée "
           "invalide et le calage s'arrête sur « allonger la simulation ». En "
@@ -640,15 +703,26 @@ CONTENU = [
           "pris le nom de PROFIL EN LONG et la place qui lui revient, "
           "immédiatement sous le plan : le plan dit quelle géométrie on lit, "
           "le profil en long comment on la parcourt."),
-    ("p", "L'ACTION VIT À L'ONGLET 2, dans un encadré CONTRÔLE DU "
-          "PARAMÉTRAGE qui suit la précision attendue : il est au contact des "
-          "tolérances qu'il écrit dans le classeur, et il précède le classeur "
-          "qu'il fabrique. « Écrire, composer et contrôler » a beaucoup "
-          "voyagé — bas de la fenêtre, onglet 1, onglet 4 — avant de s'y "
-          "ranger. L'encadré « Écriture dans la géométrie », qui ne portait "
-          "aucune commande, est descendu dans l'aide : un cadre sans geste, "
-          "au milieu d'un onglet qui n'est fait que de gestes, se lisait "
-          "comme une étape à franchir."),
+    ("p", "L'ACTION N'APPARTIENT À AUCUN ONGLET. Le bouton CONTRÔLE "
+          "PARAMÉTRAGE vit au bas de la fenêtre, à côté de « Fermer », "
+          "visible depuis tous les onglets. Il a beaucoup voyagé — bas de la "
+          "fenêtre, onglet 1, onglet 4, onglet 2 — et chaque déménagement "
+          "avait une raison vraie : le plan et les couches sont à l'onglet 1, "
+          "le compte rendu se lit à l'onglet 4, les tolérances s'écrivent à "
+          "l'onglet 2. Elles étaient toutes vraies parce que ce geste CONSOMME "
+          "LES TROIS PREMIERS ONGLETS ET PRÉPARE LE QUATRIÈME."),
+    ("p", "ET IL DIT SI C'EST LE MOMENT : VERT dès que le modèle, le profil "
+          "en long et le dossier de sortie sont là, GRIS sinon, avec le "
+          "manquant en infobulle. Gris aussi pendant qu'un calage tourne. "
+          "C'était l'objection qui l'avait chassé du bas de la fenêtre : "
+          "permanent, il ne disait rien. Il reste cliquable en gris — "
+          "désactivé, il n'aurait aucun moyen de dire pourquoi."),
+    ("p", "L'ORDRE DES DEUX ONGLETS DU MILIEU A ÉTÉ INVERSÉ : les "
+          "RÉSULTATS — où tout ira — précèdent les OBJECTIFS. L'encadré "
+          "« Écriture dans la géométrie », qui ne portait aucune commande, "
+          "est descendu dans l'aide : un cadre sans geste, au milieu d'un "
+          "onglet qui n'est fait que de gestes, se lisait comme une étape à "
+          "franchir."),
     ("p", "LE PRÉFIXE DE SCÉNARIO EST OBLIGATOIRE. Vide, il rendait les "
           "titres d'avant — « sans_apport », « Apport_A1 » — et deux "
           "scénarios calés sur le même modèle portaient alors les MÊMES "
@@ -664,21 +738,29 @@ CONTENU = [
          "la fenêtre de simulation ; chargement des couches, qui deviennent "
          "éditables dans QGIS. Ce qu'on y dessine est écrit dans la "
          "géométrie par l'onglet 4."],
-        ["2. Objectifs et précision", "ce qu'on vise et avec quoi : l'ÉCART "
+        ["2. Résultats", "dossier de sortie et ses deux sous-dossiers, "
+         "résumé de la configuration, et le MÉNAGE DU MODÈLE — une case "
+         "décide si les plans d'étape sont conservés ou supprimés à la fin "
+         "du calage, et l'encadré le dit en toutes lettres."],
+        ["3. Objectifs et précision", "ce qu'on vise et avec quoi : l'ÉCART "
          "ADMIS sur le volume et sur le débit de pointe — le résultat, lui, "
          "se lit en pourcentage d'atteinte de la cible —, le bilan de masse "
-         "admis, le plafond d'essais, et l'« Excel des hydrogrammes "
-         "objectifs » où ils se saisissent."],
-        ["3. Résultats", "dossier de sortie et ses deux sous-dossiers, "
-         "relecture d'un hydrogramme déjà calculé, résumé de la "
-         "configuration, et le MÉNAGE DU MODÈLE — une case décide si les "
-         "plans d'étape sont conservés ou supprimés à la fin du calage, et "
-         "l'encadré le dit en toutes lettres."],
+         "admis, le plafond d'essais, l'« Excel des hydrogrammes objectifs » "
+         "où ils se saisissent, et CE QUE CES HYDROGRAMMES PORTENT une fois "
+         "l'Excel validé : débit de pointe, heure du pic et volume de chaque "
+         "apport. Une cible collée dans la mauvaise colonne, un facteur "
+         "d'unité ou une colonne restée vide s'y voient avant les heures de "
+         "calcul. C'est une lecture, jamais un verdict : aucun seuil ne s'y "
+         "applique."],
         ["4. Lancer", "appariement géométrique, et surtout COMBIEN "
          "D'HYDROGRAMMES CIBLES RESTENT À SAISIR ; le premier apport à caler, "
          "le PRÉFIXE DE SCÉNARIO — sans lui, caler le Q10 après le Q100 sur "
          "le même modèle efface les plans du Q100 — et le lancement du calage "
-         "en arrière-plan."],
+         "en arrière-plan. Si HEC-RAS tourne sur le poste, une QUESTION est "
+         "posée avant de partir : l'interface ouverte réécrit les fichiers du "
+         "projet depuis sa mémoire, par-dessus ce que la chaîne vient d'y "
+         "écrire. Une question et non un verrou — elle peut être ouverte sur "
+         "un autre projet, et rien ne permet de le savoir."],
         ["5. Suivi", "où en est le calage, rafraîchi toutes les deux "
          "secondes : en cours, terminé (avec le motif), ou INTERROMPU quand le "
          "processus n'existe plus sans qu'aucun verdict ait été rendu. Le "
