@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.7.22
+version=0.7.24
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,57 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.7.22 — Remaniement d'ergonomie : l'action à l'onglet 2, l'élagage en case à cocher, le préfixe obligatoire.
+changelog=0.7.24 — Compléments d'ergonomie : l'ordre des onglets, le bouton de contrôle, ce que portent les cibles, et HEC-RAS ouvert.
+    LES ONGLETS 2 ET 3 S'INVERSENT : « Résultats » d'abord — où tout ira —,
+    « Objectifs et précision » ensuite.
+    « CONTRÔLE PARAMÉTRAGE » QUITTE LES ONGLETS et redescend au bas de la
+    fenêtre, à côté de « Fermer », où il vivait jusqu'à la 0.7.19 . Son nom
+    raccourcit. Quatre déménagements en cinq versions ont fini par le dire :
+    ce geste consomme les trois premiers onglets et prépare le quatrième, il
+    n'appartient à aucun.
+    ET IL DIT SI C'EST LE MOMENT : vert dès que tout ce qu'il consomme est
+    prêt, gris sinon, avec le manquant en infobulle. C'est ce qui l'avait
+    chassé du bas de la fenêtre en 0.7.19 — permanent, il ne disait rien.
+    Il reste cliquable en gris : désactivé, il n'aurait aucun moyen de dire
+    pourquoi.
+    CE QUE PORTENT LES HYDROGRAMMES CIBLES, à l'onglet « Objectifs et
+    précision » : débit de pointe, heure du pic et volume de chaque apport,
+    relus dans l'Excel à chaque composition et à chaque reprise. Une cible
+    collée dans la mauvaise colonne, un facteur d'unité ou une colonne restée
+    vide s'y voient — avant les heures de calcul, pas au verdict. C'est une
+    lecture, jamais un verdict : aucun seuil ne s'y applique.
+    HEC-RAS OUVERT : LA QUESTION EST POSÉE AU LANCEMENT. La chaîne l'écrivait
+    dans son journal, que personne ne lit pendant qu'un calcul démarre — le
+    09/09/2026, un calage est parti avec l'interface ouverte et s'est arrêté
+    218 s plus tard sur un calcul de référence sans résultats. Une question et
+    non un verrou : l'interface peut être ouverte sur un autre projet, et
+    personne ne peut le savoir d'ici.
+    LES CAPTURES DU README DATENT DE LA 0.7.19 — à refaire sous QGIS
+    (src/captures_plugin.py).
+    0.7.23 — Le verdict lisait la cible au mauvais endroit : correctif.
+    LA FENÊTRE JUGÉE EST EN TEMPS DE SIMULATION, et le diagnostic la lisait
+    sur la base de temps de la cible. Les deux diffèrent du décalage Δt
+    mesuré entre l'apport et sa section. Quand Δt est grand devant le temps
+    de montée de la cible, le pic de la cible tombe hors de la fenêtre : le
+    verdict compare alors le pic du calcul à la décrue de la cible.
+    CE QUE ÇA A COÛTÉ, SUR UN CAS RÉEL : une section calée à 0,1 % près a été
+    annoncée à 350 % de pointe et 370 % de volume, puis refusée sur « le
+    modèle répond de façon trop non linéaire » après trois essais et sept
+    heures de calcul. Les onze apports suivants n'ont pas été traités.
+    Le pic, le volume, la forme, la couverture et la mesure du décalage
+    lisent désormais la cible sur « fenêtre − Δt » et le calcul sur
+    « fenêtre ». Le décalage rapporté redevient celui que la correction
+    emploie.
+    UN DÉCALAGE PLUS LONG QUE LA FENÊTRE QU'IL DÉCALE EST DÉSORMAIS
+    BLOQUANT. L'alerte existait, elle ne bloquait pas : ce cas n'était refusé
+    que par l'effet du défaut ci-dessus. Ce n'est pas juger le décalage — il
+    reste mesuré et rapporté sans seuil — c'est constater que la comparaison
+    n'a plus d'objet. Le motif nomme la cause et renvoie aux cibles.
+    CE QUI NE CHANGE PAS : l'apport injecté, la correction, le nombre de
+    calculs. Le correctif déplace ce qui est JUGÉ, pas ce qui est CALCULÉ.
+    À REPRENDRE : un calage arrêté sur un verdict de pointe ou de volume
+    aberrant alors que ses séries se superposent — c'était ce défaut.
+    0.7.22 — Remaniement d'ergonomie : l'action à l'onglet 2, l'élagage en case à cocher, le préfixe obligatoire.
     L'ONGLET 1 SUIT L'ORDRE DES GESTES : projet, plan, puis « Couches
     existantes » — on charge ce que le plan désigne —, puis le profil en long
     qu'on trace dessus, puis la fenêtre de simulation.

@@ -1724,6 +1724,114 @@ def etat_cibles(chemin_classeur):
             "manquantes": manquantes}
 
 
+def resume_cibles(chemin_classeur):
+    """
+    Debit de pointe et volume de chaque hydrogramme cible, dans l'ordre du
+    classeur : [{"apport", "section", "cible", "pic_m3s", "volume_hm3",
+    "heure_pic_h", "renseignee"}, ...].
+
+    POURQUOI A L'ECRAN, ET DES LA VALIDATION DE L'EXCEL. La feuille Cibles ne
+    dit rien de ce qu'on y a colle : douze colonnes de nombres, dont on ne
+    sait ni l'ordre de grandeur ni si l'une porte une unite etrangere aux
+    autres. Un pic et un volume par section se lisent d'un coup d'oeil, et
+    une cible collee dans la mauvaise colonne, un facteur 1000, ou une serie
+    restee vide s'y voient AVANT les heures de calcul — pas au verdict.
+
+    LE VOLUME EST INTEGRE A LA REGLE DES TRAPEZES sur la colonne Temps_h, en
+    hm3 (m3/s x h x 3600 / 1e6). Les couples (temps, debit) non numeriques
+    sont ecartes des deux series ensemble : integrer une serie de debits sur
+    une base de temps trouee rendrait un nombre qui ne veut rien dire.
+
+    Une cible non exploitable — moins de deux couples numeriques, meme regle
+    que etat_cibles — est rendue avec "renseignee": False et des valeurs
+    None. Elle n'est pas une erreur ici : c'est l'etat normal d'un classeur
+    qu'on vient de composer et qu'il reste a remplir.
+    """
+    import pandas as pd
+
+    corr = pd.read_excel(chemin_classeur, sheet_name="Correspondance")
+    cibles = pd.read_excel(chemin_classeur, sheet_name="Cibles")
+    col_apport = next(c for c in corr.columns if c.startswith("Nom_Apport"))
+    col_section = next(c for c in corr.columns if c.startswith("Nom_Section"))
+    col_cible = next(c for c in corr.columns if c.startswith("Nom_Cible"))
+
+    # MEMES REFUS QUE etat_cibles, ET POUR LES MEMES RAISONS : sans colonne
+    # Temps_h il n'y a pas de base de temps, et une colonne de DATES rend des
+    # microsecondes depuis 1970 la ou on attend des heures.
+    if "Temps_h" not in cibles.columns:
+        raise ValueError(
+            f"la feuille Cibles n'a pas de colonne « Temps_h » (en-tete A1). "
+            f"En-tetes trouves : {_entetes_dits(cibles.columns)}.")
+    if pd.api.types.is_datetime64_any_dtype(cibles["Temps_h"]):
+        raise ValueError(
+            "la colonne « Temps_h » de la feuille Cibles contient des DATES. "
+            "Le calage attend des heures decimales comptees depuis le debut "
+            "de la simulation (0 ; 0,5 ; 1 …).")
+
+    temps = pd.to_numeric(cibles["Temps_h"], errors="coerce")
+    resume = []
+    for _, ligne in corr.dropna(subset=[col_section, col_cible]).iterrows():
+        nom_cible = str(ligne[col_cible])
+        entree = {"apport": str(ligne[col_apport]),
+                  "section": str(ligne[col_section]),
+                  "cible": nom_cible,
+                  "pic_m3s": None, "volume_hm3": None, "heure_pic_h": None,
+                  "renseignee": False}
+        if nom_cible in cibles.columns:
+            debit = pd.to_numeric(cibles[nom_cible], errors="coerce")
+            garde = temps.notna() & debit.notna()
+            if int(garde.sum()) >= 2:
+                t_ok = temps[garde].to_numpy(dtype=float)
+                q_ok = debit[garde].to_numpy(dtype=float)
+                ordre = t_ok.argsort()
+                t_ok, q_ok = t_ok[ordre], q_ok[ordre]
+                # Trapezes a la main : numpy est deja la (pandas en depend),
+                # mais son nom de fonction a change de version en version
+                # (trapz, puis trapezoid) — et ce module tourne sous le Python
+                # de QGIS comme sous celui de HEC-RAS.
+                aires = (q_ok[1:] + q_ok[:-1]) / 2.0 * (t_ok[1:] - t_ok[:-1])
+                entree.update(
+                    pic_m3s=float(q_ok.max()),
+                    heure_pic_h=float(t_ok[int(q_ok.argmax())]),
+                    volume_hm3=float(aires.sum()) * 3600.0 / 1e6,
+                    renseignee=True)
+        resume.append(entree)
+    return resume
+
+
+def hecras_ouvert():
+    """
+    HEC-RAS tourne-t-il ? Retourne True, False, ou None si on ne sait pas.
+
+    JUMEAU DE pilote_hecras.hecras_ouvert, ET IL FAUT LES DEUX. Celui-la est
+    lu par la CHAINE, qui tourne sous l'interpreteur HEC-RAS ; celui-ci par le
+    PLUGIN, sous le Python de QGIS, qui ne peut pas importer pilote_hecras —
+    il exige h5py et ras-commander. C'est la meme raison qui a triplique la
+    politique d'encodage (STATUT.txt § 2.11) : deux modules qui ne peuvent
+    pas partager de code. Toute correction va aux deux.
+
+    POURQUOI LE PLUGIN LE DEMANDE AUSSI. La chaine l'ecrit dans son journal
+    de lancement — que personne ne lit pendant qu'un calcul demarre. Le
+    09/09/2026, un calage est parti avec l'interface ouverte et s'est arrete
+    218 s plus tard sur un calcul de reference sans resultats. L'avertissement
+    etait dans le journal, a la ligne 15.
+
+    CE QUE L'INTERFACE OUVERTE FAIT : elle reecrit les fichiers du projet
+    depuis sa memoire, par-dessus ce que la chaine vient d'y ecrire — et le
+    chien de garde de ras-commander repond « Oui » a sa boite « Save Edits ».
+    """
+    import subprocess
+
+    try:
+        sortie = subprocess.run(
+            ["tasklist", "/FI", "IMAGENAME eq Ras.exe", "/NH"],
+            capture_output=True, text=True, timeout=10,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    except (OSError, subprocess.SubprocessError):
+        return None          # pas Windows, ou tasklist indisponible
+    return "Ras.exe" in (sortie.stdout or "")
+
+
 def apports_du_classeur(chemin_classeur):
     """
     Apports a caler, dans l'ordre : [(nom_apport, nom_section), ...].
@@ -3193,6 +3301,96 @@ if __name__ == "__main__":
         print("   sans Dossier_sortie : le dossier du classeur, sous-dossier « suivi »")
     finally:
         shutil.rmtree(bac_s, ignore_errors=True)
+
+    # -----------------------------------------------------------------
+    print("\n12. CE QUE PORTENT LES CIBLES, ET SI HEC-RAS EST OUVERT")
+    import numpy as _np
+    import pandas as _pd
+
+    bac_r = Path(tempfile.mkdtemp(prefix="calage_resume_"))
+    try:
+        _classeur_r = bac_r / "donnees.xlsx"
+        # Un triangle de 0 a 10 h, pic 100 m3/s a 5 h : son volume vaut
+        # 0.5 * base * hauteur = 0.5 * 10 h * 100 m3/s = 500 m3/s.h,
+        # soit 500 * 3600 / 1e6 = 1.8 hm3. Un nombre qu'on peut poser a la
+        # main, et c'est tout l'interet : la regle des trapezes est EXACTE
+        # sur un triangle, l'ecart ne peut donc venir que du code.
+        _t_r = _np.arange(0.0, 10.01, 0.5)
+        _q_r = _np.where(_t_r <= 5.0, 100.0 * _t_r / 5.0,
+                         100.0 * (10.0 - _t_r) / 5.0)
+        with _pd.ExcelWriter(_classeur_r) as _ec:
+            _pd.DataFrame({"Nom_Apport": ["A1", "A2"],
+                           "Nom_Section": ["S1", "S2"],
+                           "Nom_Cible": ["Cible_S1", "Cible_S2"]}
+                          ).to_excel(_ec, sheet_name="Correspondance",
+                                     index=False)
+            # La seconde cible reste VIDE : c'est l'etat ordinaire d'un
+            # classeur qu'on vient de composer.
+            _pd.DataFrame({"Temps_h": _t_r, "Cible_S1": _q_r,
+                           "Cible_S2": [None] * len(_t_r)}
+                          ).to_excel(_ec, sheet_name="Cibles", index=False)
+
+        _res = resume_cibles(_classeur_r)
+        assert len(_res) == 2, _res
+        assert _res[0]["renseignee"] and not _res[1]["renseignee"], _res
+        assert abs(_res[0]["pic_m3s"] - 100.0) < 1e-9, _res[0]
+        assert abs(_res[0]["heure_pic_h"] - 5.0) < 1e-9, _res[0]
+        assert abs(_res[0]["volume_hm3"] - 1.8) < 1e-9, _res[0]["volume_hm3"]
+        # UNE CIBLE VIDE N'EST PAS UN ZERO : rendre 0,0 hm3 la ferait passer
+        # pour saisie et nulle, ce qui est un resultat, pas une absence.
+        assert _res[1]["pic_m3s"] is None and _res[1]["volume_hm3"] is None
+        print(f"   triangle 0-10 h, pic 100 m3/s a 5 h : "
+              f"{_res[0]['volume_hm3']:.3f} hm3 (attendu 1,800), "
+              f"la cible vide est dite « a saisir »")
+
+        # LES COUPLES INCOMPLETS SORTENT DES DEUX SERIES ENSEMBLE. Integrer
+        # des debits sur une base de temps trouee rendrait un nombre qui ne
+        # veut rien dire — ici, la ligne a 5 h perd son instant, et le pic
+        # avec.
+        _t_troue = _t_r.astype(object).copy()
+        _t_troue[10] = "n/c"                      # l'instant 5,0 h
+        with _pd.ExcelWriter(_classeur_r) as _ec:
+            _pd.DataFrame({"Nom_Apport": ["A1"], "Nom_Section": ["S1"],
+                           "Nom_Cible": ["Cible_S1"]}
+                          ).to_excel(_ec, sheet_name="Correspondance",
+                                     index=False)
+            _pd.DataFrame({"Temps_h": _t_troue, "Cible_S1": _q_r}
+                          ).to_excel(_ec, sheet_name="Cibles", index=False)
+        _res2 = resume_cibles(_classeur_r)
+        assert _res2[0]["renseignee"], _res2
+        assert abs(_res2[0]["pic_m3s"] - 90.0) < 1e-9, _res2[0]["pic_m3s"]
+        print(f"   un instant illisible retire son debit : pic "
+              f"{_res2[0]['pic_m3s']:.0f} m3/s au lieu de 100")
+
+        # SANS COLONNE DE TEMPS, ON REFUSE — meme regle que etat_cibles, et
+        # c'est la faute reelle du 04/09/2026.
+        with _pd.ExcelWriter(_classeur_r) as _ec:
+            _pd.DataFrame({"Nom_Apport": ["A1"], "Nom_Section": ["S1"],
+                           "Nom_Cible": ["Cible_S1"]}
+                          ).to_excel(_ec, sheet_name="Correspondance",
+                                     index=False)
+            _pd.DataFrame({"Heure": _t_r, "Cible_S1": _q_r}
+                          ).to_excel(_ec, sheet_name="Cibles", index=False)
+        try:
+            resume_cibles(_classeur_r)
+            raise AssertionError("une feuille Cibles sans Temps_h doit etre "
+                                 "refusee")
+        except ValueError as _e:
+            assert "Temps_h" in str(_e), _e
+            print("   feuille Cibles sans « Temps_h » : refusee, et l'en-tete "
+                  "trouve est nomme")
+    finally:
+        shutil.rmtree(bac_r, ignore_errors=True)
+
+    # HEC-RAS OUVERT : trois reponses possibles, et « je ne sais pas » en est
+    # une. Le plugin ne pose sa question que sur True (voir _lancer_calage) :
+    # demander « peut-etre ? » a chaque lancement apprendrait a repondre oui
+    # sans lire.
+    _ouvert = hecras_ouvert()
+    assert _ouvert in (True, False, None), _ouvert
+    print(f"   hecras_ouvert() rend {_ouvert!r} — jumeau de "
+          f"pilote_hecras.hecras_ouvert, que le Python de QGIS ne peut pas "
+          f"importer")
 
     print("\nNoyau operationnel. Le plugin ne fait qu'appeler ces fonctions.")
     print("=" * 72)

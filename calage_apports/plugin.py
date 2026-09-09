@@ -492,6 +492,7 @@ ISL_ARDOISE_CLAIR = "#9BAEB7"  # institutionnel (Pantone 7543 C)
 # ne servent QU'A dire si une saisie est fautive ou une etape franchie.
 ISL_ROUGE = "#A03028"
 ISL_VERT = "#3E7A5E"
+ISL_VERT_SOMBRE = "#33654E"    # survol du bouton de controle, quand il est vert
 POLICE_ISL = '"Helvetica Neue", "Helvetica", "Arial", sans-serif'
 
 # Deux registres de texte, et deux seulement, en plus des libelles de champs :
@@ -583,6 +584,35 @@ QPushButton#boutonPrincipal:hover {{
 }}
 QPushButton#boutonPrincipal:disabled {{
     background-color: palette(mid); border-color: palette(mid);
+}}
+/* « Controle parametrage », au bas de la fenetre. VERT quand tout ce qu'il
+   consomme est pret, GRIS sinon — il est permanent, il doit donc dire
+   lui-meme si c'est le moment. Le vert est celui des etapes franchies du fil
+   conducteur, juste au-dessus : l'oeil fait le lien tout seul.
+   IL RESTE CLIQUABLE EN GRIS (voir _bouton_controle_parametrage) : ce n'est
+   pas l'etat « disabled » de Qt, mais deux habillages du meme bouton. */
+QPushButton#boutonControlePret {{
+    background-color: {ISL_VERT};
+    color: white;
+    border: 1px solid {ISL_VERT};
+    padding: 7px 18px;
+    font-weight: bold;
+}}
+QPushButton#boutonControlePret:hover {{
+    background-color: {ISL_VERT_SOMBRE};
+    border-color: {ISL_VERT_SOMBRE};
+    color: white;
+}}
+QPushButton#boutonControleAttente {{
+    background-color: palette(button);
+    color: palette(mid);
+    border: 1px solid palette(mid);
+    padding: 7px 18px;
+    font-weight: bold;
+}}
+QPushButton#boutonControleAttente:hover {{
+    color: palette(text);
+    border-color: palette(dark);
 }}
 /* Seconde action forte — le lancement du calage. Meme poids que l'action
    principale, sans le fond plein : les deux ne sont jamais a portee de clic
@@ -1326,7 +1356,8 @@ tout : compter 3 à 5 calculs par apport.</li>
 <i>Charger les couches du modèle</i> : sections, injections et maillage
 s'affichent sur la carte. Y dessiner les sections de contrôle qui manquent —
 sans elles, le calage n'a aucun endroit où lire un débit. Elles sont écrites
-dans la géométrie par <i>Écrire, composer et contrôler</i>, à l'onglet 4 ; un
+dans la géométrie par <i>Contrôle paramétrage</i>, le bouton vert au bas de
+la fenêtre ; un
 apport créé reçoit du même coup son hydrogramme dans le fichier
 Unsteady&nbsp;Flow, sinon il n'apporterait rien. La fenêtre de simulation n'est à corriger que si l'Unsteady&nbsp;Flow
 retenu couvre une <b>autre période</b> que le plan de référence.</li>
@@ -1357,9 +1388,9 @@ se tient.</li>
 <p><b>Indispensable tant que les sections de contrôle n'existent pas dans le
 modèle</b> — le calage n'aurait aucun endroit où lire un débit. Les dessiner
 ou les compléter dans les couches chargées à l'onglet 1 : elles sont écrites
-dans la géométrie HEC-RAS au clic sur <i>Écrire, composer et contrôler</i>
-— l'encadré <i>Contrôle du paramétrage</i>, à l'onglet 4, juste avant le
-lancement —,
+dans la géométrie HEC-RAS au clic sur <i>Contrôle paramétrage</i>
+— le bouton du bas de la fenêtre, vert dès que tout ce qu'il consomme est
+prêt, gris tant qu'il manque quelque chose —,
 en <b>remplaçant tout objet de même nom</b> déjà présent, sections comme
 injections. Une sauvegarde horodatée du fichier de géométrie précède
 l'écriture, et le compte rendu de composition dit ce qui a été écrit.</p>
@@ -1636,7 +1667,15 @@ def afficher_pk_sur_carte(chemins, sens, crs_defaut="EPSG:2154"):
 # trois secondes apres un lancement qui se deroulait bien.
 DELAI_PREMIER_ETAT_S = 240
 
+# LES CINQ ONGLETS QUI PORTENT UN NUMERO. « Aide et configuration » n'en a
+# pas : il n'est pas une etape.
+#   ILS SONT NOMMES PARCE QUE L'ORDRE A DEJA CHANGE DEUX FOIS — 0.7.0, puis
+# 0.7.24 ou les deux du milieu se sont inverses. Le banc comptait « widget(1) »
+# et « widget(2) » a la main : il regardait le bon widget par coincidence, et
+# rien ne l'aurait averti.
 ONGLET_MODELE = 0
+ONGLET_RESULTATS = 1
+ONGLET_OBJECTIFS = 2
 ONGLET_LANCER = 3
 ONGLET_SUIVI = 4
 # Les trois autres rangs n'ont pas de nom : aucun code n'y renvoie, et une
@@ -1666,8 +1705,8 @@ class DialogueParametrage(QDialog):
       Aide et configuration — mode operatoire, pieges connus, et les deux
          emplacements du poste.
 
-    Le bouton « Écrire, composer et contrôler », a l'onglet 4 dans l'encadre
-    « Controle du parametrage », juste avant le lancement,
+    Le bouton « Contrôle paramétrage », au bas de la fenetre a cote de
+    « Fermer » — vert quand c'est le moment, gris sinon —
     ECRIT D'ABORD les couches de l'onglet 1 dans la geometrie HEC-RAS —
     TOUJOURS EN REMPLACANT l'objet de meme nom deja present, sections comme
     injections : ce que QGIS montre fait foi, il n'y a plus de choix a faire
@@ -1750,17 +1789,15 @@ class DialogueParametrage(QDialog):
             (self._onglet_modele(), "1. Modèle",
              "Projet HEC-RAS, plan de référence, zone 2D, profil en long, "
              "et chargement des couches existantes du modèle."),
-            (self._onglet_objectifs(), "2. Objectifs et précision",
+            (self._onglet_resultats(), "2. Résultats",
+             "Dossiers de sortie et de suivi, et résumé de la configuration."),
+            (self._onglet_objectifs(), "3. Objectifs et précision",
              "Précision attendue sur le volume et la pointe, nombre maximal "
-             "d'essais, et le classeur où se saisissent les hydrogrammes "
-             "cibles."),
-            (self._onglet_resultats(), "3. Résultats",
-             "Dossiers de sortie et de suivi, relecture d'un hydrogramme "
-             "déjà calculé, résumé de la configuration."),
+             "d'essais, le classeur où se saisissent les hydrogrammes "
+             "cibles, et ce que ces hydrogrammes portent une fois validés."),
             (self._onglet_validation(), "4. Lancer",
              "Correspondance sections / injections, état des hydrogrammes "
-             "cibles, apports à déterminer, contrôle du paramétrage — c'est "
-             "là qu'on compose — et lancement du calage."),
+             "cibles, apports à déterminer, et lancement du calage."),
             (self._onglet_suivi(), "5. Suivi",
              "Où en est le calage : apport en cours, essai, avancement, "
              "temps restant, et ce qui s'est passé quand il s'arrête."),
@@ -1816,13 +1853,19 @@ class DialogueParametrage(QDialog):
         self.label_fil.setTextFormat(Qt.TextFormat.RichText)
         agencement.addWidget(self.label_fil)
 
-        # « ECRIRE, COMPOSER ET CONTROLER » N'EST PLUS ICI (0.7.19) : il a
-        # rejoint les onglets — l'onglet 1 d'abord, puis l'onglet 4 en 0.7.21,
-        # encadre « Controle du parametrage », juste avant le lancement. Le
-        # bas de la fenetre ne porte donc plus que le fil conducteur et
-        # « Fermer ».
+        # « CONTROLE PARAMETRAGE » EST DE RETOUR ICI (0.7.24, demande
+        # utilisateur), a cote de « Fermer », ou il vivait jusqu'a la 0.7.19.
+        # Il en etait parti parce qu'il restait visible depuis six onglets
+        # dont cinq n'en font rien ; il y revient parce qu'il les CONSOMME —
+        # et parce qu'il dit desormais quand c'est le moment, en vert ou en
+        # gris. Voir _bouton_controle_parametrage.
+        #   IL EST A GAUCHE DE « FERMER », ET LOIN DE LUI : c'est le seul
+        # geste irreversible de la fenetre, et « Fermer » est celui qu'on
+        # cherche sans regarder.
         boutons = QHBoxLayout()
         boutons.setSpacing(8)
+        self.bouton_controle = self._bouton_controle_parametrage()
+        boutons.addWidget(self.bouton_controle)
         boutons.addStretch(1)
         bouton_fermer = QPushButton("Fermer")
         bouton_fermer.setMinimumWidth(90)
@@ -1959,6 +2002,11 @@ class DialogueParametrage(QDialog):
         separateur = f"<span style='color:{ISL_ARDOISE_CLAIR}'> · </span>"
         self.label_fil.setText(separateur.join(faits)
                                + f"{separateur}&nbsp; {fin}")
+        # LE BOUTON SUIT LE FIL, ET PAR LE MEME CHEMIN. Le fil est deja
+        # rafraichi a chaque changement d'etat qui compte ; lui accrocher le
+        # bouton evite d'avoir a retrouver, un par un, tous ces changements —
+        # et garantit que les deux ne se contrediront jamais a l'ecran.
+        self._maj_bouton_controle()
 
     # --- Onglet 1 : Modele HEC-RAS ------------------------------------------
 
@@ -2139,8 +2187,51 @@ class DialogueParametrage(QDialog):
         return groupe_charger
 
 
-    def _groupe_controle_parametrage(self):
+    # CE QUE FAIT LE BOUTON, EN UN SEUL ENDROIT. _maj_bouton_controle la
+    # reprend a chaque changement d'etat, precedee d'une phrase qui dit si
+    # c'est le moment : deux textes a tenir d'accord auraient diverge, comme
+    # les deux boites de compte rendu avant la 0.7.17.
+    _INFOBULLE_CONTROLE = (
+        "Écrit d'abord les sections et injections de l'onglet 1 dans la "
+        "géométrie HEC-RAS (en remplaçant tout objet de même nom déjà "
+        "présent, après une sauvegarde horodatée du fichier), puis les "
+        "shapefiles et le classeur, puis lance tous les contrôles et "
+        "reporte les anomalies sur la carte.\n"
+        "C'est le seul geste irréversible de la fenêtre, et il est à passer "
+        "avant de lancer.\n\n"
+        "Le détail est à l'onglet « Aide et configuration », "
+        "§ « Écrire dans la géométrie ».")
+
+    def _bouton_controle_parametrage(self):
         """
+        L'ACTION N'APPARTIENT A AUCUN ONGLET (0.7.24, demande utilisateur).
+
+        Elle est redescendue au bas de la fenetre, a cote de « Fermer », ou
+        elle vivait jusqu'a la 0.7.19 — et son nom se raccourcit en
+        « Contrôle paramétrage ».
+
+        QUATRE DEMENAGEMENTS EN CINQ VERSIONS ONT FINI PAR LE DIRE : bas de
+        fenetre, onglet 1 (0.7.19), onglet 4 (0.7.21), onglet 2 (0.7.22), et
+        chaque fois pour une raison vraie — le plan et les couches sont a
+        l'onglet 1, le compte rendu se lit a l'onglet 4, les tolerances
+        s'ecrivent a l'onglet 2. Elles etaient toutes vraies parce que ce
+        geste CONSOMME LES TROIS PREMIERS ONGLETS ET PREPARE LE QUATRIEME :
+        le loger dans l'un d'eux obligeait a revenir en arriere depuis les
+        autres. Permanent, il n'est plus au bout d'un chemin.
+
+        CE QUI CHANGE PAR RAPPORT A LA 0.7.18, ou il etait deja la : il DIT
+        desormais si c'est le moment. Vert quand tout ce qu'il consomme est
+        pret, gris sinon, avec le manquant en infobulle — c'est ce qui
+        repondait a l'objection d'origine, « permanent et visible depuis six
+        onglets dont cinq n'en font rien ».
+
+        IL RESTE CLIQUABLE EN GRIS, A DESSEIN. Desactive, il n'aurait aucun
+        moyen de dire POURQUOI, et le compte rendu de composition nomme deja
+        precisement ce qui manque — mieux qu'une infobulle sur un bouton
+        mort.
+
+        --- ce que disaient les versions precedentes -----------------------
+
         L'ACTION EST JUSTE AVANT LE LANCEMENT (0.7.21, demande utilisateur).
 
         « Ecrire, composer et controler » a d'abord vecu en bas de la fenetre,
@@ -2163,40 +2254,18 @@ class DialogueParametrage(QDialog):
         cas NORMAL — fait maintenant l'aller-retour 1 -> 4. En echange, on ne
         lance plus rien sans etre passe devant le compte rendu.
         """
-        groupe = QGroupBox("Contrôle du paramétrage")
-        v = QVBoxLayout(groupe)
-        v.setSpacing(8)
-
-        # UNE SEULE LIGNE, ET C'EST DELIBERE. La phrase complete — remplacement
-        # des objets de meme nom, sauvegarde horodatee, ordre des trois etapes
-        # — tenait sur deux lignes, et la SECONDE SORTAIT COUPEE EN DEUX :
-        # setWordWrap() ne change pas la politique de taille, QLabel continue
-        # d'annoncer la hauteur d'une ligne, et le dernier encadre d'un onglet
-        # se dimensionne dessus (ailleurs, le voisinage donne la hauteur qui
-        # manque). Constate sur la capture du 8 septembre. Plutot que de forcer
-        # une hauteur en dur, le texte dit ici le strict necessaire : le detail
-        # vit dans l'infobulle du bouton et dans l'aide, § « Ecrire dans la
-        # geometrie ».
-        explication = QLabel(
-            "Écrit dans la géométrie, compose le paquet, contrôle. "
-            "<b>À passer avant de lancer</b> — et seul geste irréversible "
-            "de la fenêtre.")
-        explication.setWordWrap(True)
-        v.addWidget(explication)
-
-        bouton_composer = QPushButton("Écrire, composer et contrôler")
+        # L'ENCADRE ET SA PHRASE D'EXPLICATION DISPARAISSENT AVEC L'ONGLET.
+        # Hors d'un onglet, il n'y a plus de place pour une ligne de texte —
+        # et il n'y en a plus besoin : ce que le bouton fait vit dans son
+        # infobulle, ce qu'il ecrit dans l'aide, § « Ecrire dans la
+        # geometrie ». La phrase avait deja ete ramenee a une ligne le
+        # 08/09 parce que sa seconde ligne sortait coupee.
+        bouton_composer = QPushButton("Contrôle paramétrage")
         # Mise en avant par le STYLE, jamais par la touche Entree : ce bouton
         # ecrit dans la geometrie HEC-RAS. Voir keyPressEvent().
-        bouton_composer.setObjectName("boutonPrincipal")
+        bouton_composer.setObjectName("boutonControleAttente")
         bouton_composer.setMinimumWidth(190)
-        bouton_composer.setToolTip(
-            "Écrit d'abord les sections et injections de l'onglet 1 dans la "
-            "géométrie HEC-RAS (en remplaçant tout objet de même nom déjà "
-            "présent, après une sauvegarde horodatée du fichier), puis les "
-            "shapefiles et le classeur, puis lance tous les contrôles et "
-            "reporte les anomalies sur la carte.\n\n"
-            "Le détail est à l'onglet « Aide et configuration », "
-            "§ « Écrire dans la géométrie ».")
+        bouton_composer.setToolTip(self._INFOBULLE_CONTROLE)
         bouton_composer.clicked.connect(self._composer_et_controler)
         # SA HAUTEUR NE SE NEGOCIE PAS. Dans une fenetre trop courte, la zone
         # defilante COMPRIME le contenu au lieu de faire apparaitre une barre :
@@ -2208,11 +2277,64 @@ class DialogueParametrage(QDialog):
         # sizeHint() ne vaut rien ici, le bouton n'est pas encore habille.
         bouton_composer.setMinimumHeight(
             bouton_composer.fontMetrics().height() + 2 * 6 + 2 * 1)
-        ligne = QHBoxLayout()
-        ligne.addWidget(bouton_composer)
-        ligne.addStretch(1)
-        v.addLayout(ligne)
-        return groupe
+        return bouton_composer
+
+    def _maj_bouton_controle(self):
+        """
+        Le bouton dit si c'est le moment : vert quand tout ce qu'il consomme
+        est pret, gris sinon, et l'infobulle nomme le manquant.
+
+        LES ETAPES SONT CELLES DU FIL CONDUCTEUR, et c'est voulu : deux
+        lectures de l'avancement qui divergeraient donneraient un bouton vert
+        sous un fil qui reclame encore une etape. _maj_fil appelle donc cette
+        methode, et une seule liste sert aux deux.
+
+        LE VERT N'EST PAS LE TEAL DE « boutonPrincipal ». Le teal dit
+        « action principale de la fenetre » — il le reste. Le vert dit
+        « maintenant », et c'est le meme vert que les etapes franchies du fil
+        conducteur, juste au-dessus : l'oeil fait le lien sans qu'on
+        l'explique.
+        """
+        bouton = getattr(self, "bouton_controle", None)
+        if bouton is None:
+            return                      # appele avant la construction du bas
+        manquant = [nom for nom, ok in self._etapes_avant_controle()
+                    if not ok]
+        pret = not manquant and not self.pid_lance
+        bouton.setObjectName("boutonControlePret" if pret
+                             else "boutonControleAttente")
+        # Qt ne relit la feuille de style qu'a la « repolissure » : changer
+        # l'objectName ne suffit pas, le bouton garderait sa couleur.
+        bouton.style().unpolish(bouton)
+        bouton.style().polish(bouton)
+        if self.pid_lance:
+            etat = ("Un calage tourne (processus "
+                    f"{self.pid_lance}). Recomposer maintenant réécrirait la "
+                    "géométrie et le classeur qu'il partage — la question "
+                    "sera posée.")
+        elif manquant:
+            etat = "Il manque encore : " + ", ".join(manquant) + "."
+        else:
+            etat = "Tout ce que ce contrôle consomme est prêt."
+        bouton.setToolTip(etat + "\n\n" + self._INFOBULLE_CONTROLE)
+
+    def _etapes_avant_controle(self):
+        """
+        Ce que « Contrôle paramétrage » consomme, et si c'est la. Partage sa
+        liste avec le fil conducteur — voir _maj_bouton_controle.
+
+        LE PAQUET COMPOSE N'EN EST PAS. C'est ce que ce bouton PRODUIT : le
+        compter parmi ses prealables l'aurait laisse gris jusqu'au premier
+        clic, donc gris exactement quand il faut cliquer.
+        """
+        return [
+            ("le modèle chargé", self.info_projet is not None
+             and couche_vivante(self.couche_sections) is not None),
+            ("le profil en long",
+             couche_vivante(self.combo_axe.currentLayer()) is not None),
+            ("le dossier de sortie",
+             bool(self.edit_dossier_sortie.text().strip())),
+        ]
 
     def _groupe_copies_de_travail(self):
         groupe = QGroupBox("Apports à déterminer")
@@ -2564,8 +2686,8 @@ class DialogueParametrage(QDialog):
              + (" Géométrie jamais prétraitée par HEC-RAS : maillage "
                 "indisponible, contour(s) de zone 2D lu(s) directement dans "
                 "le fichier géométrie. Dessiner les sections et injections "
-                "manquantes, puis « Écrire, composer et contrôler » "
-                "(onglet 4) — le maillage apparaîtra au premier calcul."
+                "manquantes, puis « Contrôle paramétrage » (bouton du "
+                "bas) — le maillage apparaîtra au premier calcul."
                 if not pretraitee else
                 f" Maillage natif : {groupes} donnée(s)."
                 if maillage.isValid() else
@@ -2579,7 +2701,7 @@ class DialogueParametrage(QDialog):
                 if reponse.get("en_attente_pretraitement") else ""))
         self._maj_resume()
 
-    # --- Onglet 2 : Objectifs et precision -----------------------------------
+    # --- Onglet 3 : Objectifs et precision -----------------------------------
 
     # --- Groupes deplacables ------------------------------------------------
     #
@@ -2771,7 +2893,7 @@ class DialogueParametrage(QDialog):
             "le calage la déduit lui-même, comme avant."))
         return groupe_actions
 
-    # --- Onglet 2 : Objectifs et precision -----------------------------------
+    # --- Onglet 3 : Objectifs et precision -----------------------------------
 
     def _onglet_objectifs(self):
         """
@@ -2788,17 +2910,122 @@ class DialogueParametrage(QDialog):
 
         v.addWidget(self._groupe_precision())
 
-        # LE CONTROLE SUIT LA PRECISION (0.7.22, demande utilisateur). Il
-        # avait deja migre du bas de la fenetre (0.7.19) vers l'onglet 1, puis
-        # vers l'onglet 4 (0.7.21). Ici, il est au contact de ce qu'il
-        # consomme le plus directement — les tolerances qu'il ecrit dans le
-        # classeur — et il precede le classeur lui-meme, qu'il fabrique.
-        v.addWidget(self._groupe_controle_parametrage())
+        # LE CONTROLE EST REDESCENDU AU BAS DE LA FENETRE (0.7.24, demande
+        # utilisateur), a cote de « Fermer », ou il vivait avant la 0.7.19.
+        # Voir _bouton_controle_parametrage : quatre demenagements en cinq
+        # versions ont fini par montrer que ce geste n'appartient a AUCUN
+        # onglet — il consomme les trois premiers et prepare le quatrieme.
         v.addWidget(self._groupe_classeur())
+        v.addWidget(self._groupe_ce_que_portent_les_cibles())
         v.addStretch(1)
         return page
 
-    # --- Onglet 3 : Resultats et suivi --------------------------------------
+    _ATTENTE_CIBLES = (
+        f"<i style='color:{ISL_ARDOISE}'>Composer le paquet, ou reprendre un "
+        f"Excel, pour les lire.</i>")
+
+    def _groupe_ce_que_portent_les_cibles(self):
+        """
+        CE QU'ON VIENT DE COLLER DANS L'EXCEL, RELU ET CHIFFRE (0.7.24,
+        demande utilisateur).
+
+        La feuille Cibles est une nappe de nombres : douze colonnes, plusieurs
+        centaines de lignes. Rien n'y dit l'ordre de grandeur, et rien n'y
+        distingue une colonne collee dans la mauvaise section d'une colonne
+        juste. Un pic et un volume par apport se lisent d'un coup d'oeil, et
+        trois fautes ordinaires s'y voient AVANT les heures de calcul :
+          - une cible collee sous le mauvais nom — les pics ne croissent plus
+            vers l'aval, alors qu'ils le font sur tout reseau qui converge ;
+          - un facteur d'unite — un pic a 89 m3/s ou a 89 000 l/s ne se
+            confondent pas quand ils sont ecrits ;
+          - une colonne restee vide, dite ici « à saisir » et non par un
+            silence.
+
+        C'EST UNE LECTURE, JAMAIS UN VERDICT. Aucun seuil ne s'y applique et
+        rien n'y bloque : le controle des cibles, lui, vit dans
+        controle_donnees.py et parle au moment de composer. Ce tableau ne fait
+        que MONTRER, et c'est l'oeil de l'hydraulicien qui juge.
+
+        L'HEURE DU PIC Y EST, et ce n'est pas un ornement : c'est elle qui
+        porte le decalage entre l'apport et sa section. Deux cibles voisines
+        dont les pics sont dans le desordre annoncent un Dt qui n'est pas un
+        temps de transfert — le defaut du 08/09/2026 (voir criteres,
+        decalage_fenetre_h) est ne de la, et il a coute sept heures.
+        """
+        groupe = QGroupBox("Ce que portent les hydrogrammes cibles")
+        groupe.setToolTip(
+            "Relu dans la feuille Cibles à chaque composition et à chaque "
+            "reprise d'un Excel. Le volume est intégré sur la colonne "
+            "Temps_h, à la règle des trapèzes.")
+        v = QVBoxLayout(groupe)
+        v.setSpacing(6)
+        self.label_resume_cibles = QLabel()
+        self.label_resume_cibles.setTextFormat(Qt.TextFormat.RichText)
+        self.label_resume_cibles.setWordWrap(True)
+        self.label_resume_cibles.setText(self._ATTENTE_CIBLES)
+        v.addWidget(self.label_resume_cibles)
+        return groupe
+
+    def _maj_resume_cibles(self):
+        """
+        Remplit le tableau ci-dessus depuis le classeur courant.
+
+        MUET PLUTOT QUE FAUX : si le classeur ne se lit pas, on le DIT et on
+        n'efface pas le tableau precedent en silence — meme conduite que les
+        deux etiquettes de l'onglet 4, ou un affichage laisse sur le classeur
+        precedent avait deja menti (voir _maj_onglet_validation_depuis_classeur).
+        """
+        label = getattr(self, "label_resume_cibles", None)
+        if label is None:
+            return
+        if not self.classeur:
+            label.setText(self._ATTENTE_CIBLES)
+            return
+        try:
+            resume = noyau.resume_cibles(self.classeur)
+        except Exception as e:
+            journaliser("Résumé des hydrogrammes cibles", e)
+            label.setText(f"<span style='color:{ISL_ROUGE}'>Illisible : "
+                          f"{e}</span>")
+            return
+        if not resume:
+            label.setText(f"<i style='color:{ISL_ARDOISE}'>Aucun apport dans "
+                          f"ce classeur.</i>")
+            return
+
+        lignes = [
+            f"<tr>"
+            f"<th align='left'>Apport → section</th>"
+            f"<th align='right'>&nbsp;&nbsp;Pointe (m³/s)</th>"
+            f"<th align='right'>&nbsp;&nbsp;Heure du pic (h)</th>"
+            f"<th align='right'>&nbsp;&nbsp;Volume (hm³)</th>"
+            f"</tr>"]
+        for e in resume:
+            paire = (f"{e['apport']} → {e['section']}"
+                     if e["apport"] != e["section"] else e["section"])
+            if e["renseignee"]:
+                lignes.append(
+                    f"<tr><td>{paire}</td>"
+                    f"<td align='right'>{e['pic_m3s']:,.1f}</td>"
+                    f"<td align='right'>{e['heure_pic_h']:,.2f}</td>"
+                    f"<td align='right'>{e['volume_hm3']:,.3f}</td></tr>"
+                    .replace(",", "\u202f"))
+            else:
+                lignes.append(
+                    f"<tr><td>{paire}</td>"
+                    f"<td align='right' colspan='3'>"
+                    f"<i style='color:{ISL_ARDOISE}'>à saisir</i></td></tr>")
+        label.setText("<table cellspacing='0' cellpadding='2'>"
+                      + "".join(lignes) + "</table>")
+        # SA HAUTEUR NE SE NEGOCIE PAS, POUR LA MEME RAISON QUE LE BOUTON DE
+        # CONTROLE avant lui : dans une fenetre trop courte, la zone defilante
+        # COMPRIME le contenu au lieu de faire apparaitre une barre, et c'est
+        # le DERNIER encadre de l'onglet qui encaisse — celui-ci. Un plancher
+        # calcule sur le nombre de lignes l'en soustrait.
+        label.setMinimumHeight(
+            (len(resume) + 1) * (label.fontMetrics().height() + 4) + 8)
+
+    # --- Onglet 2 : Resultats et suivi --------------------------------------
 
     def _onglet_resultats(self):
         page = QWidget()
@@ -4305,6 +4532,7 @@ class DialogueParametrage(QDialog):
         self.label_validation_cibles.setText(
             f"{etat['renseignees']}/{etat['total']} renseignée(s)"
             + (f" — manquantes : {', '.join(manquantes)}" if manquantes else ""))
+        self._maj_resume_cibles()
 
     @avec_sablier
     def _lancer_calage(self):
@@ -4394,6 +4622,47 @@ class DialogueParametrage(QDialog):
                 f"et au moins deux instants en face des débits — puis "
                 f"relancer.")
             return
+        # HEC-RAS OUVERT : ON DEMANDE, ON N'INTERDIT PAS (0.7.24, demande
+        # utilisateur).
+        #
+        # La chaine ecrivait deja cet avertissement dans son journal de
+        # lancement — a la ligne 15, que personne ne lit pendant qu'un calcul
+        # demarre. Le 09/09/2026, un calage est parti avec l'interface
+        # ouverte et s'est arrete 218 s plus tard sur un calcul de reference
+        # sans resultats. Un avertissement qui n'arrive qu'apres coup n'est
+        # pas un avertissement.
+        #
+        # UNE QUESTION ET NON UN VERROU, meme regle que _confirmer_malgre_calage :
+        # l'interface peut etre ouverte sur un AUTRE projet, et personne ne
+        # peut le savoir d'ici — tasklist ne dit que « Ras.exe tourne ». Un
+        # refus se retournerait alors contre un usage legitime.
+        #
+        # « None » NE POSE AUCUNE QUESTION : hors de Windows, ou si tasklist
+        # est indisponible, on ne sait pas. Demander « HEC-RAS est peut-etre
+        # ouvert ? » a chaque lancement apprendrait a repondre oui sans lire.
+        if noyau.hecras_ouvert() is True:
+            with sans_sablier(self):
+                reponse = QMessageBox.warning(
+                    self, "HEC-RAS est ouvert",
+                    "<b>HEC-RAS tourne sur ce poste.</b><br><br>"
+                    "S'il est ouvert sur CE projet, le calage a toutes les "
+                    "chances d'échouer, et il peut abîmer le modèle : "
+                    "l'interface réécrit les fichiers du projet depuis sa "
+                    "mémoire, par-dessus ce que la chaîne vient d'y écrire. "
+                    "Le chien de garde qui ferme les boîtes de dialogue "
+                    "pendant les calculs répond « Oui » à « Save Edits » — "
+                    "c'est ainsi qu'un plan calculé s'est retrouvé vide de sa "
+                    "géométrie et de son débit.<br><br>"
+                    "<b>Fermer HEC-RAS, puis relancer.</b><br><br>"
+                    "S'il est ouvert sur un autre projet, il n'y a rien à "
+                    "craindre — mais on ne peut pas le savoir d'ici.",
+                    QMessageBox.StandardButton.Cancel
+                    | QMessageBox.StandardButton.Yes,
+                    QMessageBox.StandardButton.Cancel)
+            if reponse != QMessageBox.StandardButton.Yes:
+                dire(self.label_lancement,
+                     "Lancement annulé — fermer HEC-RAS, puis relancer.")
+                return
         try:
             info = noyau.lancer_calage(self.classeur)
         except Exception as e:
@@ -4506,7 +4775,7 @@ class DialogueParametrage(QDialog):
             f"{len(bilan['colonnes'])} colonne(s), de "
             f"{bilan['duree_avant_h']:.2f} h à {bilan['duree_apres_h']:.2f} h, "
             f"au pas de {60 * bilan['pas_h']:g} min.\n\n"
-            f"Relancer « Écrire, composer et contrôler » (onglet 4) "
+            f"Relancer « Contrôle paramétrage » (bouton du bas) "
             f"pour vérifier.")
 
     def _ouvrir_classeur(self):
@@ -4563,6 +4832,8 @@ class DialogueParametrage(QDialog):
             f"renseignée(s)"
             + (f" — manquent : {', '.join(etat['manquantes'])}"
                if etat["manquantes"] else ""))
+
+        self._maj_resume_cibles()
 
         if etat["manquantes"]:
             dire(self.label_prochaine_etape,
@@ -4743,7 +5014,7 @@ class DialogueParametrage(QDialog):
                     "Onglet 1 : choisir la couche de l'axe hydraulique.")
             dossier_sortie = self.edit_dossier_sortie.text().strip()
             if not dossier_sortie:
-                raise ValueError("Onglet 3 : choisir le dossier de sortie.")
+                raise ValueError("Onglet 2 : choisir le dossier de sortie.")
 
             # Ecrit les couches QGIS dans la geometrie HEC-RAS AVANT de
             # composer le paquet : les sections doivent etre DANS le modele

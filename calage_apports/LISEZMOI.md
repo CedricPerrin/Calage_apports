@@ -20,10 +20,11 @@ onglets — l'ordre des onglets est celui des décisions.
 **Les six onglets sont en images** dans le README du dépôt, section « La
 fenêtre du plugin » — une capture par onglet.
 
-Le bouton **Écrire, composer et contrôler** vit à l'onglet 2, dans l'encadré
-**Contrôle du paramétrage**, juste après la précision attendue : il est au
-contact des tolérances qu'il écrit, et il précède le classeur qu'il fabrique.
-Il fait les trois choses que son nom annonce, dans cet ordre :
+Le bouton **Contrôle paramétrage** vit au bas de la fenêtre, à côté de
+*Fermer*, et il y est visible depuis tous les onglets : il consomme les trois
+premiers et prépare le quatrième, il n'appartient donc à aucun. **Vert** dès
+que tout ce qu'il consomme est prêt, **gris** tant qu'il manque quelque chose
+— l'infobulle nomme le manquant. Il fait trois choses, dans cet ordre :
 
 1. il **écrit dans la géométrie HEC-RAS** les sections et injections dessinées
    à l'onglet 1, en remplaçant tout objet de même nom — **c'est le seul geste

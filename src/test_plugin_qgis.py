@@ -1942,31 +1942,92 @@ verifier("l'onglet 1 ne porte plus ni l'écriture ni la mise à jour",
          and "Écrire, composer et contrôler" not in _boutons_modele,
          f"{_groupes_modele} | {_boutons_modele}")
 
-# L'ACTION SUIT LA PRECISION ATTENDUE (0.7.22). Elle a beaucoup voyage — bas
-# de la fenetre, onglet 1, onglet 4 — et se range ici au contact de ce qu'elle
-# ecrit dans le classeur.
-_page_objectifs = dlg.onglets.widget(1)
+# L'ORDRE DES ONGLETS DU MILIEU S'INVERSE (0.7.24, demande utilisateur) :
+# les dossiers d'abord, les objectifs ensuite.
+verifier("l'ordre des onglets est celui des constantes",
+         dlg.onglets.tabText(mod_plugin.ONGLET_RESULTATS).startswith("2.")
+         and "Résultats" in dlg.onglets.tabText(mod_plugin.ONGLET_RESULTATS)
+         and dlg.onglets.tabText(mod_plugin.ONGLET_OBJECTIFS).startswith("3.")
+         and "Objectifs" in dlg.onglets.tabText(
+             mod_plugin.ONGLET_OBJECTIFS),
+         [dlg.onglets.tabText(i) for i in range(dlg.onglets.count())])
+
+# L'ACTION N'APPARTIENT PLUS A AUCUN ONGLET (0.7.24, demande utilisateur).
+# Elle est redescendue au bas de la fenetre, a cote de « Fermer », ou elle
+# vivait jusqu'a la 0.7.19 — et elle DIT desormais si c'est le moment.
+_page_objectifs = dlg.onglets.widget(mod_plugin.ONGLET_OBJECTIFS)
 _groupes_objectifs = [g.title() for g in _page_objectifs.findChildren(_QGroupBoxA)]
-_boutons_objectifs = [b.text() for b in _page_objectifs.findChildren(_QPushButtonA)]
-verifier("« Écrire, composer et contrôler » vit a l'onglet 2",
-         "Écrire, composer et contrôler" in _boutons_objectifs,
-         _boutons_objectifs)
-verifier("l'onglet 2 porte « Contrôle du paramétrage »",
-         "Contrôle du paramétrage" in _groupes_objectifs, _groupes_objectifs)
-verifier("et il suit « Précision attendue »",
-         _groupes_objectifs.index("Contrôle du paramétrage")
-         == _groupes_objectifs.index("Précision attendue") + 1,
-         _groupes_objectifs)
-verifier("l'onglet 4 ne porte plus que l'appariement et le lancement",
-         "Contrôle du paramétrage" not in
+_boutons_partout = []
+for _i in range(dlg.onglets.count()):
+    _boutons_partout += [b.text()
+                         for b in dlg.onglets.widget(_i).findChildren(
+                             _QPushButtonA)]
+verifier("le bouton de controle a quitte tous les onglets",
+         not [b for b in _boutons_partout
+              if "ontrôle paramétrage" in b or "composer" in b],
+         [b for b in _boutons_partout if "ontrôle" in b or "composer" in b])
+verifier("il vit au bas de la fenetre, et il porte son nom court",
+         dlg.bouton_controle.text() == "Contrôle paramétrage"
+         and dlg.bouton_controle.parent() is dlg,
+         dlg.bouton_controle.text())
+verifier("aucun onglet ne porte plus l'encadre « Contrôle du paramétrage »",
+         "Contrôle du paramétrage" not in _groupes_objectifs
+         and "Contrôle du paramétrage" not in
          [g.title() for g in
-          dlg.onglets.widget(mod_plugin.ONGLET_LANCER).findChildren(_QGroupBoxA)])
+          dlg.onglets.widget(mod_plugin.ONGLET_LANCER).findChildren(_QGroupBoxA)],
+         _groupes_objectifs)
+
+# VERT QUAND C'EST LE MOMENT, GRIS SINON. L'etat vient des memes etapes que
+# le fil conducteur : deux lectures qui divergeraient donneraient un bouton
+# vert sous un fil qui reclame encore une etape.
+verifier("sans modele charge, le bouton est gris",
+         dlg.bouton_controle.objectName() == "boutonControleAttente",
+         dlg.bouton_controle.objectName())
+verifier("et son infobulle nomme ce qui manque",
+         "Il manque encore" in dlg.bouton_controle.toolTip(),
+         dlg.bouton_controle.toolTip()[:90])
+verifier("il reste cliquable en gris — il n'est pas desactive",
+         dlg.bouton_controle.isEnabled())
+_etapes_faussees = [("le modèle chargé", True), ("le profil en long", True),
+                    ("le dossier de sortie", True)]
+_vraies_etapes = dlg._etapes_avant_controle
+dlg._etapes_avant_controle = lambda: _etapes_faussees
+_pid_avant = dlg.pid_lance
+dlg.pid_lance = None
+dlg._maj_bouton_controle()
+verifier("tout etant pret, il passe au vert",
+         dlg.bouton_controle.objectName() == "boutonControlePret",
+         dlg.bouton_controle.objectName())
+verifier("et la feuille de style connait cet habillage",
+         "boutonControlePret" in mod_plugin.STYLE_ISL
+         and "boutonControleAttente" in mod_plugin.STYLE_ISL)
+# UN CALAGE QUI TOURNE LE REMET AU GRIS : recomposer pendant un calcul
+# reecrit la geometrie et le classeur que ce calcul partage.
+dlg.pid_lance = 4242
+dlg._maj_bouton_controle()
+verifier("un calage en cours le remet au gris, et le dit",
+         dlg.bouton_controle.objectName() == "boutonControleAttente"
+         and "4242" in dlg.bouton_controle.toolTip(),
+         dlg.bouton_controle.toolTip()[:90])
+dlg.pid_lance = _pid_avant
+dlg._etapes_avant_controle = _vraies_etapes
+dlg._maj_bouton_controle()
+
+# CE QUE PORTENT LES CIBLES (0.7.24, demande utilisateur) : le pic et le
+# volume de chaque hydrogramme, relus apres validation de l'Excel.
+verifier("l'onglet 3 porte « Ce que portent les hydrogrammes cibles »",
+         "Ce que portent les hydrogrammes cibles" in _groupes_objectifs,
+         _groupes_objectifs)
+verifier("et il attend d'avoir un classeur avant de rien dire",
+         "Composer le paquet" in dlg.label_resume_cibles.text(),
+         dlg.label_resume_cibles.text()[:80])
 
 # « RELIRE UN HYDROGRAMME » A QUITTE LA FENETRE (0.7.22). L'outil vit encore,
 # en ligne de commande ; c'est l'onglet qui n'avait pas a le porter.
-verifier("l'onglet 3 ne porte plus la relecture d'hydrogramme",
+verifier("l'onglet des resultats ne porte plus la relecture d'hydrogramme",
          "Relire un hydrogramme déjà calculé" not in
-         [g.title() for g in dlg.onglets.widget(2).findChildren(_QGroupBoxA)])
+         [g.title() for g in dlg.onglets.widget(
+             mod_plugin.ONGLET_RESULTATS).findChildren(_QGroupBoxA)])
 
 # L'ELAGAGE EST UNE CASE, ET ELLE DIT CE QU'ELLE FERA. Le mot qui compte —
 # « conservés » ou « supprimés » — est en rouge dans les deux sens : on ne
@@ -2018,11 +2079,12 @@ verifier("et les oublie quand il n'y a plus de calage suivi",
          dlg.courbe_suivi.precedentes == []
          and dlg.courbe_suivi.courbes is None)
 
-# LE MENAGE EST A L'ONGLET 3, ET C'EST UNE CASE (0.7.22). Elle se coche avant
-# le calage ; c'est la chaine qui elague a la fin, quand le plan final existe.
-_page_resultats = dlg.onglets.widget(2)
+# LE MENAGE EST A L'ONGLET DES RESULTATS, ET C'EST UNE CASE (0.7.22). Elle se
+# coche avant le calage ; c'est la chaine qui elague a la fin, quand le plan
+# final existe. Cet onglet est passe en 2e position en 0.7.24.
+_page_resultats = dlg.onglets.widget(mod_plugin.ONGLET_RESULTATS)
 _groupes_resultats = [g.title() for g in _page_resultats.findChildren(_QGroupBoxA)]
-verifier("l'onglet 3 porte « Ménage du modèle HEC-RAS »",
+verifier("l'onglet des resultats porte « Ménage du modèle HEC-RAS »",
          "Ménage du modèle HEC-RAS" in _groupes_resultats, _groupes_resultats)
 verifier("l'elagage est une case a cocher, plus un bouton",
          "Élaguer les plans d'étape…" not in

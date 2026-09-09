@@ -119,25 +119,26 @@ quelqu'un a pensé à appuyer sur *Impr. écran*.
 dossier**), le plan de référence, la géométrie, la zone 2D, le **profil en
 long** — l'axe, son sens, le PK d'origine — et la fenêtre de simulation. C'est
 d'ici que les couches du modèle arrivent sur la carte, éditables, et l'onglet
-ce qu'on y dessine est écrit dans la géométrie par l'onglet 4.
+ce qu'on y dessine est écrit dans la géométrie par le bouton du bas.
 
 ![Onglet 1 — Modèle](docs/captures/onglet_1_modele.png)
 
-**2. Objectifs et précision** — l'**écart admis** sur le volume et sur le débit
-de pointe (le résultat, lui, se lit en pourcentage d'atteinte de la cible), le
-nombre maximal d'essais, le **contrôle du paramétrage** — c'est son bouton
-**Écrire, composer et contrôler** qui écrit dans la géométrie, compose et
-contrôle, seul geste irréversible de la fenêtre — et l'Excel des hydrogrammes
-objectifs.
-
-![Onglet 2 — Objectifs et précision](docs/captures/onglet_2_objectifs.png)
-
-**3. Résultats** — dossiers de sortie et de suivi, résumé de la configuration,
+**2. Résultats** — dossiers de sortie et de suivi, résumé de la configuration,
 et le **ménage du modèle** : une case décide si les plans d'étape sont
 conservés ou supprimés à la fin du calage, et l'encadré le dit en toutes
 lettres.
 
-![Onglet 3 — Résultats](docs/captures/onglet_3_resultats.png)
+![Onglet Résultats](docs/captures/onglet_3_resultats.png)
+
+**3. Objectifs et précision** — l'**écart admis** sur le volume et sur le débit
+de pointe (le résultat, lui, se lit en pourcentage d'atteinte de la cible), le
+nombre maximal d'essais, l'Excel des hydrogrammes objectifs, et **ce que ces
+hydrogrammes portent** une fois l'Excel validé : débit de pointe, heure du pic
+et volume de chaque apport. Une cible collée dans la mauvaise colonne, un
+facteur d'unité ou une colonne restée vide s'y voient avant les heures de
+calcul.
+
+![Onglet Objectifs et précision](docs/captures/onglet_2_objectifs.png)
 
 **4. Lancer** — l'appariement apport → section, l'état des cibles, le premier
 apport à caler, le **préfixe de scénario** — **obligatoire** : sans lui, caler
@@ -148,7 +149,8 @@ lancement.
 
 **5. Suivi** — où en est le calcul, apport par apport, rafraîchi tout seul. Le
 dossier surveillé est nommé en permanence : c'est celui que désigne l'Excel
-lancé, pas celui de l'onglet 3. La courbe porte la cible et la section de
+lancé, pas celui de l'onglet Résultats. La courbe porte la cible et la
+section de
 l'apport en cours, et **derrière, en vert pointillé, les sections déjà
 calées** : c'est la famille de courbes qui dit si tout se tient.
 
@@ -159,9 +161,17 @@ deux emplacements du poste : chaîne de calage et interpréteur HEC-RAS.
 
 ![Onglet Aide et configuration](docs/captures/onglet_6_aide.png)
 
-Le bouton **« Écrire, composer et contrôler »**, permanent en bas, nomme les
-trois choses qu'il fait dans l'ordre où il les fait. La première — l'écriture
-dans la géométrie HEC-RAS — est la seule irréversible.
+Le bouton **« Contrôle paramétrage »** est permanent, au bas de la fenêtre à
+côté de *Fermer* : il consomme les trois premiers onglets et prépare le
+quatrième, il n'appartient donc à aucun. Il écrit dans la géométrie HEC-RAS,
+compose le paquet et lance les contrôles, dans cet ordre — et la première de
+ces trois choses est le seul geste irréversible de la fenêtre. **Vert** dès
+que tout ce qu'il consomme est prêt, **gris** tant qu'il manque quelque
+chose, avec le manquant en infobulle.
+
+**Les captures ci-dessus datent de la 0.7.19** : elles montrent encore
+l'ancien ordre des onglets 2 et 3, et le bouton dans un encadré. Les refaire
+demande QGIS — `python src/captures_plugin.py` sous son interpréteur.
 
 ## Licence
 
