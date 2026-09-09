@@ -409,6 +409,12 @@ class ResultatApport:
     # perdrait — elle renait du nombre, par la meme regle
     # (criteres.reserve_identifiabilite). None = inconnue.
     part_apport: float = None
+    # LE Dt AUQUEL « fenetre_principale » SE RAPPORTE. fenetre_injection la
+    # mesure sur « cible(t - Dt) - section(t) » : ses bornes sont des instants
+    # de SIMULATION. diagnostiquer() en a besoin pour lire la cible au bon
+    # endroit — sans lui, il juge la cible sur un intervalle decale de Dt.
+    # Repasse a la verification finale et a l'etape 7, qui recalculent.
+    decalage_fenetre_h: float = None
 
 
 @dataclass
@@ -1286,7 +1292,8 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
                                  tolerance_pic=config.tolerance_pic,
                                  r_min=config.r_min,
                                  fenetre=bornes_fenetre,
-                                 part_apport=part_apport)
+                                 part_apport=part_apport,
+                                 decalage_fenetre_h=decalage_zero)
             essais += 1
 
             historique_rapport.append({
@@ -1468,7 +1475,8 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
             duree_s=duree_apport, motif="" if valide else motif,
             historique=historique_rapport,
             fenetre_principale=bornes_fenetre,
-            part_apport=part_apport))
+            part_apport=part_apport,
+            decalage_fenetre_h=decalage_zero))
 
         if suivi is not None:
             series = ((temps_cible, debit_cible, temps_calcule, debit_calcule)
@@ -1492,7 +1500,8 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
             _signaler_coherence_amont(
                 modele, sections[:i], cibles[:i],
                 [a.fenetre_principale for a in resultat.apports[:i]],
-                config, apport, dire)
+                config, apport, dire,
+                [a.decalage_fenetre_h for a in resultat.apports[:i]])
 
     # --- etape finale : verification globale -------------------------------
     if all(a.valide for a in resultat.apports) and \
@@ -1554,7 +1563,8 @@ def _verifier_globalement(modele, sections, cibles, config, resultat, dire):
                           tolerance_pic=config.tolerance_pic,
                           r_min=config.r_min,
                           fenetre=a.fenetre_principale,
-                          part_apport=a.part_apport)
+                          part_apport=a.part_apport,
+                          decalage_fenetre_h=a.decalage_fenetre_h)
         resultat.diagnostics_finaux.append(d)
         # SERIES PRESENTEES DANS LE RAPPORT : ENTIERES, telles que le modele
         # les rend.
@@ -1602,7 +1612,8 @@ def _verifier_globalement(modele, sections, cibles, config, resultat, dire):
 
 
 def _signaler_coherence_amont(modele, sections_amont, cibles_amont,
-                              fenetres_amont, config, apport, dire):
+                              fenetres_amont, config, apport, dire,
+                              decalages_amont=None):
     """
     Etape 7 : le remous du nouvel apport a-t-il deplace les sections deja
     calees ? Relit, SIGNALE, et ne reprend rien.
@@ -1625,7 +1636,8 @@ def _signaler_coherence_amont(modele, sections_amont, cibles_amont,
     automatisme : la chaine SIGNALE, et laisse decider.
     """
     derives, illisibles = _sections_derivees(
-        modele, sections_amont, cibles_amont, config, fenetres_amont)
+        modele, sections_amont, cibles_amont, config, fenetres_amont,
+        decalages_amont)
     # DIRE QU'ON N'A PAS PU REGARDER. Sans cette ligne, une section que le
     # modele refuse de rendre disparaissait de l'examen, et le silence qui
     # suivait se lisait comme « rien n'a derive ».
@@ -1644,7 +1656,8 @@ def _signaler_coherence_amont(modele, sections_amont, cibles_amont,
              f"n'est repris automatiquement.")
 
 
-def _sections_derivees(modele, sections, cibles, config, fenetres=None):
+def _sections_derivees(modele, sections, cibles, config, fenetres=None,
+                       decalages=None):
     """
     Sections deja validees qui sont sorties de tolerance. Simple relecture du
     dernier calcul : aucun calcul supplementaire.
@@ -1653,6 +1666,11 @@ def _sections_derivees(modele, sections, cibles, config, fenetres=None):
     l'evenement principal detectee pour cette section lors de son propre
     calage (ResultatApport.fenetre_principale). Sans elle (None), chaque
     section est jugee sur sa fenetre commune entiere.
+
+    decalages : le Dt de chacune de ces fenetres, meme ordre
+    (ResultatApport.decalage_fenetre_h). Une fenetre sans son Dt est lue sur
+    la base de temps de la cible, ce qu'elle n'est pas — voir
+    criteres.diagnostiquer.
 
     Rend (derives, illisibles).
 
@@ -1668,7 +1686,10 @@ def _sections_derivees(modele, sections, cibles, config, fenetres=None):
         fenetres = [None] * len(sections)
     derives = []
     illisibles = []
-    for section, (t_c, q_c), fenetre in zip(sections, cibles, fenetres):
+    if decalages is None:
+        decalages = [None] * len(sections)
+    for section, (t_c, q_c), fenetre, dec in zip(sections, cibles, fenetres,
+                                                 decalages):
         try:
             t_s, q_s = modele.lire_section(section)
         except Exception as erreur:
@@ -1681,7 +1702,8 @@ def _sections_derivees(modele, sections, cibles, config, fenetres=None):
                           tolerance_volume=config.tolerance_volume,
                           tolerance_pic=config.tolerance_pic,
                           r_min=config.r_min,
-                          fenetre=fenetre)
+                          fenetre=fenetre,
+                          decalage_fenetre_h=dec)
         if not d.converge:
             derives.append((section, d))
     return derives, illisibles
@@ -3324,14 +3346,31 @@ if __name__ == "__main__":
     # sur sa COHERENCE LE LONG DE L'AXE, section 6 de STATUT.txt).
     #
     # CE QU'ON EXIGE DONC ICI : que la chaine REFUSE l'apport et le DISE,
-    # plutot que de le caler de travers en silence. Le jour ou le decalage
-    # sera mesure autrement, ce controle basculera — et c'est voulu : il
-    # signalera qu'il faut le relire, pas qu'une regression est apparue.
+    # plutot que de le caler de travers en silence.
+    #
+    # CE CONTROLE A BASCULE LE 09/09/2026, ET C'ETAIT ANNONCE. Il tenait
+    # jusque-la PAR ACCIDENT : diagnostiquer() lisait la fenetre sur la base
+    # de temps de la cible alors qu'elle est en temps de SIMULATION, ce qui
+    # rendait des pourcentages absurdes des que Dt etait grand — l'apport
+    # echouait pour la mauvaise raison. La fenetre reparee (voir
+    # criteres.diagnostiquer, parametre decalage_fenetre_h), l'appariement
+    # devient coherent et ce montage rendait « conforme » un apport cale onze
+    # heures trop tot. Le refus est desormais PORTE PAR SON PROPRE
+    # GARDE-FOU : un decalage plus long que la fenetre qu'il decale est
+    # bloquant, et le motif nomme la cause au lieu d'accuser l'hydraulique.
+    #
+    # LE MOTIF NOMME LA SECTION, PAS L'APPORT — c'est la section dont la
+    # comparaison n'a plus d'objet, et c'est elle qu'on va relire.
     # Que la troncature ne casse PAS un calage sain est eprouve plus bas,
     # sur le montage a traine fine.
     controler("un decalage aberrant fait refuser l'apport, et le DIT",
-              (not _r6.conforme) and "A2" in (_r6.motif or ""),
+              (not _r6.conforme)
+              and "S2" in (_r6.motif or "")
+              and "excede la fenetre jugee" in (_r6.motif or ""),
               (_r6.motif or "conforme")[:120])
+    controler("et il renvoie aux cibles, pas au modele",
+              "pas un temps de transfert" in (_r6.motif or ""),
+              (_r6.motif or "conforme")[-90:])
     controler("la duree est bien raccourcie, apport par apport",
               len(_m6.durees_demandees) >= 1
               and _m6.durees_demandees[0] < 40.0,

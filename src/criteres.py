@@ -154,7 +154,7 @@ def axe_recale(temps_cible, temps_calcule, nb_points, pas_h=PAS_RECALAGE_H):
     return debut + np.arange(nb_points) * pas_h
 
 
-def _decalage_pas(qc, qs, masque=None):
+def _decalage_pas(qc, qs, masque=None, masque_cible=None):
     """
     Decalage, en pas, qui ALIGNE LE PIC de qs sur celui de qc.
 
@@ -184,10 +184,15 @@ def _decalage_pas(qc, qs, masque=None):
     aucun seuil ne la juge — voir Diagnostic.converge.
 
     masque : booleens sur la grille de qc/qs, CONTIGUS, restreignant la
-    recherche du pic. C'est la fenetre du hydrogramme principal quand elle est
-    connue. Le decalage est une DIFFERENCE de deux indices pris sous le meme
-    masque contigu : son origine s'annule, la valeur rendue reste en pas de la
-    grille complete.
+    recherche du pic DANS LE CALCUL. C'est la fenetre du hydrogramme principal
+    quand elle est connue.
+
+    masque_cible : le meme, pour la CIBLE. None = le meme que « masque ».
+    LES DEUX PEUVENT DIFFERER, et c'est le cas des que la fenetre est donnee
+    en temps de SIMULATION : sur la base de temps de la cible, elle est
+    decalee de Dt (voir recaler). Le decalage rendu est alors une difference
+    d'indices ABSOLUS — l'origine de chaque masque est rajoutee a son argmax,
+    ce qui exige des masques contigus (ils le sont : ce sont des intervalles).
       SANS LUI, LE PIC LE PLUS HAUT DE TOUTE LA SERIE GAGNE, ou qu'il soit.
       Mesure : un transitoire de demarrage place a 4 h, hors d'une fenetre
       jugee 18-40 h et plus haut que l'evenement, rendait -26,00 h pour un
@@ -200,16 +205,23 @@ def _decalage_pas(qc, qs, masque=None):
     """
     qc = np.asarray(qc, dtype=float)
     qs = np.asarray(qs, dtype=float)
-    if masque is not None and int(np.count_nonzero(masque)) >= 3:
-        qc, qs = qc[masque], qs[masque]
-    if (float(np.ptp(qc)) <= 1e-9 * max(1.0, float(np.max(np.abs(qc))))
-            or float(np.ptp(qs)) <= 1e-9 * max(1.0, float(np.max(np.abs(qs))))):
+    if masque_cible is None:
+        masque_cible = masque
+    pris_s = masque is not None and int(np.count_nonzero(masque)) >= 3
+    pris_c = (masque_cible is not None
+              and int(np.count_nonzero(masque_cible)) >= 3)
+    vs = qs[masque] if pris_s else qs
+    vc = qc[masque_cible] if pris_c else qc
+    if (float(np.ptp(vc)) <= 1e-9 * max(1.0, float(np.max(np.abs(vc))))
+            or float(np.ptp(vs)) <= 1e-9 * max(1.0, float(np.max(np.abs(vs))))):
         return 0
-    return int(np.argmax(qs)) - int(np.argmax(qc))
+    i_s = int(np.argmax(vs)) + (int(np.argmax(masque)) if pris_s else 0)
+    i_c = int(np.argmax(vc)) + (int(np.argmax(masque_cible)) if pris_c else 0)
+    return i_s - i_c
 
 
 def recaler(temps_cible, debit_cible, temps_calcule, debit_calcule,
-            pas_h=PAS_RECALAGE_H, fenetre=None):
+            pas_h=PAS_RECALAGE_H, fenetre=None, decalage_fenetre_h=None):
     """
     Recale temporellement l'hydrogramme calcule sur l'hydrogramme cible.
 
@@ -234,6 +246,18 @@ def recaler(temps_cible, debit_cible, temps_calcule, debit_calcule,
     couvrent toujours cette grille. Voir _decalage_pas pour ce qu'un pic
     parasite hors fenetre coutait.
 
+    decalage_fenetre_h : le Dt auquel cette fenetre se rapporte, quand elle
+    est donnee en temps de SIMULATION. La fenetre de calage.fenetre_injection
+    l'est : elle est mesuree sur « cible(t - Dt) - section(t) », dont l'indice
+    est un instant de simulation. Sur la base de temps de la CIBLE, la meme
+    fenetre vaut donc « fenetre - Dt ». None (defaut) : 0,0 h, la fenetre est
+    prise telle quelle des deux cotes.
+      CE QUE SON ABSENCE COUTAIT : sur un cas reel du 08/09/2026, un Dt de
+    +2,60 h sur une cible qui culmine a 0,50 h faisait tomber TOUT le pic de
+    la cible hors d'une fenetre ouverte a 2,10 h. Le pic de la cible dans la
+    fenetre valait alors 0,93 m3/s au lieu de 3,25, et un calage juste a 0,1 %
+    pres etait annonce a 350 % de pointe et 370 % de volume.
+
     Retourne (cible_recalee, calcule_recale, decalage_h).
     Un decalage positif signifie que l'hydrogramme calcule est EN RETARD.
     """
@@ -245,11 +269,14 @@ def recaler(temps_cible, debit_cible, temps_calcule, debit_calcule,
     qc = np.pad(qc, (0, n - len(qc)), mode="edge")
     qs = np.pad(qs, (0, n - len(qs)), mode="edge")
 
-    masque = None
+    masque = masque_cible = None
     if fenetre is not None:
         axe = debut + np.arange(n) * pas_h
+        dec_f = float(decalage_fenetre_h or 0.0)
         masque = (axe >= float(fenetre[0])) & (axe <= float(fenetre[1]))
-    decalage_pas = _decalage_pas(qc, qs, masque)
+        masque_cible = ((axe >= float(fenetre[0]) - dec_f)
+                        & (axe <= float(fenetre[1]) - dec_f))
+    decalage_pas = _decalage_pas(qc, qs, masque, masque_cible)
     decalage_h = decalage_pas * pas_h
 
     # On aligne en tronquant la partie qui deborde, sans reboucler.
@@ -476,7 +503,7 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
                   pas_h=PAS_RECALAGE_H,
                   couverture_min=0.9, tolerance_volume=0.05,
                   tolerance_pic=0.02, r_min=0.97, fenetre=None,
-                  part_apport=None):
+                  part_apport=None, decalage_fenetre_h=None):
     """
     Compare un hydrogramme calcule a sa cible et retourne un Diagnostic complet.
 
@@ -501,11 +528,24 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
     prive le calage d'une partie du volume, qu'il chercherait alors a
     compenser en surdimensionnant l'apport.
 
-    fenetre : (t0, tf) en heures, sur la base de temps de la CIBLE — le
-    hydrogramme PRINCIPAL a juger (typiquement calage.fenetre_injection,
-    detectee sur l'ecart au residuel). None (par defaut) : comportement
-    d'avant ce parametre, la comparaison porte sur toute la fenetre commune
-    aux deux series.
+    fenetre : (t0, tf) en heures — le hydrogramme PRINCIPAL a juger
+    (typiquement calage.fenetre_injection, detectee sur l'ecart au residuel).
+    None (par defaut) : comportement d'avant ce parametre, la comparaison
+    porte sur toute la fenetre commune aux deux series.
+
+    decalage_fenetre_h : LA BASE DE TEMPS DANS LAQUELLE « fenetre » EST DITE.
+    calage.fenetre_injection mesure la fenetre sur « cible(t - Dt) -
+    section(t) » : ses bornes sont des instants de SIMULATION. Sur la base de
+    temps de la cible, la meme fenetre vaut « fenetre - Dt ». Ce parametre
+    porte ce Dt — celui que la CORRECTION emploie, fige une fois par apport.
+    None (defaut) : 0,0 h, les deux bases sont confondues, comportement
+    d'avant ce parametre.
+      LE PIC, LE VOLUME, LA FORME, LA COUVERTURE ET LA RECHERCHE DU PIC
+    lisent donc la cible sur « fenetre - Dt » et le calcul sur « fenetre ».
+    Les confondre coutait, sur un cas reel du 08/09/2026 (Dt = +2,60 h, cible
+    culminant a 0,50 h, fenetre ouverte a 2,10 h), un verdict de 350 % de
+    pointe et 370 % de volume sur un calage juste a 0,1 % pres — et un arret
+    sur « le modele repond de facon trop non lineaire » apres trois essais.
 
     LE PIC, LE VOLUME, LA COUVERTURE, LA FORME ET LA MESURE DU DECALAGE SONT
     TOUS RESTREINTS A CETTE FENETRE quand elle est fournie. Le decalage en
@@ -535,15 +575,19 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
     leve aussi sur un apport NON VALIDE : l'enonce reste vrai, et c'est ce
     que caler() annoncait deja avant tout essai. None : pas de reserve.
     """
+    dec_f = float(decalage_fenetre_h or 0.0)
     c_a, s_a, decalage_h = recaler(
         temps_cible, debit_cible, temps_calcule, debit_calcule, pas_h,
-        fenetre=fenetre
+        fenetre=fenetre, decalage_fenetre_h=dec_f
     )
 
     tc = np.asarray(temps_cible, dtype=float)
     ts = np.asarray(temps_calcule, dtype=float)
     if fenetre is not None:
         f0, f1 = float(fenetre[0]), float(fenetre[1])
+        # LA MEME FENETRE, SUR LA BASE DE TEMPS DE LA CIBLE. Tout ce qui lit
+        # la cible passe par f0c/f1c ; tout ce qui lit le calcul, par f0/f1.
+        f0c, f1c = f0 - dec_f, f1 - dec_f
 
         # LA FORME EST JUGEE SUR LA MEME FENETRE QUE LA POINTE ET LE VOLUME,
         # PAS SUR c_a/s_a — qui portent toute la grille commune aux deux
@@ -556,7 +600,7 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
         # Meme decalage que pour le pic et le volume : cible(t) pour
         # t dans [f0, f1] comparee a calcule(t + decalage_h), soit
         # exactement l'appariement que recaler() etablit ailleurs.
-        grille_f = np.arange(f0, f1 + pas_h / 2, pas_h)
+        grille_f = np.arange(f0c, f1c + pas_h / 2, pas_h)
         cible_f = np.interp(grille_f, tc,
                             np.asarray(debit_cible, dtype=float))
         calc_f = np.interp(grille_f + decalage_h, ts,
@@ -565,12 +609,13 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
         # comme pour calcul_rephase() ailleurs, on exclut ces points plutot
         # que de les laisser fausser la correlation avec un plateau fictif.
         dedans_f = ((grille_f + decalage_h >= ts[0])
-                   & (grille_f + decalage_h <= ts[-1]))
+                   & (grille_f + decalage_h <= ts[-1])
+                   & (grille_f >= tc[0]) & (grille_f <= tc[-1]))
         if dedans_f.sum() >= 2:
             cible_f, calc_f = cible_f[dedans_f], calc_f[dedans_f]
         r = correlation(cible_f, calc_f)
 
-        dans_c = (tc >= f0) & (tc <= f1)
+        dans_c = (tc >= f0c) & (tc <= f1c)
         dans_s = (ts >= f0) & (ts <= f1)
         pic_cible = (float(np.max(np.asarray(debit_cible, dtype=float)[dans_c]))
                     if dans_c.any() else float(np.max(debit_cible)))
@@ -600,7 +645,12 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
         # La fenetre du hydrogramme principal ne peut que RETRECIR la
         # comparaison, jamais l'elargir au-dela de ce que les deux series
         # couvrent reellement.
-        debut, fin = max(debut, f0), min(fin, f1)
+        #
+        # SUR LA BASE DE TEMPS DE LA CIBLE : « avance / retard » reportent
+        # ensuite cet intervalle sur le calcul, decale de Dt. Le borner en
+        # temps de simulation revenait a juger la cible sur un intervalle
+        # decale de Dt par rapport a l'evenement qu'elle porte.
+        debut, fin = max(debut, f0c), min(fin, f1c)
     avance, retard = max(decalage_h, 0.0), min(decalage_h, 0.0)
 
     # BORNES PROPRES AU VOLUME. « debut/fin » servent aussi a juger la
@@ -619,9 +669,29 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
         # On rend donc la comparaison des volumes a la fenetre commune
         # ENTIERE — meme regle que fenetre_injection() sur un ecart nul :
         # mieux vaut ne rien restreindre que restreindre au hasard — et on le
-        # DIT. Le decalage reste RAPPORTE, JAMAIS JUGE (voir plus haut) :
-        # l'alerte n'est pas bloquante, la comparaison redevient possible, et
-        # c'est a l'operateur de relire ses cibles.
+        # DIT.
+        #
+        # ET C'EST BLOQUANT DEPUIS LE 09/09/2026. L'alerte etait signalee sans
+        # l'etre : le calage acceptait un apport apparie sur un decalage plus
+        # long que l'evenement lui-meme. Ce n'est pas juger le decalage — la
+        # regle « mesure, rapporte, jamais juge » tient — c'est constater que
+        # LA COMPARAISON N'A PLUS D'OBJET, ce qui est la definition meme
+        # d'alertes_bloquantes : les pourcentages seraient justes sur des
+        # grandeurs qui ne se correspondent pas.
+        #   CE QUI AVAIT FAIT CHOISIR « NON BLOQUANT » RESTE SATISFAIT :
+        # l'objection portait sur un « nan » MUET, ou caler() lisait un volume
+        # non calculable et concluait « le modele ne repond plus a cet
+        # apport » — l'hydraulique accusee a la place de la mesure du
+        # decalage. Le motif nomme desormais la cause, et le volume reste
+        # calcule : on refuse EN DISANT POURQUOI.
+        #   POURQUOI MAINTENANT : jusqu'au correctif de la fenetre
+        # (09/09/2026), ce cas etait refuse PAR ACCIDENT — diagnostiquer()
+        # lisait la cible sur un intervalle decale de Dt, donc hors de son
+        # evenement, et rendait des pourcentages absurdes qui faisaient
+        # echouer l'apport. La fenetre reparee, l'appariement devient
+        # coherent et le verdict passait a « conforme » sur un apport cale
+        # onze heures trop tot. Le garde-fou est donc pose la ou il aurait
+        # toujours du etre.
         #
         # UN DECALAGE PLUS LONG QUE L'EVENEMENT QU'IL DECALE N'EST PAS UN
         # TEMPS DE TRANSFERT. Revele le 31/08/2026 en resserrant la borne
@@ -676,6 +746,7 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
     alertes, bloquantes = [], []
     if decalage_hors_fenetre:
         alertes.append(decalage_hors_fenetre)
+        bloquantes.append(decalage_hors_fenetre)
     if not np.isfinite(r):
         alertes.append("forme non calculable (serie constante)")
 
@@ -689,8 +760,15 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
     # periode qui ne le concerne pas (mini-crue anterieure, bruit de fin de
     # serie). La juger sur la duree totale de l'entree ferait passer pour une
     # simulation tronquee ce qui n'est que la fenetre voulue.
-    duree_cible = ((f1 - f0) if fenetre is not None
-                   else float(tc[-1] - tc[0]))
+    # LA PART DE LA FENETRE QUE LA CIBLE PORTE REELLEMENT, et non sa
+    # longueur nominale. Des que la fenetre est decalee sur la base de temps
+    # de la cible (dec_f non nul), ses bords peuvent tomber hors de la donnee
+    # d'entree — c'est alors la MARGE de fenetre_injection qui deborde, pas
+    # l'evenement. Une marge existe pour etre rognee : la compter comme non
+    # simulee levait une alerte sur une perte sans consequence, et un
+    # garde-fou qui se declenche pour rien apprend a etre ignore.
+    duree_cible = ((min(f1c, float(tc[-1])) - max(f0c, float(tc[0])))
+                   if fenetre is not None else float(tc[-1] - tc[0]))
     if not np.isfinite(debut):
         bloquantes.append(
             "les fenetres de temps de la cible et du calcul ne se recouvrent "
@@ -1212,6 +1290,90 @@ if __name__ == "__main__":
               _d7q.part_apport == 0.02, f"{_d7q.part_apport}")
     _verifier("sans part fournie, rien ne change pour les anciens appels",
               not diagnostiquer(_t7t, _cible7t, _t7t, _cible7t).alertes)
+
+    # ------------------------------------------------------------------
+    print("\n--- 7 quinquies. La fenetre est en temps de SIMULATION ---")
+    # LE DEFAUT DU 08/09/2026, EN MINIATURE, AVEC SES CHIFFRES REELS.
+    #
+    # Sur un modele reel (section 5 de STATUT.txt, calage Q20 du 08/09), la
+    # cible culmine a 0,50 h, le decalage retenu vaut +2,60 h, et
+    # fenetre_injection ouvre sa fenetre a 2,10 h — en temps de SIMULATION,
+    # puisqu'elle la mesure sur « cible(t - Dt) - section(t) ».
+    # diagnostiquer() la lisait sur la base de temps de la CIBLE : tout le pic
+    # de la cible tombait hors fenetre, son maximum retenu valait 0,93 m3/s au
+    # lieu de 3,25, et un calage juste a 0,1 % pres etait annonce a 350 % de
+    # pointe et 370 % de volume. Le calage s'est arrete sur « le modele repond
+    # de facon trop non lineaire » apres 7 h de calcul, et les onze apports
+    # suivants n'ont pas ete traites.
+    _tq = np.arange(0.0, 40.0 + 1e-9, 0.1)
+    # UNE CIBLE QUI CULMINE TOT : c'est la condition du defaut — le pic de la
+    # cible doit tomber AVANT le debut de la fenetre.
+    _cq = 3.25 * np.exp(-0.5 * ((_tq - 0.5) / 1.2) ** 2) + 0.05
+    _DEC = 2.6
+    # La section reproduit la cible a Dt pres : le calage est PARFAIT.
+    _sq = np.interp(_tq - _DEC, _tq, _cq)
+    _FEN = (2.10, 32.70)          # en temps de simulation, comme la vraie
+
+    _sans = diagnostiquer(_tq, _cq, _tq, _sq, fenetre=_FEN)
+    _avec = diagnostiquer(_tq, _cq, _tq, _sq, fenetre=_FEN,
+                          decalage_fenetre_h=_DEC)
+    _verifier("sans son Dt, la fenetre coupe le pic de la cible et le verdict "
+              "s'envole",
+              _sans.rapport_pic > 2.0 and _sans.rapport_volume > 2.0,
+              f"pointe {100 * _sans.rapport_pic:.0f} %, "
+              f"volume {100 * _sans.rapport_volume:.0f} %")
+    _verifier("avec son Dt, le meme calage est rendu pour ce qu'il est",
+              abs(_avec.rapport_pic - 1.0) < 0.02
+              and abs(_avec.rapport_volume - 1.0) < 0.02,
+              f"pointe {100 * _avec.rapport_pic:.1f} %, "
+              f"volume {100 * _avec.rapport_volume:.1f} %")
+    _verifier("et il converge", _avec.converge, str(_avec.alertes))
+    # LE DECALAGE MESURE EST LE TROISIEME SYMPTOME DU MEME DEFAUT : le masque
+    # tronquait le pic de la cible, argmax retombait sur le bord gauche de la
+    # fenetre, et la difference d'indices rendait +1,00 h au lieu de +2,60.
+    _verifier("le decalage mesure retrouve celui de la correction",
+              abs(_avec.decalage_h - _DEC) < 0.11,
+              f"{_avec.decalage_h:+.2f} h (avant : {_sans.decalage_h:+.2f} h)")
+    # LA FORME ETAIT LA SEULE GRANDEUR JUSTE — elle applique le decalage des
+    # deux cotes. Elle ne doit pas se degrader au passage.
+    _verifier("la forme reste juste, elle l'etait deja",
+              _avec.r > 0.99, f"r = {_avec.r:.4f}")
+    # SANS FENETRE, LE PARAMETRE EST SANS OBJET : il n'y a pas de fenetre a
+    # placer, donc rien a decaler.
+    _verifier("sans fenetre, le Dt fourni ne change rien",
+              abs(diagnostiquer(_tq, _cq, _tq, _sq,
+                                decalage_fenetre_h=_DEC).rapport_pic
+                  - diagnostiquer(_tq, _cq, _tq, _sq).rapport_pic) < 1e-12)
+    # DEFAUT ABSENT = COMPORTEMENT D'AVANT. Une cible qui culmine DANS la
+    # fenetre ne bouge pas d'un iota, avec ou sans le parametre : c'est ce qui
+    # borne le correctif aux seuls cas qu'il repare.
+    _ct = 3.25 * np.exp(-0.5 * ((_tq - 12.0) / 2.5) ** 2) + 0.05
+    _st = np.interp(_tq - 0.4, _tq, _ct)
+    _verifier("une cible qui culmine dans la fenetre est jugee comme avant",
+              abs(diagnostiquer(_tq, _ct, _tq, _st, fenetre=(2.0, 30.0),
+                                decalage_fenetre_h=0.4).rapport_pic
+                  - diagnostiquer(_tq, _ct, _tq, _st,
+                                  fenetre=(2.0, 30.0)).rapport_pic) < 1e-3)
+
+    # UN DECALAGE PLUS LONG QUE L'EVENEMENT EST BLOQUANT (09/09/2026).
+    # Il l'etait PAR ACCIDENT avant le correctif ci-dessus — la fenetre mal
+    # placee rendait des pourcentages absurdes, qui faisaient echouer
+    # l'apport. Reparee, elle rendait « conforme » un apport apparie sur un
+    # decalage qui n'est pas un temps de transfert. Le garde-fou est desormais
+    # explicite, et il nomme sa cause.
+    _cb = 45.0 * np.exp(-0.5 * ((_tq - 14.0) / 2.5) ** 2) + 0.05
+    _sb = np.interp(_tq + 11.0, _tq, _cb)
+    _db = diagnostiquer(_tq, _cb, _tq, _sb, fenetre=(0.0, 10.3),
+                        decalage_fenetre_h=-11.0)
+    _verifier("un decalage plus long que la fenetre jugee BLOQUE",
+              (not _db.converge)
+              and any("excede la fenetre jugee" in _a
+                      for _a in _db.alertes_bloquantes),
+              f"converge={_db.converge}, "
+              f"{len(_db.alertes_bloquantes)} bloquante(s)")
+    _verifier("et il nomme la cause plutot que l'hydraulique",
+              any("pas un temps de transfert" in _a
+                  for _a in _db.alertes_bloquantes))
 
     print("\n--- 8. Tolerance de volume par defaut ---")
     # Le defaut precedent (0,5 %) rendait certains modeles hors d'atteinte par
