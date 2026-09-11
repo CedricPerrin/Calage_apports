@@ -4,22 +4,44 @@ Point de reprise pour ouvrir une nouvelle conversation avec un contexte
 minimal. L'état courant et les règles en vigueur restent dans `STATUT.txt` ;
 ce fichier ne dit que **où on en est** et **par quoi reprendre**.
 
-## ▶ Reprendre ici — état au 9 septembre 2026, 23 h
+## Reprendre ici — 11 septembre 2026
 
-Tout est sur **`main`**, **4 commits d'avance sur `origin/main`, non poussés** :
+La refonte **0.8.0** est sur la branche **`ergonomie`**, créée depuis
+`bfff3fe`. Au contrôle initial, `main`, `origin/main` et les sources locales
+étaient identiques, avec un arbre propre ; l'archive 0.7.24 correspondait
+à ses sources. L'ancien état « quatre commits non poussés » était périmé.
 
-```
-f32070e  Ce que le calage vise : volume, pointe, forme — pas l'heure du pic
-3cac4f8  0.7.24 — Les onglets du milieu s'inversent, le bouton de controle redescend…
-0302ccd  La fenetre jugee est en temps de simulation, le diagnostic la lisait ailleurs
-349d503  Deux idees de V2 sont retirees, et les renvois qui les portaient
-```
+La version **0.8.0** est installée et ouverte dans le profil QGIS **ISL**.
+Les **21 fichiers installés** sont identiques à `calage_apports_0.8.0.zip` ;
+les **20 fichiers sources** du ZIP sont identiques au dépôt, et le dernier
+est le manifeste de provenance généré. Aucun bytecode n'est livré.
 
-**Plugin en 0.7.24**, archive `calage_apports_0.7.24.zip` suivie par git,
-« archive conforme », garde-fou « TOUT PASSE ». **La 0.7.23 est celle qui
-tourne sur le poste `lsso`** — elle n'a pas d'archive dans le dépôt,
-`faire_zip.py` remplaçant l'archive à chaque construction. **La 0.7.24 n'est
-installée nulle part.**
+Le parcours conserve Modèle → Sorties → Objectifs → Lancer → Suivi, avec
+Aide et le contrôle permanent en bas. Les détails secondaires se replient,
+les textes suivent le thème et la police, et les étapes sont accessibles
+par boutons, liens, F1 et Alt+flèches. Entrée ne déclenche plus les commandes
+même si un bouton a le focus ; Espace reste disponible.
+
+Validation : **248 contrôles Qt réussis, code de sortie 0**, sans modèle réel ;
+**30 scénarios visuels** dans QGIS 3.44.8, dont 800 × 620, texte à 13 points,
+Night Mapping et écran réel à 150 %. Trois défauts injectés sur une copie
+isolée sont refusés par le garde-fou d'archive, puis la copie propre est
+acceptée. Les six captures du README sont à jour. La chaîne hydraulique et
+`noyau.py` n'ont pas été modifiés ; les 15 bancs de référence ont réussi.
+
+Voir [les décisions et sources](docs/ergonomie_2026-09-11.md) et
+[les mesures d'affichage](docs/ergonomie_2026-09-11-mesures.json).
+
+**Suite :** relire la branche avant fusion. Un prochain calage réel permettra
+de compléter la recette de la version 0.8.0 ; aucun calcul long ni écriture
+dans un modèle de travail n'a été lancé pour cette refonte. Les chantiers
+hydrauliques historiques ci-dessous restent hors du périmètre ergonomique.
+
+## Historique technique du 9 septembre 2026
+
+Les relevés et pistes qui suivent décrivent cette date. L'installation,
+la recette graphique et le renouvellement des captures ont depuis été
+réalisés pour la 0.8.0, comme indiqué ci-dessus.
 
 ### ✅ ARDANAVY Q20 V3 — TERMINÉ ET CONFORME
 

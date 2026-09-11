@@ -22,7 +22,37 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
-CE QUI EST EPROUVE
+MISE A JOUR DU 11 SEPTEMBRE 2026 — ERGONOMIE 0.8.0
+  - Branche ergonomie issue de bfff3fe. Avant intervention : main et
+    origin/main identiques, arbre propre, ZIP 0.7.24 conforme aux sources.
+  - Version 0.8.0 installee et ouverte dans le profil QGIS ISL ; archive
+    calage_apports_0.8.0.zip conforme. Les 20 fichiers sources correspondent
+    au depot, le 21e est PROVENANCE.txt ; les 21 fichiers installes sont
+    identiques a l'archive. Aucun bytecode distribue.
+  - Interface : rubriques courtes, navigation precedente/suivante et liens
+    vers l'etape utile, details repliables, erreurs de simulation visibles
+    hors du repli, police et theme QGIS, aides et diagnostic reorganises.
+    Le controle reste en bas ; Entree est neutralisee meme sur les boutons
+    focalises, Espace les active, F1 et Alt+fleches assurent la navigation.
+  - Recette : 248 controles Qt reussis, sortie 0, sans modele reel ;
+    30 scenarios visuels dans QGIS 3.44.8, petites fenetres 800 x 620,
+    texte agrandi a 13 points, Night Mapping et ecran reel a 150 %.
+    Six captures de documentation refaites avec des donnees fictives.
+  - Garde-fou : trois fautes injectees dans une copie isolee refusees,
+    puis archive propre acceptee. Les 15 bancs de reference sont verts.
+    noyau.py et la chaine hydraulique ne changent pas.
+  - Limite : pas de nouveau calage HEC-RAS ni d'ecriture dans un modele de
+    travail. Les essais de chargement/composition sur modele reel restent
+    ceux dates ci-dessous. Une trace Windows COM 0x8001010d apparait dans
+    le banc natif a show(), sans echec ni sortie anormale ; les captures et
+    l'ouverture du plugin installe se terminent normalement.
+  - Fichiers : calage_apports/plugin.py et interface.py, metadata et aide,
+    src/test_plugin_qgis.py, src/captures_plugin.py, README, captures et
+    docs/ergonomie_2026-09-11*. La recherche cite cinq sources primaires.
+  - Suite : revue de la branche avant fusion ; complement de recette
+    pendant un prochain calage reel. Voir CHECKPOINT.md.
+
+CE QUI EST EPROUVE — RELEVES DATES ANTERIEURS
   - Treize suites d'auto-tests, 0 echec : calage, criteres, suivi,
     pilote_hecras, livrables, geometrie, controle_donnees, style_classeur,
     creer_template, elaguer_projet, verification_environnement,
@@ -102,7 +132,7 @@ CE QUI EST EPROUVE
     et verifies en 56 s. C'est le lancement depuis QGIS qui comptait — c'est
     la, et nulle part ailleurs, que son PYTHONHOME fuyait dans les
     sous-processus de pip.
-  - PLUGIN EN 0.7.24 (09/09) — QUATRE DEMANDES D'ERGONOMIE.
+  - HISTORIQUE 0.7.24 (09/09) — QUATRE DEMANDES D'ERGONOMIE.
     1. LES ONGLETS 2 ET 3 S'INVERSENT : « Resultats » d'abord — ou tout ira —,
        « Objectifs et precision » ensuite. Deux constantes nommees,
        ONGLET_RESULTATS et ONGLET_OBJECTIFS, remplacent les widget(1) et
@@ -1554,11 +1584,11 @@ La note, le template et ce fichier restent a la racine.
 
   calage_apports/        Plugin QGIS. Le NOM DU DOSSIER est le nom du paquet
                          pour QGIS : il doit rester « calage_apports ». Une
-                         SEULE entree de menu, une fenetre non modale a cinq
+                         SEULE entree de menu, une fenetre non modale a six
                          onglets. plugin.py est une enveloppe mince ; noyau.py
                          porte la logique, testable hors QGIS. Aucune regle de
                          controle n'y est reecrite.
-  calage_apports.zip     Archive d'installation, VERSIONNEE : c'est ce
+  calage_apports_0.8.0.zip  Archive d'installation, VERSIONNEE : c'est ce
                          qu'on installe dans QGIS, telechargeable depuis
                          le depot sans rien reconstruire.
   methodologie_calage_amont_aval.docx / .pdf   Note methodologique V15.

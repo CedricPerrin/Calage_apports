@@ -2,6 +2,8 @@
 
 Préparation et contrôle du paquet de calage pour **HEC-RAS uniquement**.
 Voir `methodologie_calage_amont_aval.docx`, § 2.4.
+Version **0.8.0** : parcours et formulaires clarifiés, aides secondaires
+dépliables, police et couleurs adaptées au thème QGIS.
 
 ## Ce que fait le plugin
 
@@ -10,12 +12,12 @@ onglets — l'ordre des onglets est celui des décisions.
 
 | Onglet | Rôle |
 |---|---|
-| 1. Modèle | le **fichier `.prj`** du projet HEC-RAS — et non le dossier qui le contient —, plan de référence, géométrie, zone 2D, **profil en long** (l'axe, son sens, le PK d'origine), fenêtre de simulation. Charge les sections, injections et emprises **existantes** en couches **éditables** ; ce qu'on y dessine est écrit dans le `.gXX` par l'onglet 4 (sauvegarde horodatée) |
-| 2. Objectifs et précision | ce qu'on vise et avec quoi : l'**écart admis** sur le volume et sur le débit de pointe — le résultat, lui, se lit en pourcentage d'atteinte de la cible —, le nombre maximal d'essais, le **contrôle du paramétrage** (c'est là qu'on écrit, compose et contrôle), et l'**Excel des hydrogrammes objectifs** où ils se saisissent |
-| 3. Résultats | dossiers de sortie et de suivi, résumé de la configuration, et le **ménage du modèle** — une case décide si les plans d'étape sont conservés ou supprimés à la fin du calage |
+| 1. Modèle | **Fichier `.prj`** du projet HEC-RAS, plan de référence, géométrie, zone 2D, **profil en long** (axe, sens, PK d’origine) et fenêtre de simulation. Charge les sections, injections et emprises existantes en couches éditables ; le bouton permanent **Contrôle paramétrage** écrit les dessins dans le `.gXX`, après sauvegarde horodatée |
+| 2. Sorties | Dossier de sortie, sous-dossiers et résumé de configuration dépliables. Plans d’étape **conservés par défaut** ; suppression facultative uniquement après un calage réussi |
+| 3. Objectifs | **Excel des hydrogrammes objectifs**, résumé des cibles validées, puis précision du calage : écarts admis sur le volume et la pointe, qualité du bilan de masse HEC-RAS et nombre maximal d’essais. Le résultat se lit en pourcentage d’atteinte de la cible |
 | 4. Lancer | appariement apport → section, état des cibles, premier apport à caler, **préfixe de scénario** — **obligatoire** : sans lui, caler le Q10 après le Q100 sur le même modèle effacerait les plans du Q100 —, puis **lancement du calage** en arrière-plan |
-| 5. Suivi | où en est le calcul : apport en cours, essai, atteinte du volume, de la pointe et de la forme, courbes cible et section — **plus les sections déjà calées, en vert pointillé derrière** —, temps restant. Se rafraîchit tout seul tant qu'il est affiché. Le dossier surveillé est celui que désigne le **classeur lancé** — pas celui de l'onglet 3 — et il est nommé **en permanence** sous la bannière, y compris pendant que le calage tourne |
-| Aide et configuration | mode opératoire, pièges connus, et les deux emplacements du poste — chaîne de calage et interpréteur HEC-RAS |
+| 5. Suivi | Apport en cours, essai, atteinte du volume, de la pointe et de la forme, courbes cible et section, **sections déjà calées en vert pointillé**, temps restant. Actualisation automatique quand la rubrique est affichée. Le dossier surveillé est celui du **classeur lancé**, nommé en permanence ; les champs de **Sorties** préparent la prochaine composition |
+| Aide | **Diagnostic et paramètres du poste** en tête de page : chaîne de calage et interpréteur HEC-RAS. Mode opératoire avec sommaire et pièges connus en dessous |
 
 **Les six onglets sont en images** dans le README du dépôt, section « La
 fenêtre du plugin » — une capture par onglet.
@@ -24,10 +26,12 @@ Le bouton **Contrôle paramétrage** vit au bas de la fenêtre, à côté de
 *Fermer*, et il y est visible depuis tous les onglets : il consomme les trois
 premiers et prépare le quatrième, il n'appartient donc à aucun. **Vert** dès
 que tout ce qu'il consomme est prêt, **gris** tant qu'il manque quelque chose
-— l'infobulle nomme le manquant. Il fait trois choses, dans cet ordre :
+— l’état de préparation et l’infobulle précisent le manquant. Les commandes
+**Précédent** et **Suivant** facilitent le parcours sans remplacer ce
+contrôle. Il fait trois choses, dans cet ordre :
 
 1. il **écrit dans la géométrie HEC-RAS** les sections et injections dessinées
-   à l'onglet 1, en remplaçant tout objet de même nom — **c'est le seul geste
+   dans **Modèle**, en remplaçant tout objet de même nom — **c'est le seul geste
    irréversible de la fenêtre**, et une sauvegarde horodatée du `.gXX` le
    précède ;
 2. il **compose** les shapefiles normalisés et l'Excel **pré-rempli** ;
@@ -38,7 +42,7 @@ Si la composition échoue après l'étape 1, le message le dit : le modèle a d�
 été modifié. Sinon, le compte rendu de composition **ouvre par ce qui a été
 écrit** dans la géométrie.
 
-Le mode opératoire complet vit dans l'onglet **Aide et configuration** ; ce
+Le mode opératoire complet vit dans **Aide** ; ce
 qu'écrit l'étape 1, et pourquoi elle n'a pas de bouton à elle, y tient une
 section — *Écrire dans la géométrie*.
 
@@ -53,8 +57,8 @@ et figerait l'interface.
 
 ## Installation
 
-**Depuis l'archive.** `calage_apports_<version>.zip` — par exemple
-`calage_apports_0.7.21.zip` — est **à la racine du dépôt** : la télécharger
+**Depuis l'archive.** `calage_apports_<version>.zip` —
+`calage_apports_0.8.0.zip` pour cette version — est **à la racine du dépôt** : la télécharger
 suffit, il n'y a rien à reconstruire. Le nom porte la version pour qu'on
 sache, sur un poste distant, ce qu'on installe ; il n'y en a jamais qu'une
 dans le dépôt, la plus récente. Puis, dans QGIS :

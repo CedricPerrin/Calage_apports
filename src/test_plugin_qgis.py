@@ -123,6 +123,15 @@ print("=" * 74)
 
 qgs = QgsApplication([], False)
 qgs.initQgis()
+from qgis.PyQt.QtGui import QFont, QFontDatabase, QFontInfo    # noqa: E402
+
+# Les metriques du greffon de plateforme « offscreen » peuvent utiliser une
+# police de remplacement sous Windows. Nommer la police disponible et dire
+# celle que Qt resout, au lieu de certifier une geometrie sur ce remplacement.
+if "Segoe UI" in QFontDatabase().families():
+    qgs.setFont(QFont("Segoe UI", 9))
+print(f"Plateforme Qt : {qgs.platformName()} ; police demandee : "
+      f"{qgs.font().family()} ; police resolue : {QFontInfo(qgs.font()).family()}")
 
 # Le plugin utilise des imports relatifs : il doit etre charge comme un
 # PAQUET, exactement comme le fait QGIS. L'importer fichier par fichier
@@ -1187,7 +1196,7 @@ else:
 # Sans classeur — rien n'a encore ete compose ni repris —, l'onglet 3 reste
 # la seule indication, et le suivi y revient.
 _classeur_garde, dlg.classeur = dlg.classeur, None
-verifier("suivi : sans classeur, le dossier surveille revient a l'onglet 3",
+verifier("suivi : sans classeur, le dossier surveille revient a l'onglet Sorties",
          dlg._dossier_suivi() == ESSAI / "un_autre_dossier" / "suivi_essai",
          f"{dlg._dossier_suivi()}")
 dlg.classeur = _classeur_garde
@@ -1505,10 +1514,11 @@ verifier("un etat COMMENCE APRES le lancement est le notre, PID different ou "
 # ET LE FIL CESSE D'ORDONNER « LANCER » PENDANT LES HEURES DU CALCUL.
 dlg._maj_fil()
 verifier("le fil dit que le calage tourne, il n'ordonne plus de lancer",
-         "calage lancé" in dlg.label_fil.text()
+         "calage lancé" in dlg.label_fil.text().lower()
          and "puis lancer" not in dlg.label_fil.text(),
          dlg.label_fil.text()[-80:])
 dlg.pid_lance = dlg.journal_lance = None
+dlg._maj_fil()  # Le banc change l'etat directement : rafraichir aussi le bouton.
 
 # Qt REFUSE UN Path la ou il attend une chaine : « argument 3 has unexpected
 # type 'WindowsPath' ». Le classeur compose doit donc etre memorise en str,
@@ -1707,7 +1717,7 @@ _PORTEES_CONNUES = (
     "KeyboardModifier|Key|CursorShape|WindowType|ItemFlag|SortOrder|"
     "GlobalColor|LayoutDirection|FocusPolicy|ConnectionType|MatchFlag|"
     "ToolButtonStyle|TimeSpec|DateFormat|TextElideMode|AspectRatioMode|"
-    "TransformationMode|ContextMenuPolicy|WidgetAttribute|ArrowType")
+    "TransformationMode|ContextMenuPolicy|WidgetAttribute|ArrowType|ShortcutContext")
 #
 # CE GARDE-FOU AVAIT UN ANGLE MORT, et il a coute exactement ce qu'il devait
 # eviter : il ne portait que sur six classes. QFormLayout, QTextEdit et
@@ -1946,7 +1956,7 @@ verifier("l'onglet 1 ne porte plus ni l'écriture ni la mise à jour",
 # les dossiers d'abord, les objectifs ensuite.
 verifier("l'ordre des onglets est celui des constantes",
          dlg.onglets.tabText(mod_plugin.ONGLET_RESULTATS).startswith("2.")
-         and "Résultats" in dlg.onglets.tabText(mod_plugin.ONGLET_RESULTATS)
+         and "Sorties" in dlg.onglets.tabText(mod_plugin.ONGLET_RESULTATS)
          and dlg.onglets.tabText(mod_plugin.ONGLET_OBJECTIFS).startswith("3.")
          and "Objectifs" in dlg.onglets.tabText(
              mod_plugin.ONGLET_OBJECTIFS),
@@ -2029,18 +2039,17 @@ verifier("l'onglet des resultats ne porte plus la relecture d'hydrogramme",
          [g.title() for g in dlg.onglets.widget(
              mod_plugin.ONGLET_RESULTATS).findChildren(_QGroupBoxA)])
 
-# L'ELAGAGE EST UNE CASE, ET ELLE DIT CE QU'ELLE FERA. Le mot qui compte —
-# « conservés » ou « supprimés » — est en rouge dans les deux sens : on ne
-# sait pas d'avance laquelle des deux issues surprendra le lecteur.
+# L'ELAGAGE EST UNE CASE, ET ELLE DIT CE QU'ELLE FERA. La conservation est
+# neutre ; la suppression reste un avertissement. Ici on eprouve la decision
+# annoncee, pas un code couleur qui doit aussi s'adapter au theme de QGIS.
 dlg.case_elaguer.setChecked(False)
 verifier("case decochee : les plans intermediaires sont dits CONSERVES",
          "conservés" in dlg.label_elagage.text()
-         and mod_plugin.ISL_ROUGE in dlg.label_elagage.text(),
+         and "supprimés" not in dlg.label_elagage.text(),
          dlg.label_elagage.text())
 dlg.case_elaguer.setChecked(True)
 verifier("case cochee : ils sont dits SUPPRIMES",
-         "supprimés" in dlg.label_elagage.text()
-         and mod_plugin.ISL_ROUGE in dlg.label_elagage.text(),
+         "supprimés" in dlg.label_elagage.text(),
          dlg.label_elagage.text())
 dlg.case_elaguer.setChecked(False)
 
@@ -2084,8 +2093,8 @@ verifier("et les oublie quand il n'y a plus de calage suivi",
 # final existe. Cet onglet est passe en 2e position en 0.7.24.
 _page_resultats = dlg.onglets.widget(mod_plugin.ONGLET_RESULTATS)
 _groupes_resultats = [g.title() for g in _page_resultats.findChildren(_QGroupBoxA)]
-verifier("l'onglet des resultats porte « Ménage du modèle HEC-RAS »",
-         "Ménage du modèle HEC-RAS" in _groupes_resultats, _groupes_resultats)
+verifier("l'onglet des sorties porte la conservation des plans d’etape",
+         "Conservation des plans d’étape" in _groupes_resultats, _groupes_resultats)
 verifier("l'elagage est une case a cocher, plus un bouton",
          "Élaguer les plans d'étape…" not in
          [b.text() for b in _page_resultats.findChildren(_QPushButtonA)]
@@ -2098,11 +2107,9 @@ verifier("et elle est DECOCHEE par defaut : on ne supprime rien sans le dire",
 # designe, on trace le profil en long dessus, et l'on ne touche a la fenetre
 # de simulation que si l'Unsteady couvre une autre periode.
 verifier("l'onglet 1 suit l'ordre des gestes",
-         _groupes_modele == ["Projet HEC-RAS",
-                             "Plan, géométrie et Unsteady Flow",
-                             "Couches existantes de la géométrie",
-                             "Profil en long",
-                             "Fenêtre de simulation"],
+         len(_groupes_modele) == 5
+         and all(mot in titre.lower() for mot, titre in zip(
+             ("projet", "plan", "couches", "axe", "simulation"), _groupes_modele)),
          _groupes_modele)
 # La fenetre doit pouvoir rester ouverte pendant qu'on dessine dans QGIS :
 # modale, elle bloquerait la carte et obligerait a fermer/rouvrir.
@@ -2209,8 +2216,8 @@ verifier("aucun sablier ne subsiste apres la suspension",
          "aucun" if QApplication.overrideCursor() is None else "IL EN RESTE UN")
 
 verifier("fil conducteur renseigne et coherent",
-         "Modèle chargé" in dlg.label_fil.text()
-         and "Paquet composé" in dlg.label_fil.text(),
+         "Préparation" in dlg.label_fil.text()
+         and bool(re.search(r"href=['\"][0-5]['\"]", dlg.label_fil.text())),
          dlg.label_fil.text().replace("<b>", "").replace("</b>", "")[:90])
 BoiteMessage.informations.clear()
 BoiteMessage.dernier = None
@@ -2243,7 +2250,182 @@ verifier("diagnostic repris dans l'onglet", bool(dlg.label_diagnostic.text()),
          dlg.label_diagnostic.text().replace("\n", " | ")[:70])
 
 # ---------------------------------------------------------------------------
-print("\n7. DECHARGEMENT")
+print("\n7. PARCOURS CLAVIER ET PETITE FENETRE")
+from unittest.mock import patch as _patch                   # noqa: E402
+from qgis.PyQt.QtCore import QPoint, QRect                  # noqa: E402
+from qgis.PyQt.QtTest import QTest                          # noqa: E402
+from qgis.PyQt.QtWidgets import (                           # noqa: E402
+    QAbstractSpinBox, QComboBox, QLineEdit, QScrollArea, QTextBrowser)
+
+
+def _rectangle_dans(widget, parent):
+    return QRect(widget.mapTo(parent, QPoint(0, 0)), widget.size())
+
+
+def _eprouver_petite_fenetre(points):
+    """Vrais clics/touches et geometrie Qt, sans modele ni effet d'ecriture.
+
+    Les minima viennent des widgets Qt sous la police demandee, jamais de
+    pixels devines pour une capture. Une page plus haute doit defiler ; les
+    champs ne doivent pas etre aplatis pour tenir dans la fenetre.
+    """
+    police_avant = QFont(QApplication.font())
+    police = QFont(police_avant)
+    police.setPointSizeF(points)
+    effets, clics = [], []
+    fenetre = None
+    # Neutraliser AVANT construction : les signaux clicked retiennent leur
+    # callable d'origine. Une regression Entrée doit echouer au banc sans
+    # jamais ecrire dans une geometrie ni lancer un solveur.
+    with _patch.object(mod_plugin.DialogueParametrage, "_composer_et_controler",
+                       lambda *_a: effets.append("composer")), \
+         _patch.object(mod_plugin.DialogueParametrage, "_lancer_calage",
+                       lambda *_a: effets.append("lancer")):
+        try:
+            QApplication.setFont(police)
+            fenetre = mod_plugin.DialogueParametrage(iface)
+            fenetre.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen, True)
+            fenetre.setFont(police)
+            fenetre.resize(800, 620)
+            fenetre.show()
+            QApplication.processEvents()
+            verifier(f"police {points} pt : la fenetre tient dans 800 x 620",
+                     fenetre.width() <= 800 and fenetre.height() <= 620,
+                     f"{fenetre.width()} x {fenetre.height()}")
+            verifier(f"police {points} pt : les saisies suivent la police demandee",
+                     fenetre.edit_projet_hecras.font().pointSizeF() >= points,
+                     str(fenetre.edit_projet_hecras.font().pointSizeF()))
+            verifier(f"police {points} pt : Qt utilise la famille demandee",
+                     QFontInfo(fenetre.edit_projet_hecras.font()).family()
+                     == police.family(),
+                     f"demandee={police.family()}, "
+                     f"resolue={QFontInfo(fenetre.edit_projet_hecras.font()).family()}")
+            attendus = ("1. Modèle", "2. Sorties", "3. Objectifs", "4. Lancer",
+                        "5. Suivi", "Aide")
+            verifier(f"police {points} pt : les six etapes sont identifiables",
+                     tuple(fenetre.onglets.tabText(i)
+                           for i in range(fenetre.onglets.count())) == attendus)
+            boutons = fenetre.findChildren(QPushButton)
+            for bouton in boutons:
+                bouton.clicked.connect(
+                    lambda _c=False, b=bouton: clics.append(b.text()))
+
+            barre = fenetre.onglets.tabBar()
+            for index, titre in enumerate(attendus):
+                repere = f"{points} pt / {titre}"
+                rectangle = barre.tabRect(index)
+                verifier(f"{repere} : onglet entierement accessible au clic",
+                         barre.rect().contains(rectangle),
+                         f"onglet={rectangle.getRect()}, barre={barre.rect().getRect()}")
+                QTest.mouseClick(barre, Qt.MouseButton.LeftButton,
+                                 pos=rectangle.center())
+                QApplication.processEvents()
+                verifier(f"{repere} : le clic ouvre la bonne page",
+                         fenetre.onglets.currentIndex() == index)
+                bouton = fenetre.bouton_controle
+                verifier(f"{repere} : controle permanent visible dans la fenetre",
+                         bouton.isVisibleTo(fenetre)
+                         and fenetre.rect().contains(_rectangle_dans(bouton, fenetre)))
+
+                zone = fenetre.onglets.widget(index)
+                verifier(f"{repere} : le contenu dispose d'un defilement",
+                         isinstance(zone, QScrollArea))
+                if not isinstance(zone, QScrollArea):
+                    continue
+                page = zone.widget()
+                champs = [w for w in page.findChildren(QWidget)
+                          if isinstance(w, (QLineEdit, QComboBox, QAbstractSpinBox))
+                          and w.isVisibleTo(page)
+                          and not (isinstance(w, QLineEdit)
+                                   and isinstance(w.parentWidget(),
+                                                  (QComboBox, QAbstractSpinBox)))]
+                comprimes = [(w.objectName() or type(w).__name__, w.height(),
+                              w.minimumSizeHint().height()) for w in champs
+                             if w.height() < w.minimumSizeHint().height()]
+                verifier(f"{repere} : les champs gardent leur hauteur minimale",
+                         not comprimes, str(comprimes))
+                requis = page.minimumSizeHint().height()
+                verifier(f"{repere} : un contenu trop haut peut defiler",
+                         requis <= zone.viewport().height()
+                         or zone.verticalScrollBar().maximum() > 0,
+                         f"minimum={requis}, vue={zone.viewport().height()}, "
+                         f"defilement={zone.verticalScrollBar().maximum()}")
+                if champs:
+                    dernier = max(champs,
+                                  key=lambda w: _rectangle_dans(w, page).bottom())
+                    zone.ensureWidgetVisible(dernier)
+                    QApplication.processEvents()
+                    verifier(f"{repere} : le dernier champ est atteignable",
+                             zone.viewport().rect().contains(
+                                 _rectangle_dans(dernier, zone.viewport())),
+                             f"{dernier.objectName() or type(dernier).__name__} : "
+                             f"{_rectangle_dans(dernier, zone.viewport()).getRect()}, "
+                             f"vue={zone.viewport().rect().getRect()}")
+
+                # Saisies et boutons sensibles : ni Entrée standard ni celle
+                # du pave numerique ne doit declencher le controle/lancement.
+                cibles = [w for w in champs if w.isEnabled()]
+                cibles += [b for b in boutons if b.isVisibleTo(fenetre)
+                           and b.isEnabled()
+                           and (b is bouton or "Lancer le calage" in b.text())]
+                for cible in cibles:
+                    cible.setFocus()
+                    for touche in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+                        QTest.keyClick(cible, touche)
+                QApplication.processEvents()
+                verifier(f"{repere} : Entree ne declenche aucune action",
+                         not effets and not clics and fenetre.isVisible(),
+                         f"effets={effets}, clics={clics}")
+                effets.clear()
+                clics.clear()
+
+            # Les raccourcis doivent traverser les widgets qui consomment
+            # eux-memes les fleches (boutons et navigateur HTML de l'aide).
+            # Une fenetre hors ecran n'est pas active par defaut : poser et
+            # verifier cette condition avant les vrais evenements clavier.
+            QApplication.setActiveWindow(fenetre)
+            QApplication.processEvents()
+            verifier(f"police {points} pt : la fenetre est active pour les raccourcis",
+                     QApplication.activeWindow() is fenetre)
+            fenetre.onglets.setCurrentIndex(0)
+            fenetre.bouton_controle.setFocus()
+            QTest.keyClick(fenetre.bouton_controle, Qt.Key.Key_Right,
+                           Qt.KeyboardModifier.AltModifier)
+            QApplication.processEvents()
+            verifier(f"police {points} pt : Alt-droite navigue depuis un bouton",
+                     fenetre.onglets.currentIndex() == 1)
+            QTest.keyClick(fenetre.bouton_controle, Qt.Key.Key_Left,
+                           Qt.KeyboardModifier.AltModifier)
+            QApplication.processEvents()
+            verifier(f"police {points} pt : Alt-gauche revient depuis un bouton",
+                     fenetre.onglets.currentIndex() == 0)
+            fenetre.onglets.setCurrentIndex(5)
+            navigateur = fenetre.onglets.widget(5).findChild(QTextBrowser)
+            navigateur.setFocus()
+            QTest.keyClick(navigateur, Qt.Key.Key_Left,
+                           Qt.KeyboardModifier.AltModifier)
+            QApplication.processEvents()
+            verifier(f"police {points} pt : Alt-gauche quitte le navigateur d'aide",
+                     fenetre.onglets.currentIndex() == 4)
+            fenetre.bouton_controle.setFocus()
+            QTest.keyClick(fenetre.bouton_controle, Qt.Key.Key_Right,
+                           Qt.KeyboardModifier.AltModifier)
+            QApplication.processEvents()
+            verifier(f"police {points} pt : Alt-droite revient a l'aide",
+                     fenetre.onglets.currentIndex() == 5)
+        finally:
+            if fenetre is not None:
+                fenetre.close()
+                fenetre.deleteLater()
+            QApplication.setFont(police_avant)
+            QApplication.processEvents()
+
+
+for _points in (9, 13):
+    _eprouver_petite_fenetre(_points)
+
+# ---------------------------------------------------------------------------
+print("\n8. DECHARGEMENT")
 _barre_avant = p.barre
 _fenetre_avant = p.fenetre
 # CE QUE unload() DOIT TROUVER A DEFAIRE. Sans ce constat prealable, les essais
@@ -2301,5 +2483,15 @@ else:
     print("La fenetre du plugin s'execute de bout en bout.")
 print("=" * 74)
 
+# Les widgets QGIS retiennent des couches et leurs providers. En mode Windows
+# natif, solder aussi les deleteLater avant de decharger ces providers ; le
+# bilan vert ne suffit pas si le processus plante ensuite pendant sa cloture.
+from qgis.PyQt.QtCore import QCoreApplication, QEvent         # noqa: E402
+for _fenetre_test in QApplication.topLevelWidgets():
+    _fenetre_test.close()
+    _fenetre_test.deleteLater()
+QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+QApplication.processEvents()
+QgsProject.instance().clear()
 qgs.exitQgis()
 sys.exit(1 if echecs else 0)

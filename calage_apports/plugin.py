@@ -38,8 +38,8 @@ from qgis.core import (
     QgsWkbTypes,
 )
 from qgis.gui import QgsFieldComboBox, QgsMapLayerComboBox
-from qgis.PyQt.QtCore import QMetaType, QSettings, Qt, QTimer
-from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtCore import QEvent, QMetaType, QSettings, Qt, QTimer
+from qgis.PyQt.QtGui import QIcon, QKeySequence
 from qgis.PyQt.QtWidgets import (
     QAbstractItemView,
     QAction,
@@ -77,6 +77,8 @@ from qgis.PyQt.QtWidgets import (
 )
 
 from . import noyau
+from .interface import Etiquette as QLabel, Manuel as QTextBrowser
+from .interface import feuille as feuille_interface
 
 DOSSIER = os.path.dirname(__file__)
 
@@ -485,13 +487,13 @@ MARGE_CRUE_H = 0.5     # heures conservees de part et d'autre
 
 ISL_TEAL = "#3A8D94"          # institutionnel (Pantone 5483 C)
 ISL_TEAL_SOMBRE = "#2E7176"
-ISL_ARDOISE = "#608098"       # frise institutionnelle
-ISL_ARDOISE_CLAIR = "#9BAEB7"  # institutionnel (Pantone 7543 C)
+ISL_ARDOISE = "#526B7A"       # variante lisible sur le fond clair de QGIS
+ISL_ARDOISE_CLAIR = "#526B7A"  # les étapes en attente restent lisibles
 # Hors charte, et volontairement : la charte n'a pas de couleur d'etat, et
 # reserver le teal institutionnel a l'erreur le banaliserait. Ces deux tons
 # ne servent QU'A dire si une saisie est fautive ou une etape franchie.
 ISL_ROUGE = "#A03028"
-ISL_VERT = "#3E7A5E"
+ISL_VERT = "#386F55"
 ISL_VERT_SOMBRE = "#33654E"    # survol du bouton de controle, quand il est vert
 POLICE_ISL = '"Helvetica Neue", "Helvetica", "Arial", sans-serif'
 
@@ -504,200 +506,8 @@ POLICE_ISL = '"Helvetica Neue", "Helvetica", "Arial", sans-serif'
 ROLE_AIDE = "aide"
 ROLE_ETAT = "etat"
 
-STYLE_ISL = f"""
-QDialog {{ font-family: {POLICE_ISL}; }}
-
-/* --- Onglets ---------------------------------------------------------
-   Le gras n'est PAS demande ici mais sur la police de la barre elle-meme
-   (voir __init__). Une feuille de style ne change que le rendu,
-   pas le calcul de largeur : Qt mesurait les libelles en maigre puis les
-   dessinait en gras, et « 2. Profil en long » se retrouvait rogne.
-   A SURVEILLER : les libelles ont RALLONGE le 05/09/2026 — « 2. Objectifs et
-   precision » et « Aide et configuration » remplacent « 2. Profil en long »
-   et « Aide », soit vingt-cinq caracteres de plus sur la barre. Si elle se
-   met a defiler sur un ecran etroit, c'est ici qu'il faut raccourcir.
-   Styliser un onglet fait par ailleurs basculer Qt sur le modele de boite ;
-   le remplissage est donc fixe ici, sinon le libelle colle aux bords. */
-QTabWidget::pane {{
-    border: 1px solid palette(mid);
-    border-radius: 4px;
-    top: -1px;
-}}
-QTabBar::tab {{
-    padding: 8px 16px;
-    margin-right: 2px;
-    border-bottom: 3px solid transparent;
-}}
-QTabBar::tab:selected {{
-    color: {ISL_TEAL};
-    border-bottom: 3px solid {ISL_TEAL};
-}}
-QTabBar::tab:hover:!selected {{ color: {ISL_ARDOISE}; }}
-
-/* --- Cadres ---------------------------------------------------------- */
-QGroupBox {{
-    border: 1px solid palette(mid);
-    border-radius: 4px;
-    margin-top: 13px;
-    padding: 12px 10px 8px 10px;
-}}
-QGroupBox::title {{
-    subcontrol-origin: margin;
-    left: 10px;
-    padding: 0 6px;
-    color: {ISL_ARDOISE};
-    font-weight: bold;
-}}
-
-/* --- Saisies ---------------------------------------------------------
-   QLineEdit seulement. Les listes deroulantes et les compteurs portent des
-   sous-controles — fleche, boutons haut/bas — que le moindre reglage de
-   bordure fait basculer sur un rendu maison, au risque de perdre la
-   fleche. Ils restent natifs, donc identiques au reste de QGIS. */
-QLineEdit {{
-    border: 1px solid palette(mid);
-    border-radius: 3px;
-    padding: 4px 6px;
-    selection-background-color: {ISL_TEAL};
-}}
-QLineEdit:focus {{ border: 1px solid {ISL_TEAL}; }}
-
-/* --- Boutons ---------------------------------------------------------- */
-QPushButton {{
-    border: 1px solid palette(mid);
-    border-radius: 3px;
-    padding: 5px 14px;
-}}
-QPushButton:hover {{ border-color: {ISL_ARDOISE}; color: {ISL_ARDOISE}; }}
-QPushButton:disabled {{ color: palette(mid); }}
-QPushButton#boutonPrincipal {{
-    background-color: {ISL_TEAL};
-    color: white;
-    border: 1px solid {ISL_TEAL};
-    padding: 7px 18px;
-    font-weight: bold;
-}}
-QPushButton#boutonPrincipal:hover {{
-    background-color: {ISL_TEAL_SOMBRE};
-    border-color: {ISL_TEAL_SOMBRE};
-    color: white;
-}}
-QPushButton#boutonPrincipal:disabled {{
-    background-color: palette(mid); border-color: palette(mid);
-}}
-/* « Controle parametrage », au bas de la fenetre. VERT quand tout ce qu'il
-   consomme est pret, GRIS sinon — il est permanent, il doit donc dire
-   lui-meme si c'est le moment. Le vert est celui des etapes franchies du fil
-   conducteur, juste au-dessus : l'oeil fait le lien tout seul.
-   IL RESTE CLIQUABLE EN GRIS (voir _bouton_controle_parametrage) : ce n'est
-   pas l'etat « disabled » de Qt, mais deux habillages du meme bouton. */
-QPushButton#boutonControlePret {{
-    background-color: {ISL_VERT};
-    color: white;
-    border: 1px solid {ISL_VERT};
-    padding: 7px 18px;
-    font-weight: bold;
-}}
-QPushButton#boutonControlePret:hover {{
-    background-color: {ISL_VERT_SOMBRE};
-    border-color: {ISL_VERT_SOMBRE};
-    color: white;
-}}
-QPushButton#boutonControleAttente {{
-    background-color: palette(button);
-    color: palette(mid);
-    border: 1px solid palette(mid);
-    padding: 7px 18px;
-    font-weight: bold;
-}}
-QPushButton#boutonControleAttente:hover {{
-    color: palette(text);
-    border-color: palette(dark);
-}}
-/* Seconde action forte — le lancement du calage. Meme poids que l'action
-   principale, sans le fond plein : les deux ne sont jamais a portee de clic
-   au meme moment, et deux aplats teal se disputeraient l'oeil. */
-QPushButton#boutonAccent {{
-    color: {ISL_TEAL};
-    border: 1px solid {ISL_TEAL};
-    padding: 6px 16px;
-    font-weight: bold;
-}}
-QPushButton#boutonAccent:hover {{
-    background-color: {ISL_TEAL}; color: white;
-}}
-
-/* --- Textes d'accompagnement -----------------------------------------
-   Aucun fond n'est impose ailleurs qu'ici, et ceux-ci viennent de la
-   palette : QGIS se decline en theme clair ET sombre, une couleur en dur
-   casserait le second.
-
-   ET LE ROLE COMPTE AUTANT QUE LA PALETTE. Ces fonds ont d'abord ete pris a
-   « alternate-base », qui est un gris tres clair dans le theme par defaut.
-   Sous « Night Mapping », le theme sombre de QGIS, il vaut #e9e7e3 —
-   c'est-a-dire QUASI BLANC : le fil conducteur, les comptes rendus, la
-   banniere de suivi et les en-tetes de tableau sortaient en plaques claires
-   au milieu d'une fenetre sombre, avec un texte gris dessus. Mesure du
-   08/09/2026 dans QGIS 3.44 en Night Mapping.
-     « base » est le role qui s'inverse VRAIMENT : c'est le fond des champs de
-   saisie — blanc en theme clair, #202020 ici. Il contraste donc avec la
-   fenetre dans les deux sens, ce qu'on attendait d'alternate-base.
-     Le meme piege vaut pour « midlight » (#dddddd en sombre), remplace par
-   « dark » pour les filets de tableau. */
-QLabel[role="aide"] {{
-    color: {ISL_ARDOISE};
-    font-size: 8pt;
-    padding: 1px 0 3px 0;
-}}
-QLabel[role="etat"] {{
-    background-color: palette(base);
-    border-left: 3px solid {ISL_ARDOISE};
-    border-radius: 2px;
-    padding: 7px 9px;
-}}
-QLabel#filConducteur {{
-    background-color: palette(base);
-    border-radius: 3px;
-    padding: 6px 10px;
-}}
-QTextEdit#resume {{
-    font-family: "Consolas", "Courier New", monospace;
-    font-size: 8pt;
-    border: 1px solid palette(mid);
-    border-radius: 3px;
-}}
-QTextBrowser {{ border: none; }}
-
-/* --- Suivi en temps reel ---------------------------------------------
-   La banniere porte sa couleur elle-meme, selon l'etat : elle est le seul
-   endroit du plugin ou un aplat de couleur dit quelque chose. */
-QLabel#banniereSuivi {{ font-family: {POLICE_ISL}; }}
-QProgressBar {{
-    border: 1px solid palette(mid);
-    border-radius: 3px;
-    height: 22px;
-    text-align: center;
-    font-weight: bold;
-    background-color: palette(base);
-}}
-QProgressBar::chunk {{
-    background-color: {ISL_TEAL};
-    border-radius: 2px;
-}}
-QTableWidget {{
-    border: 1px solid palette(mid);
-    border-radius: 3px;
-    gridline-color: palette(dark);
-}}
-QHeaderView::section {{
-    background-color: palette(base);
-    color: {ISL_ARDOISE};
-    font-weight: bold;
-    border: none;
-    border-bottom: 2px solid {ISL_ARDOISE};
-    padding: 5px 6px;
-}}
-"""
+# Alias conserv? pour les outils de recette ; la fen?tre lit sa palette QGIS.
+STYLE_ISL = feuille_interface(QApplication.palette())
 
 
 # ---------------------------------------------------------------------------
@@ -969,8 +779,7 @@ class CourbeComparaison(QWidget):
             peintre.setPen(QColor(ISL_ARDOISE_CLAIR))
             peintre.drawText(
                 self.rect(), Qt.AlignmentFlag.AlignCenter,
-                "calcul HEC-RAS en cours — la courbe apparaît dès qu'un "
-                "essai est évalué")
+                "La comparaison apparaît après le premier essai évalué.")
             peintre.end()
             return
 
@@ -1260,9 +1069,10 @@ def formulaire(parent=None):
     """QFormLayout au rythme commun ; les champs occupent toute la largeur."""
     f = QFormLayout(parent) if parent is not None else QFormLayout()
     f.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+    f.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
     f.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
     f.setHorizontalSpacing(12)
-    f.setVerticalSpacing(7)
+    f.setVerticalSpacing(9)
     return f
 
 
@@ -1307,8 +1117,8 @@ de contrôle reproduise un hydrogramme cible.</p>
 
 <h3><a name="s1"></a>Première utilisation — ce qu'il faut installer</h3>
 <p><b>Vous n'avez pas besoin de savoir où Python est installé sur ce poste, ni
-même s'il l'est.</b> Ouvrir <i>Paramètres du poste</i>, au bas de cet onglet,
-et cliquer <b>Vérifier l'environnement</b> : il dit ce qui manque et propose
+même s'il l'est.</b> Dans <i>Diagnostic et paramètres du poste</i>, au-dessus
+de ce mode opératoire, cliquer <b>Vérifier l’environnement</b> : il dit ce qui manque et propose
 de le poser. Deux choses, et deux seulement :</p>
 <ol>
 <li>La <b>chaîne de calage</b>. Elle est <i>embarquée dans l'extension</i> :
@@ -1351,7 +1161,7 @@ tout : compter 3 à 5 calculs par apport.</li>
 
 <h3><a name="s3"></a>Le déroulement, onglet par onglet</h3>
 <ol>
-<li><b>Onglet 1 — Modèle.</b> Dossier du projet, plan de référence,
+<li><b>Modèle.</b> Fichier <tt>.prj</tt> du projet HEC-RAS, plan de référence,
 <i>profil en long</i>, puis
 <i>Charger les couches du modèle</i> : sections, injections et maillage
 s'affichent sur la carte. Y dessiner les sections de contrôle qui manquent —
@@ -1361,33 +1171,35 @@ la fenêtre ; un
 apport créé reçoit du même coup son hydrogramme dans le fichier
 Unsteady&nbsp;Flow, sinon il n'apporterait rien. La fenêtre de simulation n'est à corriger que si l'Unsteady&nbsp;Flow
 retenu couvre une <b>autre période</b> que le plan de référence.</li>
-<li><b>Onglet 2 — Objectifs et précision.</b> Ce qu'on vise, et avec quoi :
-la précision attendue sur le volume et sur le débit de pointe, puis
-<i>Contrôle du paramétrage</i> — <b>c'est là que tout s'écrit, se compose et
-se contrôle</b>, et le compte rendu qui s'ouvre est ce qu'on lit avant d'aller
-plus loin —, enfin le classeur : c'est dans sa feuille <i>Cibles</i> que se
-saisissent les hydrogrammes visés, une colonne par section.</li>
-<li><b>Onglet 3 — Résultats.</b> Dossier de résultats et dossier de suivi,
-et le <i>ménage du modèle</i> : une case décide du sort des plans d'étape à la
+<li><b>Sorties.</b> Dossier de résultats et dossier de suivi,
+et la <i>conservation des plans d’étape</i> : une case décide de leur sort à la
 fin du calage — voir <a href="#s11">Ce que le calage laisse dans le
 modèle</a>.</li>
-<li><b>Onglet 4 — Lancer.</b> Vérifier l'appariement et l'état des cibles,
+<li><b>Objectifs.</b> Ouvrir ou reprendre l'Excel des objectifs : c'est dans
+sa feuille <i>Cibles</i> que se saisissent les hydrogrammes visés, une colonne
+par section. Régler les écarts admis sur le volume et sur le débit de pointe.
+Le bouton <i>Contrôle paramétrage</i>, permanent au bas de la fenêtre,
+<b>écrit, compose et contrôle</b> à partir des trois premières rubriques.
+Lire son compte rendu avant d'aller plus loin.</li>
+<li><b>Lancer.</b> Vérifier l'appariement et l'état des cibles,
 choisir le premier apport à caler et le <b>préfixe de scénario</b>, qui est
 <b>obligatoire</b> : il nomme les plans de ce calage-ci, et c'est lui qui
 empêche un second scénario d'effacer les plans du premier. Puis lancer : le
 calage tourne en arrière-plan, QGIS reste utilisable.</li>
-<li><b>Onglet 5 — Suivi.</b> Où en est le calcul, apport par apport, rafraîchi
+<li><b>Suivi.</b> Où en est le calcul, apport par apport, rafraîchi
 tout seul. C'est là qu'on revient pendant les heures que dure un calage. La
 courbe y porte la cible et la section de l'apport en cours, et <b>derrière,
 en vert pointillé, les sections déjà calées</b> : un calage séquentiel se lit
 de l'amont vers l'aval, et c'est la <i>famille</i> de courbes qui dit si tout
 se tient.</li>
+<li><b>Aide.</b> Diagnostic et paramètres du poste, puis ce mode opératoire
+avec son sommaire. Cette rubrique reste accessible pendant la préparation.</li>
 </ol>
 
 <h3><a name="s4"></a>Écrire dans la géométrie</h3>
 <p><b>Indispensable tant que les sections de contrôle n'existent pas dans le
 modèle</b> — le calage n'aurait aucun endroit où lire un débit. Les dessiner
-ou les compléter dans les couches chargées à l'onglet 1 : elles sont écrites
+ou les compléter dans les couches chargées depuis <i>Modèle</i> : elles sont écrites
 dans la géométrie HEC-RAS au clic sur <i>Contrôle paramétrage</i>
 — le bouton du bas de la fenêtre, vert dès que tout ce qu'il consomme est
 prêt, gris tant qu'il manque quelque chose —,
@@ -1400,7 +1212,7 @@ par-dessus. Il n'y a pas de bouton à part, parce que les sections doivent
 être <i>dans</i> le modèle avant que le paquet soit composé, sans quoi le
 calage n'aurait rien à relire.</p>
 <p>Un apport créé reçoit du même coup son hydrogramme dans l'Unsteady&nbsp;Flow,
-et sa pente vient du classeur (onglet 2) ou, à défaut, du profil en long.</p>
+et sa pente vient du classeur (<i>Objectifs</i>) ou, à défaut, du profil en long.</p>
 <p>Le fichier prétraité (<tt>.hdf</tt>) ne porte les nouveaux objets qu'au
 <b>prochain calcul</b> ; <i>Charger les couches du modèle</i> les montre dès
 maintenant, en lisant le fichier texte, qui fait foi.</p>
@@ -1438,8 +1250,7 @@ exigences, satisfaites <b>en même temps</b> :</p>
 <li><b>Forme</b> — concordance d'au moins 97&nbsp;%, <i>après</i> recalage
 temporel.</li>
 </ul>
-<p>Les deux premières tolérances se règlent à l'onglet <b>2 — Objectifs et
-précision</b> ; à défaut
+<p>Les deux premières tolérances se règlent dans <b>Objectifs</b> ; à défaut
 elles valent 5&nbsp;% sur le volume et 2&nbsp;% sur la pointe. Une bande large
 n'est pas neutre : un essai peut s'y arrêter alors que la méthode irait plus
 loin. Mesuré sur un cas de recette — à ±5&nbsp;% sur la pointe, deux sections
@@ -1489,7 +1300,7 @@ de contrôle, <b>IN_…</b> entrées permanentes et <b>OUT_…</b> exutoires, ce
 deux dernières n'étant pas calées.</p>
 <p>Le numéro d'une section ne reprend pas celui de son apport : l'appariement
 est <b>géométrique</b> — chaque section prend la première injection en amont
-d'elle — et le lien réellement calculé s'affiche à l'onglet 4. Une injection
+d'elle — et le lien réellement calculé s'affiche dans <i>Lancer</i>. Une injection
 sans section en aval n'est pas calée, ce qui est normal ; une section sans
 injection en amont est en revanche une erreur.</p>
 
@@ -1529,7 +1340,8 @@ RAS&nbsp;Mapper.</p>
 qui a été obtenu apport par apport, et permettent de reprendre une séquence
 interrompue sans repartir du premier. Le prix est le disque — un modèle à
 trente apports garde trente et un jeux de résultats.</p>
-<p>La case <i>Ménage du modèle HEC-RAS</i> (onglet 3) décide de leur sort,
+<p>Dans <i>Sorties</i>, la case <i>Supprimer les plans d’étape après un calage
+réussi</i> décide de leur sort,
 <b>avant</b> le calage : cochée, la chaîne les retire à la fin ; décochée, ils
 restent. L'encadré dit en toutes lettres ce qui va se passer. L'élagage ne
 touche qu'aux plans d'étape du préfixe indiqué : le plan de référence, le plan
@@ -1692,10 +1504,10 @@ class DialogueParametrage(QDialog):
          hydraulique. Y CHARGE LES COUCHES EXISTANTES de la geometrie en
          couches QGIS EDITABLES, pretes a etre dessinees ou completees
          par-dessus.
-      2. Objectifs et précision — ce qu'on vise et avec quoi : la precision
+      2. Sorties — ou ecrire le paquet, les resultats finaux et le suivi.
+      3. Objectifs — ce qu'on vise et avec quoi : la precision
          attendue sur le volume et la pointe, et le classeur ou se saisissent
          les hydrogrammes cibles.
-      3. Résultats — ou ecrire le paquet, les resultats finaux et le suivi.
       4. Lancer — ce que la derniere composition a produit, l'etat des
          cibles, les apports a determiner et le lancement.
          Recomposer au fil de l'ajustement des couches est le cas NORMAL : les
@@ -1718,10 +1530,11 @@ class DialogueParametrage(QDialog):
         super().__init__(parent or iface.mainWindow())
         self.iface = iface
         self.setWindowTitle(f"{NOM_PLUGIN} — {EDITEUR}")
+        self.setObjectName("calageFenetre")
         self.setWindowIcon(QIcon(os.path.join(DOSSIER, "icon.png")))
         # Assez large pour que les chemins de fichiers ne soient pas tronques,
         # et redimensionnable : l'onglet 1 est dense.
-        self.resize(880, 720)
+        self.resize(940, 760)
         self.setMinimumSize(720, 520)
 
         # CE QU'ON RETIENT DU DERNIER LANCEMENT, et pourquoi. _lancer_calage
@@ -1764,7 +1577,12 @@ class DialogueParametrage(QDialog):
         self.classeur = None         # rempli si la composition reussit
         self.paquet = {}
 
-        self.setStyleSheet(STYLE_ISL)
+        self._style_en_attente = False
+        self._minuteur_style = QTimer(self)
+        self._minuteur_style.setSingleShot(True)
+        self._minuteur_style.timeout.connect(self._actualiser_style)
+        self._actualiser_style()
+        QApplication.instance().installEventFilter(self)
         agencement = QVBoxLayout(self)
         agencement.setSpacing(10)
         agencement.setContentsMargins(12, 12, 12, 12)
@@ -1789,9 +1607,9 @@ class DialogueParametrage(QDialog):
             (self._onglet_modele(), "1. Modèle",
              "Projet HEC-RAS, plan de référence, zone 2D, profil en long, "
              "et chargement des couches existantes du modèle."),
-            (self._onglet_resultats(), "2. Résultats",
+            (self._onglet_resultats(), "2. Sorties",
              "Dossiers de sortie et de suivi, et résumé de la configuration."),
-            (self._onglet_objectifs(), "3. Objectifs et précision",
+            (self._onglet_objectifs(), "3. Objectifs",
              "Précision attendue sur le volume et la pointe, nombre maximal "
              "d'essais, le classeur où se saisissent les hydrogrammes "
              "cibles, et ce que ces hydrogrammes portent une fois validés."),
@@ -1801,14 +1619,15 @@ class DialogueParametrage(QDialog):
             (self._onglet_suivi(), "5. Suivi",
              "Où en est le calage : apport en cours, essai, avancement, "
              "temps restant, et ce qui s'est passé quand il s'arrête."),
-            (self._onglet_aide(), "Aide et configuration",
+            (self._onglet_aide(), "Aide",
              "Mode opératoire, pièges connus, et les deux emplacements du "
              "poste — chaîne de calage et interpréteur HEC-RAS."),
         ):
             zone = QScrollArea()
             zone.setWidgetResizable(True)
             zone.setFrameShape(QFrame.Shape.NoFrame)
-            zone.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            zone.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+            page.layout().setSizeConstraint(QLayout.SizeConstraint.SetMinAndMaxSize)
             zone.setWidget(page)
             indice = self.onglets.addTab(zone, titre)
             self.onglets.setTabToolTip(indice, infobulle)
@@ -1816,6 +1635,7 @@ class DialogueParametrage(QDialog):
         # ce signal lui redonne la main des qu'on y revient, sans quoi il
         # afficherait l'etat vieux de la derniere visite pendant deux secondes.
         self.onglets.currentChanged.connect(self._changer_onglet)
+        self.onglets.currentChanged.connect(self._maj_navigation)
 
         # LE PLANCHER DE LARGEUR S'ADAPTE A CE QUE LA BARRE D'ONGLETS DEMANDE.
         #
@@ -1851,6 +1671,7 @@ class DialogueParametrage(QDialog):
         self.label_fil.setObjectName("filConducteur")
         self.label_fil.setWordWrap(True)
         self.label_fil.setTextFormat(Qt.TextFormat.RichText)
+        self.label_fil.linkActivated.connect(self._aller_etape)
         agencement.addWidget(self.label_fil)
 
         # « CONTROLE PARAMETRAGE » EST DE RETOUR ICI (0.7.24, demande
@@ -1867,6 +1688,15 @@ class DialogueParametrage(QDialog):
         self.bouton_controle = self._bouton_controle_parametrage()
         boutons.addWidget(self.bouton_controle)
         boutons.addStretch(1)
+        self.bouton_precedent = QPushButton("Précédent")
+        self.bouton_precedent.setToolTip("Étape précédente — Alt + flèche gauche")
+        self.bouton_precedent.clicked.connect(
+            lambda: self.onglets.setCurrentIndex(max(0, self.onglets.currentIndex() - 1)))
+        boutons.addWidget(self.bouton_precedent)
+        self.bouton_suivant = QPushButton("Suivant")
+        self.bouton_suivant.clicked.connect(
+            lambda: self.onglets.setCurrentIndex(min(5, self.onglets.currentIndex() + 1)))
+        boutons.addWidget(self.bouton_suivant)
         bouton_fermer = QPushButton("Fermer")
         bouton_fermer.setMinimumWidth(90)
         bouton_fermer.clicked.connect(self.accept)
@@ -1875,6 +1705,91 @@ class DialogueParametrage(QDialog):
 
         self._maj_resume()
         self._maj_fil()
+        self._maj_navigation()
+        self._nommer_champs()
+        # Une action de fenêtre intercepte aussi les raccourcis lorsque le
+        # bouton focalisé ou le navigateur d'aide consomme les touches.
+        for libelle, raccourci, sens in (("Étape précédente", "Alt+Left", -1),
+                                        ("Étape suivante", "Alt+Right", 1)):
+            action = QAction(libelle, self)
+            action.setShortcut(QKeySequence(raccourci))
+            action.setShortcutContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+            action.triggered.connect(lambda _=False, pas=sens: self.onglets.setCurrentIndex(
+                max(0, min(5, self.onglets.currentIndex() + pas))))
+            self.addAction(action)
+        ecran = self.screen() or QApplication.primaryScreen()
+        if ecran is not None:
+            disponible = ecran.availableGeometry()
+            self.setMinimumWidth(min(self.minimumWidth(), disponible.width() - 32))
+            self.resize(min(self.width(), disponible.width() - 32),
+                        min(self.height(), disponible.height() - 64))
+
+    def _actualiser_style(self):
+        """Lire la palette réellement polie par QGIS, sans modifier son thème."""
+        self._style_en_attente = False
+        temoin = QTabWidget()
+        temoin.ensurePolished()
+        taille = max(10.0, QApplication.font().pointSizeF())
+        feuille = feuille_interface(temoin.palette(), taille)
+        temoin.deleteLater()
+        if self.styleSheet() != feuille:
+            self.setStyleSheet(feuille)
+
+    def changeEvent(self, evenement):  # noqa: N802
+        super().changeEvent(evenement)
+        if (evenement.type() in (QEvent.Type.PaletteChange, QEvent.Type.StyleChange,
+                                 QEvent.Type.ApplicationFontChange)
+                and hasattr(self, "_style_en_attente")
+                and not self._style_en_attente):
+            self._style_en_attente = True
+            self._minuteur_style.start(0)
+
+    def eventFilter(self, objet, evenement):  # noqa: N802
+        # Une police posée par QSS ne reçoit pas toujours FontChange sur le
+        # widget. L'événement de l'application couvre le réglage global QGIS.
+        if (objet is QApplication.instance()
+                and evenement.type() == QEvent.Type.ApplicationFontChange
+                and not self._style_en_attente):
+            self._style_en_attente = True
+            self._minuteur_style.start(0)
+        return super().eventFilter(objet, evenement)
+
+    def _nommer_champs(self):
+        """Associer les libellés persistants aux champs, y compris les chemins."""
+        # QPushButton traite Entrée avant le dialogue quand il a le focus.
+        # Retirer autoDefault sur chaque bouton laisse remonter la touche
+        # jusqu'à notre garde ; Espace conserve l'activation au clavier.
+        for bouton in self.findChildren(QPushButton):
+            bouton.setAutoDefault(False)
+            bouton.setDefault(False)
+        for disposition in self.findChildren(QFormLayout):
+            for rang in range(disposition.rowCount()):
+                etiquette = disposition.itemAt(rang, QFormLayout.ItemRole.LabelRole)
+                item = disposition.itemAt(rang, QFormLayout.ItemRole.FieldRole)
+                if etiquette is None or item is None or etiquette.widget() is None:
+                    continue
+                champ = item.widget()
+                if champ is None and item.layout() is not None:
+                    premier = item.layout().itemAt(0)
+                    champ = premier.widget() if premier is not None else None
+                if champ is not None:
+                    label = etiquette.widget()
+                    label.setBuddy(champ)
+                    if not champ.accessibleName():
+                        champ.setAccessibleName(label.text().rstrip(" :"))
+
+    def _maj_navigation(self, *_):
+        if not hasattr(self, "bouton_suivant"):
+            return
+        indice = self.onglets.currentIndex()
+        self.bouton_precedent.setEnabled(indice > 0)
+        self.bouton_suivant.setEnabled(indice < 5)
+        titre = self.onglets.tabText(min(5, indice + 1))
+        self.bouton_suivant.setToolTip(f"Ouvrir {titre} — Alt + flèche droite")
+
+    def _aller_etape(self, lien):
+        if lien in ("0", "1", "2", "3", "4", "5"):
+            self.onglets.setCurrentIndex(int(lien))
 
     def keyPressEvent(self, evenement):
         """
@@ -1898,6 +1813,16 @@ class DialogueParametrage(QDialog):
         d'atteinte au clavier — la tabulation y mene, la barre d'espace les
         actionne. Echap continue de fermer : QDialog le traite avant nous.
         """
+        if evenement.key() == Qt.Key.Key_F1:
+            self.onglets.setCurrentIndex(5)
+            evenement.accept()
+            return
+        if (evenement.modifiers() & Qt.KeyboardModifier.AltModifier
+                and evenement.key() in (Qt.Key.Key_Left, Qt.Key.Key_Right)):
+            sens = -1 if evenement.key() == Qt.Key.Key_Left else 1
+            self.onglets.setCurrentIndex(max(0, min(5, self.onglets.currentIndex() + sens)))
+            evenement.accept()
+            return
         if evenement.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             evenement.accept()
             return
@@ -1926,22 +1851,19 @@ class DialogueParametrage(QDialog):
         textes = QVBoxLayout()
         textes.setSpacing(2)
         titre = QLabel(NOM_PLUGIN)
-        titre.setStyleSheet(
-            f"font-size: 15pt; font-weight: bold; color: {ISL_TEAL};")
+        titre.setProperty("role", "marque")
         sous_titre = QLabel(
-            "Ajustement séquentiel des apports amont sur hydrogrammes cibles "
-            "aval — modèles 2D HEC-RAS")
+            "Préparer les apports, définir les cibles et suivre le calage HEC-RAS 2D.")
         sous_titre.setWordWrap(True)
-        sous_titre.setStyleSheet(f"color: {ISL_ARDOISE};")
+        sous_titre.setProperty("role", ROLE_AIDE)
         textes.addWidget(titre)
         textes.addWidget(sous_titre)
         ligne.addLayout(textes, 1)
 
         # La signature figurait dans les seules metadonnees, invisibles une
         # fois le plugin installe. Un outil interne doit dire de qui il vient.
-        signature = QLabel(EDITEUR.upper())
-        signature.setStyleSheet(
-            f"font-size: 8pt; letter-spacing: 2px; color: {ISL_ARDOISE};")
+        signature = QLabel(EDITEUR)
+        signature.setProperty("role", ROLE_AIDE)
         ligne.addWidget(signature, 0, Qt.AlignmentFlag.AlignBottom)
 
         enveloppe = QWidget()
@@ -1952,11 +1874,8 @@ class DialogueParametrage(QDialog):
         # Filet degrade teal → ardoise : la frise de la charte, ramenee a
         # une ligne. Un aplat uni tenait la meme place sans rien evoquer.
         filet = QFrame()
-        filet.setFixedHeight(3)
-        filet.setStyleSheet(
-            f"border: none; background-color: qlineargradient("
-            f"x1:0, y1:0, x2:1, y2:0, stop:0 {ISL_TEAL}, "
-            f"stop:0.55 {ISL_ARDOISE}, stop:1 {ISL_ARDOISE_CLAIR});")
+        filet.setFixedHeight(1)
+        filet.setStyleSheet("border: none; background-color: palette(mid);")
         v.addWidget(filet)
         return enveloppe
 
@@ -1974,12 +1893,6 @@ class DialogueParametrage(QDialog):
             ("Dossier de sortie", bool(self.edit_dossier_sortie.text().strip())),
             ("Paquet composé", bool(self.classeur)),
         ]
-        # Ce qui est fait passe au vert et en gras, ce qui reste au gris
-        # clair : l'etat se lit d'un coup d'oeil, sans lire les libelles.
-        faits = [
-            (f"<span style='color:{ISL_VERT}'><b>✔ {nom}</b></span>" if ok
-             else f"<span style='color:{ISL_ARDOISE_CLAIR}'>○ {nom}</span>")
-            for nom, ok in etapes]
         suivante = next((nom for nom, ok in etapes if not ok), None)
         # LE FIL NE DIT PLUS « LANCER » PENDANT QU'UN CALAGE TOURNE. Il est le
         # seul repere permanent de la fenetre, et il continuait d'ordonner
@@ -1989,19 +1902,23 @@ class DialogueParametrage(QDialog):
         #   dossier de sortie, et le classeur est le plus souvent sur un
         #   partage reseau. Y lire l'etat du calage rendrait la saisie poussive.
         if self.pid_lance:
-            fin = (f"<b style='color:{ISL_TEAL}'>calage lancé</b> "
-                   f"<span style='color:{ISL_ARDOISE}'>— processus "
-                   f"{self.pid_lance}, suivre l'avancement (onglet 5)</span>")
+            fin = (f"<b>Calage lancé</b> — processus {self.pid_lance}. "
+                   "<a href='4'>Voir le suivi</a>")
         elif suivante is None:
-            fin = (f"<b style='color:{ISL_VERT}'>tout est prêt</b> "
-                   f"<span style='color:{ISL_ARDOISE}'>— renseigner les cibles "
-                   f"puis lancer (onglet 4)</span>")
+            fin = ("<b>Paquet composé.</b> Renseigner les cibles, puis "
+                   "<a href='3'>vérifier le lancement</a>.")
         else:
-            fin = (f"<span style='color:{ISL_ARDOISE}'>étape suivante : "
-                   f"<b>{suivante}</b></span>")
-        separateur = f"<span style='color:{ISL_ARDOISE_CLAIR}'> · </span>"
-        self.label_fil.setText(separateur.join(faits)
-                               + f"{separateur}&nbsp; {fin}")
+            cibles = {"Modèle chargé": (0, "Choisir le modèle et charger ses couches"),
+                      "Profil en long": (0, "Choisir le profil en long"),
+                      "Dossier de sortie": (1, "Choisir le dossier de sortie"),
+                      "Paquet composé": (2, "Définir les objectifs, puis contrôler le paramétrage")}
+            indice, action = cibles[suivante]
+            nombre = sum(bool(ok) for _, ok in etapes)
+            fin = (f"<b>Préparation : {nombre}/4.</b> "
+                   f"<a href='{indice}'>{action}</a>")
+        self.label_fil.setText(fin)
+        self.label_fil.setToolTip("\n".join(
+            f"{'Fait' if ok else 'À faire'} : {nom}" for nom, ok in etapes))
         # LE BOUTON SUIT LE FIL, ET PAR LE MEME CHEMIN. Le fil est deja
         # rafraichi a chaque changement d'etat qui compte ; lui accrocher le
         # bouton evite d'avoir a retrouver, un par un, tous ces changements —
@@ -2011,9 +1928,12 @@ class DialogueParametrage(QDialog):
     # --- Onglet 1 : Modele HEC-RAS ------------------------------------------
 
     def _onglet_modele(self):
+        from qgis.gui import QgsCollapsibleGroupBox
+
         page = QWidget()
         v = QVBoxLayout(page)
-        v.setSpacing(10)
+        v.setContentsMargins(4, 4, 4, 4)
+        v.setSpacing(12)
 
         groupe_projet = QGroupBox("Projet HEC-RAS")
         f = formulaire(groupe_projet)
@@ -2030,47 +1950,86 @@ class DialogueParametrage(QDialog):
         #   _charger_projet_hecras repond par une boite critique modale. On
         #   gagnerait une erreur a chaque passage de focus.
         self.edit_projet_hecras.setReadOnly(True)
+        self.edit_projet_hecras.setAccessibleName("Chemin du projet HEC-RAS")
+        self.edit_projet_hecras.setToolTip(
+            "Chemin du projet chargé. Utilisez « Choisir le projet… » pour changer de modèle.")
         self.edit_projet_hecras.setPlaceholderText(
-            "Choisir avec « Parcourir… » — le fichier .prj du modèle")
-        bouton_parcourir = QPushButton("Parcourir…")
+            "Sélectionnez le fichier .prj de votre modèle")
+        bouton_parcourir = QPushButton("Choisir le projet…")
+        bouton_parcourir.setAccessibleName("Choisir le fichier projet HEC-RAS")
+        bouton_parcourir.setAutoDefault(False)
         bouton_parcourir.clicked.connect(self._parcourir_projet_hecras)
         ligne.addWidget(self.edit_projet_hecras, 1)
         ligne.addWidget(bouton_parcourir)
-        f.addRow("Projet HEC-RAS (.prj) :", ligne)
+        libelle_projet = QLabel("Fichier .prj :")
+        libelle_projet.setBuddy(self.edit_projet_hecras)
+        f.addRow(libelle_projet, ligne)
         # La version de HEC-RAS n'est PAS demandee : elle est ecrite dans les
         # fichiers du modele (« Program Version= »), et la faire saisir ne
         # pourrait qu'introduire une erreur. Elle est lue et affichee avec le
         # projet, a titre d'information.
-        self.label_nom_projet = QLabel("(non chargé)")
+        self.label_nom_projet = QLabel("Aucun modèle chargé. Choisissez un fichier .prj pour commencer.")
         self.label_nom_projet.setWordWrap(True)
-        f.addRow("Projet détecté :", self.label_nom_projet)
+        self.label_nom_projet.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        f.addRow(self.label_nom_projet)
         v.addWidget(groupe_projet)
 
-        groupe_plan = QGroupBox("Plan, géométrie et Unsteady Flow")
+        groupe_plan = QGroupBox("Plan et fichiers de calcul")
         f2 = formulaire(groupe_plan)
         self.combo_plan = QComboBox()
+        self.combo_plan.setAccessibleName("Plan de référence")
+        self.combo_plan.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        self.combo_plan.setMinimumContentsLength(14)
         self.combo_plan.currentIndexChanged.connect(self._changer_plan)
         f2.addRow("Plan de référence :", self.combo_plan)
 
         self.radio_du_plan = QRadioButton(
-            "Utiliser la géométrie et l'Unsteady Flow de ce plan")
+            "Reprendre les fichiers du plan")
         self.radio_override = QRadioButton(
-            "Choisir une géométrie et un Unsteady Flow différents")
+            "Choisir une autre géométrie ou un autre flux")
+        self.radio_du_plan.setAccessibleDescription(
+            "Utiliser la géométrie et le fichier Unsteady Flow du plan de référence.")
+        self.radio_override.setAccessibleDescription(
+            "Choisir la géométrie et le fichier Unsteady Flow dans les listes ci-dessous.")
+        self.radio_du_plan.setToolTip(self.radio_du_plan.accessibleDescription())
+        self.radio_override.setToolTip(self.radio_override.accessibleDescription())
         self.radio_du_plan.setChecked(True)
         self.radio_du_plan.toggled.connect(self._maj_mode_override)
         f2.addRow(self.radio_du_plan)
+        self.label_fichiers_plan = QLabel()
+        self.label_fichiers_plan.setWordWrap(True)
+        self.label_fichiers_plan.setTextFormat(Qt.TextFormat.PlainText)
+        self.label_fichiers_plan.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.label_fichiers_plan.setSizePolicy(
+            QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        f2.addRow(self.label_fichiers_plan)
         f2.addRow(self.radio_override)
 
         self.combo_geometrie = QComboBox()
         self.combo_unsteady = QComboBox()
+        for combo, nom in ((self.combo_geometrie, "Géométrie HEC-RAS"),
+                           (self.combo_unsteady, "Flux instationnaire, fichier Unsteady Flow")):
+            combo.setAccessibleName(nom)
+            combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+            combo.setMinimumContentsLength(14)
         self.combo_geometrie.setEnabled(False)
         self.combo_unsteady.setEnabled(False)
         self.combo_geometrie.currentIndexChanged.connect(self._maj_resume)
         self.combo_unsteady.currentIndexChanged.connect(self._maj_resume)
         f2.addRow("Géométrie :", self.combo_geometrie)
-        f2.addRow("Unsteady Flow :", self.combo_unsteady)
+        f2.addRow("Flux instationnaire :", self.combo_unsteady)
+        self.label_geometrie_override = f2.labelForField(self.combo_geometrie)
+        self.label_unsteady_override = f2.labelForField(self.combo_unsteady)
+        self.combo_unsteady.setToolTip("Fichier Unsteady Flow (.u##) utilisé pour le calcul.")
+        for combo in (self.combo_plan, self.combo_geometrie, self.combo_unsteady):
+            combo.currentTextChanged.connect(self._maj_resume_fichiers)
+        self._maj_resume_fichiers()
 
         self.combo_zone_2d = QComboBox()
+        self.combo_zone_2d.setAccessibleName("Zone d'écoulement 2D")
+        self.combo_zone_2d.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        self.combo_zone_2d.setMinimumContentsLength(14)
         self.combo_zone_2d.currentIndexChanged.connect(self._maj_resume)
         f2.addRow("Zone d'écoulement 2D :", self.combo_zone_2d)
         # LA ZONE 2D ET LE CRS NE SONT PAS DES COMPTES RENDUS DATES : ce sont
@@ -2111,7 +2070,9 @@ class DialogueParametrage(QDialog):
         # la resserrer est le seul levier qui réduise le coût d'un calcul —
         # lequel se compte en heures, et se paie trois à cinq fois par apport.
         # Ce qui a été saisi n'est transmis que s'il DIFFÈRE du plan.
-        self.groupe_fenetre = QGroupBox("Fenêtre de simulation")
+        self.groupe_fenetre = QgsCollapsibleGroupBox("Fenêtre de simulation — réglages")
+        self.groupe_fenetre.setObjectName("fenetreSimulation")
+        self.groupe_fenetre.setSaveCollapsedState(False)
         self.groupe_fenetre.setToolTip(
             "Le plan de calcul est un clone du plan de référence et en hérite "
             "la fenêtre. Substituer un Unsteady Flow couvrant une autre "
@@ -2120,70 +2081,69 @@ class DialogueParametrage(QDialog):
         vf = QVBoxLayout(self.groupe_fenetre)
         vf.setSpacing(8)
         vf.addWidget(texte_aide(
-            "Reprise du plan de référence — à corriger seulement si "
-            "l'Unsteady Flow retenu couvre une autre période."))
+            "Valeurs reprises du plan de référence. Ajustez la période si le flux "
+            "retenu couvre un autre événement, ou pour limiter la durée du calcul."))
 
-        # Debut et fin sur UNE ligne, intervalles sur DEUX : six champs
-        # empiles occupaient a eux seuls la moitie de l'onglet, alors qu'on
-        # n'y touche presque jamais.
+        # Une ligne par champ garde les dates lisibles avec une grande police.
+        # Le groupe se replie ; l'état modifié ou invalide reste en dehors.
         self.edit_sim_debut = QLineEdit()
         self.edit_sim_fin = QLineEdit()
         for champ, exemple in ((self.edit_sim_debut, "13OCT2014,00:00"),
                                (self.edit_sim_fin, "14OCT2014,04:00")):
             champ.setPlaceholderText(exemple)
             champ.textChanged.connect(self._maj_resume)
-        grille = QGridLayout()
-        grille.setContentsMargins(0, 0, 0, 0)
-        grille.setHorizontalSpacing(12)
-        grille.setVerticalSpacing(7)
-        grille.addWidget(QLabel("Début :"), 0, 0)
-        grille.addWidget(self.edit_sim_debut, 0, 1)
-        grille.addWidget(QLabel("Fin :"), 0, 2)
-        grille.addWidget(self.edit_sim_fin, 0, 3)
+        details_fenetre = formulaire()
+        self.edit_sim_debut.setAccessibleName("Début de la simulation")
+        self.edit_sim_fin.setAccessibleName("Fin de la simulation")
+        details_fenetre.addRow("Début :", self.edit_sim_debut)
+        details_fenetre.addRow("Fin :", self.edit_sim_fin)
 
         self.edits_intervalles = {}
         for rang, (cle, libelle, exemple) in enumerate((
-                ("intervalle_calcul", "Calcul", "1SEC"),
-                ("intervalle_sortie", "Sortie", "1MIN"),
-                ("intervalle_instantane", "Détaillée", "1MIN"),
+                ("intervalle_calcul", "Pas de calcul", "1SEC"),
+                ("intervalle_sortie", "Intervalle de sortie", "1MIN"),
+                ("intervalle_instantane", "Sortie détaillée", "1MIN"),
                 ("intervalle_mapping", "Cartographie", "1MIN"))):
             champ = QLineEdit()
             champ.setPlaceholderText(exemple)
+            champ.setAccessibleName(libelle + " de la simulation")
+            champ.setToolTip("Intervalle HEC-RAS en SEC, MIN ou HOUR. Exemple : " + exemple)
             champ.textChanged.connect(self._maj_resume)
-            grille.addWidget(QLabel(f"{libelle} :"),
-                             1 + rang // 2, 2 * (rang % 2))
-            grille.addWidget(champ, 1 + rang // 2, 2 * (rang % 2) + 1)
+            details_fenetre.addRow(f"{libelle} :", champ)
             self.edits_intervalles[cle] = champ
-        grille.setColumnStretch(1, 1)
-        grille.setColumnStretch(3, 1)
-        vf.addLayout(grille)
+        vf.addLayout(details_fenetre)
         vf.addWidget(texte_aide(
             "Format JJMMMAAAA,HH:MM — intervalles en SEC, MIN ou HOUR."))
 
         self.label_fenetre = texte_etat()
-        vf.addWidget(self.label_fenetre)
         v.addWidget(self.groupe_fenetre)
+        # Ce label est alimenté par le résumé existant : garder son message
+        # visible même lorsque les champs secondaires sont repliés.
+        v.addWidget(self.label_fenetre)
+        self.groupe_fenetre.setCollapsed(True)
 
         v.addStretch(1)
         return page
 
     def _groupe_couches_existantes(self):
-        groupe_charger = QGroupBox("Couches existantes de la géométrie")
+        groupe_charger = QGroupBox("Couches du modèle dans QGIS")
         v3 = QVBoxLayout(groupe_charger)
         v3.setSpacing(8)
+        v3.addWidget(texte_aide(
+            "Sections et injections éditables, avec l'emprise du modèle. "
+            "Vous pourrez compléter ces objets sur la carte."))
         bouton_charger = QPushButton(
-            "Charger les couches du modèle (sections, injections, emprise)")
+            "Charger les couches du modèle")
+        bouton_charger.setAccessibleName("Charger les sections, injections et l'emprise du modèle dans QGIS")
+        bouton_charger.setAutoDefault(False)
         bouton_charger.setToolTip(
             "Ajoute à la carte, en couches ÉDITABLES, ce que la géométrie "
             "contient déjà. C'est là-dessus qu'on dessine les objets "
             "manquants.")
         bouton_charger.clicked.connect(self._charger_couches_modele)
-        v3.addWidget(bouton_charger)
+        v3.addWidget(bouton_charger, 0, Qt.AlignmentFlag.AlignLeft)
         self.label_couches = texte_etat()
         v3.addWidget(self.label_couches)
-        v3.addWidget(texte_aide(
-            "Les sections et injections existantes arrivent sur la carte, "
-            "prêtes à être complétées."))
         return groupe_charger
 
 
@@ -2469,6 +2429,51 @@ class DialogueParametrage(QDialog):
                 self._selectionner_par_numero(self.combo_unsteady, plan.get("unsteady"))
         self._maj_resume()
 
+        self._maj_resume_fichiers()
+
+    def _maj_resume_fichiers(self, *_):
+        """Présente les fichiers effectifs du plan, sans toucher aux choix.
+
+        Les listes masquées conservent leur sélection. Hors surcharge, leurs
+        anciens choix ne décrivent pas forcément le plan qui vient d'être
+        sélectionné : le résumé part donc de ses numéros et de l'inventaire
+        déjà chargé, sans lire de fichier.
+        """
+        surcharge = self.radio_override.isChecked()
+        for widget in (self.combo_geometrie, self.combo_unsteady,
+                       self.label_geometrie_override, self.label_unsteady_override):
+            widget.setVisible(surcharge)
+        self.label_fichiers_plan.setVisible(not surcharge)
+
+        plan = self.combo_plan.currentData()
+        if not plan:
+            texte = "Choisissez un plan pour afficher sa géométrie et son flux."
+        else:
+            inventaire = self.info_projet or {}
+
+            def fichier_du_plan(cle, collection, prefixe, combo):
+                numero = plan.get(cle)
+                if numero is None:
+                    return "non renseigné dans le plan"
+                for fichier in inventaire.get(collection, []):
+                    if str(fichier.get("numero")) == str(numero):
+                        titre = fichier.get("titre", "")
+                        return f"{prefixe}{numero} — {titre}" if titre else f"{prefixe}{numero}"
+                # Les recettes et les restaurations peuvent peupler les
+                # listes avant l'inventaire : leur contenu reste une lecture.
+                for index in range(combo.count()):
+                    fichier = combo.itemData(index)
+                    if isinstance(fichier, dict) and str(fichier.get("numero")) == str(numero):
+                        return combo.itemText(index)
+                return f"{prefixe}{numero}"
+
+            geometrie = fichier_du_plan("geometrie", "geometries", "g", self.combo_geometrie)
+            flux = fichier_du_plan("unsteady", "unsteady", "u", self.combo_unsteady)
+            texte = f"Géométrie : {geometrie} · Flux : {flux}"
+        self.label_fichiers_plan.setText(texte)
+        self.label_fichiers_plan.setAccessibleName(texte)
+        self.label_fichiers_plan.setToolTip(texte)
+
     def _resume_fenetre(self):
         """
         Etat de la fenetre de simulation, pour le resume et le bandeau du
@@ -2713,12 +2718,17 @@ class DialogueParametrage(QDialog):
     # widgets a chaque fois, avec le risque que cela porte.
 
     def _groupe_axe(self):
-        groupe_axe = QGroupBox("Profil en long")
+        groupe_axe = QGroupBox("Axe du profil en long")
         groupe_axe.setToolTip(
             "Une polyligne unique, dessinée de l'amont vers l'aval, en "
             "projection métrique : elle donne les PK et le profil en long.")
         f = formulaire(groupe_axe)
+        f.addRow(texte_aide(
+            "Choisissez une couche contenant une seule polyligne, en projection métrique."))
         self.combo_axe = QgsMapLayerComboBox()
+        self.combo_axe.setAccessibleName("Couche de l'axe hydraulique")
+        self.combo_axe.setMinimumContentsLength(14)
+        self.combo_axe.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
         self.combo_axe.setFilters(QgsMapLayerProxyModel.LineLayer)
         # UNE ENTREE VIDE, SANS QUOI L'AXE EST « CHOISI » SANS QUE PERSONNE
         # NE L'AIT CHOISI. Sans elle, currentLayer() n'est jamais None des
@@ -2738,31 +2748,31 @@ class DialogueParametrage(QDialog):
         self.combo_axe.setAllowEmptyLayer(True, "— choisir la couche —")
         self.combo_axe.setLayer(None)
         self.champ_axe = QgsFieldComboBox()
+        self.champ_axe.setAccessibleName("Champ contenant le nom de l'axe")
         self.champ_axe.setLayer(self.combo_axe.currentLayer())
         self.combo_axe.layerChanged.connect(self.champ_axe.setLayer)
         self.combo_axe.layerChanged.connect(self._maj_resume)
         f.addRow("Couche de l'axe :", self.combo_axe)
-        f.addRow("Champ de nom :", self.champ_axe)
+        f.addRow("Champ du nom de l'axe :", self.champ_axe)
 
         self.combo_sens_axe = QComboBox()
+        self.combo_sens_axe.setAccessibleName("Sens de dessin de l'axe")
         self.combo_sens_axe.addItems(["amont_aval", "aval_amont"])
         self.combo_sens_axe.setToolTip(
-            "amont_aval si l'axe est dessiné dans le sens de l'écoulement.")
-        f.addRow("Sens de l'axe :", self.combo_sens_axe)
+            "amont_aval : tracé dans le sens de l'écoulement. "
+            "aval_amont : tracé dans le sens opposé.")
+        f.addRow("Sens du tracé :", self.combo_sens_axe)
 
         self.spin_pk_origine = QDoubleSpinBox()
+        self.spin_pk_origine.setAccessibleName("PK d'origine, en mètres")
         self.spin_pk_origine.setRange(-1_000_000, 1_000_000)
         self.spin_pk_origine.setDecimals(1)
         self.spin_pk_origine.setSuffix(" m")
         f.addRow("PK d'origine :", self.spin_pk_origine)
-        # La consigne sur l'axe est DITE UNE FOIS, en infobulle du groupe. Elle
-        # figurait AUSSI en clair sous le formulaire, mot pour mot : deux
-        # exemplaires d'une meme phrase se lisent comme deux consignes, et on
-        # cherche en quoi elles different.
         return groupe_axe
 
     def _groupe_precision(self):
-        groupe_param = QGroupBox("Précision attendue")
+        groupe_param = QGroupBox("Précision du calage")
         f2 = formulaire(groupe_param)
         # La PRECISION ATTENDUE se saisit, en pourcentage : c'est ce que
         # l'hydraulicien juge, et cela depend de l'etude. La forme, elle, n'est
@@ -2777,11 +2787,9 @@ class DialogueParametrage(QDialog):
         # On dit donc les deux sens, et les etiquettes nomment ce qu'elles
         # demandent au lieu de repeter le mot « precision ».
         rappel = QLabel(
-            "Le calage s'arrête quand le <b>volume</b>, le <b>débit de "
-            "pointe</b> et la <b>forme</b> sont conformes en même temps. "
-            "Les résultats sont rapportés en <b>pourcentage d'atteinte de la "
-            "cible</b> — 100 % est le juste ; ci-dessous se saisit l'<b>écart "
-            "admis</b> autour de ces 100 %.")
+            "Le volume, la pointe et la forme doivent être conformes ensemble. "
+            "Saisissez les <b>écarts admis à la cible</b> : une tolérance de "
+            "5 % autorise une atteinte comprise entre 95 et 105 %.")
         rappel.setWordWrap(True)
         f2.addRow(rappel)
 
@@ -2796,7 +2804,7 @@ class DialogueParametrage(QDialog):
             "la fenêtre du hydrogramme PRINCIPAL uniquement (une mini-crue "
             "avant/après l'événement calé n'entre pas dans ce calcul). "
             "5 % est la valeur du guide.")
-        f2.addRow("Écart admis sur le volume :", self.spin_tol_volume)
+        f2.addRow("Écart de &volume admis :", self.spin_tol_volume)
 
         self.spin_tol_pic = QDoubleSpinBox()
         self.spin_tol_pic.setRange(0.05, 20.0)
@@ -2808,7 +2816,10 @@ class DialogueParametrage(QDialog):
             "Écart admis sur le débit de pointe. Il a sa propre tolérance "
             "parce qu'il dimensionne l'aléa : un volume juste avec une pointe "
             "fausse ne serait pas conservatif.")
-        f2.addRow("Écart admis sur le débit de pointe :", self.spin_tol_pic)
+        f2.addRow("Écart de &pointe admis :", self.spin_tol_pic)
+        f2.addRow(texte_aide(
+            "Les résultats expriment l’atteinte de la cible : 100 % correspond "
+            "à la cible exacte. Le critère de forme n’est pas réglable ici."))
 
         # CE SEUIL N'EST PAS UNE TOLERANCE DE CALAGE, et le libelle doit le
         # dire : il porte sur la CONSERVATION DE LA MASSE par HEC-RAS, pas
@@ -2830,8 +2841,12 @@ class DialogueParametrage(QDialog):
             "corrige pas un apport pour compenser une erreur du solveur.\n\n"
             "Si un calcul dépasse ce seuil, le vrai remède est de resserrer "
             "le pas de calcul du plan, pas de desserrer ce chiffre.")
-        f2.addRow("Bilan de masse admis (qualité du calcul) :",
+        f2.addRow(QLabel("<b>Qualité du calcul HEC-RAS</b>"))
+        f2.addRow("Erreur de &bilan de masse admise :",
                   self.spin_bilan_masse)
+        f2.addRow(texte_aide(
+            "Au-delà de ce seuil, l’essai est rejeté avant comparaison à la "
+            "cible. Vérifiez le pas de calcul avant d’augmenter cette limite."))
 
         self.spin_nb_max_essais = QSpinBox()
         self.spin_nb_max_essais.setRange(3, 50)
@@ -2839,7 +2854,7 @@ class DialogueParametrage(QDialog):
         self.spin_nb_max_essais.setToolTip(
             "Garde-fou de dernier recours, non le mode d'arrêt normal : la "
             "concordance s'obtient en trois à quatre essais.")
-        f2.addRow("Nombre max d'essais par apport :", self.spin_nb_max_essais)
+        f2.addRow("Maximum d’&essais par apport :", self.spin_nb_max_essais)
 
         # L'HYPOTHESE SUR LA PENTE etait dite ici ; elle est desormais dite a
         # l'onglet 4, dans le groupe « Classeur » — c'est la qu'on ouvre le
@@ -2856,16 +2871,21 @@ class DialogueParametrage(QDialog):
         groupe_actions = QGroupBox("Excel des hydrogrammes objectifs")
         v_classeur = QVBoxLayout(groupe_actions)
         v_classeur.setSpacing(8)
+        consigne = QLabel(
+            "Dans la feuille <b>Cibles</b>, saisissez un hydrogramme par section. "
+            "Enregistrez l’Excel, puis relancez le contrôle en bas de la fenêtre.")
+        consigne.setWordWrap(True)
+        v_classeur.addWidget(consigne)
         ligne_classeur = QHBoxLayout()
         ligne_classeur.setSpacing(8)
-        bouton_ouvrir = QPushButton("Ouvrir l'Excel…")
+        bouton_ouvrir = QPushButton("Ouvrir les &objectifs dans Excel…")
         bouton_ouvrir.setToolTip(
             "C'est dans sa feuille Cibles que se saisissent les hydrogrammes "
             "objectifs, une colonne par section.")
         bouton_ouvrir.clicked.connect(self._ouvrir_classeur)
         ligne_classeur.addWidget(bouton_ouvrir)
         bouton_recontroler = QPushButton(
-            "Reprendre l'Excel d'un calcul précédent…")
+            "Reprendre un Excel existant…")
         bouton_recontroler.setToolTip(
             "Rejoue tous les contrôles sur un fichier composé lors d'une "
             "autre session, sans rien recomposer. Les chemins des shapefiles "
@@ -2879,18 +2899,25 @@ class DialogueParametrage(QDialog):
         # ou elle se corrige. Elle est desormais PRE-REMPLIE a la composition,
         # d'ou « à ajuster si besoin » : ce n'est plus une case vide a
         # comprendre, c'est une valeur proposee qu'on peut refuser.
-        v_classeur.addWidget(texte_aide(
+        bouton_pente = QPushButton("Hypothèse de pente des apports")
+        bouton_pente.setCheckable(True)
+        bouton_pente.setToolTip("Afficher le calcul de la pente proposée et les cas où l’ajuster.")
+        detail_pente = texte_aide(
             "<b>Pente des apports</b> — colonne « Pente_m_par_m », feuille "
             "Correspondance. <b>Pré-remplie</b> à la composition : pente "
             "moyenne du fond sur ±200 m autour de l'injection, majorée de "
             "20 %. À ajuster si besoin — une valeur saisie n'est jamais "
-            "écrasée par une recomposition.",
+            "écrasée par une recomposition.<br><br>"
             "HEC-RAS s'en sert pour répartir le débit entre les mailles que "
             "la ligne recoupe. Une pente sous-estimée concentre l'injection "
             "au lieu de l'étaler : la majoration va dans le sens de la "
-            "prudence. Elle dépend du tronçon, d'où la saisie par apport.\n"
+            "prudence. Elle dépend du tronçon, d'où la saisie par apport.<br><br>"
             "Laissée vide — profil trop court ou géométrie non prétraitée — "
-            "le calage la déduit lui-même, comme avant."))
+            "le calage la déduit lui-même, comme avant.")
+        detail_pente.setVisible(False)
+        bouton_pente.toggled.connect(detail_pente.setVisible)
+        v_classeur.addWidget(bouton_pente, 0, Qt.AlignmentFlag.AlignLeft)
+        v_classeur.addWidget(detail_pente)
         return groupe_actions
 
     # --- Onglet 3 : Objectifs et precision -----------------------------------
@@ -2908,8 +2935,6 @@ class DialogueParametrage(QDialog):
 
 
 
-        v.addWidget(self._groupe_precision())
-
         # LE CONTROLE EST REDESCENDU AU BAS DE LA FENETRE (0.7.24, demande
         # utilisateur), a cote de « Fermer », ou il vivait avant la 0.7.19.
         # Voir _bouton_controle_parametrage : quatre demenagements en cinq
@@ -2917,6 +2942,7 @@ class DialogueParametrage(QDialog):
         # onglet — il consomme les trois premiers et prepare le quatrieme.
         v.addWidget(self._groupe_classeur())
         v.addWidget(self._groupe_ce_que_portent_les_cibles())
+        v.addWidget(self._groupe_precision())
         v.addStretch(1)
         return page
 
@@ -3032,23 +3058,34 @@ class DialogueParametrage(QDialog):
         v = QVBoxLayout(page)
         v.setSpacing(10)
 
-        groupe = QGroupBox("Répertoires")
+        consigne = QLabel(
+            "Choisissez où enregistrer le paquet de calage, puis indiquez "
+            "si les plans d’étape doivent être conservés après livraison.")
+        consigne.setWordWrap(True)
+        v.addWidget(consigne)
+        groupe = QGroupBox("Dossier de sortie")
         f = formulaire(groupe)
         ligne = QHBoxLayout()
         ligne.setSpacing(6)
         self.edit_dossier_sortie = QLineEdit()
         self.edit_dossier_sortie.setPlaceholderText(
-            "Où écrire les shapefiles et le classeur")
+            "Dossier du paquet : shapefiles et Excel des objectifs")
         self.edit_dossier_sortie.textChanged.connect(self._maj_resume)
-        bouton = QPushButton("Parcourir…")
+        bouton = QPushButton("Choisir le dossier…")
         bouton.clicked.connect(self._parcourir_dossier_sortie)
         ligne.addWidget(self.edit_dossier_sortie, 1)
         ligne.addWidget(bouton)
-        f.addRow("Dossier de sortie :", ligne)
+        etiquette_dossier = QLabel("&Emplacement :")
+        etiquette_dossier.setBuddy(self.edit_dossier_sortie)
+        f.addRow(etiquette_dossier, ligne)
+
+        detail_dossiers = QWidget()
+        fd = formulaire(detail_dossiers)
+        fd.setContentsMargins(0, 0, 0, 0)
 
         self.edit_sous_dossier_resultats = QLineEdit("resultats_finaux")
         self.edit_sous_dossier_resultats.textChanged.connect(self._maj_resume)
-        f.addRow("Sous-dossier — résultats :",
+        fd.addRow("Résultats &finaux :",
                  self.edit_sous_dossier_resultats)
 
         self.edit_sous_dossier_suivi = QLineEdit("suivi")
@@ -3059,11 +3096,19 @@ class DialogueParametrage(QDialog):
         # continuait de regarder l'ancien, sans rien dire.
         for _champ in (self.edit_dossier_sortie, self.edit_sous_dossier_suivi):
             _champ.textChanged.connect(self._oublier_dossier_suivi)
-        f.addRow("Sous-dossier — suivi :", self.edit_sous_dossier_suivi)
+        fd.addRow("&Suivi du calage :", self.edit_sous_dossier_suivi)
+        fd.addRow(texte_aide(
+            "Ces sous-dossiers sont créés dans le dossier de sortie. Le suivi "
+            "conserve avancement.md, avancement.png et le classeur d’itérations, "
+            "consultables depuis un autre poste."))
+        bouton_dossiers = QPushButton("Personnaliser les sous-dossiers")
+        bouton_dossiers.setCheckable(True)
+        bouton_dossiers.toggled.connect(detail_dossiers.setVisible)
+        detail_dossiers.setVisible(False)
+        f.addRow(bouton_dossiers)
+        f.addRow(detail_dossiers)
         f.addRow(texte_aide(
-            "L'avancement se lit à l'onglet 5 pendant le calcul. Ce dossier "
-            "en porte la trace sur disque — avancement.md, avancement.png et "
-            "le classeur d'itérations — consultable depuis un autre poste."))
+            "Pendant le calcul, consultez l’étape Suivi pour lire l’avancement."))
         v.addWidget(groupe)
 
         # « RELIRE UN HYDROGRAMME DEJA CALCULE » A QUITTE LA FENETRE (0.7.22,
@@ -3076,14 +3121,12 @@ class DialogueParametrage(QDialog):
         # LE MENAGE VIT ICI, PAS A L'ONGLET 1. L'onglet 1 prepare le modele
         # AVANT le calage ; celui-ci parle de ce que le calage a PRODUIT, et
         # l'elagage se decide une fois les livrables en main.
-        groupe_menage = QGroupBox("Ménage du modèle HEC-RAS")
+        groupe_menage = QGroupBox("Conservation des plans d’étape")
         fm = formulaire(groupe_menage)
         fm.addRow(texte_aide(
-            "Le calage garde un plan par étape — « …_sans_apport », puis un "
-            "par apport — pour documenter ce qu'il a obtenu et pouvoir "
-            "reprendre une séquence interrompue. Une fois le calage livré, "
-            "ils ne servent plus qu'à occuper le disque : un modèle à trente "
-            "apports en garde trente et un jeux de résultats."))
+            "Les plans d’étape documentent le calage et permettent sa reprise : "
+            "un plan « …_sans_apport », puis un par apport. Par exemple, trente "
+            "apports produisent trente et un jeux de résultats intermédiaires."))
         # UNE CASE, PAS UN BOUTON (0.7.22, demande utilisateur). Le bouton
         # elaguait APRES COUP : il fallait y penser une fois le calage fini,
         # et revenir dans la fenetre pour cela. La case se coche AVANT, avec
@@ -3091,7 +3134,7 @@ class DialogueParametrage(QDialog):
         # calage — au moment ou le plan final existe, donc ou l'operation est
         # sure.
         self.case_elaguer = QCheckBox(
-            "Élaguer les plans d'étape à la fin du calage")
+            "Supprimer les plans d’étape après un calage réussi")
         self.case_elaguer.setToolTip(
             "Retire les plans d'étape du calage — eux seuls. Le plan de "
             "référence, le plan final « …_avec_apports » et tout plan qui "
@@ -3111,31 +3154,36 @@ class DialogueParametrage(QDialog):
         self._dire_elagage()
         v.addWidget(groupe_menage)
 
-        groupe_resume = QGroupBox("Résumé de la configuration")
+        groupe_resume = QWidget()
         v2 = QVBoxLayout(groupe_resume)
+        v2.setContentsMargins(0, 0, 0, 0)
+        bouton_resume = QPushButton("Afficher la configuration complète")
+        bouton_resume.setCheckable(True)
+        v2.addWidget(bouton_resume, 0, Qt.AlignmentFlag.AlignLeft)
         self.texte_resume = QTextEdit()
         self.texte_resume.setObjectName("resume")
         self.texte_resume.setReadOnly(True)
-        self.texte_resume.setMinimumHeight(180)
+        self.texte_resume.setMinimumHeight(160)
+        self.texte_resume.setVisible(False)
+        bouton_resume.toggled.connect(self.texte_resume.setVisible)
         v2.addWidget(self.texte_resume)
-        v.addWidget(groupe_resume, 1)
+        v.addWidget(groupe_resume)
+        v.addStretch(1)
 
         return page
 
     def _dire_elagage(self):
-        """
-        Dit ce qu'il adviendra des plans intermediaires, en toutes lettres.
-
-        LE MOT QUI COMPTE EST EN ROUGE ET EN GRAS, dans les deux sens :
-        « conservés » comme « supprimés ». Ce n'est pas une alerte — c'est
-        l'endroit ou l'oeil doit tomber, et l'on ne sait pas d'avance laquelle
-        des deux issues surprendra le lecteur.
-        """
+        """La conservation est un choix normal ; seule la suppression alerte."""
         supprime = self.case_elaguer.isChecked()
-        mot = "supprimés" if supprime else "conservés"
-        self.label_elagage.setText(
-            f"Les plans intermédiaires seront "
-            f"<b style='color:{ISL_ROUGE}'>{mot}</b>.")
+        if supprime:
+            self.label_elagage.setText(
+                f"Plans d’étape <b style='color:{ISL_ROUGE}'>supprimés</b> "
+                "uniquement si le calage aboutit. Le plan de référence, le plan "
+                "final « …_avec_apports » et les plans hors chaîne sont conservés.")
+        else:
+            self.label_elagage.setText(
+                "<b>Plans d’étape conservés.</b> Vous pourrez consulter les résultats "
+                "intermédiaires et reprendre une séquence interrompue.")
 
     def _ecrire_dans_geometrie(self):
         """
@@ -3249,12 +3297,12 @@ class DialogueParametrage(QDialog):
         v = QVBoxLayout(page)
         v.setSpacing(10)
 
-        groupe = QGroupBox("Validation de la dernière composition")
+        groupe = QGroupBox("Préparation du lancement")
         f = formulaire(groupe)
-        self.label_validation_comptes = QLabel("(pas encore composé)")
+        self.label_validation_comptes = QLabel("À composer")
         self.label_validation_comptes.setWordWrap(True)
         f.addRow("Apports appariés :", self.label_validation_comptes)
-        self.label_validation_classeur = QLabel("(pas encore composé)")
+        self.label_validation_classeur = QLabel("À composer")
         self.label_validation_classeur.setWordWrap(True)
         self.label_validation_classeur.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse)
@@ -3263,14 +3311,14 @@ class DialogueParametrage(QDialog):
         # « Classeur » ici donnerait a lire deux fichiers la ou il n'y en a
         # qu'un.
         f.addRow("Excel des objectifs :", self.label_validation_classeur)
-        self.label_validation_cibles = QLabel("(pas encore composé)")
+        self.label_validation_cibles = QLabel("À renseigner dans l’Excel des objectifs")
         self.label_validation_cibles.setWordWrap(True)
         f.addRow("Hydrogrammes cibles :", self.label_validation_cibles)
         v.addWidget(groupe)
 
         self.label_prochaine_etape = texte_etat(
-            "Composer le paquet — bouton en bas de la fenêtre — pour voir "
-            "apparaître ici l'étape suivante.")
+            "Utilisez « Contrôle paramétrage » en bas de la fenêtre pour "
+            "composer le paquet et vérifier les données avant le lancement.")
         v.addWidget(self.label_prochaine_etape)
 
 
@@ -3280,21 +3328,28 @@ class DialogueParametrage(QDialog):
         # apres.
         v.addWidget(self._groupe_copies_de_travail())
 
-        groupe_lancer = QGroupBox("Calage")
+        groupe_lancer = QGroupBox("Lancer le calage")
         vl = QVBoxLayout(groupe_lancer)
         vl.setSpacing(8)
+        explication = QLabel(
+            "Le calage traite les apports successivement en arrière-plan. "
+            "Il peut durer plusieurs heures ; QGIS reste utilisable. "
+            "L’étape <b>Suivi</b> affiche automatiquement son avancement.")
+        explication.setWordWrap(True)
+        vl.addWidget(explication)
         ligne_lancer = QHBoxLayout()
         bouton_lancer = QPushButton("Lancer le calage")
         bouton_lancer.setObjectName("boutonAccent")
-        bouton_lancer.setMinimumWidth(190)
         bouton_lancer.setToolTip(
             "Lance la boucle séquentielle complète dans un processus "
             "détaché. QGIS reste utilisable pendant le calcul ; l'avancement "
             "se lit à l'onglet 5, qui se rafraîchit tout seul.")
         bouton_lancer.clicked.connect(self._lancer_calage)
         ligne_lancer.addWidget(bouton_lancer)
-        ligne_lancer.addWidget(texte_aide(
-            "En arrière-plan, plusieurs heures. QGIS reste utilisable."), 1)
+        bouton_suivi = QPushButton("Consulter le suivi")
+        bouton_suivi.clicked.connect(lambda: self.onglets.setCurrentIndex(4))
+        ligne_lancer.addWidget(bouton_suivi)
+        ligne_lancer.addStretch(1)
         vl.addLayout(ligne_lancer)
         self.label_lancement = texte_etat()
         vl.addWidget(self.label_lancement)
@@ -3560,9 +3615,9 @@ class DialogueParametrage(QDialog):
         le dit donc, au lieu de laisser deviner.
         """
         if not self.classeur:
-            return "onglet 3"
+            return "onglet Sorties"
         cache = getattr(self, "_suivi_du_classeur", None)
-        return "classeur" if cache and cache[1] is not None else "onglet 3"
+        return "classeur" if cache and cache[1] is not None else "onglet Sorties"
 
     def _dossier_suivi_de_l_onglet_3(self):
         """Ce que les champs de l'onglet 3 designent, ou None."""
@@ -3628,7 +3683,7 @@ class DialogueParametrage(QDialog):
             QMessageBox.information(
                 self, "Suivi",
                 "Aucun dossier de suivi : renseigner le dossier de sortie "
-                "(onglet 3), puis composer le paquet.")
+                 "(onglet Sorties), puis composer le paquet.")
             return
         os.startfile(str(dossier))  # noqa: S606 (usage Windows assume)
 
@@ -3656,7 +3711,7 @@ class DialogueParametrage(QDialog):
         autre = self._dossier_suivi_de_l_onglet_3()
         if autre is None or Path(autre) == Path(dossier):
             return ""
-        return (f"<br>L'onglet 3 en désigne un autre — <i>{autre}</i> — qui "
+        return (f"<br>L'onglet Sorties en désigne un autre — <i>{autre}</i> — qui "
                 f"n'est pas surveillé : c'est le classeur lancé qui fait foi. "
                 f"Recomposer le paquet pour que les deux s'accordent.")
 
@@ -3980,23 +4035,22 @@ class DialogueParametrage(QDialog):
         """
         page = QWidget()
         v = QVBoxLayout(page)
+        v.setSpacing(10)
 
         texte = QTextBrowser()
         texte.setOpenExternalLinks(False)
         # Le style de l'aide suit la charte, mais ne fixe aucun fond : le
         # QTextBrowser herite ainsi du theme clair ou sombre de QGIS.
         texte.setHtml(
-            f"<style>"
-            f"body {{ font-family: {POLICE_ISL}; line-height: 1.5; }}"
-            f"h2 {{ color: {ISL_TEAL}; font-size: 14pt; margin-bottom: 1px; }}"
-            f"h3 {{ color: {ISL_ARDOISE}; font-size: 10.5pt; "
-            f"      margin-top: 18px; margin-bottom: 2px; }}"
-            f"p {{ margin-top: 4px; margin-bottom: 4px; }}"
-            f"b {{ color: {ISL_TEAL_SOMBRE}; }}"
-            f"li {{ margin-bottom: 6px; }}"
-            f"tt {{ color: {ISL_ARDOISE}; }}"
-            f"</style>" + AIDE_HTML)
-        v.addWidget(texte, 1)
+            "<style>"
+            "body { line-height: 1.5; }"
+            "h2 { margin-bottom: 4px; }"
+            "h3 { margin-top: 16px; margin-bottom: 4px; }"
+            "p { margin-top: 4px; margin-bottom: 4px; }"
+            "li { margin-bottom: 6px; }"
+            "</style>" + AIDE_HTML)
+        texte.setAccessibleName("Mode opératoire du calage des apports")
+        texte.setMinimumHeight(240)
 
         # PARAMETRES DU POSTE.
         #
@@ -4009,16 +4063,24 @@ class DialogueParametrage(QDialog):
         # que pour le cas contraire : sans lui, désigner l'interpréteur
         # supposait de quitter QGIS, modifier une variable d'environnement
         # système et relancer.
-        groupe = QGroupBox("Paramètres du poste")
+        groupe = QGroupBox("Diagnostic et paramètres du poste")
         fp = formulaire(groupe)
         fp.addRow(texte_aide(
-            "Détectés automatiquement, et retenus d'une session à l'autre. "
-            "À renseigner seulement si le diagnostic les signale absents."))
+            "Les emplacements sont détectés et mémorisés automatiquement. "
+            "Vérifiez l’environnement ; renseignez-les seulement s’ils sont absents."))
+        bouton = QPushButton("Vérifier l’environnement")
+        bouton.clicked.connect(self._diagnostic)
+        ligne_diag = QHBoxLayout()
+        ligne_diag.addWidget(bouton)
+        ligne_diag.addStretch(1)
+        fp.addRow(ligne_diag)
+        self.label_diagnostic = texte_etat()
+        fp.addRow(self.label_diagnostic)
 
         self.label_chaine = QLabel("")
         self.label_chaine.setWordWrap(True)
         self.label_chaine.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        bouton_chaine = QPushButton("Désigner…")
+        bouton_chaine = QPushButton("Choisir le dossier…")
         bouton_chaine.setToolTip(
             "Dossier contenant criteres.py, geometrie.py, controle_donnees.py, "
             "livrables.py et pont_hecras.py.")
@@ -4032,7 +4094,7 @@ class DialogueParametrage(QDialog):
         self.label_interpreteur.setWordWrap(True)
         self.label_interpreteur.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse)
-        bouton_interp = QPushButton("Désigner…")
+        bouton_interp = QPushButton("Choisir un Python…")
         bouton_interp.setToolTip(
             "python.exe d'un environnement disposant de ras-commander et "
             "h5py. C'est lui qui pilote HEC-RAS : QGIS ne peut pas le faire "
@@ -4057,15 +4119,8 @@ class DialogueParametrage(QDialog):
         ligne_interp.addWidget(bouton_interp)
         fp.addRow("Interpréteur HEC-RAS :", ligne_interp)
 
-        bouton = QPushButton("Vérifier l'environnement")
-        bouton.clicked.connect(self._diagnostic)
-        ligne_diag = QHBoxLayout()
-        ligne_diag.addWidget(bouton)
-        ligne_diag.addStretch(1)
-        fp.addRow(ligne_diag)
-        self.label_diagnostic = texte_etat()
-        fp.addRow(self.label_diagnostic)
         v.addWidget(groupe)
+        v.addWidget(texte, 1)
         self._maj_parametres_poste()
         return page
 

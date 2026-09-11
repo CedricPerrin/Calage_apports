@@ -3,6 +3,15 @@
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 
+Version des sources du plugin : **0.8.0**. La
+[note d’ergonomie du 11 septembre 2026](docs/ergonomie_2026-09-11.md)
+décrit le parcours, les choix d’interface et les points de recette.
+
+La version 0.8.0 a passé **248 contrôles Qt** et **30 scénarios d'affichage**
+dans QGIS 3.44.8, dont petites fenêtres, thème sombre et écran à 150 %.
+La chaîne hydraulique reste inchangée ; aucun nouveau calage réel n'a été
+lancé pour cette révision. [Mesures de la recette](docs/ergonomie_2026-09-11-mesures.json).
+
 Pour chaque apport, de l'amont vers l'aval : estimer, calculer, comparer à la
 cible, corriger, répéter jusqu'à concordance, puis vérifier la cohérence des
 sections amont avant de passer au suivant.
@@ -20,7 +29,8 @@ Le calage laisse dans le modèle **un plan HEC-RAS par étape** —
 `Q100_sans_apport`, `Q100_Apport_A1`… puis `Q100_avec_apports`, qui n'est pas un
 clone mais la dernière étape retitrée, avec ses résultats. Ils sont conservés :
 ils documentent le calage et permettent de reprendre une séquence interrompue.
-L'onglet 3 les élague **sur demande**, une fois le calage livré.
+Dans **Sorties**, une case permet leur suppression **sur demande**,
+uniquement après un calage réussi.
 
 La boucle ([src/calage.py](src/calage.py)) est **indépendante du solveur** : elle
 n'en connaît qu'une interface de neuf méthodes, dont six à écrire. Elle est donc
@@ -110,56 +120,60 @@ référence, la seconde en **aval** de la première.
 
 ## La fenêtre du plugin
 
-Six onglets, dans l'ordre des décisions. Les images ci-dessous sont refaites
-par [src/captures_plugin.py](src/captures_plugin.py), avec un projet de
-démonstration : elles suivent donc l'interface au lieu de dater d'un jour où
-quelqu'un a pensé à appuyer sur *Impr. écran*.
+Six rubriques : **Modèle → Sorties → Objectifs → Lancer → Suivi**, puis
+**Aide**. Les commandes de navigation et **Contrôle paramétrage** restent
+accessibles en bas de la fenêtre. Les pages longues défilent ; les détails
+secondaires se déplient à la demande. Les images sont produites avec un
+projet de démonstration par [src/captures_plugin.py](src/captures_plugin.py).
 
 **1. Modèle** — le projet HEC-RAS (**on désigne le fichier `.prj`, pas le
 dossier**), le plan de référence, la géométrie, la zone 2D, le **profil en
 long** — l'axe, son sens, le PK d'origine — et la fenêtre de simulation. C'est
-d'ici que les couches du modèle arrivent sur la carte, éditables, et l'onglet
-ce qu'on y dessine est écrit dans la géométrie par le bouton du bas.
+d'ici que les couches du modèle arrivent sur la carte, éditables. Ce qu'on
+y dessine est écrit dans la géométrie par le bouton du bas.
 
 ![Onglet 1 — Modèle](docs/captures/onglet_1_modele.png)
 
-**2. Résultats** — dossiers de sortie et de suivi, résumé de la configuration,
-et le **ménage du modèle** : une case décide si les plans d'étape sont
-conservés ou supprimés à la fin du calage, et l'encadré le dit en toutes
-lettres.
+**2. Sorties** — dossier de sortie, sous-dossiers personnalisables et
+configuration complète consultable à la demande. Les plans d’étape sont
+**conservés par défaut** ; la case de suppression précise son effet et ne
+s’applique qu’après un calage réussi.
 
-![Onglet Résultats](docs/captures/onglet_3_resultats.png)
+![Onglet Sorties](docs/captures/onglet_2_sorties.png)
 
-**3. Objectifs et précision** — l'**écart admis** sur le volume et sur le débit
-de pointe (le résultat, lui, se lit en pourcentage d'atteinte de la cible), le
-nombre maximal d'essais, l'Excel des hydrogrammes objectifs, et **ce que ces
-hydrogrammes portent** une fois l'Excel validé : débit de pointe, heure du pic
+**3. Objectifs** — ouvrir ou reprendre l’Excel des hydrogrammes objectifs,
+puis vérifier **ce que ces hydrogrammes portent** une fois l’Excel validé :
+débit de pointe, heure du pic
 et volume de chaque apport. Une cible collée dans la mauvaise colonne, un
 facteur d'unité ou une colonne restée vide s'y voient avant les heures de
-calcul.
+calcul. La précision distingue l’**écart admis à la cible** de l’erreur de
+bilan de masse HEC-RAS. Le nombre maximal d’essais reste réglable ; le
+résultat se lit en pourcentage d’atteinte de la cible.
 
-![Onglet Objectifs et précision](docs/captures/onglet_2_objectifs.png)
+![Onglet Objectifs](docs/captures/onglet_3_objectifs.png)
 
 **4. Lancer** — l'appariement apport → section, l'état des cibles, le premier
 apport à caler, le **préfixe de scénario** — **obligatoire** : sans lui, caler
 le Q10 après le Q100 sur le même modèle effacerait les plans du Q100 —, puis le
-lancement.
+lancement, expliqué avant son activation. Un accès direct permet de
+consulter le suivi.
 
 ![Onglet 4 — Lancer](docs/captures/onglet_4_lancer.png)
 
 **5. Suivi** — où en est le calcul, apport par apport, rafraîchi tout seul. Le
 dossier surveillé est nommé en permanence : c'est celui que désigne l'Excel
-lancé, pas celui de l'onglet Résultats. La courbe porte la cible et la
-section de
-l'apport en cours, et **derrière, en vert pointillé, les sections déjà
+lancé. Les champs de **Sorties** préparent la prochaine composition. La
+courbe porte la cible et la section de l’apport en cours, et **derrière,
+en vert pointillé, les sections déjà
 calées** : c'est la famille de courbes qui dit si tout se tient.
 
 ![Onglet 5 — Suivi](docs/captures/onglet_5_suivi.png)
 
-**Aide et configuration** — mode opératoire avec sommaire, pièges connus, et les
-deux emplacements du poste : chaîne de calage et interpréteur HEC-RAS.
+**Aide** — diagnostic et paramètres du poste immédiatement accessibles,
+puis mode opératoire avec sommaire et pièges connus. Les emplacements de la
+chaîne de calage et de l’interpréteur HEC-RAS y restent configurables.
 
-![Onglet Aide et configuration](docs/captures/onglet_6_aide.png)
+![Onglet Aide](docs/captures/onglet_6_aide.png)
 
 Le bouton **« Contrôle paramétrage »** est permanent, au bas de la fenêtre à
 côté de *Fermer* : il consomme les trois premiers onglets et prépare le
@@ -167,11 +181,11 @@ quatrième, il n'appartient donc à aucun. Il écrit dans la géométrie HEC-RAS
 compose le paquet et lance les contrôles, dans cet ordre — et la première de
 ces trois choses est le seul geste irréversible de la fenêtre. **Vert** dès
 que tout ce qu'il consomme est prêt, **gris** tant qu'il manque quelque
-chose, avec le manquant en infobulle.
+chose. L’état de préparation indique ce qu’il reste à renseigner ; le
+contrôle conserve ses garde-fous métier.
 
-**Les captures ci-dessus datent de la 0.7.19** : elles montrent encore
-l'ancien ordre des onglets 2 et 3, et le bouton dans un encadré. Les refaire
-demande QGIS — `python src/captures_plugin.py` sous son interpréteur.
+La recette et la construction du ZIP sont distinctes de cette description
+de l’interface. Le bilan courant est consigné dans [STATUT.txt](STATUT.txt).
 
 ## Licence
 

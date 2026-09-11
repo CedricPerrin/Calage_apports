@@ -1,0 +1,473 @@
+{
+  "qgis": "3.44.8",
+  "date": "2026-09-11",
+  "contexte": "Profil TEST, projet vide ; aucune simulation HEC-RAS lancée",
+  "git_reference": "bfff3fe0d9fa5f8fa250cdbd41875c445a368319",
+  "tests_qt": {"reussis": 248, "echecs": 0, "code_sortie": 0, "modele_reel": false},
+  "archive": {
+    "version": "0.8.0", "fichiers": 21, "sources_identiques": 20,
+    "fichiers_installes_identiques": 21,
+    "sha256": "417775215b17fb6b712bb319bbd768bbb0a0c84143fcebc15cf3925959194bf0"
+  },
+  "affichage": [
+    {
+      "scenario": "normal-1",
+      "dimensions": [
+        940,
+        760
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.0,
+      "fond": "#f0f0f0",
+      "police_champ": 10.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 226,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    },
+    {
+      "scenario": "normal-2",
+      "dimensions": [
+        940,
+        760
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.0,
+      "fond": "#f0f0f0",
+      "police_champ": 10.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 0,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    },
+    {
+      "scenario": "normal-3",
+      "dimensions": [
+        940,
+        760
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.0,
+      "fond": "#f0f0f0",
+      "police_champ": 10.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 39,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    },
+    {
+      "scenario": "normal-4",
+      "dimensions": [
+        940,
+        760
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.0,
+      "fond": "#f0f0f0",
+      "police_champ": 10.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 0,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    },
+    {
+      "scenario": "normal-5",
+      "dimensions": [
+        940,
+        760
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.0,
+      "fond": "#f0f0f0",
+      "police_champ": 10.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 615,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    },
+    {
+      "scenario": "normal-6",
+      "dimensions": [
+        940,
+        760
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.0,
+      "fond": "#f0f0f0",
+      "police_champ": 10.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 0,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    },
+    {
+      "scenario": "petit-1",
+      "dimensions": [
+        800,
+        620
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.0,
+      "fond": "#f0f0f0",
+      "police_champ": 10.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 366,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    },
+    {
+      "scenario": "petit-2",
+      "dimensions": [
+        800,
+        620
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.0,
+      "fond": "#f0f0f0",
+      "police_champ": 10.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 5,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    },
+    {
+      "scenario": "petit-3",
+      "dimensions": [
+        800,
+        620
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.0,
+      "fond": "#f0f0f0",
+      "police_champ": 10.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 211,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    },
+    {
+      "scenario": "petit-4",
+      "dimensions": [
+        800,
+        620
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.0,
+      "fond": "#f0f0f0",
+      "police_champ": 10.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 54,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    },
+    {
+      "scenario": "petit-5",
+      "dimensions": [
+        800,
+        620
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.0,
+      "fond": "#f0f0f0",
+      "police_champ": 10.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 755,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    },
+    {
+      "scenario": "petit-6",
+      "dimensions": [
+        800,
+        620
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.0,
+      "fond": "#f0f0f0",
+      "police_champ": 10.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 88,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    },
+    {
+      "scenario": "sombre-1",
+      "dimensions": [
+        940,
+        760
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.0,
+      "fond": "#323232",
+      "police_champ": 10.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 254,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    },
+    {
+      "scenario": "sombre-2",
+      "dimensions": [
+        940,
+        760
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.0,
+      "fond": "#323232",
+      "police_champ": 10.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 0,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    },
+    {
+      "scenario": "sombre-3",
+      "dimensions": [
+        940,
+        760
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.0,
+      "fond": "#323232",
+      "police_champ": 10.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 75,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    },
+    {
+      "scenario": "sombre-4",
+      "dimensions": [
+        940,
+        760
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.0,
+      "fond": "#323232",
+      "police_champ": 10.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 0,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    },
+    {
+      "scenario": "sombre-5",
+      "dimensions": [
+        940,
+        760
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.0,
+      "fond": "#323232",
+      "police_champ": 10.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 658,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    },
+    {
+      "scenario": "sombre-6",
+      "dimensions": [
+        940,
+        760
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.0,
+      "fond": "#323232",
+      "police_champ": 10.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 0,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    },
+    {
+      "scenario": "dpi150-1",
+      "dimensions": [
+        1000,
+        660
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.5,
+      "fond": "#f0f0f0",
+      "police_champ": 10.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 326,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    },
+    {
+      "scenario": "dpi150-2",
+      "dimensions": [
+        1000,
+        660
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.5,
+      "fond": "#f0f0f0",
+      "police_champ": 10.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 0,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    },
+    {
+      "scenario": "dpi150-3",
+      "dimensions": [
+        1000,
+        660
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.5,
+      "fond": "#f0f0f0",
+      "police_champ": 10.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 139,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    },
+    {
+      "scenario": "dpi150-4",
+      "dimensions": [
+        1000,
+        660
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.5,
+      "fond": "#f0f0f0",
+      "police_champ": 10.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 14,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    },
+    {
+      "scenario": "dpi150-5",
+      "dimensions": [
+        1000,
+        660
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.5,
+      "fond": "#f0f0f0",
+      "police_champ": 10.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 715,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    },
+    {
+      "scenario": "dpi150-6",
+      "dimensions": [
+        1000,
+        660
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.5,
+      "fond": "#f0f0f0",
+      "police_champ": 10.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 32,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    },
+    {
+      "scenario": "texte13-1",
+      "dimensions": [
+        800,
+        620
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.0,
+      "fond": "#f0f0f0",
+      "police_champ": 13.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 438,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    },
+    {
+      "scenario": "texte13-2",
+      "dimensions": [
+        800,
+        620
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.0,
+      "fond": "#f0f0f0",
+      "police_champ": 13.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 120,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    },
+    {
+      "scenario": "texte13-3",
+      "dimensions": [
+        800,
+        620
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.0,
+      "fond": "#f0f0f0",
+      "police_champ": 13.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 298,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    },
+    {
+      "scenario": "texte13-4",
+      "dimensions": [
+        800,
+        620
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.0,
+      "fond": "#f0f0f0",
+      "police_champ": 13.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 125,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    },
+    {
+      "scenario": "texte13-5",
+      "dimensions": [
+        800,
+        620
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.0,
+      "fond": "#f0f0f0",
+      "police_champ": 13.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 872,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    },
+    {
+      "scenario": "texte13-6",
+      "dimensions": [
+        800,
+        620
+      ],
+      "controle_visible": true,
+      "ratio_capture": 1.0,
+      "fond": "#f0f0f0",
+      "police_champ": 13.0,
+      "defilement_horizontal": 0,
+      "defilement_vertical": 157,
+      "onglets_visibles": true,
+      "champs_comprimes": []
+    }
+  ],
+  "navigation": {
+    "alt_droite_depuis_controle": true,
+    "alt_gauche_depuis_manuel": true,
+    "bouton_suivant": true,
+    "bouton_precedent": true,
+    "lien_etape": true,
+    "aide_f1": true,
+    "aucun_bouton_par_defaut": true
+  }
+}

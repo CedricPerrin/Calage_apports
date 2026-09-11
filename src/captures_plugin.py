@@ -24,21 +24,20 @@ DEUX PIEGES, MESURES SUR CE POSTE, POUR QUI VOUDRAIT L'AMELIORER :
     d'onglets reclamait 1212 px au lieu de 662, la fenetre s'ouvrait a 1236
     de large au lieu de 880, et l'image ne ressemblait a rien de ce que
     l'utilisateur voit. QT_FONT_DPI et QT_SCALE_FACTOR n'y changent rien.
-    Avec la plateforme reelle, la fenetre n'est jamais montree — grab() n'en
-    a pas besoin — donc rien n'apparait a l'ecran.
+    Avec la plateforme reelle et WA_DontShowOnScreen, les dispositions sont
+    activees normalement mais rien n'apparait a l'ecran.
 
   - LA POLICE DOIT ETRE POSEE A LA MAIN. Un QgsApplication construit ici
     n'herite pas de la police d'interface de QGIS : il demarre en Helvetica
-    12 pt. Il faut lui donner celle du poste, en PIXELS — un corps en points
-    depend d'un DPI que ce processus ne lit pas comme QGIS le lit.
+    12 pt. Il faut lui donner celle du poste, en points, avec un DPI fixe
+    pour que les textes du formulaire et de la feuille de style s'accordent.
 
 A LANCER AVEC LE PYTHON DE QGIS, comme test_plugin_qgis.py :
 
     "C:\\Program Files\\QGIS\\LTR\\bin\\python-qgis-ltr.bat" captures_plugin.py
 
     --onglets 1,6     ne refait que ces onglets (defaut : tous)
-    --echelle 1.8     finesse du rendu ; 1,8 rend 1584 px de large, ce que
-                      mesuraient les captures a la main
+    --echelle 1.5     finesse du rendu ; 1,5 rend 1320 px de large
 """
 import argparse
 import os
@@ -53,8 +52,10 @@ from pathlib import Path
 # a sa taille. A 96, un corps de 9 pt vaut 12 px, comme sur l'ecran de
 # reference des captures d'origine.
 os.environ["QT_FONT_DPI"] = "96"
+if sys.platform == "win32":
+    os.environ["QT_QPA_PLATFORM"] = "windows"
 
-from qgis.core import QgsApplication                            # noqa: E402
+from qgis.core import QgsApplication, QgsProject                # noqa: E402
 
 _analyseur = argparse.ArgumentParser(add_help=True)
 _analyseur.add_argument("--onglets", default="tous",
@@ -62,6 +63,8 @@ _analyseur.add_argument("--onglets", default="tous",
 _analyseur.add_argument("--echelle", type=float, default=1.8)
 _analyseur.add_argument("--sortie", default=None)
 _args = _analyseur.parse_args()
+if not 0 < _args.echelle <= 4:
+    _analyseur.error("--echelle doit etre comprise entre 0 (exclu) et 4")
 
 
 def _prefixe_qgis():
@@ -84,14 +87,18 @@ CHAINE = Path(__file__).resolve().parent
 RACINE = CHAINE.parent
 SORTIE = Path(_args.sortie) if _args.sortie else RACINE / "docs" / "captures"
 
-qgs = QgsApplication([], True)
+print("Initialisation QGIS pour les captures de demonstration…", flush=True)
+# Meme initialisation sans session QGIS que le banc d'interface : les vrais
+# widgets Qt restent disponibles, sans ouvrir une fenetre QGIS complete.
+qgs = QgsApplication([], False)
 qgs.initQgis()
 
-from qgis.PyQt.QtGui import QFont, QFontDatabase, QPixmap        # noqa: E402
+from qgis.PyQt.QtCore import QCoreApplication, QEvent, Qt        # noqa: E402
+from qgis.PyQt.QtGui import QFont, QFontDatabase, QFontInfo, QPixmap  # noqa: E402
 from qgis.PyQt.QtWidgets import (QApplication, QMainWindow,      # noqa: E402
                                  QGroupBox, QToolBar)
 
-# La police d'interface du poste, en pixels — voir l'entete.
+# La police d'interface du poste — voir l'entete.
 _familles = QFontDatabase().families()
 _police = next((f for f in ("Segoe UI", "Noto Sans", "DejaVu Sans", "Arial")
                 if f in _familles), QApplication.font().family())
@@ -99,6 +106,8 @@ _police = next((f for f in ("Segoe UI", "Noto Sans", "DejaVu Sans", "Arial")
 # textes secondaires en points. Les deux doivent parler la meme langue, sinon
 # l'un suit le DPI et l'autre non.
 QApplication.setFont(QFont(_police, 9))
+print(f"Plateforme Qt : {qgs.platformName()} ; police demandee : {_police} ; "
+      f"police resolue : {QFontInfo(qgs.font()).family()}", flush=True)
 
 # Le plugin s'importe comme un PAQUET, exactement comme le fait QGIS.
 import importlib.util                                            # noqa: E402
@@ -173,10 +182,14 @@ def peupler(dlg):
     dlg.edit_projet_hecras.setText(d["projet"])
     dlg.label_nom_projet.setText(d["detecte"])
     dlg.combo_plan.blockSignals(True)
-    dlg.combo_plan.addItem(d["plan"])
+    dlg.combo_plan.addItem(d["plan"], {"numero": "01", "titre": "Unsteady Multi  9-SA run",
+                                      "geometrie": "01", "unsteady": "01",
+                                      "fenetre": {"debut": d["debut"], "fin": d["fin"],
+                                                  **d["intervalles"]}})
     dlg.combo_plan.blockSignals(False)
-    dlg.combo_geometrie.addItem(d["geometrie"])
-    dlg.combo_unsteady.addItem(d["unsteady"])
+    dlg.combo_geometrie.addItem(d["geometrie"], {"numero": "01"})
+    dlg.combo_unsteady.addItem(d["unsteady"], {"numero": "01"})
+    dlg._maj_resume_fichiers()
     dlg.edit_sim_debut.setText(d["debut"])
     dlg.edit_sim_fin.setText(d["fin"])
     for cle, valeur in d["intervalles"].items():
@@ -228,7 +241,8 @@ def hauteur_utile(dlg, indice):
                 if e.parent() is contenu]
     if not encadres:
         return ample
-    resserre = max(e.geometry().bottom() for e in encadres) + chrome + 12
+    resserre = max(HAUTEUR_NORMALE,
+                  max(e.geometry().bottom() for e in encadres) + chrome + 12)
     if resserre >= ample:
         return ample
     dlg.resize(880, resserre)
@@ -242,18 +256,29 @@ def hauteur_utile(dlg, indice):
 # La hauteur d'ouverture de la fenetre, celle que fixe le plugin lui-meme.
 HAUTEUR_NORMALE = 720
 
-NOMS = {0: "onglet_1_modele", 1: "onglet_2_objectifs", 2: "onglet_3_resultats",
+NOMS = {0: "onglet_1_modele", 1: "onglet_2_sorties", 2: "onglet_3_objectifs",
         3: "onglet_4_lancer", 4: "onglet_5_suivi", 5: "onglet_6_aide"}
 
 demandes = (sorted(NOMS) if _args.onglets == "tous"
             else [int(n) - 1 for n in _args.onglets.split(",")])
+if any(indice not in NOMS for indice in demandes):
+    _analyseur.error("--onglets accepte uniquement les numeros 1 a 6")
 
 iface = Iface()
+print("Construction de la fenetre…", flush=True)
 dlg = mod_plugin.DialogueParametrage(iface)
+print("Preparation de l'etat de demonstration…", flush=True)
 peupler(dlg)
+# Activer les layouts comme dans QGIS, tout en gardant la fenetre hors de
+# l'ecran. Un simple render() d'une fenetre jamais montree peut conserver
+# les hauteurs de labels calculees avant le renvoi automatique a la ligne.
+dlg.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen, True)
+dlg.show()
+qgs.processEvents()
 SORTIE.mkdir(parents=True, exist_ok=True)
 
 for indice in demandes:
+    print(f"Rendu de l'onglet {indice + 1}…", flush=True)
     dlg.onglets.setCurrentIndex(indice)
     dlg.resize(880, hauteur_utile(dlg, indice))
     dlg.ensurePolished()
@@ -267,9 +292,17 @@ for indice in demandes:
     pixmap.fill()
     dlg.render(pixmap)
     chemin = SORTIE / f"{NOMS[indice]}.png"
-    pixmap.toImage().save(str(chemin), "PNG")
-    print(f"   {chemin.name:26} {pixmap.width()}x{pixmap.height()}")
+    if not pixmap.toImage().save(str(chemin), "PNG"):
+        raise OSError(f"Impossible d'ecrire la capture : {chemin}")
+    print(f"   {chemin.name:26} {pixmap.width()}x{pixmap.height()}", flush=True)
 
 print(f"\n{len(demandes)} capture(s) dans {SORTIE}")
-dlg.deleteLater()
+# Detruire les widgets avant leurs providers QGIS : un simple deleteLater()
+# sans traiter DeferredDelete laissait des objets Qt vivants apres exitQgis.
+for widget in QApplication.topLevelWidgets():
+    widget.close()
+    widget.deleteLater()
+QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+QApplication.processEvents()
+QgsProject.instance().clear()
 qgs.exitQgis()

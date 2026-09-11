@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.7.24
+version=0.8.0
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,22 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.7.24 — Compléments d'ergonomie : l'ordre des onglets, le bouton de contrôle, ce que portent les cibles, et HEC-RAS ouvert.
+changelog=0.8.0 — Interface de préparation clarifiée, adaptée aux petites fenêtres et au thème QGIS.
+    Parcours Modèle, Sorties, Objectifs, Lancer, Suivi et Aide ; navigation
+    explicite et contrôle du paramétrage toujours accessible en bas.
+    Entrée ne déclenche aucune commande, même sur un bouton focalisé ;
+    Espace conserve l'activation au clavier. F1 ouvre l'aide et Alt+flèches
+    navigue entre les étapes depuis les champs, les boutons et le manuel.
+    Formulaires et textes suivent la police du poste. Les aides longues,
+    sous-dossiers et configuration complète se déplient à la demande.
+    L'Excel précède les réglages de précision ; les écarts admis à la cible
+    sont distingués de la qualité du calcul HEC-RAS.
+    La conservation des plans d'étape est présentée comme l'état normal ;
+    leur suppression reste facultative et limitée à un calage réussi.
+    Lancement expliqué avant activation, diagnostic en tête de l'aide,
+    documentation et noms de rubriques harmonisés. Méthode de calage,
+    valeurs par défaut et règles de contrôle inchangées.
+    0.7.24 — Compléments d'ergonomie : l'ordre des onglets, le bouton de contrôle, ce que portent les cibles, et HEC-RAS ouvert.
     LES ONGLETS 2 ET 3 S'INVERSENT : « Résultats » d'abord — où tout ira —,
     « Objectifs et précision » ensuite.
     « CONTRÔLE PARAMÉTRAGE » QUITTE LES ONGLETS et redescend au bas de la
