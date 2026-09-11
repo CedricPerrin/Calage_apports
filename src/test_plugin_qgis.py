@@ -1154,7 +1154,9 @@ _besoin = _barre.sizeHint().width()
 _dispo = (max(dlg.minimumSizeHint().width(), dlg.minimumWidth())
           - _marges.left() - _marges.right())
 verifier("la barre d'onglets ne defile pas, meme au plus etroit",
-         _besoin <= _dispo,
+         # 0.8.1 : elidee et sans boutons de defilement, la barre ne PEUT plus
+         # defiler ; le plancher est borne a LARGEUR_PLANCHER_MAX.
+         _besoin <= _dispo or not _barre.usesScrollButtons(),
          f"besoin {_besoin} px / disponible {_dispo} px "
          f"(marge {_dispo - _besoin:+} px ; plancher "
          f"minimumWidth={dlg.minimumWidth()} px)")
@@ -1717,7 +1719,7 @@ _PORTEES_CONNUES = (
     "KeyboardModifier|Key|CursorShape|WindowType|ItemFlag|SortOrder|"
     "GlobalColor|LayoutDirection|FocusPolicy|ConnectionType|MatchFlag|"
     "ToolButtonStyle|TimeSpec|DateFormat|TextElideMode|AspectRatioMode|"
-    "TransformationMode|ContextMenuPolicy|WidgetAttribute|ArrowType|ShortcutContext")
+    "TransformationMode|ContextMenuPolicy|WidgetAttribute|ArrowType|ShortcutContext|ApplicationState")
 #
 # CE GARDE-FOU AVAIT UN ANGLE MORT, et il a coute exactement ce qu'il devait
 # eviter : il ne portait que sur six classes. QFormLayout, QTextEdit et
@@ -1941,6 +1943,7 @@ verifier("l'aide dit que le verdict porte sur la fenetre",
          "pas sur la crue" in mod_plugin.AIDE_HTML)
 
 # L'ACTION A REJOINT L'ONGLET QUI LA PREPARE (0.7.19).
+from qgis.PyQt.QtWidgets import QDialog as _QDialogA  # noqa: E402
 from qgis.PyQt.QtWidgets import QGroupBox as _QGroupBoxA  # noqa: E402
 from qgis.PyQt.QtWidgets import QPushButton as _QPushButtonA  # noqa: E402
 _page_modele = dlg.onglets.widget(mod_plugin.ONGLET_MODELE)
@@ -2031,6 +2034,115 @@ verifier("l'onglet 3 porte « Ce que portent les hydrogrammes cibles »",
 verifier("et il attend d'avoir un classeur avant de rien dire",
          "Composer le paquet" in dlg.label_resume_cibles.text(),
          dlg.label_resume_cibles.text()[:80])
+
+# LE CLASSEUR MODIFIE HORS QGIS EST RELU AU RETOUR (0.8.1) : Excel enregistre,
+# la date du fichier change, la fenetre s'en apercoit au changement d'onglet
+# ou quand QGIS redevient actif — sans recomposer. Sur une COPIE du gabarit :
+# le mecanisme ne depend pas d'un modele, et l'on touche a la date du fichier.
+_gabarit = Path(mod_plugin.__file__).parents[1] / "template_donnees_calage.xlsx"
+_copie = Path(tempfile.mkdtemp(prefix="_relecture_")) / _gabarit.name
+shutil.copy2(_gabarit, _copie)
+dlg.classeur = str(_copie)
+dlg._relire_cibles_si_modifiees()
+_lu = dlg._classeur_lu
+verifier("un classeur designe est lu a la premiere occasion",
+         _lu is not None
+         and "Composer le paquet" not in dlg.label_resume_cibles.text(),
+         dlg.label_resume_cibles.text()[:80])
+dlg.label_resume_cibles.setText("périmé")
+dlg._relire_cibles_si_modifiees()
+verifier("et n'est pas rouvert tant qu'il n'a pas change",
+         dlg.label_resume_cibles.text() == "périmé")
+_apres = os.path.getmtime(_copie) + 5
+os.utime(_copie, (_apres, _apres))
+dlg._relire_cibles_si_modifiees()
+verifier("le classeur modifie sur disque est relu au retour dans QGIS",
+         dlg._classeur_lu != _lu
+         and "périmé" not in dlg.label_resume_cibles.text(),
+         dlg.label_resume_cibles.text()[:80])
+dlg.classeur = None
+dlg._maj_resume_cibles()
+shutil.rmtree(_copie.parent, ignore_errors=True)
+
+# WIDGETS NATIFS QGIS (0.8.2). Le bandeau de messages remplace les boites
+# d'information : cache tant qu'il n'a rien a dire, visible des le premier
+# message, et c'est LUI qui parle quand on ouvre l'Excel sans paquet.
+verifier("bandeau de messages present et muet a l'ouverture",
+         hasattr(dlg, "barre_messages")
+         and not dlg.barre_messages.isVisibleTo(dlg))
+dlg.classeur = None
+dlg._ouvrir_classeur()
+verifier("ouvrir l'Excel sans paquet : avertissement dans le bandeau, pas de boite",
+         dlg.barre_messages.isVisibleTo(dlg)
+         and dlg.barre_messages.currentItem() is not None
+         and "Composer d'abord" in dlg.barre_messages.currentItem().text(),
+         dlg.barre_messages.currentItem().text()[:60]
+         if dlg.barre_messages.currentItem() else "aucun message")
+dlg.barre_messages.clearWidgets()
+# Les trois aides depliables sont des QgsCollapsibleGroupBox nommes — le
+# nom forme la cle sous laquelle QGIS memorise l'etat replie — et partent
+# replies.
+_repliables = {g.objectName(): g for g in
+               dlg.findChildren(mod_plugin.QgsCollapsibleGroupBox)}
+verifier("trois groupes repliables natifs, nommes",
+         {"grpPente", "grpSousDossiers", "grpConfiguration"} <= set(_repliables),
+         sorted(_repliables))
+verifier("et replies au depart",
+         all(_repliables[n].isCollapsed() for n in
+             ("grpPente", "grpSousDossiers", "grpConfiguration")
+             if n in _repliables),
+         {n: g.isCollapsed() for n, g in _repliables.items()})
+
+# LE TABLEAU DES CIBLES N'ELARGIT PLUS LA PAGE (0.8.2). C'est lui qui
+# faisait deborder l'onglet 3 de 37 px a 13 pt : un tableau HTML ne se
+# replie pas, et sa largeur remontait jusqu'a la page. Il defile
+# desormais dans son cadre. Le controle compare la largeur minimale de la
+# page AVANT et APRES remplissage — il ne depend donc d'aucune police.
+_interieur = (_page_objectifs.widget()
+              if hasattr(_page_objectifs, "widget") else _page_objectifs)
+dlg.label_resume_cibles.setText(mod_plugin.DialogueParametrage._ATTENTE_CIBLES)
+dlg.label_resume_cibles.setMinimumHeight(0)
+_interieur.adjustSize()
+_avant = _interieur.minimumSizeHint().width()
+dlg.label_resume_cibles.setText(
+    "<table cellspacing='0' cellpadding='2'><tr>"
+    "<th align='left'>Apport → section</th>"
+    "<th align='right'>&nbsp;&nbsp;Pointe (m³/s)</th>"
+    "<th align='right'>&nbsp;&nbsp;Heure du pic (h)</th>"
+    "<th align='right'>&nbsp;&nbsp;Volume (hm³)</th></tr>"
+    + "".join("<tr><td>APPORT_TRES_LONG_%02d → SECTION_TRES_LONGUE_%02d</td>"
+                "<td align='right'>1 234.5</td><td align='right'>12.34</td>"
+                "<td align='right'>123.456</td></tr>" % (i, i)
+                for i in range(8))
+    + "</table>")
+_interieur.adjustSize()
+_apres = _interieur.minimumSizeHint().width()
+verifier("la page Objectifs tient dans la vue la plus etroite",
+         _interieur.minimumSizeHint().width() <= dlg.minimumWidth() - 50,
+         f"{_interieur.minimumSizeHint().width()} px pour "
+         f"{dlg.minimumWidth() - 50} px disponibles")
+verifier("un tableau de cibles large n'elargit pas la page Objectifs",
+         _apres <= _avant,
+         f"avant {_avant} px, apres {_apres} px "
+         f"(tableau : {dlg.label_resume_cibles.minimumSizeHint().width()} px)")
+dlg.label_resume_cibles.setText(mod_plugin.DialogueParametrage._ATTENTE_CIBLES)
+
+# LA GEOMETRIE DE LA FENETRE EST RETENUE D'UNE SESSION A L'AUTRE (0.8.2).
+# L'appel vit dans PluginCalage.composer(), pas dans le constructeur : le banc
+# et les captures construisent la fenetre directement et ont besoin d'une
+# geometrie deterministe. On l'eprouve donc sur une fenetre JETABLE, avec une
+# cle a elle — l'activer ici sur DialogueParametrage fausserait la matrice
+# d'affichage, qui redimensionne a 800 x 620.
+_jetable = _QDialogA()
+_jetable.setObjectName("essaiGeometrieCalage")
+try:
+    mod_plugin.QgsGui.enableAutoGeometryRestore(_jetable, "calage_apports/essai")
+    _restaure = True
+except Exception as _e:                                      # noqa: BLE001
+    _restaure = _e
+verifier("QgsGui.enableAutoGeometryRestore est appelable sur ce QGIS",
+         _restaure is True, str(_restaure))
+_jetable.deleteLater()
 
 # « RELIRE UN HYDROGRAMME » A QUITTE LA FENETRE (0.7.22). L'outil vit encore,
 # en ligne de commande ; c'est l'onglet qui n'avait pas a le porter.
@@ -2243,9 +2355,17 @@ if noyau.interpreteur_hecras() is None:
 else:
     print("   ignore : un interpreteur est designe, la branche « poste neuf »"
           " du diagnostic n'est pas parcourue")
-verifier("diagnostic affiche", bool(BoiteMessage.informations),
-         BoiteMessage.informations[-1].replace("\n", " | ")[:90]
-         if BoiteMessage.informations else "")
+# LE DIAGNOSTIC NE S'ANNONCE PLUS PAR UNE BOITE (0.8.2) : il ecrit dans
+# l'onglet — c'est la qu'on revient le lire — et le bandeau de messages dit
+# en une ligne s'il est bon. Une boite modale pour un compte rendu qu'on ne
+# peut ni copier ni relire etait exactement ce que le Cookbook PyQGIS
+# deconseille.
+verifier("diagnostic annonce dans le bandeau, sans boite d'information",
+         not BoiteMessage.informations
+         and dlg.barre_messages.currentItem() is not None,
+         f"boites={len(BoiteMessage.informations)} ; bandeau="
+         + (dlg.barre_messages.currentItem().text()[:60]
+            if dlg.barre_messages.currentItem() else "vide"))
 verifier("diagnostic repris dans l'onglet", bool(dlg.label_diagnostic.text()),
          dlg.label_diagnostic.text().replace("\n", " | ")[:70])
 
@@ -2301,7 +2421,7 @@ def _eprouver_petite_fenetre(points):
                      f"demandee={police.family()}, "
                      f"resolue={QFontInfo(fenetre.edit_projet_hecras.font()).family()}")
             attendus = ("1. Modèle", "2. Sorties", "3. Objectifs", "4. Lancer",
-                        "5. Suivi", "Aide")
+                        "5. Suivi", "Aide et configuration")
             verifier(f"police {points} pt : les six etapes sont identifiables",
                      tuple(fenetre.onglets.tabText(i)
                            for i in range(fenetre.onglets.count())) == attendus)
@@ -2355,12 +2475,26 @@ def _eprouver_petite_fenetre(points):
                                   key=lambda w: _rectangle_dans(w, page).bottom())
                     zone.ensureWidgetVisible(dernier)
                     QApplication.processEvents()
+                    _atteignable = zone.viewport().rect().contains(
+                        _rectangle_dans(dernier, zone.viewport()))
+                    _detail = (f"{dernier.objectName() or type(dernier).__name__} : "
+                               f"{_rectangle_dans(dernier, zone.viewport()).getRect()}, "
+                               f"vue={zone.viewport().rect().getRect()}")
+                    if not _atteignable:
+                        # LE COUPABLE D'UN DEBORDEMENT HORIZONTAL N'EST PAS LE
+                        # DERNIER CHAMP : c'est le widget dont la largeur
+                        # minimale depasse la vue. Le nommer evite de chercher
+                        # a l'oeil (11/09/2026 : 37 px de trop a 13 pt, onglet 3).
+                        _larges = sorted(
+                            ((w.minimumSizeHint().width(),
+                              w.objectName() or type(w).__name__,
+                              (w.text()[:40] if callable(getattr(w, "text", None))
+                               else ""))
+                             for w in page.findChildren(QWidget)
+                             if w.isVisibleTo(page)), reverse=True)[:5]
+                        _detail += f" ; plus larges (largeur minimale) : {_larges}"
                     verifier(f"{repere} : le dernier champ est atteignable",
-                             zone.viewport().rect().contains(
-                                 _rectangle_dans(dernier, zone.viewport())),
-                             f"{dernier.objectName() or type(dernier).__name__} : "
-                             f"{_rectangle_dans(dernier, zone.viewport()).getRect()}, "
-                             f"vue={zone.viewport().rect().getRect()}")
+                             _atteignable, _detail)
 
                 # Saisies et boutons sensibles : ni Entrée standard ni celle
                 # du pave numerique ne doit declencher le controle/lancement.

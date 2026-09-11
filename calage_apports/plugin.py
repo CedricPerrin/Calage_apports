@@ -37,7 +37,8 @@ from qgis.core import (
     QgsVectorLayer,
     QgsWkbTypes,
 )
-from qgis.gui import QgsFieldComboBox, QgsMapLayerComboBox
+from qgis.gui import (QgsCollapsibleGroupBox, QgsFieldComboBox, QgsGui,
+                      QgsMapLayerComboBox, QgsMessageBar)
 from qgis.PyQt.QtCore import QEvent, QMetaType, QSettings, Qt, QTimer
 from qgis.PyQt.QtGui import QIcon, QKeySequence
 from qgis.PyQt.QtWidgets import (
@@ -1192,7 +1193,7 @@ courbe y porte la cible et la section de l'apport en cours, et <b>derrière,
 en vert pointillé, les sections déjà calées</b> : un calage séquentiel se lit
 de l'amont vers l'aval, et c'est la <i>famille</i> de courbes qui dit si tout
 se tient.</li>
-<li><b>Aide.</b> Diagnostic et paramètres du poste, puis ce mode opératoire
+<li><b>Aide et configuration.</b> Diagnostic et paramètres du poste, puis ce mode opératoire
 avec son sommaire. Cette rubrique reste accessible pendant la préparation.</li>
 </ol>
 
@@ -1479,6 +1480,11 @@ def afficher_pk_sur_carte(chemins, sens, crs_defaut="EPSG:2154"):
 # trois secondes apres un lancement qui se deroulait bien.
 DELAI_PREMIER_ETAT_S = 240
 
+# Largeur minimale que la barre d'onglets peut imposer a la fenetre. C'est la
+# petite fenetre de la recette (docs/ergonomie_2026-09-11.md, 800 x 620) :
+# au-dela, les libelles s'elident au lieu d'elargir la fenetre.
+LARGEUR_PLANCHER_MAX = 800
+
 # LES CINQ ONGLETS QUI PORTENT UN NUMERO. « Aide et configuration » n'en a
 # pas : il n'est pas une etape.
 #   ILS SONT NOMMES PARCE QUE L'ORDRE A DEJA CHANGE DEUX FOIS — 0.7.0, puis
@@ -1493,6 +1499,14 @@ ONGLET_SUIVI = 4
 # Les trois autres rangs n'ont pas de nom : aucun code n'y renvoie, et une
 # constante que personne ne lit finit par designer autre chose que ce qu'elle
 # dit. La suite d'essais verifie que ces trois-la tombent bien sur leur onglet.
+
+
+def _cle_fichier(chemin):
+    """(chemin, date de modification) — ce qui dit qu'un fichier a change."""
+    try:
+        return (str(chemin), os.path.getmtime(chemin))
+    except OSError:
+        return None
 
 
 class DialogueParametrage(QDialog):
@@ -1588,6 +1602,16 @@ class DialogueParametrage(QDialog):
         agencement.setContentsMargins(12, 12, 12, 12)
 
         agencement.addWidget(self._bandeau())
+        # BANDEAU DE MESSAGES NON MODAL (0.8.2). Le Cookbook PyQGIS le dit :
+        # une boite de message est une mauvaise idee pour INFORMER — elle
+        # interrompt pour rien. Informations, avertissements et succes
+        # passent ici, avec leur niveau et leur duree ; les QMessageBox qui
+        # restent sont des DECISIONS (ecrire dans la geometrie, lancer,
+        # designer) ou des erreurs a lire.
+        self.barre_messages = QgsMessageBar(self)
+        self.barre_messages.setObjectName("barreMessages")
+        self.barre_messages.hide()          # pushMessage() la fait apparaitre
+        agencement.addWidget(self.barre_messages)
         self.onglets = QTabWidget()
         self.onglets.setDocumentMode(True)      # onglets sobres, moins encadres
         # Le gras est pose sur la POLICE de la barre, pas dans la feuille de
@@ -1619,7 +1643,7 @@ class DialogueParametrage(QDialog):
             (self._onglet_suivi(), "5. Suivi",
              "Où en est le calage : apport en cours, essai, avancement, "
              "temps restant, et ce qui s'est passé quand il s'arrête."),
-            (self._onglet_aide(), "Aide",
+            (self._onglet_aide(), "Aide et configuration",
              "Mode opératoire, pièges connus, et les deux emplacements du "
              "poste — chaîne de calage et interpréteur HEC-RAS."),
         ):
@@ -1656,10 +1680,20 @@ class DialogueParametrage(QDialog):
         # barre ce qu'il lui faut. L'invariante devient vraie par
         # construction, sur toute police et toute mise a l'echelle — et un
         # libelle trop long elargit la fenetre au lieu de disparaitre.
+        #
+        # BORNE A LARGEUR_PLANCHER_MAX (0.8.1) : au-dela, la barre ELIDE ses
+        # libelles au lieu d'elargir la fenetre — et comme elle ne defile
+        # jamais, aucun onglet n'est tronque ni cache. « Aide et
+        # configuration » demande 816 px a 9 pt et 993 a 13 pt : le plein
+        # libelle se lit a la taille d'ouverture (940 px) ; la petite
+        # fenetre de la recette (800 x 620) montre « Aide et configur… ».
+        self.onglets.tabBar().setElideMode(Qt.TextElideMode.ElideRight)
+        self.onglets.tabBar().setUsesScrollButtons(False)
         self.onglets.tabBar().ensurePolished()
         _marges = agencement.contentsMargins()
-        _besoin = (self.onglets.tabBar().sizeHint().width()
-                   + _marges.left() + _marges.right())
+        _besoin = min(self.onglets.tabBar().sizeHint().width()
+                      + _marges.left() + _marges.right(),
+                      LARGEUR_PLANCHER_MAX)
         if _besoin > self.minimumWidth():
             self.setMinimumWidth(_besoin)
             if _besoin > self.width():
@@ -1744,6 +1778,11 @@ class DialogueParametrage(QDialog):
             self._style_en_attente = True
             self._minuteur_style.start(0)
 
+    def _signaler(self, titre, texte, niveau=Qgis.MessageLevel.Info, duree=8):
+        """Information dans le bandeau, sans interrompre. duree=0 : reste."""
+        self.barre_messages.pushMessage(titre, texte, level=niveau,
+                                        duration=duree)
+
     def eventFilter(self, objet, evenement):  # noqa: N802
         # Une police posée par QSS ne reçoit pas toujours FontChange sur le
         # widget. L'événement de l'application couvre le réglage global QGIS.
@@ -1752,6 +1791,12 @@ class DialogueParametrage(QDialog):
                 and not self._style_en_attente):
             self._style_en_attente = True
             self._minuteur_style.start(0)
+        if (objet is QApplication.instance()
+                and evenement.type() == QEvent.Type.ApplicationStateChange
+                and QApplication.applicationState()
+                == Qt.ApplicationState.ApplicationActive):
+            # Retour d'Excel : le classeur a peut-etre change.
+            self._relire_cibles_si_modifiees()
         return super().eventFilter(objet, evenement)
 
     def _nommer_champs(self):
@@ -2876,9 +2921,21 @@ class DialogueParametrage(QDialog):
             "Enregistrez l’Excel, puis relancez le contrôle en bas de la fenêtre.")
         consigne.setWordWrap(True)
         v_classeur.addWidget(consigne)
-        ligne_classeur = QHBoxLayout()
-        ligne_classeur.setSpacing(8)
-        bouton_ouvrir = QPushButton("Ouvrir les &objectifs dans Excel…")
+        # LES DEUX BOUTONS SONT EMPILES, PAS COTE A COTE (0.8.2). Une
+        # QHBoxLayout ne se replie pas : a 13 pt, ces deux libelles
+        # demandaient 703 px a eux seuls, le groupe 747 et la page 773 pour
+        # 750 disponibles — l'onglet 3 debordait horizontalement, et le
+        # dernier champ sortait de la vue. C'est le seul onglet qui le
+        # faisait, et il le faisait depuis la 0.8.0 (mesure du banc et de
+        # la sonde, 11/09/2026).
+        #
+        # Empiles, ils gardent leurs libelles entiers — « Ouvrir » et
+        # « Reprendre » sont deux entrees differentes dans le meme fichier,
+        # et les abreger obligerait a deviner laquelle fait quoi. Le cout
+        # est une ligne de plus en hauteur, sur une page qui defile deja.
+        ligne_classeur = QVBoxLayout()
+        ligne_classeur.setSpacing(6)
+        bouton_ouvrir = QPushButton("Ouvrir les &objectifs dans Excel")
         bouton_ouvrir.setToolTip(
             "C'est dans sa feuille Cibles que se saisissent les hydrogrammes "
             "objectifs, une colonne par section.")
@@ -2892,16 +2949,22 @@ class DialogueParametrage(QDialog):
             "y sont relus.")
         bouton_recontroler.clicked.connect(self._recontroler_classeur)
         ligne_classeur.addWidget(bouton_recontroler)
-        ligne_classeur.addStretch(1)
+        for _b in (bouton_ouvrir, bouton_recontroler):
+            _b.setSizePolicy(QSizePolicy.Policy.Maximum,
+                             QSizePolicy.Policy.Fixed)
         v_classeur.addLayout(ligne_classeur)
 
         # HYPOTHESE SUR LA PENTE, dite a cote du bouton qui ouvre le fichier
         # ou elle se corrige. Elle est desormais PRE-REMPLIE a la composition,
         # d'ou « à ajuster si besoin » : ce n'est plus une case vide a
         # comprendre, c'est une valeur proposee qu'on peut refuser.
-        bouton_pente = QPushButton("Hypothèse de pente des apports")
-        bouton_pente.setCheckable(True)
-        bouton_pente.setToolTip("Afficher le calcul de la pente proposée et les cas où l’ajuster.")
+        # GROUPE REPLIABLE NATIF (0.8.2) plutot qu'un bouton a bascule : meme
+        # aspect que les proprietes de couche QGIS, et l'etat replie est
+        # MEMORISE par QGIS d'une session a l'autre (QgsSettings, cle formee
+        # des objectName du groupe et de ses parents — d'ou le nom pose).
+        groupe_pente = QgsCollapsibleGroupBox("Hypothèse de pente des apports")
+        groupe_pente.setObjectName("grpPente")
+        groupe_pente.setToolTip("Le calcul de la pente proposée et les cas où l’ajuster.")
         detail_pente = texte_aide(
             "<b>Pente des apports</b> — colonne « Pente_m_par_m », feuille "
             "Correspondance. <b>Pré-remplie</b> à la composition : pente "
@@ -2914,10 +2977,9 @@ class DialogueParametrage(QDialog):
             "prudence. Elle dépend du tronçon, d'où la saisie par apport.<br><br>"
             "Laissée vide — profil trop court ou géométrie non prétraitée — "
             "le calage la déduit lui-même, comme avant.")
-        detail_pente.setVisible(False)
-        bouton_pente.toggled.connect(detail_pente.setVisible)
-        v_classeur.addWidget(bouton_pente, 0, Qt.AlignmentFlag.AlignLeft)
-        v_classeur.addWidget(detail_pente)
+        QVBoxLayout(groupe_pente).addWidget(detail_pente)
+        groupe_pente.setCollapsed(True)
+        v_classeur.addWidget(groupe_pente)
         return groupe_actions
 
     # --- Onglet 3 : Objectifs et precision -----------------------------------
@@ -2980,8 +3042,10 @@ class DialogueParametrage(QDialog):
         """
         groupe = QGroupBox("Ce que portent les hydrogrammes cibles")
         groupe.setToolTip(
-            "Relu dans la feuille Cibles à chaque composition et à chaque "
-            "reprise d'un Excel. Le volume est intégré sur la colonne "
+            "Relu dans la feuille Cibles à chaque composition, à chaque "
+            "reprise d'un Excel, et dès que le classeur a changé sur disque "
+            "— au retour dans QGIS ou au changement d'onglet. Le volume est "
+            "intégré sur la colonne "
             "Temps_h, à la règle des trapèzes.")
         v = QVBoxLayout(groupe)
         v.setSpacing(6)
@@ -2989,7 +3053,28 @@ class DialogueParametrage(QDialog):
         self.label_resume_cibles.setTextFormat(Qt.TextFormat.RichText)
         self.label_resume_cibles.setWordWrap(True)
         self.label_resume_cibles.setText(self._ATTENTE_CIBLES)
-        v.addWidget(self.label_resume_cibles)
+        # UN TABLEAU HTML NE SE REPLIE PAS (0.8.2). Ses quatre colonnes
+        # imposaient leur largeur au cadre, donc a TOUTE LA PAGE : a 13 pt
+        # dans une fenetre de 800 px, l'onglet 3 debordait de 37 px et le
+        # dernier champ sortait de la vue (mesure du banc, 11/09/2026). Le
+        # defaut existait des la 0.8.0 ; il ne se voyait qu'avec des cibles
+        # LUES, c'est-a-dire jamais a l'ouverture.
+        #
+        # Le tableau defile donc horizontalement DANS son cadre — dernier
+        # recours admis pour un tableau, jamais pour un formulaire (guide
+        # Qt, § 2) —, et la page ne deborde plus. QScrollArea a une largeur
+        # minimale a elle, independante de son contenu : c'est ce qui coupe
+        # la propagation.
+        self.zone_resume_cibles = QScrollArea()
+        self.zone_resume_cibles.setObjectName("zoneResumeCibles")
+        self.zone_resume_cibles.setWidgetResizable(True)
+        self.zone_resume_cibles.setFrameShape(QFrame.Shape.NoFrame)
+        self.zone_resume_cibles.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.zone_resume_cibles.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.zone_resume_cibles.setWidget(self.label_resume_cibles)
+        v.addWidget(self.zone_resume_cibles)
         return groupe
 
     def _maj_resume_cibles(self):
@@ -3007,6 +3092,7 @@ class DialogueParametrage(QDialog):
         if not self.classeur:
             label.setText(self._ATTENTE_CIBLES)
             return
+        self._classeur_lu = _cle_fichier(self.classeur)
         try:
             resume = noyau.resume_cibles(self.classeur)
         except Exception as e:
@@ -3048,8 +3134,14 @@ class DialogueParametrage(QDialog):
         # COMPRIME le contenu au lieu de faire apparaitre une barre, et c'est
         # le DERNIER encadre de l'onglet qui encaisse — celui-ci. Un plancher
         # calcule sur le nombre de lignes l'en soustrait.
-        label.setMinimumHeight(
-            (len(resume) + 1) * (label.fontMetrics().height() + 4) + 8)
+        hauteur = (len(resume) + 1) * (label.fontMetrics().height() + 4) + 8
+        label.setMinimumHeight(hauteur)
+        # Le cadre defilant suit : sans cela il garderait sa hauteur par
+        # defaut et le tableau s'y trouverait tronque en bas.
+        zone = getattr(self, "zone_resume_cibles", None)
+        if zone is not None:
+            zone.setMinimumHeight(
+                hauteur + zone.horizontalScrollBar().sizeHint().height())
 
     # --- Onglet 2 : Resultats et suivi --------------------------------------
 
@@ -3079,9 +3171,9 @@ class DialogueParametrage(QDialog):
         etiquette_dossier.setBuddy(self.edit_dossier_sortie)
         f.addRow(etiquette_dossier, ligne)
 
-        detail_dossiers = QWidget()
+        detail_dossiers = QgsCollapsibleGroupBox("Sous-dossiers de sortie")
+        detail_dossiers.setObjectName("grpSousDossiers")
         fd = formulaire(detail_dossiers)
-        fd.setContentsMargins(0, 0, 0, 0)
 
         self.edit_sous_dossier_resultats = QLineEdit("resultats_finaux")
         self.edit_sous_dossier_resultats.textChanged.connect(self._maj_resume)
@@ -3101,11 +3193,7 @@ class DialogueParametrage(QDialog):
             "Ces sous-dossiers sont créés dans le dossier de sortie. Le suivi "
             "conserve avancement.md, avancement.png et le classeur d’itérations, "
             "consultables depuis un autre poste."))
-        bouton_dossiers = QPushButton("Personnaliser les sous-dossiers")
-        bouton_dossiers.setCheckable(True)
-        bouton_dossiers.toggled.connect(detail_dossiers.setVisible)
-        detail_dossiers.setVisible(False)
-        f.addRow(bouton_dossiers)
+        detail_dossiers.setCollapsed(True)
         f.addRow(detail_dossiers)
         f.addRow(texte_aide(
             "Pendant le calcul, consultez l’étape Suivi pour lire l’avancement."))
@@ -3154,19 +3242,15 @@ class DialogueParametrage(QDialog):
         self._dire_elagage()
         v.addWidget(groupe_menage)
 
-        groupe_resume = QWidget()
+        groupe_resume = QgsCollapsibleGroupBox("Configuration complète")
+        groupe_resume.setObjectName("grpConfiguration")
         v2 = QVBoxLayout(groupe_resume)
-        v2.setContentsMargins(0, 0, 0, 0)
-        bouton_resume = QPushButton("Afficher la configuration complète")
-        bouton_resume.setCheckable(True)
-        v2.addWidget(bouton_resume, 0, Qt.AlignmentFlag.AlignLeft)
         self.texte_resume = QTextEdit()
         self.texte_resume.setObjectName("resume")
         self.texte_resume.setReadOnly(True)
         self.texte_resume.setMinimumHeight(160)
-        self.texte_resume.setVisible(False)
-        bouton_resume.toggled.connect(self.texte_resume.setVisible)
         v2.addWidget(self.texte_resume)
+        groupe_resume.setCollapsed(True)
         v.addWidget(groupe_resume)
         v.addStretch(1)
 
@@ -3522,6 +3606,7 @@ class DialogueParametrage(QDialog):
         la fenetre reprend la main.
         """
         self._maj_resume()
+        self._relire_cibles_si_modifiees()
         if indice == ONGLET_SUIVI:
             self._rafraichir_suivi()
             self.minuteur_suivi.start()
@@ -3680,10 +3765,10 @@ class DialogueParametrage(QDialog):
     def _ouvrir_dossier_suivi(self):
         dossier = self._dossier_suivi()
         if dossier is None or not dossier.is_dir():
-            QMessageBox.information(
-                self, "Suivi",
-                "Aucun dossier de suivi : renseigner le dossier de sortie "
-                 "(onglet Sorties), puis composer le paquet.")
+            self._signaler(
+                "Suivi", "Aucun dossier de suivi : renseigner le dossier de "
+                "sortie (onglet Sorties), puis composer le paquet.",
+                Qgis.MessageLevel.Warning)
             return
         os.startfile(str(dossier))  # noqa: S606 (usage Windows assume)
 
@@ -3691,10 +3776,8 @@ class DialogueParametrage(QDialog):
         dossier = self._dossier_suivi()
         figure = (dossier / "avancement.png") if dossier else None
         if figure is None or not figure.is_file():
-            QMessageBox.information(
-                self, "Suivi",
-                "avancement.png n'existe pas encore : il est écrit dès le "
-                "premier essai.")
+            self._signaler("Suivi", "avancement.png n'existe pas encore : il "
+                           "est écrit dès le premier essai.")
             return
         os.startfile(str(figure))  # noqa: S606
 
@@ -4172,7 +4255,8 @@ class DialogueParametrage(QDialog):
         ok, message = noyau.definir_interpreteur(chemin)
         if ok:
             QSettings().setValue(PluginCalage.CLE_INTERPRETEUR, str(chemin))
-            QMessageBox.information(self, "Interpréteur accepté", message)
+            self._signaler("Interpréteur accepté", message,
+                           Qgis.MessageLevel.Success, 12)
         else:
             QMessageBox.critical(
                 self, "Interpréteur inutilisable",
@@ -4304,10 +4388,13 @@ class DialogueParametrage(QDialog):
         QSettings().setValue(PluginCalage.CLE_INTERPRETEUR, str(chemin))
         self._maj_parametres_poste()
         rendre_la_main(self)
-        QMessageBox.information(
-            self, "Environnement installé",
-            f"Interpréteur HEC-RAS installé et vérifié :\n{chemin}\n\n"
-            f"{message}\n\nIl est retenu d'une session à l'autre.")
+        dire(self.label_diagnostic,
+             f"Interpréteur HEC-RAS installé et vérifié :\n{chemin}\n\n{message}")
+        self._signaler(
+            "Environnement installé",
+            f"Interpréteur HEC-RAS installé et vérifié : {chemin}. Retenu "
+            f"d'une session à l'autre ; détail sous « Vérifier l’environnement ».",
+            Qgis.MessageLevel.Success, 0)
 
     def _diagnostic(self):
         """
@@ -4382,7 +4469,11 @@ class DialogueParametrage(QDialog):
                   + "\n" + "\n".join(messages))
         dire(self.label_diagnostic, resume)
         self._maj_parametres_poste()
-        QMessageBox.information(self, "Diagnostic", resume)
+        self._signaler(
+            "Diagnostic",
+            "Environnement utilisable." if disponible
+            else "Environnement incomplet : le détail est affiché sous le bouton.",
+            Qgis.MessageLevel.Success if disponible else Qgis.MessageLevel.Warning)
 
     @avec_sablier
     def _recontroler_classeur(self):
@@ -4550,15 +4641,43 @@ class DialogueParametrage(QDialog):
                      f"absent de sa propre liste : le choix affiché n'est pas "
                      f"le sien.")
 
-    def _maj_onglet_validation_depuis_classeur(self):
-        """Rafraichit l'onglet 4 apres un controle sur classeur existant."""
+    def _relire_cibles_si_modifiees(self, *_):
+        """
+        Relit les cibles si le classeur a change sur disque — Excel vient
+        d'enregistrer. « Ce que portent les cibles » (onglet 3) et leur etat
+        (onglet 4) ne suivaient que la composition et la reprise : un
+        hydrogramme colle dans l'Excel ouvert n'y paraissait qu'apres une
+        recomposition.
+
+        Appele au changement d'onglet et quand QGIS redevient l'application
+        active — le retour d'Excel. Une date de fichier lue a chaque fois ;
+        le classeur, souvent sur un partage reseau, n'est rouvert que s'il
+        a change.
+        """
+        if not self.classeur:
+            return
+        cle = _cle_fichier(self.classeur)
+        if cle is None or cle == getattr(self, "_classeur_lu", None):
+            return
+        self._classeur_lu = cle
+        self._maj_onglet_validation_depuis_classeur(reglages=False)
+
+    def _maj_onglet_validation_depuis_classeur(self, reglages=True):
+        """
+        Rafraichit l'onglet 4 apres un controle sur classeur existant.
+
+        reglages=False : le classeur a change sur disque (Excel vient
+        d'enregistrer) ; on relit ce qu'il porte sans reprendre ses reglages,
+        qui ecraseraient le prefixe et le premier apport saisis a l'ecran.
+        """
         # L'ORDRE COMPTE : _remplir_premier_apport recharge la LISTE depuis le
         # classeur, _appliquer_reglages_du_classeur choisit ensuite DANS cette
         # liste ce que le classeur designe. L'inverse choisirait avant que les
         # entrees n'existent.
-        self._remplir_premier_apport()
-        if self.classeur:
-            self._appliquer_reglages_du_classeur(self.classeur)
+        if reglages:
+            self._remplir_premier_apport()
+            if self.classeur:
+                self._appliquer_reglages_du_classeur(self.classeur)
         try:
             etat = noyau.etat_cibles(self.classeur)
         except Exception as e:
@@ -4597,10 +4716,8 @@ class DialogueParametrage(QDialog):
         moyen normal de savoir ou en est le calcul pendant qu'il tourne.
         """
         if not self.classeur:
-            QMessageBox.information(
-                self, "Calage",
-                "Composer d'abord le paquet (bouton « Composer et "
-                "contrôler »).")
+            self._signaler("Calage", "Composer d'abord le paquet (bouton "
+                           "« Contrôle paramétrage »).", Qgis.MessageLevel.Warning)
             return
         if not self._confirmer_malgre_calage(
                 "Lancer maintenant ferait travailler deux calages sur les "
@@ -4739,7 +4856,8 @@ class DialogueParametrage(QDialog):
             f"tout seul.\n"
             f"Journal de lancement : {info['journal']}")
         dire(self.label_lancement, message)
-        QMessageBox.information(self, "Calage lancé", message)
+        self._signaler("Calage lancé", "Le calcul tourne en arrière-plan ; cet "
+                       "onglet suit son avancement.", Qgis.MessageLevel.Success, 12)
         # On bascule sur le suivi : c'est là que la suite se passe. Le
         # changement d'onglet démarre lui-même le rafraîchissement.
         if hasattr(self, "onglets") and hasattr(self, "minuteur_suivi"):
@@ -4824,21 +4942,19 @@ class DialogueParametrage(QDialog):
                 f"Le classeur est inchangé. Compléter la feuille Cibles à la "
                 f"main, ou raccourcir la fenêtre de simulation du plan.")
             return
-        QMessageBox.information(
-            self, "Prolongation",
+        self._signaler(
+            "Prolongation",
             f"{bilan['ajoutees']} pas de temps ajoutés à "
             f"{len(bilan['colonnes'])} colonne(s), de "
             f"{bilan['duree_avant_h']:.2f} h à {bilan['duree_apres_h']:.2f} h, "
-            f"au pas de {60 * bilan['pas_h']:g} min.\n\n"
-            f"Relancer « Contrôle paramétrage » (bouton du bas) "
-            f"pour vérifier.")
+            f"au pas de {60 * bilan['pas_h']:g} min. Relancer « Contrôle "
+            f"paramétrage » pour vérifier.", Qgis.MessageLevel.Success, 0)
 
     def _ouvrir_classeur(self):
         if not self.classeur:
-            QMessageBox.information(
-                self, "Classeur",
-                "Composer d'abord le paquet (bouton « Composer et "
-                "contrôler » en bas de la fenêtre).")
+            self._signaler("Classeur", "Composer d'abord le paquet (bouton "
+                           "« Contrôle paramétrage » en bas de la fenêtre).",
+                           Qgis.MessageLevel.Warning)
             return
         try:
             os.startfile(self.classeur)  # noqa: S606 (usage Windows assume)
@@ -5344,6 +5460,11 @@ class PluginCalage:
                 self.fenetre = None      # objet Qt detruit entre-temps
 
         self.fenetre = DialogueParametrage(self.iface)
+        # TAILLE ET POSITION RETENUES D'UNE SESSION A L'AUTRE (0.8.2) : QGIS
+        # les sauve a la fermeture et les restaure a l'ouverture. Pose ICI,
+        # pas dans le constructeur : le banc et les captures construisent la
+        # fenetre directement et ont besoin d'une geometrie deterministe.
+        QgsGui.enableAutoGeometryRestore(self.fenetre, "calage_apports/fenetre")
         self.fenetre.setModal(False)
         self.fenetre.setWindowModality(Qt.WindowModality.NonModal)
         self.fenetre.finished.connect(self._recuperer_resultats)

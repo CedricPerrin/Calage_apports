@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.8.0
+version=0.8.2
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,24 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.8.0 — Interface de préparation clarifiée, adaptée aux petites fenêtres et au thème QGIS.
+changelog=0.8.2 — Widgets natifs QGIS : groupes repliables mémorisés, bandeau de messages, fenêtre retenue.
+    Les aides dépliables (pente, sous-dossiers, configuration complète)
+    deviennent des QgsCollapsibleGroupBox : même aspect que QGIS, état
+    replié mémorisé d'une session à l'autre. Les informations et
+    avertissements passent par un QgsMessageBar dans la fenêtre au lieu de
+    boîtes modales ; seules les décisions et les erreurs interrompent.
+    La fenêtre rouvre à la taille et à la position laissées
+    (QgsGui.enableAutoGeometryRestore). Débordement horizontal de l'onglet
+    Objectifs à 13 pt corrigé ; le banc nomme désormais le widget trop
+    large. « Ouvrir les objectifs dans Excel » perd ses points de
+    suspension : aucune saisie ne suit (HIG KDE).
+    0.8.1 — L'onglet d'aide devient « Aide et configuration » ; les cibles se relisent toutes seules.
+    Ce que portent les hydrogrammes cibles (onglet 3) et leur état (onglet 4)
+    sont relus dès que l'Excel a changé sur disque — au retour dans QGIS ou
+    au changement d'onglet —, sans recomposer ni reprendre les réglages
+    saisis à l'écran. Deux messages nommaient encore l'ancien bouton
+    « Composer et contrôler ».
+    0.8.0 — Interface de préparation clarifiée, adaptée aux petites fenêtres et au thème QGIS.
     Parcours Modèle, Sorties, Objectifs, Lancer, Suivi et Aide ; navigation
     explicite et contrôle du paramétrage toujours accessible en bas.
     Entrée ne déclenche aucune commande, même sur un bouton focalisé ;

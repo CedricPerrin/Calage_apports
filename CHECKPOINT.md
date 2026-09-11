@@ -4,6 +4,46 @@ Point de reprise pour ouvrir une nouvelle conversation avec un contexte
 minimal. L'état courant et les règles en vigueur restent dans `STATUT.txt` ;
 ce fichier ne dit que **où on en est** et **par quoi reprendre**.
 
+## Reprendre ici — 11 septembre 2026, nuit : 0.8.2 prête, NON COMMITÉE
+
+Quatre changements d'ergonomie issus de la veille, tous natifs QGIS :
+- trois aides dépliables deviennent des `QgsCollapsibleGroupBox` (état
+  replié mémorisé par QGIS, objectName obligatoire pour la clé) ;
+- toutes les boîtes d'information deviennent un `QgsMessageBar` dans la
+  fenêtre (`_signaler`) ; seules décisions et erreurs interrompent encore ;
+  diagnostic et installation écrivent leur détail sous le bouton ;
+- `QgsGui.enableAutoGeometryRestore` dans `PluginCalage.composer()`, pas
+  dans le constructeur (banc et captures exigent une géométrie fixe) ;
+- **débordement de l'onglet Objectifs à 13 pt corrigé**, deux causes : la
+  rangée de deux boutons (703 px, désormais empilés) et le tableau des
+  cibles (désormais dans son propre `QScrollArea`). 773 px → 514 px.
+
+**Banc : 258 contrôles, aucun échec, sortie 0.** ZIP 0.8.2 conforme et
+installé dans le profil ISL ; captures refaites. Reste : commit, et la
+recette Accessibility Insights / Load QSS proposée par la veille.
+
+## État précédent — 0.8.1
+
+Sur la branche `ergonomie`, arbre non propre. Fait et vérifié :
+- onglet **« Aide et configuration »** ; plancher de largeur borné à 800 px
+  (`LARGEUR_PLANCHER_MAX`), barre élidée sans défilement ;
+- **relecture automatique des cibles** (onglets 3 et 4) quand l'Excel a
+  changé sur disque : `_relire_cibles_si_modifiees()`, au changement
+  d'onglet et au retour dans QGIS ; sans reprendre les réglages du classeur ;
+- deux messages citaient l'ancien bouton « Composer et contrôler » ;
+- banc QGIS **250 OK, 1 échec préexistant** (13 pt / Objectifs, débordement
+  de 37 px — identique sur les sources 0.8.0, voir STATUT § 6) ;
+- `calage_apports_0.8.1.zip` reconstruit et **installé dans le profil ISL**
+  (QGIS ouvert : recharger le plugin) ; six captures refaites ;
+- STATUT.txt, LISEZMOI, README, metadata, et `0-Ergonomie/retours/
+  CALAGE_APPORTS.md` complétés.
+
+Par quoi reprendre : (1) regarder l'élision de la barre d'onglets à 13 pt
+dans une fenêtre de 800 px, à l'écran ; (2) faire remonter le diagnostic de
+`_charger_couches_modele` dans le banc, puis rejouer `--modele` ;
+(3) commit. Le point 2 de la 0.8.1 — widget trop large de l'onglet 3 — est
+**réglé** en 0.8.2.
+
 ## Reprendre ici — 11 septembre 2026
 
 La refonte **0.8.0** est sur la branche **`ergonomie`**, créée depuis

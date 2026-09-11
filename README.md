@@ -3,7 +3,7 @@
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 
-Version des sources du plugin : **0.8.0**. La
+Version des sources du plugin : **0.8.2**. La
 [note d’ergonomie du 11 septembre 2026](docs/ergonomie_2026-09-11.md)
 décrit le parcours, les choix d’interface et les points de recette.
 
@@ -11,6 +11,11 @@ La version 0.8.0 a passé **248 contrôles Qt** et **30 scénarios d'affichage**
 dans QGIS 3.44.8, dont petites fenêtres, thème sombre et écran à 150 %.
 La chaîne hydraulique reste inchangée ; aucun nouveau calage réel n'a été
 lancé pour cette révision. [Mesures de la recette](docs/ergonomie_2026-09-11-mesures.json).
+La **0.8.2** en passe **258, sans échec** : le débordement horizontal de
+l'onglet Objectifs à 13 points, présent depuis la 0.8.0, est corrigé.
+Elle remplace trois aides dépliables maison par des groupes repliables
+QGIS, les boîtes d'information par un bandeau de messages, et retient la
+taille de la fenêtre d'une session à l'autre.
 
 Pour chaque apport, de l'amont vers l'aval : estimer, calculer, comparer à la
 cible, corriger, répéter jusqu'à concordance, puis vérifier la cohérence des
@@ -121,7 +126,7 @@ référence, la seconde en **aval** de la première.
 ## La fenêtre du plugin
 
 Six rubriques : **Modèle → Sorties → Objectifs → Lancer → Suivi**, puis
-**Aide**. Les commandes de navigation et **Contrôle paramétrage** restent
+**Aide et configuration**. Les commandes de navigation et **Contrôle paramétrage** restent
 accessibles en bas de la fenêtre. Les pages longues défilent ; les détails
 secondaires se déplient à la demande. Les images sont produites avec un
 projet de démonstration par [src/captures_plugin.py](src/captures_plugin.py).
@@ -169,11 +174,11 @@ calées** : c'est la famille de courbes qui dit si tout se tient.
 
 ![Onglet 5 — Suivi](docs/captures/onglet_5_suivi.png)
 
-**Aide** — diagnostic et paramètres du poste immédiatement accessibles,
+**Aide et configuration** — diagnostic et paramètres du poste immédiatement accessibles,
 puis mode opératoire avec sommaire et pièges connus. Les emplacements de la
 chaîne de calage et de l’interpréteur HEC-RAS y restent configurables.
 
-![Onglet Aide](docs/captures/onglet_6_aide.png)
+![Onglet Aide et configuration](docs/captures/onglet_6_aide.png)
 
 Le bouton **« Contrôle paramétrage »** est permanent, au bas de la fenêtre à
 côté de *Fermer* : il consomme les trois premiers onglets et prépare le

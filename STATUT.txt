@@ -22,6 +22,103 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+MISE A JOUR DU 11 SEPTEMBRE 2026 (NUIT) — 0.8.2, WIDGETS NATIFS QGIS
+  Quatre changements d'ergonomie, tous tires de la veille du soir
+  (0-Ergonomie/veille/2026-09-11_veille_ressources.md).
+
+  - LES TROIS AIDES DEPLIABLES SONT DES QgsCollapsibleGroupBox :
+    « Hypothese de pente des apports » (grpPente), « Sous-dossiers de
+    sortie » (grpSousDossiers), « Configuration complete »
+    (grpConfiguration). Meme aspect que les proprietes de couche, et
+    L'ETAT REPLIE EST MEMORISE par QGIS d'une session a l'autre — c'est le
+    widget qui le fait, a condition qu'il porte un objectName : la cle de
+    QgsSettings s'en deduit. Trois QPushButton a bascule et leurs trois
+    connexions disparaissent.
+  - LES INFORMATIONS PASSENT PAR UN QgsMessageBar dans la fenetre
+    (self.barre_messages, methode _signaler). Le Cookbook PyQGIS le dit :
+    une boite de message est une mauvaise idee pour INFORMER. Les neuf
+    QMessageBox.information ont disparu ; il n'en reste aucune. Ce qui
+    INTERROMPT encore est une DECISION (ecrire, lancer, designer,
+    installer) ou une ERREUR a lire — inchange.
+    Deux comptes rendus longs ne tiennent pas dans un bandeau : le
+    diagnostic et l'installation ecrivent desormais leur detail sous le
+    bouton « Verifier l'environnement » (label_diagnostic), et le bandeau
+    ne dit qu'une ligne. C'est un gain : la boite ne se relisait pas.
+  - LA FENETRE ROUVRE OU ON L'A LAISSEE :
+    QgsGui.enableAutoGeometryRestore(fenetre, « calage_apports/fenetre »),
+    appele dans PluginCalage.composer() ET NON DANS LE CONSTRUCTEUR — le
+    banc et les captures construisent la fenetre directement et exigent une
+    geometrie deterministe. Le banc l'eprouve sur une fenetre jetable.
+  - LE DEBORDEMENT DE L'ONGLET 3 A 13 PT EST CORRIGE, et il avait DEUX
+    causes, toutes deux mesurees :
+      1. LA RANGEE DE BOUTONS « Ouvrir les objectifs dans Excel » +
+         « Reprendre un Excel existant… » : une QHBoxLayout ne se replie
+         pas, et ces deux libelles demandaient 703 px a 13 pt, le groupe
+         747, la page 773 pour 750 disponibles. Ils sont EMPILES. Les
+         libelles restent entiers : les abreger obligerait a deviner
+         laquelle des deux entrees fait quoi.
+      2. LE TABLEAU DES CIBLES : un tableau HTML ne se replie pas non plus,
+         et sa largeur remontait jusqu'a la page des qu'il etait REMPLI —
+         donc jamais a l'ouverture, ce qui explique qu'il ait echappe a la
+         recette de la 0.8.0. Il defile desormais dans son propre cadre
+         (QScrollArea, zoneResumeCibles), dont la largeur minimale ne depend
+         pas de son contenu.
+    Page Objectifs : 773 px de largeur minimale avant, 514 apres, a 13 pt.
+    A 9 pt : 560 avant, 400 apres.
+  - « Ouvrir les objectifs dans Excel » perd ses points de suspension :
+    aucune saisie ne suit (regle des HIG KDE, cf. veille).
+  - BANC QGIS : 258 [OK], AUCUN ECHEC, code de sortie 0, sans modele.
+    Quatre controles ajoutes : bandeau present et muet a l'ouverture puis
+    porteur de l'avertissement, trois groupes repliables nommes et replies,
+    page Objectifs dans la vue la plus etroite, tableau large qui n'elargit
+    pas la page, enableAutoGeometryRestore appelable. Le controle de
+    debordement NOMME desormais les cinq widgets les plus larges quand il
+    echoue — c'est lui qui a designe la rangee de boutons.
+  - Archive calage_apports_0.8.2.zip conforme, installee dans le profil
+    QGIS ISL (QGIS ouvert : effective au prochain rechargement). Six
+    captures refaites. Chaine hydraulique et noyau.py inchanges.
+  - RIEN N'EST COMMITE : branche ergonomie, arbre non propre.
+
+MISE A JOUR DU 11 SEPTEMBRE 2026 (SOIR) — 0.8.1
+  - L'onglet « Aide » se nomme « AIDE ET CONFIGURATION » (demande
+    utilisateur). Le code et l'aide le disaient deja ; la barre ne le
+    disait pas.
+  - LE PLANCHER DE LARGEUR EST BORNE (LARGEUR_PLANCHER_MAX = 800 px, la
+    petite fenetre de la recette) : le libelle long demande 816 px a 9 pt
+    et 993 a 13 pt. Au-dela de 800, la barre ELIDE (ElideRight) et ne
+    defile jamais (setUsesScrollButtons(False)) : aucun onglet tronque.
+    Le plein libelle se lit a la taille d'ouverture (940 px).
+  - « CE QUE PORTENT LES HYDROGRAMMES CIBLES » (onglet 3) ET L'ETAT DES
+    CIBLES (onglet 4) SE RELISENT TOUT SEULS quand le classeur a change
+    sur disque : _relire_cibles_si_modifiees() compare (chemin, mtime),
+    appelee au changement d'onglet et sur ApplicationStateChange actif
+    (retour d'Excel dans QGIS). Elle passe par
+    _maj_onglet_validation_depuis_classeur(reglages=False) : les reglages
+    du classeur (prefixe, premier apport) ne sont PAS repris, ils
+    ecraseraient la saisie a l'ecran. Le classeur, souvent sur un partage
+    reseau, n'est rouvert que s'il a change.
+  - Deux messages nommaient encore le bouton « Composer et controler »
+    (ouvrir le classeur, lancer sans paquet) : « Controle parametrage ».
+  - BANC QGIS : 250 [OK], 1 ECHEC PREEXISTANT — « 13 pt / 3. Objectifs :
+    le dernier champ est atteignable », QSpinBox (429, 188, 358, 40) pour
+    une vue de 750 px : la page deborde de 37 px en largeur a 13 pt. LA
+    MEME MESURE, AU PIXEL, SUR LES SOURCES 0.8.0 (git stash, meme poste,
+    meme jour) : ce n'est pas la 0.8.1. Voir 6.
+    Trois controles ajoutes : classeur designe lu a la premiere occasion,
+    pas rouvert s'il n'a pas change, relu apres os.utime. Le controle des
+    constantes Qt admet la portee ApplicationState ; le controle « la
+    barre ne defile pas » admet une barre sans boutons de defilement.
+  - La voie --modele du banc N'A PAS ETE EXERCEE : sur ce poste, deux
+    modeles (CETTE2, Alcouet) echouent a « couches du modele chargees »
+    (sections=? injections=?) avec la chaine et l'interpreteur trouves.
+    Non investigue. Voir 6.
+  - Archive calage_apports_0.8.1.zip reconstruite (faire_zip.py) ;
+    installee dans le profil QGIS ISL par-dessus la 0.8.0 (QGIS ouvert :
+    effective au prochain rechargement du plugin). Captures refaites.
+    Rien n'est commite : modifications sur la branche ergonomie, arbre
+    non propre.
+  - Chaine hydraulique, noyau.py, regles de controle : inchanges.
+
 MISE A JOUR DU 11 SEPTEMBRE 2026 — ERGONOMIE 0.8.0
   - Branche ergonomie issue de bfff3fe. Avant intervention : main et
     origin/main identiques, arbre propre, ZIP 0.7.24 conforme aux sources.
@@ -2575,6 +2672,12 @@ dates fictives au 1er janvier.
 6. POINTS OUVERTS
 ================================================================================
 
+
+  - BANC --modele : « couches du modele chargees » echoue sur ce poste
+    avec CETTE2 et Alcouet (copies), sections=? injections=?, alors que
+    pont_hecras.py verifier repond ok (ras-commander 0.99.2, h5py 3.16).
+    Le diagnostic de _charger_couches_modele part dans journaliser(), que
+    le banc n'affiche pas : le faire remonter, puis rejouer.
 A FOURNIR PAR L'UTILISATEUR
   - LA COLONNE DE TEMPS DES CIBLES Q20. Le classeur source du dossier
     d'apports porte six hydrogrammes complets (418 lignes) mais UN SEUL

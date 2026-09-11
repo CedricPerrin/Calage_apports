@@ -2,8 +2,9 @@
 
 Préparation et contrôle du paquet de calage pour **HEC-RAS uniquement**.
 Voir `methodologie_calage_amont_aval.docx`, § 2.4.
-Version **0.8.0** : parcours et formulaires clarifiés, aides secondaires
-dépliables, police et couleurs adaptées au thème QGIS.
+Version **0.8.2** : widgets natifs QGIS — sections repliables dont l'état
+est mémorisé, messages dans un bandeau plutôt qu'en fenêtre modale, et la
+fenêtre rouvre là où on l'a laissée.
 
 ## Ce que fait le plugin
 
@@ -17,7 +18,7 @@ onglets — l'ordre des onglets est celui des décisions.
 | 3. Objectifs | **Excel des hydrogrammes objectifs**, résumé des cibles validées, puis précision du calage : écarts admis sur le volume et la pointe, qualité du bilan de masse HEC-RAS et nombre maximal d’essais. Le résultat se lit en pourcentage d’atteinte de la cible |
 | 4. Lancer | appariement apport → section, état des cibles, premier apport à caler, **préfixe de scénario** — **obligatoire** : sans lui, caler le Q10 après le Q100 sur le même modèle effacerait les plans du Q100 —, puis **lancement du calage** en arrière-plan |
 | 5. Suivi | Apport en cours, essai, atteinte du volume, de la pointe et de la forme, courbes cible et section, **sections déjà calées en vert pointillé**, temps restant. Actualisation automatique quand la rubrique est affichée. Le dossier surveillé est celui du **classeur lancé**, nommé en permanence ; les champs de **Sorties** préparent la prochaine composition |
-| Aide | **Diagnostic et paramètres du poste** en tête de page : chaîne de calage et interpréteur HEC-RAS. Mode opératoire avec sommaire et pièges connus en dessous |
+| Aide et configuration | **Diagnostic et paramètres du poste** en tête de page : chaîne de calage et interpréteur HEC-RAS. Mode opératoire avec sommaire et pièges connus en dessous |
 
 **Les six onglets sont en images** dans le README du dépôt, section « La
 fenêtre du plugin » — une capture par onglet.
@@ -42,7 +43,7 @@ Si la composition échoue après l'étape 1, le message le dit : le modèle a d�
 été modifié. Sinon, le compte rendu de composition **ouvre par ce qui a été
 écrit** dans la géométrie.
 
-Le mode opératoire complet vit dans **Aide** ; ce
+Le mode opératoire complet vit dans **Aide et configuration** ; ce
 qu'écrit l'étape 1, et pourquoi elle n'a pas de bouton à elle, y tient une
 section — *Écrire dans la géométrie*.
 
@@ -58,7 +59,7 @@ et figerait l'interface.
 ## Installation
 
 **Depuis l'archive.** `calage_apports_<version>.zip` —
-`calage_apports_0.8.0.zip` pour cette version — est **à la racine du dépôt** : la télécharger
+`calage_apports_0.8.2.zip` pour cette version — est **à la racine du dépôt** : la télécharger
 suffit, il n'y a rien à reconstruire. Le nom porte la version pour qu'on
 sache, sur un poste distant, ce qu'on installe ; il n'y en a jamais qu'une
 dans le dépôt, la plus récente. Puis, dans QGIS :
@@ -127,7 +128,7 @@ sert à rien : corriger les sources du projet, puis relancer `faire_zip.py`, qui
 reconstruit l'archive et vérifie que chaque copie est l'exact jumeau de sa
 source.
 
-S'il reste introuvable, **Vérifier l'environnement** (onglet Aide) propose de
+S'il reste introuvable, **Vérifier l'environnement** (onglet Aide et configuration) propose de
 le désigner, et le retient d'une session à l'autre.
 
 **L'interpréteur capable de piloter HEC-RAS** — un `python.exe` **séparé de
@@ -137,7 +138,7 @@ l'ordre : dossier désigné à l'exécution, variable `CALAGE_PYTHON`, puis un
 part » serait employé sans que personne ne sache d'où il vient.
 
 **Si vous n'en avez pas encore** — c'est le cas sur un poste neuf.
-*Aide → **Installer…*** le fait de bout en bout : il cherche les Python
+*Aide et configuration → **Installer…*** le fait de bout en bout : il cherche les Python
 présents sur le poste, propose le meilleur, crée l'environnement, y pose les
 paquets et vérifie le résultat. **Il n'y a rien à savoir sur l'emplacement de
 Python** : c'est précisément ce que le bouton résout.
@@ -147,7 +148,7 @@ La version de `ras-commander` est **vérifiée** : les versions antérieures à
 sans message.
 
 *À la main*, si le poste interdit à QGIS de sortir sur PyPI alors qu'une
-invite de commandes le peut : **la commande exacte est donnée par *Aide →
+invite de commandes le peut : **la commande exacte est donnée par *Aide et configuration →
 Vérifier l'environnement***, qui la construit à partir de la liste que le
 plugin exige réellement. Ne pas la recopier ici — elle compte une dizaine de
 paquets et a déjà divergé une fois, un environnement bâti sur une liste courte
@@ -296,6 +297,12 @@ Et **l'ergonomie de la fenêtre a été relue** — six lectures indépendantes,
 puis une passe de réfutation. Seize constats sur dix-huit corrigés ; le
 détail est dans `docs/ergonomie_2026-09-06.md`, y compris ce
 qu'il ne faut **pas** toucher.
+
+**Le 11 septembre 2026, la 0.8.2** : **258 contrôles, aucun échec**. Le
+débordement de l'onglet Objectifs à 13 pt, présent depuis la 0.8.0, est
+corrigé : la page demandait 773 px pour 750 disponibles, elle en demande
+514. La relecture automatique des cibles et la mémoire de la géométrie
+sont éprouvées au banc, pas encore par un usage réel.
 
 > Ce que les calages livrés n'ont PAS rencontré : un volume plancher, un
 > apport refusé, un modèle incohérent. Les garde-fous qui traitent ces cas
