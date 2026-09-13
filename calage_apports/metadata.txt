@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.8.2
+version=0.8.3
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,18 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.8.2 — Widgets natifs QGIS : groupes repliables mémorisés, bandeau de messages, fenêtre retenue.
+changelog=0.8.3 — Relancer demande par où reprendre ; le suivi garde le calage précédent.
+    Relancer après avoir changé un réglage repartait du calcul de
+    référence sans rien demander, et refaisait des heures de calcul déjà
+    faites. Le plugin demande désormais par où reprendre, en nommant les
+    apports conservés et les apports perdus, et propose le premier que le
+    calage précédent n'a pas validé. La question ne se pose que s'il y a
+    quelque chose à perdre.
+    L'onglet Suivi ne repart plus de zéro : suivi.py archive l'état du
+    calage précédent au lieu de l'écraser, et les apports qu'une reprise
+    conserve restent au ruban et au tableau, marqués « repris » en
+    ardoise, leurs hydrogrammes tracés derrière en tiret-point.
+    0.8.2 — Widgets natifs QGIS : groupes repliables mémorisés, bandeau de messages, fenêtre retenue.
     Les aides dépliables (pente, sous-dossiers, configuration complète)
     deviennent des QgsCollapsibleGroupBox : même aspect que QGIS, état
     replié mémorisé d'une session à l'autre. Les informations et

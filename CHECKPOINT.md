@@ -4,7 +4,36 @@ Point de reprise pour ouvrir une nouvelle conversation avec un contexte
 minimal. L'état courant et les règles en vigueur restent dans `STATUT.txt` ;
 ce fichier ne dit que **où on en est** et **par quoi reprendre**.
 
-## Reprendre ici — 11 septembre 2026, nuit : 0.8.2 prête, NON COMMITÉE
+## Reprendre ici — 13 septembre 2026 : 0.8.3 prête, NON COMMITÉE
+
+Deux demandes utilisateur, la même scène : un calage mené à bout, le nombre
+d'essais changé pour un apport, et l'on relance.
+
+- **Le lancement demande par où reprendre.** `_confirmer_reprise()` nomme les
+  apports **conservés** (déjà calés en amont, plans d'étape non retouchés) et
+  les apports **perdus** (refaits à partir du départ), et propose le premier
+  que le calage précédent n'a pas validé. Le calcul est une fonction pure,
+  `plan_de_reprise()` — c'est elle que le banc éprouve. La question ne se pose
+  que s'il y a quelque chose à perdre ; aucun bouton cliqué vaut *Annuler*.
+- **L'onglet Suivi garde le calage précédent.** `Suivi.__init__` renomme
+  `avancement.json` en `avancement_precedent.json` au lieu de l'écraser (un
+  seul niveau d'historique). L'affichage reprend les apports validés que le
+  calage en cours ne traite pas, statut **« repris »** posé par l'affichage —
+  suivi.py n'en connaît que quatre —, teinte ardoise, hydrogrammes tracés
+  derrière en tiret-point. Ils n'entrent ni dans `en_cours`, ni dans les
+  jauges, ni dans les comptes.
+
+**Bancs : suivi.py vert (2 contrôles neufs) ; banc QGIS 270 OK, aucun échec,
+sortie 0** (12 contrôles neufs). ZIP 0.8.3 conforme et installé dans le profil
+ISL, 21 fichiers — QGIS ouvert, recharger le plugin.
+
+Par quoi reprendre : (1) **commit** — l'arbre est sale sur `main` ;
+(2) voir la boîte de reprise à l'écran, sur un vrai calage relancé — le banc
+ne clique aucun bouton ; (3) les points restés ouverts de la 0.8.2 (recette
+Accessibility Insights / Load QSS, élision de la barre à 13 pt, diagnostic de
+`_charger_couches_modele` pour rejouer `--modele`).
+
+## État précédent — 0.8.2
 
 Quatre changements d'ergonomie issus de la veille, tous natifs QGIS :
 - trois aides dépliables deviennent des `QgsCollapsibleGroupBox` (état

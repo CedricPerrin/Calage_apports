@@ -520,11 +520,18 @@ STYLE_ISL = feuille_interface(QApplication.palette())
 # l'affichage, et il n'y en a pas d'autre.
 # ---------------------------------------------------------------------------
 
+# UN CINQUIEME STATUT, QUI NE VIENT PAS DE LA CHAINE : « repris » designe
+# un apport que le calage PRECEDENT a cale et que celui-ci ne refait pas.
+# Il est pose par l'affichage (_suivi_precedent) a partir du suivi
+# archive ; suivi.py ne connait que les quatre autres.
+STATUT_REPRIS = "repris"
+
 COULEUR_STATUT = {
     "validé": ISL_VERT,
     "en cours": ISL_TEAL,
     "échoué": ISL_ROUGE,
     "en attente": ISL_ARDOISE_CLAIR,
+    STATUT_REPRIS: ISL_ARDOISE,
 }
 
 # LA COULEUR NE PORTE JAMAIS SEULE LE SENS. Une part notable de la population
@@ -536,6 +543,12 @@ GLYPHE_STATUT = {
     "en cours": "▶",
     "échoué": "✕",
     "en attente": "·",
+    # MEME GLYPHE QUE « validé », ET C'EST VOULU : ces apports SONT cales.
+    # Ce qui les distingue est le calage auquel ils appartiennent, et
+    # c'est la teinte qui le porte — vert pour celui-ci, ardoise pour
+    # celui d'avant. Inventer un sixieme signe pour « cale ailleurs »
+    # demanderait de l'apprendre.
+    STATUT_REPRIS: "✔",
 }
 
 
@@ -585,7 +598,8 @@ class RubanApports(QWidget):
             # La difference se voit sans distinguer les teintes — c'est la
             # clarte qui porte l'information, la couleur ne fait que la
             # confirmer.
-            acheve = statut in ("validé", "échoué", "en cours")
+            acheve = statut in ("validé", "échoué", "en cours",
+                                STATUT_REPRIS)
             if acheve:
                 peintre.setPen(Qt.PenStyle.NoPen)
                 peintre.setBrush(couleur)
@@ -832,7 +846,16 @@ class CourbeComparaison(QWidget):
         # les graduations et la legende.
         peintre.setClipRect(gauche, haut, largeur, hauteur)
         for courbe in deja:
-            peintre.setPen(QPen(QColor(ISL_VERT), 1.2, Qt.PenStyle.DotLine))
+            # DEUX FAMILLES, ET ELLES NE SE CONFONDENT PAS : ce que CE
+            # calage a cale, en vert pointille ; ce que le PRECEDENT avait
+            # cale et qu'on ne refait pas, en ardoise tiret-point. Deux
+            # teintes ET deux styles de trait — la teinte seule ne porte
+            # jamais le sens.
+            anterieure = bool(courbe.get("anterieur"))
+            peintre.setPen(QPen(
+                QColor(ISL_ARDOISE if anterieure else ISL_VERT), 1.2,
+                Qt.PenStyle.DashDotLine if anterieure
+                else Qt.PenStyle.DotLine))
             peintre.drawPolyline(QPolygonF(
                 [point(t, q) for t, q in zip(courbe["temps"],
                                              courbe["debit"])]))
@@ -868,9 +891,10 @@ class CourbeComparaison(QWidget):
         # La troisieme entree n'apparait QUE s'il y a quelque chose derriere :
         # au premier apport, une legende annoncant des sections calees qui
         # n'existent pas ferait chercher des courbes absentes.
-        if deja:
-            libelle_deja = (f"{len(deja)} section(s) calée(s)" if len(deja) > 1
-                            else "1 section calée")
+        courantes = [c for c in deja if not c.get("anterieur")]
+        if courantes:
+            libelle_deja = (f"{len(courantes)} section(s) calée(s)"
+                            if len(courantes) > 1 else "1 section calée")
             largeur_deja = 24 + 6 * len(libelle_deja)
             x_deja = x_cible - largeur_deja
             peintre.setPen(QPen(QColor(ISL_VERT), 1.2, Qt.PenStyle.DotLine))
@@ -879,6 +903,24 @@ class CourbeComparaison(QWidget):
             peintre.drawText(x_deja + 22, haut, largeur_deja - 22, 14,
                              Qt.AlignmentFlag.AlignLeft
                              | Qt.AlignmentFlag.AlignVCenter, libelle_deja)
+        # LE CALAGE PRECEDENT A SA PROPRE LIGNE DE LEGENDE, SOUS LA
+        # PREMIERE. A la suite des trois autres, elle sortait du cadre des
+        # que la fenetre etait un peu etroite : quatre entrees sur une
+        # ligne demandent plus de place que le trace lui-meme.
+        anterieures = [c for c in deja if c.get("anterieur")]
+        if anterieures:
+            libelle_avant = (f"{len(anterieures)} section(s) du calage "
+                             f"précédent")
+            largeur_avant = 24 + 6 * len(libelle_avant)
+            x_avant = max(gauche, gauche + largeur - largeur_avant)
+            y_avant = haut + 20
+            peintre.setPen(QPen(QColor(ISL_ARDOISE), 1.2,
+                                Qt.PenStyle.DashDotLine))
+            peintre.drawLine(x_avant, y_avant, x_avant + 18, y_avant)
+            peintre.setPen(QColor(ISL_ARDOISE))
+            peintre.drawText(x_avant + 22, y_avant - 7, largeur_avant - 22,
+                             14, Qt.AlignmentFlag.AlignLeft
+                             | Qt.AlignmentFlag.AlignVCenter, libelle_avant)
         peintre.end()
 
 
@@ -892,6 +934,60 @@ def duree_lisible(secondes):
     if secondes < 3600:
         return f"{secondes // 60} min"
     return f"{secondes // 3600} h {(secondes % 3600) // 60:02d}"
+
+
+def courbe_retenue(courbes):
+    """
+    La serie CALCULEE d'une paire publiee, au format des courbes precedentes.
+
+    Le suivi publie deux choses de forme differente : « courbes », la paire
+    cible/section que l'on regarde, et « courbes_precedentes », la famille des
+    sections deja calees. Pour rejouer un calage archive, il faut les deux —
+    la derniere section validee n'est que dans la premiere. None si la paire
+    n'a pas ete validee : un apport en echec ou en recherche n'a pas
+    d'hydrogramme retenu, et le tracer laisserait croire a un resultat.
+    """
+    if not courbes or courbes.get("statut") != "validé":
+        return None
+    return {"apport": courbes.get("apport"), "section": courbes.get("section"),
+            "temps": courbes.get("temps_calcule") or [],
+            "debit": courbes.get("debit_calcule") or []}
+
+
+def plan_de_reprise(apports, valides, premier):
+    """
+    Ce qu'un lancement CONSERVE et ce qu'il PERD d'un calage precedent.
+
+    apports : tous les apports du classeur, de l'amont vers l'aval.
+    valides : ceux que le calage precedent a menes a bien.
+    premier : l'apport ou la reprise doit commencer ; vide = tout recaler.
+
+    Rend (conserves, perdus, propose) :
+      conserves — deja cales et situes EN AMONT du depart : leurs plans
+                  d'etape ne sont pas retouches ;
+      perdus    — deja cales et situes A PARTIR du depart : leur calage sera
+                  refait, et c'est ce qu'il faut dire avant de lancer ;
+      propose   — par ou il serait raisonnable de reprendre quand rien n'est
+                  choisi : le PREMIER apport que le calage precedent n'a pas
+                  mene a bien. None s'il les a tous valides — on n'a alors
+                  aucune raison d'en designer un — et None des qu'un depart
+                  est choisi : on ne propose pas ce qui est deja decide.
+
+    L'ORDRE EST CELUI DU CLASSEUR, PAS CELUI DE L'ARCHIVE. Le calage est
+    sequentiel de l'amont vers l'aval, et c'est cet ordre-la, et lui seul, qui
+    dit ce qui est en amont de quoi.
+    """
+    valides = set(valides)
+    rang = apports.index(premier) if premier in apports else 0
+    return ([a for a in apports[:rang] if a in valides],
+            [a for a in apports[rang:] if a in valides],
+            # « premier » ET NON « premier in apports » : un depart
+            # choisi mais introuvable dans le classeur reste un depart
+            # choisi. En proposer un second a cote afficherait deux
+            # boutons « Reprendre a… » qui ne diraient pas la meme
+            # chose.
+            None if premier
+            else next((a for a in apports if a not in valides), None))
 
 
 # ---------------------------------------------------------------------------
@@ -1183,7 +1279,8 @@ Le bouton <i>Contrôle paramétrage</i>, permanent au bas de la fenêtre,
 <b>écrit, compose et contrôle</b> à partir des trois premières rubriques.
 Lire son compte rendu avant d'aller plus loin.</li>
 <li><b>Lancer.</b> Vérifier l'appariement et l'état des cibles,
-choisir le premier apport à caler et le <b>préfixe de scénario</b>, qui est
+choisir le premier apport à caler — le plugin le demande de lui-même si un
+calage précédent existe — et le <b>préfixe de scénario</b>, qui est
 <b>obligatoire</b> : il nomme les plans de ce calage-ci, et c'est lui qui
 empêche un second scénario d'effacer les plans du premier. Puis lancer : le
 calage tourne en arrière-plan, QGIS reste utilisable.</li>
@@ -1196,6 +1293,19 @@ se tient.</li>
 <li><b>Aide et configuration.</b> Diagnostic et paramètres du poste, puis ce mode opératoire
 avec son sommaire. Cette rubrique reste accessible pendant la préparation.</li>
 </ol>
+
+<p><b>Relancer un calage déjà mené.</b> Changer un réglage — le nombre
+d'essais, une tolérance — puis relancer ne refait pas forcément tout. Le
+plugin demande d'abord <b>par où reprendre</b>, en nommant les apports
+<i>conservés</i> — déjà calés en amont, leurs plans d'étape ne sont pas
+retouchés — et les apports <i>perdus</i>, dont le calage sera refait. Il
+propose le premier apport que le calage précédent n'a pas validé.
+<i>Tout recaler</i> repart du calcul de référence, soit plusieurs heures par
+apport. La question ne se pose que s'il y a quelque chose à perdre.</p>
+<p>Le <b>suivi du calage précédent est conservé</b> : ses apports restent au
+ruban et au tableau, marqués <i>repris</i> en ardoise, et leurs hydrogrammes
+sont tracés derrière ceux du calage en cours, en tiret-point. Un seul niveau
+d'historique — le calage d'avant, pas tous les précédents.</p>
 
 <h3><a name="s4"></a>Écrire dans la géométrie</h3>
 <p><b>Indispensable tant que les sections de contrôle n'existent pas dans le
@@ -3945,6 +4055,25 @@ class DialogueParametrage(QDialog):
 
         apports = etat.get("apports") or []
         en_cours = etat.get("en_cours")
+        # LE CALAGE PRECEDENT RESTE A L'ECRAN, DERRIERE CELUI-CI (demande
+        # utilisateur, 13/09/2026). Relancer remettait l'onglet a zero :
+        # les apports deja cales disparaissaient du ruban et du tableau,
+        # leurs hydrogrammes du trace, et rien ne disait qu'ils avaient
+        # existe. C'est le plus visible sur une REPRISE, ou le calage en
+        # cours ne porte volontairement que les apports restants.
+        #   ON NE GARDE QUE CE QUE CE CALAGE NE TRAITE PAS : un apport
+        # present dans les deux est celui qu'on refait, et c'est l'etat
+        # COURANT qui fait foi pour lui.
+        #   ILS N'ENTRENT NI DANS « en_cours », NI DANS LES JAUGES, NI
+        # DANS LES COMPTES : le ruban et le tableau les montrent, tout le
+        # reste de cette methode continue de ne parler que du calage qui
+        # tourne. Melanger les deux ferait lire les chiffres d'hier comme
+        # ceux du calcul en cours.
+        repris, courbes_reprises = self._suivi_precedent(dossier)
+        noms_courants = {a.get("apport") for a in apports}
+        repris = [a for a in repris if a.get("apport") not in noms_courants]
+        courbes_reprises = [c for c in courbes_reprises
+                            if c.get("apport") not in noms_courants]
         # Les jauges jugent sur LES TOLERANCES DE L'ETUDE, publiees par le
         # suivi. Figees a 2 %, elles coloraient en rouge des valeurs admises
         # par une etude qui en tolere 5.
@@ -3961,9 +4090,12 @@ class DialogueParametrage(QDialog):
         comptes = etat.get("comptes") or {}
         fraction = float(etat.get("fraction") or 0.0)
         self.barre_suivi.setValue(int(round(100 * fraction)))
-        self.ruban_apports.actualiser(apports, en_cours)
-        self.courbe_suivi.actualiser(etat.get("courbes"),
-                                     etat.get("courbes_precedentes"))
+        self.ruban_apports.actualiser(
+            repris + apports,
+            en_cours if en_cours is None else en_cours + len(repris))
+        self.courbe_suivi.actualiser(
+            etat.get("courbes"),
+            courbes_reprises + (etat.get("courbes_precedentes") or []))
 
         # BANNIERE : l'etat en un mot, et sa couleur avant meme la lecture.
         if etat.get("termine"):
@@ -4050,7 +4182,48 @@ class DialogueParametrage(QDialog):
             f"actualisé {etat.get('maj', '')[11:]}"
             + (f" · {etat['incidents']} incident(s)"
                if etat.get("incidents") else ""))
-        self._remplir_table_suivi(apports)
+        self._remplir_table_suivi(repris + apports)
+
+    def _suivi_precedent(self, dossier):
+        """
+        Ce que le calage PRECEDENT a obtenu, tel que l'ecran doit le garder.
+
+        Rend (apports, courbes) : les apports qu'il a VALIDES, marques
+        « repris », et les hydrogrammes retenus a leurs sections, marques
+        « anterieur ». Deux listes vides quand il n'y a pas d'archive — le cas
+        du premier calage.
+
+        L'appelant retire ensuite ceux que le calage EN COURS traite : c'est
+        lui qui sait lesquels, et les garder en double ferait un ruban ou le
+        meme apport apparait deux fois.
+
+        RELU SEULEMENT QUAND L'ARCHIVE CHANGE, c'est-a-dire au demarrage d'un
+        calage et jamais ensuite. Cette methode est appelee toutes les deux
+        secondes tant que l'onglet est a l'ecran, et le dossier de suivi est le
+        plus souvent sur un partage reseau — meme raison que _dossier_suivi.
+        """
+        if not dossier:
+            return [], []
+        chemin = Path(dossier) / noyau.ETAT_SUIVI_PRECEDENT
+        cle = _cle_fichier(chemin)
+        cache = getattr(self, "_archive_suivi", None)
+        if cache is None or cache[0] != cle:
+            cache = (cle, noyau.lire_avancement(dossier,
+                                                noyau.ETAT_SUIVI_PRECEDENT))
+            self._archive_suivi = cache
+        etat = cache[1]
+        if not etat:
+            return [], []
+        apports = [dict(a, statut=STATUT_REPRIS)
+                   for a in (etat.get("apports") or [])
+                   if a.get("statut") == "validé"]
+        noms = {a.get("apport") for a in apports}
+        derniere = courbe_retenue(etat.get("courbes"))
+        courbes = [dict(c, anterieur=True)
+                   for c in list(etat.get("courbes_precedentes") or [])
+                   + ([derniere] if derniere else [])
+                   if c.get("apport") in noms]
+        return apports, courbes
 
     def _afficher_bilan_masse(self, bilan):
         """
@@ -4709,6 +4882,126 @@ class DialogueParametrage(QDialog):
         self._maj_resume_cibles()
 
     @avec_sablier
+    def _confirmer_reprise(self):
+        """
+        Dire ce qu'un lancement CONSERVE et ce qu'il PERD d'un calage
+        precedent, et poser le depart quand on le demande. Rend False si l'on
+        renonce.
+
+        LE CAS QUI L'A DEMANDEE (13/09/2026). Un calage mene a bout, un seul
+        reglage change ensuite — le nombre d'essais d'un apport —, et l'on
+        relance. La fenetre repartait du calcul de reference et refaisait tous
+        les apports amont, soit des heures de calcul pour rien, sans rien
+        demander. Le reglage qui l'evite existe depuis longtemps — « Premier
+        apport a caler », etape 4, encadre « Apports a determiner » — mais il
+        faut savoir qu'il est la et y penser AVANT de cliquer : personne ne va
+        chercher un reglage pour un probleme qu'il n'a pas encore.
+
+        ON NE DEMANDE QUE S'IL Y A QUELQUE CHOSE A PERDRE. Sans calage
+        precedent dans le dossier de suivi — le cas courant — le lancement
+        part sans question : une question posee a chaque fois s'apprend par
+        coeur et ne se lit plus.
+
+        CE QUE L'ARCHIVE PROUVE, ET CE QU'ELLE NE PROUVE PAS. Elle dit ce que
+        le calage precedent a VALIDE. Elle ne dit pas que les plans d'etape
+        sont toujours dans le modele : c'est pont_hecras qui cherche le plan
+        de depart et qui avertit s'il manque. La question porte donc sur le
+        travail, pas sur les fichiers.
+        """
+        dossier = self._dossier_suivi()
+        precedent = noyau.lire_avancement(dossier) if dossier else None
+        valides = [a.get("apport")
+                   for a in ((precedent or {}).get("apports") or [])
+                   if a.get("statut") == "validé"]
+        if not valides:
+            return True
+        try:
+            tous = [a for a, _ in noyau.apports_du_classeur(self.classeur)]
+        except Exception as e:                              # noqa: BLE001
+            # Une lecture qui rate ne doit pas empecher de lancer : le
+            # classeur est relu par la chaine, qui refusera pour de vrai.
+            journaliser("Apports du classeur avant lancement", e)
+            return True
+        premier = self._premier_apport()
+        conserves, perdus, propose = plan_de_reprise(tous, valides, premier)
+        if not perdus:
+            # Tout ce qui etait cale est en amont du depart : rien ne se perd.
+            return True
+
+        def lister(noms):
+            return ", ".join(noms) if noms else "aucun"
+
+        if premier:
+            titre = "Reprendre le calage"
+            texte = (
+                f"<b>Reprendre le calage à l'apport « {premier} » ?</b>"
+                f"<br><br>"
+                f"<b>Conservés</b> ({len(conserves)}) — déjà calés en amont, "
+                f"leurs plans d'étape ne sont pas retouchés : "
+                f"{lister(conserves)}.<br><br>"
+                f"<b>Perdus</b> ({len(perdus)}) — leur calage précédent sera "
+                f"refait à partir de « {premier} » : {lister(perdus)}.")
+        else:
+            titre = "Un calage précédent existe"
+            texte = (
+                f"<b>Tout recaler, et perdre {len(perdus)} apport(s) déjà "
+                f"calés ?</b><br><br>"
+                f"Le calage précédent avait validé : {lister(perdus)}.<br>"
+                f"Lancer maintenant les refait TOUS, depuis le calcul de "
+                f"référence « sans_apport » — plusieurs heures par apport."
+                f"<br><br>"
+                + (f"Pour ne reprendre qu'à partir de « {propose} », le "
+                   f"premier que le calage précédent n'a pas validé, les "
+                   f"apports en amont seront conservés."
+                   if propose else
+                   "Pour n'en reprendre qu'une partie, renseigner « Premier "
+                   "apport à caler », étape 4, encadré « Apports à "
+                   "déterminer »."))
+        with sans_sablier(self):
+            boite = QMessageBox(self)
+            boite.setWindowTitle(titre)
+            boite.setIcon(QMessageBox.Icon.Question)
+            boite.setText(texte)
+            bouton_reprendre = (
+                boite.addButton(f"Reprendre à {propose}",
+                                QMessageBox.ButtonRole.AcceptRole)
+                if propose else None)
+            boite.addButton("Reprendre" if premier else "Tout recaler",
+                            QMessageBox.ButtonRole.AcceptRole)
+            bouton_annuler = boite.addButton(
+                "Annuler", QMessageBox.ButtonRole.RejectRole)
+            # LE DEFAUT EST CELUI QUI NE COUTE RIEN : reprendre si on peut,
+            # annuler sinon. « Tout recaler » n'est jamais le defaut — c'est
+            # l'issue qui jette des heures de calcul.
+            boite.setDefaultButton(bouton_reprendre or bouton_annuler)
+            boite.exec()
+            clique = boite.clickedButton()
+        # AUCUN BOUTON CLIQUE VAUT ANNULER. Une boite fermee par la croix, ou
+        # un talon de recette qui ne repond pas, ne doit pas lancer des heures
+        # de calcul par defaut.
+        if clique is None or clique is bouton_annuler:
+            dire(self.label_lancement, "Lancement annulé.")
+            return False
+        if bouton_reprendre is not None and clique is bouton_reprendre:
+            rang = self.combo_premier_apport.findData(propose)
+            if rang < 0:
+                self._remplir_premier_apport()
+                rang = self.combo_premier_apport.findData(propose)
+            if rang < 0:
+                # ON NE LANCE PAS PLUTOT QUE DE LANCER AUTRE CHOSE. Poser le
+                # depart est TOUT ce que ce bouton fait : echouer en silence
+                # repartirait de zero, c'est-a-dire exactement ce que
+                # l'utilisateur vient de refuser.
+                QMessageBox.critical(
+                    self, "Reprise",
+                    f"« {propose} » ne figure pas dans la liste « Premier "
+                    f"apport à caler » : la reprise ne peut pas être posée, "
+                    f"et le calage n'est pas lancé — il serait reparti du "
+                    f"calcul de référence.")
+                return False
+            self.combo_premier_apport.setCurrentIndex(rang)
+        return True
+
     def _lancer_calage(self):
         """
         Lance la boucle de calage complete en arriere-plan. Ne bloque JAMAIS
@@ -4723,6 +5016,12 @@ class DialogueParametrage(QDialog):
                 "Lancer maintenant ferait travailler deux calages sur les "
                 "mêmes plans du même modèle, et le second écraserait les "
                 "étapes du premier."):
+            return
+        # CE QU'UN RELANCEMENT PERD — la question qui manquait. Elle ne se
+        # pose que s'il y a quelque chose a perdre, et elle POSE le depart
+        # quand on le lui demande : elle passe donc avant l'ecriture des
+        # reglages, qui emporte « Premier_apport » dans le classeur.
+        if not self._confirmer_reprise():
             return
         try:
             etat = noyau.etat_cibles(self.classeur)

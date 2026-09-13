@@ -45,6 +45,14 @@ import livrables as liv
 
 EN_ATTENTE, EN_COURS, VALIDE, ECHOUE = "en attente", "en cours", "validé", "échoué"
 
+# LES DEUX ETATS MACHINE DU DOSSIER DE SUIVI : celui du calage en cours,
+# et celui du calage PRECEDENT, archive par renommage au demarrage du
+# suivant (voir Suivi.__init__). Le plugin porte les memes noms dans
+# noyau.ETAT_SUIVI_COURANT et ETAT_SUIVI_PRECEDENT — le Python de QGIS ne
+# peut pas importer ce module, et toute correction va donc aux deux.
+ETAT_COURANT = "avancement.json"
+ETAT_PRECEDENT = "avancement_precedent.json"
+
 # Excel refuse ces caracteres dans un nom d'onglet, et le limite a 31 signes.
 CARACTERES_INTERDITS_ONGLET = set("[]:*?/\\")
 
@@ -282,6 +290,25 @@ class Suivi:
         self.bilan_masse = None
         self.etats = [EtatApport(a, s)
                       for a, s in zip(noms_apports, noms_sections)]
+        # LE SUIVI DU CALAGE PRECEDENT EST ARCHIVE, PAS EFFACE (demande
+        # utilisateur, 13/09/2026). Relancer — pour reprendre a un
+        # apport, ou pour tout refaire apres avoir change un reglage —
+        # ecrasait avancement.json : l'onglet Suivi repartait de zero, et
+        # ce qui avait ete obtenu la veille n'existait plus nulle part.
+        # Il vit desormais a cote, sous un nom fixe, et l'affichage trace
+        # le calage en cours PAR-DESSUS.
+        #   UN SEUL NIVEAU D'HISTORIQUE : le troisieme calage remplace
+        # l'archive du deuxieme. Garder une pile obligerait a choisir
+        # lequel montrer, et ce qu'on veut voir est CE QUI PRECEDE.
+        #   UN RENOMMAGE, PAS UNE COPIE : le plugin relit ce fichier
+        # toutes les deux secondes, et Path.replace est atomique — il ne
+        # peut donc pas etre surpris a mi-chemin.
+        ancien = self.dossier / ETAT_COURANT
+        if ancien.exists():
+            try:
+                ancien.replace(self.dossier / ETAT_PRECEDENT)
+            except OSError as e:                            # noqa: BLE001
+                self._consigner("archivage du suivi précédent", e)
         # Un etat est ecrit DES LA CONSTRUCTION : entre le lancement et le
         # premier calcul il peut s'ecouler plusieurs minutes (clonage,
         # pretraitement), et sans lui l'affichage resterait vide en laissant
@@ -593,7 +620,7 @@ class Suivi:
         Ecrit avancement.json, atomiquement comme le reste : il est relu
         toutes les deux secondes pendant qu'il est reecrit.
         """
-        chemin = self.dossier / "avancement.json"
+        chemin = self.dossier / ETAT_COURANT
         provisoire = chemin.with_suffix(".json.tmp")
         provisoire.write_text(
             json.dumps(self.etat(), ensure_ascii=False, indent=1),
@@ -1429,6 +1456,21 @@ if __name__ == "__main__":
               all({"apport", "statut", "essais", "volume_pct", "pic_pct"}
                   <= set(a) for a in etat["apports"]),
               f"{len(etat['apports'])} apport(s)")
+
+    # RELANCER N'EFFACE PLUS LE SUIVI PRECEDENT (13/09/2026). C'est ce qui
+    # permet a l'onglet Suivi de garder a l'ecran les apports deja cales
+    # qu'une reprise ne refait pas.
+    _rep = sortie / "relance"
+    _s1 = Suivi(_rep, ["A", "B"], ["SA", "SB"])
+    _s1.valider_apport(0, _diag_fenetres, duree_s=60)
+    _avant = json.loads((_rep / ETAT_COURANT).read_text(encoding="utf-8"))
+    _s2 = Suivi(_rep, ["B"], ["SB"])
+    controler("relancer archive le suivi precedent au lieu de l'ecraser",
+              json.loads((_rep / ETAT_PRECEDENT)
+                         .read_text(encoding="utf-8")) == _avant)
+    controler("et le calage relance repart sur son propre etat",
+              [a["apport"] for a in _s2.etat()["apports"]] == ["B"],
+              str([a["apport"] for a in _s2.etat()["apports"]]))
 
     # BILAN DE MASSE — QUALITE DU CALCUL, PAS ECART A LA CIBLE. Publie parce
     # qu'un calage arrete pour « qualite numerique » n'exposait son chiffre

@@ -1607,9 +1607,24 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
     return chemin
 
 
-def lire_avancement(dossier_suivi):
+# LES DEUX ETATS MACHINE QUE suivi.py ECRIT dans le dossier de suivi :
+# celui du calage en cours, et celui du calage PRECEDENT, archive par
+# renommage au demarrage du suivant. Jumeaux de suivi.ETAT_COURANT et
+# suivi.ETAT_PRECEDENT — le Python de QGIS ne peut pas importer la chaine
+# (h5py, ras-commander), et toute correction va donc aux deux, comme pour
+# hecras_ouvert.
+ETAT_SUIVI_COURANT = "avancement.json"
+ETAT_SUIVI_PRECEDENT = "avancement_precedent.json"
+
+
+def lire_avancement(dossier_suivi, nom=ETAT_SUIVI_COURANT):
     """
     Etat courant du calage, tel que suivi.py le reecrit a chaque essai.
+
+    « nom » vaut ETAT_SUIVI_PRECEDENT pour relire le calage d'avant, que
+    suivi.py archive au lieu de l'ecraser : c'est ce qui permet a
+    l'onglet Suivi de garder a l'ecran les apports qu'une reprise
+    conserve.
 
     Retourne None si aucun calage n'a encore ecrit dans ce dossier — ce n'est
     pas une erreur, c'est l'etat normal avant le lancement.
@@ -1619,7 +1634,7 @@ def lire_avancement(dossier_suivi):
     partage reseau peuvent malgre tout rendre un instantane illisible ; dans
     ce cas on garde simplement l'affichage precedent.
     """
-    chemin = Path(dossier_suivi) / "avancement.json"
+    chemin = Path(dossier_suivi) / nom
     try:
         return json.loads(chemin.read_text(encoding="utf-8"))
     except (OSError, ValueError):

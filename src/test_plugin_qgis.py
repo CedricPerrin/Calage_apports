@@ -1294,12 +1294,91 @@ verifier("suivi : un calage mort est annonce INTERROMPU",
          "interrompu" in dlg.label_suivi_banniere.text().lower(),
          dlg.label_suivi_banniere.text()[:90])
 
+# LE CALAGE PRECEDENT RESTE A L'ECRAN (0.8.3, demande utilisateur). Relancer
+# remettait l'onglet a zero : les apports deja cales disparaissaient du ruban,
+# du tableau et du trace, et rien ne disait qu'ils avaient existe. suivi.py
+# archive desormais l'etat d'avant ; l'affichage garde ceux que le calage en
+# cours NE traite pas — exactement ce qu'une reprise conserve — et les trace
+# derriere.
+(_dossier_etat() / "avancement_precedent.json").write_text(
+    json.dumps({
+        "apports": [
+            {"ordre": 1, "apport": "A0", "section": "SC0", "statut": "validé",
+             "essais": 2, "volume_pct": 100.1, "pic_pct": 99.7},
+            # A1 EST AUSSI DANS LE CALAGE EN COURS : c'est celui qu'on refait,
+            # et l'etat courant fait foi pour lui. Il ne doit pas apparaitre
+            # deux fois dans le tableau.
+            {"ordre": 2, "apport": "A1", "section": "SC1", "statut": "validé",
+             "essais": 1, "volume_pct": 99.0, "pic_pct": 100.0},
+            # UN ECHEC N'EST PAS UN ACQUIS : il n'a pas d'hydrogramme retenu,
+            # et le reprendre laisserait croire a un resultat.
+            {"ordre": 3, "apport": "AX", "section": "SCX", "statut": "échoué",
+             "essais": 5, "volume_pct": 91.0, "pic_pct": 88.0}],
+        "courbes_precedentes": [
+            {"apport": "A0", "section": "SC0", "temps": [0.0, 1.0, 2.0],
+             "debit": [0.0, 5.0, 0.0]}],
+        "courbes": None}, ensure_ascii=False), encoding="utf-8")
+_ecrire_etat()
+dlg._rafraichir_suivi()
+_lignes = [dlg.table_suivi.item(i, 0).text()
+           for i in range(dlg.table_suivi.rowCount())]
+verifier("suivi : les apports du calage precedent restent au tableau",
+         _lignes == ["A0", "A1", "A2", "A3"], str(_lignes))
+verifier("suivi : ils y sont marques « repris », et non « validé »",
+         "repris" in dlg.table_suivi.item(0, 2).text()
+         and "validé" in dlg.table_suivi.item(1, 2).text(),
+         f"{dlg.table_suivi.item(0, 2).text()} | "
+         f"{dlg.table_suivi.item(1, 2).text()}")
+verifier("suivi : un apport que le calage en cours refait n'est pas double",
+         _lignes.count("A1") == 1, str(_lignes))
+verifier("suivi : un apport en echec au calage precedent n'est pas repris",
+         "AX" not in _lignes, str(_lignes))
+verifier("suivi : l'apport en cours reste designe malgre le decalage du ruban",
+         dlg.ruban_apports.en_cours == 2
+         and dlg.ruban_apports.apports[2].get("apport") == "A2",
+         f"en_cours={dlg.ruban_apports.en_cours} "
+         f"apports={[a.get('apport') for a in dlg.ruban_apports.apports]}")
+_anterieures = [c for c in dlg.courbe_suivi.precedentes if c.get("anterieur")]
+verifier("suivi : les hydrogrammes du calage precedent sont traces derriere",
+         [c["apport"] for c in _anterieures] == ["A0"],
+         str([c["apport"] for c in dlg.courbe_suivi.precedentes]))
+
+(_dossier_etat() / "avancement_precedent.json").unlink()
+dlg._rafraichir_suivi()
+verifier("suivi : sans archive, le tableau ne parle que du calage en cours",
+         dlg.table_suivi.rowCount() == 3,
+         f"{dlg.table_suivi.rowCount()} ligne(s)")
+
+# CE QU'UN RELANCEMENT CONSERVE ET CE QU'IL PERD (0.8.3). Le calcul est une
+# fonction pure : c'est lui qui remplit la question posee au lancement, et
+# c'est lui qu'il faut eprouver — la boite ne fait que l'afficher.
+_TOUS = ["A1", "A2", "A3", "A4"]
+verifier("reprise : un depart choisi nomme les conserves et les perdus",
+         mod_plugin.plan_de_reprise(_TOUS, ["A1", "A2"], "A2")
+         == (["A1"], ["A2"], None),
+         str(mod_plugin.plan_de_reprise(_TOUS, ["A1", "A2"], "A2")))
+verifier("reprise : sans depart, tout ce qui etait cale est perdu",
+         mod_plugin.plan_de_reprise(_TOUS, ["A1", "A2"], "")[:2]
+         == ([], ["A1", "A2"]),
+         str(mod_plugin.plan_de_reprise(_TOUS, ["A1", "A2"], "")))
+verifier("reprise : le depart propose est le premier apport non valide",
+         mod_plugin.plan_de_reprise(_TOUS, ["A1", "A2"], "")[2] == "A3",
+         str(mod_plugin.plan_de_reprise(_TOUS, ["A1", "A2"], "")[2]))
+verifier("reprise : un calage complet ne propose aucun depart",
+         mod_plugin.plan_de_reprise(_TOUS, _TOUS, "")[2] is None,
+         str(mod_plugin.plan_de_reprise(_TOUS, _TOUS, "")))
+
 (_dossier_etat() / "avancement.json").unlink()
 dlg._rafraichir_suivi()
 verifier("suivi : sans etat, rien n'est invente",
          "aucun calage" in dlg.label_suivi_banniere.text().lower()
          and dlg.table_suivi.rowCount() == 0,
          dlg.label_suivi_banniere.text()[:80])
+# ET SANS CALAGE PRECEDENT, LE LANCEMENT NE DEMANDE RIEN : la question de
+# reprise ne se pose que s'il y a quelque chose a perdre. Posee a chaque
+# lancement, elle s'apprendrait par coeur et ne se lirait plus.
+verifier("reprise : sans calage precedent, le lancement ne demande rien",
+         dlg._confirmer_reprise() is True)
 # ET LA BANNIERE DIT OU ELLE REGARDE. Un suivi muet parce qu'il regardait le
 # mauvais dossier ne se distinguait en rien d'un calage pas encore parti.
 verifier("suivi : sans etat, la banniere nomme le dossier qu'elle surveille",

@@ -22,6 +22,79 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+MISE A JOUR DU 13 SEPTEMBRE 2026 — 0.8.3, RELANCER NE REFAIT PLUS TOUT
+  DEUX DEMANDES UTILISATEUR, ET LA MEME SCENE : un calage mene a bout, un
+  reglage change pour un seul apport — le nombre d'essais —, et l'on relance.
+
+  1. LE LANCEMENT DEMANDE PAR OU REPRENDRE. Il repartait du calcul de
+     reference sans rien demander, et refaisait tous les apports amont : des
+     heures de calcul deja faites. Le reglage qui l'evite existait depuis la
+     0.6.x — « Premier apport a caler », onglet 4 — mais il faut savoir qu'il
+     est la et y penser AVANT de cliquer. Personne ne va chercher un reglage
+     pour un probleme qu'il n'a pas encore.
+       _confirmer_reprise() nomme les CONSERVES — deja cales en amont du
+     depart, plans d'etape non retouches — et les PERDUS — deja cales a
+     partir du depart, leur calage sera refait. Elle PROPOSE le premier
+     apport que le calage precedent n'a pas valide, et le bouton
+     « Reprendre a <apport> » pose le depart dans la liste.
+       LE CALCUL EST UNE FONCTION PURE, plan_de_reprise(apports, valides,
+     premier) : la boite ne fait que l'afficher, et c'est la fonction que le
+     banc eprouve. L'ORDRE EST CELUI DU CLASSEUR, jamais celui de l'archive —
+     le calage est sequentiel, et lui seul dit ce qui est en amont de quoi.
+       ELLE NE SE POSE QUE S'IL Y A QUELQUE CHOSE A PERDRE. Sans calage
+     precedent dans le dossier de suivi — le cas courant — le lancement part
+     sans question : posee a chaque fois, elle s'apprendrait par coeur.
+       AUCUN BOUTON CLIQUE VAUT ANNULER, et « Tout recaler » n'est jamais le
+     defaut : c'est l'issue qui jette des heures de calcul. Si le depart
+     propose ne figure pas dans la liste, le calage N'EST PAS LANCE — il
+     serait reparti de zero, c'est-a-dire exactement ce qu'on venait de
+     refuser.
+       CE QUE L'ARCHIVE PROUVE : ce que le calage precedent a VALIDE. PAS que
+     les plans d'etape sont encore dans le modele — c'est pont_hecras qui
+     cherche le plan de depart et avertit s'il manque (regle inchangee).
+
+  2. L'ONGLET SUIVI NE REPART PLUS DE ZERO. Relancer ecrasait
+     avancement.json : les apports deja cales disparaissaient du ruban, du
+     tableau et du trace, et rien ne disait qu'ils avaient existe. C'est le
+     plus visible sur une REPRISE, ou le calage en cours ne porte
+     volontairement que les apports restants.
+       suivi.py ARCHIVE au lieu d'ecraser : Suivi.__init__ renomme
+     avancement.json en avancement_precedent.json. UN RENOMMAGE, PAS UNE
+     COPIE — le plugin relit ce fichier toutes les deux secondes, et
+     Path.replace est atomique. UN SEUL NIVEAU D'HISTORIQUE : le troisieme
+     calage remplace l'archive du deuxieme.
+       L'AFFICHAGE GARDE CEUX QUE LE CALAGE EN COURS NE TRAITE PAS —
+     exactement ce qu'une reprise conserve. Statut « repris », cinquieme
+     statut, POSE PAR L'AFFICHAGE et non par la chaine : suivi.py n'en
+     connait que quatre. Meme glyphe que « valide » (ils SONT cales), teinte
+     ardoise et non verte ; leurs hydrogrammes se tracent derriere, en
+     tiret-point, avec leur propre ligne de legende.
+       ILS N'ENTRENT NI DANS « en_cours », NI DANS LES JAUGES, NI DANS LES
+     COMPTES. Le ruban et le tableau les montrent ; tout le reste de
+     _peindre_suivi ne parle que du calage qui tourne. Melanger les deux
+     ferait lire les chiffres d'hier comme ceux du calcul en cours.
+       UN ECHEC N'EST PAS UN ACQUIS : seul « valide » est repris. Un apport
+     en echec n'a pas d'hydrogramme retenu, et le montrer laisserait croire a
+     un resultat — meme regle que _courbes_precedentes depuis la 0.7.20.
+
+  LES DEUX NOMS DE FICHIER SONT JUMEAUX, comme hecras_ouvert : suivi.py porte
+  ETAT_COURANT et ETAT_PRECEDENT, noyau.py porte ETAT_SUIVI_COURANT et
+  ETAT_SUIVI_PRECEDENT. Le Python de QGIS ne peut pas importer la chaine
+  (h5py, ras-commander) ; toute correction va donc aux deux.
+
+  BANCS : suivi.py vert, deux controles neufs (l'archive est ecrite, le
+  calage relance repart sur son propre etat). BANC QGIS : 270 [OK], AUCUN
+  ECHEC, code de sortie 0, sans modele — douze controles neufs.
+  Archive calage_apports_0.8.3.zip conforme, installee dans le profil QGIS
+  ISL, 21 fichiers (QGIS ouvert : effective au prochain rechargement).
+  Chaine hydraulique, calage.py, criteres.py et pilote_hecras.py inchanges.
+
+  CE QUI N'A PAS ETE EPROUVE : la boite elle-meme. Le mannequin du banc ne
+  clique aucun bouton — a dessein — et le poste n'a pas de classeur sans
+  modele, si bien que _confirmer_reprise n'y est exercee que par son chemin
+  « aucun calage precedent ». Le calcul qu'elle affiche, lui, l'est. Aucun
+  calage reel n'a ete relance.
+
 MISE A JOUR DU 11 SEPTEMBRE 2026 (NUIT) — 0.8.2, WIDGETS NATIFS QGIS
   Quatre changements d'ergonomie, tous tires de la veille du soir
   (0-Ergonomie/veille/2026-09-11_veille_ressources.md).
