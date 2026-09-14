@@ -4,7 +4,49 @@ Point de reprise pour ouvrir une nouvelle conversation avec un contexte
 minimal. L'état courant et les règles en vigueur restent dans `STATUT.txt` ;
 ce fichier ne dit que **où on en est** et **par quoi reprendre**.
 
-## Reprendre ici — 13 septembre 2026 : 0.8.3 prête, NON COMMITÉE
+## Reprendre ici — 14 septembre 2026 : 0.8.4, NON COMMITÉE
+
+Six demandes utilisateur après un calage réel repris — Suhihandia, reprise à
+SUH12 — et le constat qui les a fait naître : ce calage s'arrête au calcul de
+référence, et rien de ce qui l'annonçait n'était visible à l'écran.
+
+- **Le préfixe de scénario nomme l'Excel** : `donnees_calage_Q100.xlsx`
+  (`noyau.nom_classeur`). Deux scénarios d'un même dossier de sortie ont deux
+  classeurs, et composer l'un n'écrase plus l'autre. Préfixe vide = le nom
+  d'avant. Aucune boîte « voulez-vous écraser ? » : un préfixe neuf est un
+  fichier neuf — décision utilisateur.
+- **Le préfixe passe à l'onglet 3**, seul dans son groupe et toujours actif,
+  au-dessus du groupe « Excel des hydrogrammes objectifs » qui, lui, est
+  **grisé** tant que rien n'est composé. « Reprendre un Excel… » reste actif :
+  c'est la seule porte d'entrée vers un calage d'une autre session.
+- **Les deux boutons reviennent côte à côte**, libellés raccourcis — ce qui
+  rend la hauteur que l'empilement de la 0.8.2 coûtait sans ramener le
+  débordement à 13 pt.
+- **Les erreurs et avertissements remontent dans l'onglet Suivi**, encadré
+  repliable sous la bannière, alimenté par le journal de lancement filtré.
+- **HEC-RAS ouvert refuse le lancement**, un seul bouton « Ok ».
+- **La ligne du calcul de référence nomme ce qu'elle met à zéro** — le
+  comportement, lui, était déjà correct en reprise.
+- **Les messages de HEC-RAS gardent la ligne qui explique**, non les quatre
+  dernières, qui sont son tableau des temps (`_lignes_qui_expliquent`). C'est
+  ce qui empêchait de diagnostiquer l'arrêt de Suhihandia.
+- **En reprise, la borne haute de la fenêtre reste celle du plan de
+  référence** — mesuré sur le cas réel : 36 h au `.p01`, 32 h 06 au `.p20`
+  dont la reprise repart. Défaut réel, mais pas la cause de l'arrêt.
+
+**Bancs : banc QGIS 278 OK, aucun échec, sortie 0** (8 contrôles neufs) ;
+`noyau.py`, `calage.py`, `suivi.py`, `criteres.py`, `pilote_hecras.py` et
+`pont_hecras.py autotest` verts. La caractérisation de `calage.py` rend « la
+trajectoire est celle de la référence » : la chaîne hydraulique est inchangée.
+
+Par quoi reprendre : (1) **relancer le calage repris de Suhihandia avec la
+0.8.4**, et lire l'encadré « Erreurs et avertissements » de l'onglet Suivi —
+il dira ce que HEC-RAS refuse, ce que l'ancien diagnostic cachait derrière son
+tableau des temps ; (2) voir les changements à l'écran dans QGIS ;
+(3) installer le ZIP 0.8.4 dans le profil ISL ; (4) **commit** — l'arbre est
+sale sur `main`.
+
+## État précédent — 13 septembre 2026 : 0.8.3 commitée et poussée
 
 Deux demandes utilisateur, la même scène : un calage mené à bout, le nombre
 d'essais changé pour un apport, et l'on relance.
@@ -27,9 +69,11 @@ d'essais changé pour un apport, et l'on relance.
 sortie 0** (12 contrôles neufs). ZIP 0.8.3 conforme et installé dans le profil
 ISL, 21 fichiers — QGIS ouvert, recharger le plugin.
 
-Par quoi reprendre : (1) **commit** — l'arbre est sale sur `main` ;
-(2) voir la boîte de reprise à l'écran, sur un vrai calage relancé — le banc
-ne clique aucun bouton ; (3) les points restés ouverts de la 0.8.2 (recette
+Commit `164bbf5` sur `main`, poussé ; l'arbre est propre.
+
+Par quoi reprendre : (1) voir la boîte de reprise à l'écran, sur un vrai
+calage relancé — le banc ne clique aucun bouton ; (2) les points restés
+ouverts de la 0.8.2 (recette
 Accessibility Insights / Load QSS, élision de la barre à 13 pt, diagnostic de
 `_charger_couches_modele` pour rejouer `--modele`).
 

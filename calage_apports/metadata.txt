@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.8.3
+version=0.8.4
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,27 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.8.3 — Relancer demande par où reprendre ; le suivi garde le calage précédent.
+changelog=0.8.4 — Le préfixe de scénario nomme l'Excel ; les erreurs remontent au Suivi.
+    L'Excel des objectifs s'appelle désormais « donnees_calage_<préfixe>.xlsx » :
+    deux scénarios d'un même dossier de sortie ont deux classeurs, et
+    composer l'un n'écrase plus l'autre. Le préfixe passe donc à l'onglet 3,
+    où il est saisi avant la composition.
+    Le groupe « Excel des hydrogrammes objectifs » est grisé tant que rien
+    n'est composé ; « Reprendre un Excel… » reste actif, c'est la porte
+    d'entrée vers un calage d'une autre session. Les deux boutons reviennent
+    côte à côte, libellés raccourcis.
+    L'onglet Suivi montre les erreurs et avertissements du journal de
+    lancement : ils ne vivaient que dans un fichier .log dont la bannière
+    donnait le chemin.
+    HEC-RAS ouvert n'est plus une question mais un refus, avec un seul
+    bouton.
+    Deux correctifs de la chaine, venus du diagnostic d'un calage repris :
+    les messages de HEC-RAS gardent la ligne qui explique et non les quatre
+    dernieres, qui sont son tableau des temps ; et en reprise, la borne haute
+    de la fenetre de simulation reste celle du plan de reference, non celle
+    du plan d'etape dont on repart, deja raccourci.
+
+0.8.3 — Relancer demande par où reprendre ; le suivi garde le calage précédent.
     Relancer après avoir changé un réglage repartait du calcul de
     référence sans rien demander, et refaisait des heures de calcul déjà
     faites. Le plugin demande désormais par où reprendre, en nommant les

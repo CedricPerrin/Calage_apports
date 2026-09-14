@@ -987,8 +987,15 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
         modele.appliquer_facteur(nom, 0.0)
     _jalonner(modele, titre_etape(etape_reference, config.prefixe_etape),
               dire)
-    dire("Calcul de reference : tous les apports a caler sont mis a zero, "
-         "pour mesurer ce que les sections recoivent sans eux.")
+    # LA LIGNE NOMME CE QU'ELLE MET A ZERO. « tous les apports a caler » se
+    # lisait « tous les apports » sur une REPRISE, ou la liste ne porte que
+    # l'aval du point de depart : on croyait le calage en train de defaire le
+    # travail des apports amont, qu'il ne touche pas (14/09/2026, retour
+    # utilisateur sur un calage reel repris a son dernier apport).
+    dire(f"Calcul de reference : {len(apports)} apport(s) mis a zero "
+         f"({', '.join(apports)}), pour mesurer ce que les sections "
+         f"recoivent sans eux. Les apports hors de cette liste gardent la "
+         f"valeur du plan de depart.")
     calcul = modele.calculer()
     resultat.nb_calculs += 1
     _noter_bilan(suivi, calcul, config)

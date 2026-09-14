@@ -3,7 +3,7 @@
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 
-Version des sources du plugin : **0.8.2**. La
+Version des sources du plugin : **0.8.4**. La
 [note d’ergonomie du 11 septembre 2026](docs/ergonomie_2026-09-11.md)
 décrit le parcours, les choix d’interface et les points de recette.
 
@@ -16,6 +16,14 @@ l'onglet Objectifs à 13 points, présent depuis la 0.8.0, est corrigé.
 Elle remplace trois aides dépliables maison par des groupes repliables
 QGIS, les boîtes d'information par un bandeau de messages, et retient la
 taille de la fenêtre d'une session à l'autre.
+La **0.8.3** en passe **270, sans échec** : relancer un calage demande par où
+reprendre — les apports déjà calés en amont du départ sont conservés — et
+l'onglet Suivi garde le calage précédent au lieu de l'écraser.
+La **0.8.4** en passe **278, sans échec** : le préfixe de scénario nomme
+l'Excel des objectifs — `donnees_calage_Q100.xlsx` —, si bien que deux
+scénarios d'un même dossier de sortie ont deux classeurs ; les erreurs et
+avertissements du journal de lancement remontent dans l'onglet Suivi ; et
+HEC-RAS ouvert refuse le lancement au lieu de poser une question.
 
 Pour chaque apport, de l'amont vers l'aval : estimer, calculer, comparer à la
 cible, corriger, répéter jusqu'à concordance, puis vérifier la cohérence des

@@ -187,6 +187,34 @@ NOMS_FICHIERS = {
 }
 
 
+def nom_classeur(prefixe=""):
+    """
+    Nom du classeur de saisie pour un scenario : « donnees_calage_Q100.xlsx ».
+
+    LE PREFIXE DE SCENARIO NOMME LE FICHIER (0.8.4, demande utilisateur).
+    Tous les scenarios d'un meme dossier de sortie partageaient
+    « donnees_calage.xlsx » : composer le Q10 ecrasait la feuille
+    Correspondance du Q100, et la seule facon de garder les deux etait de
+    tenir deux dossiers de sortie. Le prefixe etant deja obligatoire — il
+    nomme les plans HEC-RAS —, le faire nommer aussi le fichier suffit : deux
+    scenarios, deux classeurs, et composer l'un ne touche pas l'autre.
+
+    PREFIXE VIDE = LE NOM D'AVANT, AU CARACTERE PRES. Les classeurs des
+    calages anterieurs restent lisibles tels quels.
+
+    CE QUI N'EST PAS UN CARACTERE DE NOM DE FICHIER DEVIENT « _ ». Le prefixe
+    est libre a la saisie — « Q100 V2 », « Q100/bis » — et un nom de fichier
+    ne l'est pas. On ne refuse pas, on remplace : le titre des plans, lui,
+    garde le prefixe tel qu'il a ete tape.
+    """
+    prefixe = str(prefixe or "").strip().strip("-_")
+    if not prefixe:
+        return NOMS_FICHIERS["classeur"]
+    sur = "".join(c if (c.isalnum() or c in "-_") else "_" for c in prefixe)
+    tige, point, extension = NOMS_FICHIERS["classeur"].rpartition(".")
+    return f"{tige}_{sur}{point}{extension}"
+
+
 def detacher():
     """
     Retire du chemin d'import TOUT dossier reconnu comme une chaine.
@@ -1437,6 +1465,10 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
         une case vide reste possible — c'est le cas ou le profil ne couvre
         pas l'apport, et le calage deduira la pente comme avant.
 
+    Le nom du fichier porte le PREFIXE DE SCENARIO — « donnees_calage_Q100
+    .xlsx » : deux scenarios d'un meme dossier de sortie ont deux classeurs,
+    et composer l'un n'ecrase pas l'autre. Voir nom_classeur.
+
     Retourne le chemin du classeur.
     """
     import pandas as pd
@@ -1452,7 +1484,10 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
 
     dossier = Path(dossier_sortie)
     dossier.mkdir(parents=True, exist_ok=True)
-    chemin = dossier / NOMS_FICHIERS["classeur"]
+    # LE NOM PORTE LE PREFIXE DE SCENARIO (0.8.4) — voir nom_classeur. Le
+    # prefixe est lu dans les parametres, la ou le lancement le relira : un
+    # second argument le laisserait diverger de ce que le classeur declare.
+    chemin = dossier / nom_classeur((parametres or {}).get("Prefixe_scenario"))
 
     # Cibles et pentes deja saisies dans un classeur precedent, a preserver.
     cibles_existantes = None
@@ -2700,6 +2735,29 @@ if __name__ == "__main__":
     print(f"   [{'OK' if _ok else 'ECHEC'}] {_libelle}  ->  {_etat}")
     assert _ok, _libelle
     _cl.unlink(missing_ok=True)
+
+    # LE PREFIXE DE SCENARIO NOMME LE CLASSEUR (0.8.4). Deux scenarios d'un
+    # meme dossier de sortie partageaient « donnees_calage.xlsx » : composer
+    # le Q10 ecrasait la feuille Correspondance du Q100.
+    for _prefixe, _attendu in (("", "donnees_calage.xlsx"),
+                               ("Q100", "donnees_calage_Q100.xlsx"),
+                               ("Q100_", "donnees_calage_Q100.xlsx"),
+                               ("Q100 V2", "donnees_calage_Q100_V2.xlsx"),
+                               ("Q100/bis", "donnees_calage_Q100_bis.xlsx")):
+        _rendu = nom_classeur(_prefixe)
+        _ok = _rendu == _attendu
+        print(f"   [{'OK' if _ok else 'ECHEC'}] prefixe « {_prefixe} »  ->  {_rendu}")
+        assert _ok, f"nom_classeur({_prefixe!r}) rend {_rendu}, attendu {_attendu}"
+    _dossier_p = dossier / "deux_scenarios"
+    _q100 = preparer_classeur(_dossier_p, [("A1", "S1")], {},
+                              parametres={"Prefixe_scenario": "Q100"})
+    _q10 = preparer_classeur(_dossier_p, [("A1", "S1")], {},
+                             parametres={"Prefixe_scenario": "Q10"})
+    _libelle = "deux scenarios, deux classeurs dans le meme dossier de sortie"
+    _ok = (_q100 != _q10 and Path(_q100).exists() and Path(_q10).exists())
+    print(f"   [{'OK' if _ok else 'ECHEC'}] {_libelle}  ->  "
+          f"{Path(_q100).name} et {Path(_q10).name}")
+    assert _ok, _libelle
 
     # ET RECOMPOSER N'EFFACE PAS UNE SAISIE QU'ON NE SAIT PAS RELIRE.
     # preparer_classeur() preserve les cibles deja collees en les cherchant

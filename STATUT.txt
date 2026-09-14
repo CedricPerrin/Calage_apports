@@ -22,6 +22,124 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+MISE A JOUR DU 14 SEPTEMBRE 2026 — 0.8.4, DEUX SCENARIOS, DEUX CLASSEURS
+  SIX DEMANDES UTILISATEUR APRES UN CALAGE REEL REPRIS (Suhihandia, SUH12).
+
+  1. LE PREFIXE DE SCENARIO NOMME LE CLASSEUR. Tous les scenarios d'un meme
+     dossier de sortie partageaient « donnees_calage.xlsx » : composer le Q10
+     ecrasait la feuille Correspondance du Q100, et la seule facon de garder
+     les deux etait de tenir deux dossiers de sortie. Le fichier s'appelle
+     desormais « donnees_calage_<prefixe>.xlsx » — noyau.nom_classeur, qui
+     remplace par « _ » ce qui n'est pas un caractere de nom de fichier. Le
+     titre des plans, lui, garde le prefixe tel qu'il a ete tape.
+       PREFIXE VIDE = LE NOM D'AVANT, AU CARACTERE PRES : les classeurs des
+     calages anterieurs restent lisibles tels quels.
+       CONSEQUENCE VOULUE : la question « ce controle va-t-il ecraser mon
+     Excel ? » ne se pose plus. Un prefixe neuf est un fichier neuf. Une
+     boite de confirmation a ete ecartee pour cela — decision utilisateur.
+
+  2. LE PREFIXE PASSE A L'ONGLET 3. Il vivait a l'onglet 4, a cote de
+     « Premier apport », parce que les deux designent les memes plans. Il
+     nomme maintenant le fichier a composer : on le saisit donc avant de
+     composer, pas avant de lancer. Son groupe est SEUL et TOUJOURS ACTIF,
+     au-dessus du groupe qui se grise — Qt desactive tous les enfants d'un
+     parent desactive, et un champ obligatoire dans un bloc gris serait une
+     impasse. Le message de refus dit « Onglet 3 ».
+
+  3. « EXCEL DES HYDROGRAMMES OBJECTIFS » EST GRIS TANT QUE RIEN N'EST
+     COMPOSE, et une ligne dit pourquoi et quoi faire.
+       « REPRENDRE UN EXCEL… » RESTE ACTIF, ET C'EST DELIBERE : c'est la SEULE
+     porte d'entree vers un calage d'une autre session. Le griser avec le
+     reste fermerait la reprise a cle — il faudrait recomposer, donc
+     recharger le modele et ses couches, pour rouvrir un classeur qu'on a
+     deja sous la main.
+
+  4. LES DEUX BOUTONS REVIENNENT COTE A COTE, LIBELLES RACCOURCIS — « Ouvrir
+     dans Excel » et « Reprendre un Excel… ». La 0.8.2 les avait EMPILES
+     parce qu'a 13 pt leurs libelles longs demandaient 703 px et faisaient
+     deborder l'onglet. Raccourcis, ils tiennent sur une ligne et rendent la
+     hauteur que l'empilement coutait ; le detail vit dans les infobulles.
+
+  5. LES ERREURS ET AVERTISSEMENTS REMONTENT DANS L'ONGLET SUIVI. Ils ne
+     vivaient que dans le journal de lancement — un .log dont la banniere
+     donnait le CHEMIN. Un chemin n'est pas un message : le 14/09, un calage
+     repris s'est arrete sur un calcul de reference sans resultats, et les
+     douze avertissements de recadencement des cibles qui le precedaient
+     n'ont jamais paru a l'ecran.
+       UN ENCADRE REPLIABLE SOUS LA BANNIERE, qui se montre seulement s'il a
+     quelque chose et se deplie UNE FOIS a l'arrivee d'un contenu neuf. Il
+     ne retient que les lignes portant AVERTISSEMENT, ARRET, ERREUR, ECHEC,
+     Traceback, Error: ou « converti en » — le reste du journal est le bruit
+     de ras-commander, qui reecrit sa banniere a chaque calcul. Lecture du
+     dernier mega-octet seulement, 60 lignes au plus.
+       LE JOURNAL DE LA SESSION D'ABORD (journal_lance), a defaut le plus
+     recent « calage_*.log » a cote de l'Excel des objectifs : c'est ce qui
+     permet de lire l'echec d'hier apres avoir rouvert QGIS.
+
+  6. HEC-RAS OUVERT N'EST PLUS UNE QUESTION, C'EST UN REFUS. La 0.7.24 posait
+     une question, au motif que l'interface peut etre ouverte sur un AUTRE
+     projet. La question a ete essayee : le texte qui la portait etait trop
+     long pour etre lu au moment ou l'on veut lancer, et l'on repondait
+     « Oui ». Un seul bouton « Ok », et une phrase : « HEC-RAS est ouvert sur
+     ce poste. Ce n'est pas permis par le plugin. Fermer HEC-RAS et relancer
+     le calage. » « None » — hors Windows, ou tasklist indisponible —
+     N'ARRETE TOUJOURS RIEN.
+
+  7. LA LIGNE DU CALCUL DE REFERENCE NOMME CE QU'ELLE MET A ZERO. « tous les
+     apports a caler sont mis a zero » se lisait « TOUS les apports » sur une
+     reprise, ou la liste ne porte que l'aval du point de depart. Elle dit
+     maintenant combien, lesquels, et que les autres gardent la valeur du
+     plan de depart. LE COMPORTEMENT N'A PAS CHANGE — verifie dans le code :
+     pont_hecras tranche apports/sections/cibles a partir du depart, et
+     caler() ne met a zero que cette liste-la.
+
+  8. LES MESSAGES DE HEC-RAS GARDENT LA LIGNE QUI EXPLIQUE, PAS LA
+     DERNIERE. C'est le correctif le plus utile de la journee. Un calcul
+     avorte finit par le TABLEAU DES TEMPS — « Completing Geometry, Flow and
+     Plan | Unsteady Flow Computations | Computation Speed | ... 617968x » —
+     et _messages_hecras gardait les QUATRE dernieres lignes : exactement ce
+     tableau. L'erreur, ecrite juste au-dessus, etait poussee dehors.
+       On lisait donc une vitesse de calcul absurde en guise de diagnostic,
+     et il fallait rouvrir HEC-RAS pour apprendre ce qu'il avait refuse de
+     faire. _lignes_qui_expliquent() prefere desormais les lignes portant un
+     mot d'echec (error, failed, cannot, missing, abort, diverg...) et ne
+     retombe sur la fin que s'il n'y en a aucune. Meme regle pour le HDF et
+     pour le _compute_pXX.log, une seule fonction pour les deux.
+
+  9. EN REPRISE, LA BORNE HAUTE DE LA FENETRE RESTE CELLE DU PLAN DE
+     REFERENCE. preparer() relevait duree_reference_h SUR LE PLAN QU'IL VIENT
+     DE CLONER. En calage ordinaire c'est le plan de reference, fenetre
+     entiere. EN REPRISE c'est le plan de l'etape precedente, que le calage
+     d'avant a pu raccourcir : la memoire censee empecher qu'une etape breve
+     borne tout le calage etait alors elle-meme bornee.
+       MESURE SUR LE CAS REEL, lignes « Simulation Date= » fournies par
+     l'utilisateur le 14/09 : .p01 rend 36 h (01JAN2000,00:00 ->
+     02JAN2000,12:00), .p20 rend 32 h 06 (-> 02JAN2000,08:06). L'apport
+     repris ne pouvait donc plus rallonger au-dela de 32 h 06.
+       LE PONT PASSE plan_fenetre_pleine, qui reste le « Plan_reference » du
+     classeur meme quand la reprise deplace le plan de depart. PLUS LENT,
+     JAMAIS FAUX : on retire un plafond, limiter_duree() raccourcit ensuite
+     au besoin de l'apport.
+       CE N'EST PAS LA CAUSE DE L'ARRET DE SUHIHANDIA : 32 h 06 contre 36 h
+     est une troncature mineure, et elle ne produit pas « la simulation n'a
+     pas tourne ». C'est un defaut reel, decouvert en cherchant l'autre.
+
+  BANCS : banc QGIS 278 OK, aucun echec, sortie 0 (8 controles neufs) ;
+  noyau.py, calage.py, suivi.py, criteres.py, pilote_hecras.py et
+  pont_hecras.py autotest verts. calage.py rend « la trajectoire est celle de
+  la reference » : la chaine hydraulique est inchangee.
+
+  RESTE OUVERT, ET C'EST LE PLUS COUTEUX : LE CALAGE REPRIS DE SUHIHANDIA
+  S'ARRETE AU CALCUL DE REFERENCE. « calcul annonce reussi mais SANS
+  RESULTATS : aucune serie temporelle : la simulation n'a pas tourne (groupes
+  presents : Summary, Unsteady) », deux fois, a 91 s. CE N'EST PAS LE PLUGIN
+  QUI MET LES APPORTS AMONT A ZERO (point 7), ET CE N'EST PAS LA FENETRE
+  HERITEE (point 9, mesuree : 32 h 06 contre 36 h).
+    POURQUOI ON NE SAIT TOUJOURS PAS : le diagnostic affiche etait le tableau
+  des temps, pas l'erreur — c'est precisement ce que le point 8 corrige. LE
+  PROCHAIN ESSAI DIRA CE QUE HEC-RAS REFUSE, sans rien ouvrir a la main.
+  RELANCER LE MEME CALAGE AVEC LA 0.8.4 EST DONC LA PREMIERE CHOSE A FAIRE.
+
 MISE A JOUR DU 13 SEPTEMBRE 2026 — 0.8.3, RELANCER NE REFAIT PLUS TOUT
   DEUX DEMANDES UTILISATEUR, ET LA MEME SCENE : un calage mene a bout, un
   reglage change pour un seul apport — le nombre d'essais —, et l'on relance.
@@ -2744,6 +2862,39 @@ dates fictives au 1er janvier.
 
 6. POINTS OUVERTS
 ================================================================================
+
+
+  - LE CALAGE REPRIS DE SUHIHANDIA S'ARRETE AU CALCUL DE REFERENCE (14/09).
+    Repris a SUH12, depart du plan p20 « Q100-V2_Apport_SUH11 ». Deux essais,
+    meme arret a 91 s : « calcul annonce reussi mais SANS RESULTATS : aucune
+    serie temporelle : la simulation n'a pas tourne (groupes presents :
+    Summary, Unsteady) ». HEC-RAS rend « Completing Geometry, Flow and Plan
+    25 | Unsteady Flow Computations <1 | Computation Speed 617968x » : la
+    geometrie est pretraitee, puis le calcul instationnaire ne tourne pas.
+      ECARTE : le plugin ne met PAS les apports amont a zero. pont_hecras
+    tranche apports/sections/cibles a partir du depart, caler() ne met a zero
+    que cette liste — un seul apport ici, SUH12. Verifie dans le code le
+    14/09, et la ligne du journal le dit desormais elle-meme (§ 1, point 7).
+      ECARTE AUSSI, ET MESURE : LA FENETRE DE SIMULATION HERITEE. C'etait la
+    piste principale. Les deux lignes « Simulation Date= » donnees par
+    l'utilisateur le 14/09 la reduisent a un defaut mineur : .p01 porte 36 h
+    (01JAN2000,00:00 -> 02JAN2000,12:00), .p20 porte 32 h 06
+    (-> 02JAN2000,08:06). Une troncature de 3 h 54 ne produit pas « la
+    simulation n'a pas tourne ». Le defaut est neanmoins REEL et corrige en
+    0.8.4 (§ 1, point 9) : le plan d'etape bornait le calage repris.
+      LE PROCHAIN ESSAI DOIT SUFFIRE. Le diagnostic affiche jusqu'ici etait
+    le tableau des temps de HEC-RAS, pas son erreur : _messages_hecras
+    gardait les quatre dernieres lignes, qui sont ce tableau (§ 1, point 8).
+    Corrige en 0.8.4. RELANCER LE MEME CALAGE et lire l'encadre « Erreurs et
+    avertissements » de l'onglet Suivi : il dira ce que HEC-RAS refuse.
+      PISTE SUIVANTE SI LE MESSAGE NE SUFFIT PAS : LE RECADENCAGE DES CIBLES.
+    Le journal montre douze « pas de temps 30 min -> converti en 6 min » juste
+    avant l'arret. Verifier ce que _recadencer_apports ecrit dans l'unsteady
+    clone, et sur quelle duree — une condition limite dont la couverture
+    tombe sous la fenetre de simulation est un motif de refus connu de
+    HEC-RAS, et le pilote sait deja la detecter.
+      CE QU'IL FAUDRAIT POUR TRANCHER SANS RELANCER : Suhihandia.p22 et son
+    .u24 en texte, plus le _compute_p22.log.
 
 
   - BANC --modele : « couches du modele chargees » echoue sur ce poste

@@ -433,6 +433,23 @@ dlg = mod_plugin.DialogueParametrage(iface)
 verifier("6 onglets crees (4 etapes + suivi + aide)",
          dlg.onglets.count() == 6,
          [dlg.onglets.tabText(i) for i in range(dlg.onglets.count())])
+
+# LE GROUPE « EXCEL DES HYDROGRAMMES OBJECTIFS » EST GRIS TANT QU'AUCUN
+# CLASSEUR N'EXISTE (0.8.4, demande utilisateur) — mais « Reprendre un
+# Excel… » reste actif : c'est la SEULE porte d'entree vers un calage d'une
+# autre session, et la griser avec le reste fermerait la reprise a cle. Le
+# prefixe, lui, doit rester saisissable AVANT la composition, puisque c'est
+# lui qui nomme le fichier a composer.
+# HORS DU GATE « --modele » : la fenetre vient d'etre construite, son
+# classeur vaut None, et rien ici ne demande un modele HEC-RAS.
+verifier("avant composition : « Ouvrir dans Excel » est gris",
+         not dlg.bouton_ouvrir_classeur.isEnabled(),
+         f"classeur={dlg.classeur!r}")
+verifier("avant composition : le prefixe de scenario reste saisissable",
+         dlg.edit_prefixe_scenario.isEnabled())
+verifier("avant composition : l'attente est dite a l'ecran",
+         "Contrôle paramétrage" in dlg.label_classeur_attente.text(),
+         dlg.label_classeur_attente.text()[:70])
 if MODELE is None or not MODELE.exists():
     print("   ignore : aucun modele declare "
           "(--modele, ou variable CALAGE_MODELE_ESSAI)")
@@ -599,7 +616,7 @@ else:
     _refus_prefixe = BoiteMessage.critiques[0] if BoiteMessage.critiques else ""
     verifier("sans prefixe de scenario, la composition refuse et dit pourquoi",
              "préfixe de scénario" in _refus_prefixe
-             and "onglet 4" in _refus_prefixe.lower(),
+             and "onglet 3" in _refus_prefixe.lower(),
              _refus_prefixe[:100] or "aucun refus — la branche est morte")
     BoiteMessage.critiques.clear()
     dlg.edit_prefixe_scenario.setText("ESSAI")
@@ -648,13 +665,19 @@ else:
         verifier("« Composition et contrôle » est redimensionnable",
                  _rapport_compo is not None and _rapport_compo.redimensionnable,
                  "poignée posée" if _rapport_compo else "aucune boîte affichée")
+        # « donnees_calage_ESSAI.xlsx » : depuis la 0.8.4, le prefixe de
+        # scenario nomme le classeur — voir noyau.nom_classeur. Le banc
+        # compose avec le prefixe « ESSAI ».
         attendus = ["sections_controle.shp", "lignes_injection.shp",
-                    "axe_hydraulique.shp", "donnees_calage.xlsx"]
+                    "axe_hydraulique.shp", "donnees_calage_ESSAI.xlsx"]
         presents = [f for f in attendus if (ESSAI / f).exists()]
         verifier("paquet ecrit", len(presents) == 4, f"{presents}")
         verifier("sous-dossiers resultats/suivi crees",
                  (ESSAI / "resultats_finaux").is_dir()
                  and (ESSAI / "suivi").is_dir())
+        verifier("apres composition : « Ouvrir dans Excel » est actif",
+                 dlg.bouton_ouvrir_classeur.isEnabled(),
+                 f"classeur={dlg.classeur!r}")
 
     if not dlg.classeur:
         # UN MODELE QUI NE SE PRETE PAS AU CALAGE EST UN DIAGNOSTIC, PAS UN
@@ -1284,6 +1307,45 @@ dlg._rafraichir_suivi()
 verifier("suivi : un echec dit son motif",
          "A2 non cale" in dlg.label_suivi_banniere.text(),
          dlg.label_suivi_banniere.text()[:90])
+
+# ERREURS ET AVERTISSEMENTS REMONTES DU JOURNAL (0.8.4, demande
+# utilisateur). Ils ne vivaient que dans le .log dont la banniere donnait le
+# chemin. Le banc ecrit un journal qui melange le bruit de ras-commander et
+# les lignes qui comptent, et verifie que seules les secondes paraissent.
+_journal_essai = _dossier_etat() / "calage_20260914_082326.log"
+_journal_essai.write_text(
+    "ras-commander v0.99.2 | An open-source project\n"
+    "PROJECT DATAFRAMES (single source of truth)\n"
+    "Cible « Cible_SUH01 » : pas de temps 30 min \u2192 converti en 6 min\n"
+    "   pente de « SUH12 » : 0.00034676 m/m\n"
+    "    ARRET : le calcul de reference (apports a zero) n'est pas "
+    "exploitable\n",
+    encoding="utf-8")
+_journal_garde = dlg.journal_lance
+dlg.journal_lance = str(_journal_essai)
+dlg._rafraichir_suivi()
+_alertes = dlg.texte_alertes.toPlainText()
+verifier("suivi : l'arret du journal parait a l'ecran",
+         "ARRET" in _alertes, _alertes[-80:] or "(vide)")
+verifier("suivi : l'avertissement de recadencement parait aussi",
+         "converti en 6 min" in _alertes, _alertes[:80] or "(vide)")
+verifier("suivi : le bruit de ras-commander est ecarte",
+         "PROJECT DATAFRAMES" not in _alertes
+         and "open-source project" not in _alertes,
+         f"{len(_alertes.splitlines())} ligne(s) retenue(s)")
+# isHidden() et non isVisibleTo() : la fenetre du banc n'est jamais montree,
+# et isVisibleTo remonte une chaine de parents dont aucun n'est affiche.
+# isHidden() ne lit que le drapeau pose par setVisible, qui est ce qu'on
+# verifie ici.
+verifier("suivi : l'encadre des alertes se montre quand il a quelque chose",
+         not dlg.groupe_alertes.isHidden())
+_journal_essai.unlink()
+dlg.journal_lance = _journal_garde
+dlg._rafraichir_suivi()
+verifier("suivi : sans journal, l'encadre des alertes disparait",
+         dlg.groupe_alertes.isHidden()
+         and not dlg.texte_alertes.toPlainText(),
+         dlg.texte_alertes.toPlainText()[:60] or "(vide)")
 
 # LE CAS QUI MANQUAIT : le processus n'existe plus et aucun verdict n'a ete
 # rendu. Sans cela l'affichage restait fige sur le dernier etat connu, en

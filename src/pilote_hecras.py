@@ -854,6 +854,41 @@ def _series_absentes(hdf_resultats):
     return ""
 
 
+# CE QUI FAIT QU'UNE LIGNE DE HEC-RAS EXPLIQUE QUELQUE CHOSE. En minuscules,
+# compare sans casse. Volontairement large : rater l'explication coute un
+# aller-retour dans HEC-RAS, en garder une de trop ne coute rien.
+MOTS_DECHEC_HECRAS = (
+    "error", "erreur", "failed", "failure", "cannot", "could not", "unable",
+    "invalid", "missing", "abort", "not found", "no results", "warning",
+    "exceed", "instabil", "diverg", "insufficient", "does not exist",
+)
+
+
+def _lignes_qui_expliquent(lignes, garde=4):
+    """
+    Les lignes d'un compte rendu HEC-RAS qui disent POURQUOI, ou la fin.
+
+    LES DERNIERES LIGNES NE SONT PAS CELLES QUI EXPLIQUENT, et c'est ce qui
+    manquait. Un calcul avorte finit par le TABLEAU DES TEMPS — « Completing
+    Geometry, Flow and Plan | Unsteady Flow Computations | Computation Speed
+    | ... 617968x ». Quatre lignes, exactement ce que le filtre gardait :
+    l'erreur, ecrite JUSTE AU-DESSUS, etait poussee dehors. L'utilisateur
+    lisait donc une vitesse de calcul absurde en guise de diagnostic, et
+    devait rouvrir HEC-RAS pour apprendre ce qu'il avait refuse de faire.
+    Releve le 14/09/2026 sur un calage repris, arrete au calcul de reference.
+
+    LA FIN RESTE LE REPLI : sans mot d'echec, on ne sait pas mieux qu'avant,
+    et rendre les dernieres lignes vaut mieux que ne rien rendre.
+    """
+    expliquent = [l for l in lignes
+                  if any(m in l.lower() for m in MOTS_DECHEC_HECRAS)]
+    if expliquent:
+        # Deux de plus que le repli : une erreur HEC-RAS tient souvent en
+        # deux lignes — le refus, puis l'objet du refus.
+        return expliquent[-(garde + 2):]
+    return lignes[-garde:]
+
+
 def _messages_hecras(hdf_resultats):
     """
     Derniers messages de HEC-RAS, pour que l'echec s'explique de lui-meme.
@@ -888,16 +923,15 @@ def _messages_hecras(hdf_resultats):
                         x.decode("utf-8", "replace") if isinstance(x, bytes)
                         else str(x) for x in np.ravel(brut))
                 lignes = [l.strip() for l in texte.splitlines() if l.strip()]
-                # LES LIGNES QUI COMPTENT SONT LES DERNIERES : c'est la que
-                # HEC-RAS dit ce qui a echoue. Le debut ne fait que decrire ce
-                # qu'il a commence a ecrire.
+                # LES LIGNES QUI COMPTENT SONT CELLES QUI PORTENT UN MOT
+                # D'ECHEC, PAS LES DERNIERES — voir _lignes_qui_expliquent.
                 retenues = [l for l in lignes
                             if not l.startswith(("Plan:", "Simulation started",
                                                  "Computation Task",
                                                  "Complete Process"))]
                 if retenues:
                     return ("Messages de HEC-RAS : "
-                            + " | ".join(retenues[-4:]))
+                            + " | ".join(_lignes_qui_expliquent(retenues)))
     except Exception:                                        # noqa: BLE001
         pass
 
@@ -917,8 +951,8 @@ def _messages_hecras(hdf_resultats):
                                                   "Server:", "Starting async",
                                                   "Client connected"))]
             if interessantes:
-                return ("Derniers messages de HEC-RAS : "
-                        + " | ".join(interessantes[-3:]))
+                return ("Messages de HEC-RAS : "
+                        + " | ".join(_lignes_qui_expliquent(interessantes, 3)))
         except OSError:
             continue
     return ("Aucun message de HEC-RAS exploitable : ouvrir le plan dans "
@@ -1067,7 +1101,8 @@ class PiloteHecRas(Modele):
                  geometrie_override=None, unsteady_override=None,
                  nom_clone_geometrie=None, activer_courant=True,
                  fenetre_simulation=None, fermer_orphelins=True,
-                 pas_travail_h=None, apports_a_caler=None):
+                 pas_travail_h=None, apports_a_caler=None,
+                 plan_fenetre_pleine=None):
         """
         geometrie_override / unsteady_override : numero ("01", "g01"... les
             deux formes sont acceptees) d'une geometrie ou d'un unsteady
@@ -1094,6 +1129,11 @@ class PiloteHecRas(Modele):
             silence, seulement verifiee — voir _recadencer_apports(). None =
             comportement historique, toutes les conditions a hydrogramme sont
             re-cadencees.
+        plan_fenetre_pleine : numero du plan dont la fenetre de simulation
+            fait office de BORNE HAUTE pour limiter_duree(). None = celle du
+            plan de travail, ce qui est exact en calage ordinaire. EN REPRISE
+            il faut le dire, car on part du plan de l'etape precedente, deja
+            raccourci : voir preparer().
         """
         self.pas_travail_h = float(pas_travail_h) if pas_travail_h else None
         self.apports_a_caler = (set(apports_a_caler)
@@ -1101,6 +1141,9 @@ class PiloteHecRas(Modele):
         self.dossier = Path(dossier_projet)
         self.nom_projet = nom_projet
         self.plan_reference = str(plan_reference).lstrip("pP").zfill(2)
+        self.plan_fenetre_pleine = (
+            str(plan_fenetre_pleine).lstrip("pP").zfill(2)
+            if plan_fenetre_pleine else None)
         self.version = version
         self.nom_zone_2d = nom_zone_2d
         self.geometrie_override = (str(geometrie_override).lstrip("gG").zfill(2)
@@ -1220,10 +1263,24 @@ class PiloteHecRas(Modele):
         # Sans cette memoire, un premier apport a l'evenement bref bornait
         # tout le calage — le deuxieme ne pouvait plus rallonger jusqu'a son
         # propre evenement, et se calait sur une serie tronquee.
+        # LA BORNE HAUTE EST CELLE DU PLAN DE REFERENCE, PAS CELLE DU PLAN
+        # DONT ON PART (correctif du 14/09/2026). En calage ordinaire les deux
+        # sont le meme plan. EN REPRISE, on part du plan de l'etape
+        # precedente, que le calage d'avant a pu RACCOURCIR : la memoire
+        # censee empecher qu'une etape breve borne tout le calage etait alors
+        # elle-meme bornee, et l'apport repris ne pouvait plus rallonger
+        # jusqu'a son propre evenement. Mesure sur un cas reel : 36 h au plan
+        # de reference, 32 h 06 au plan d'etape dont la reprise repart.
+        #   PLUS LENT, JAMAIS FAUX : rendre la fenetre pleine ne fait que
+        # retirer un plafond ; limiter_duree() la raccourcit ensuite au besoin
+        # de l'apport.
         self.duree_reference_h = None
+        _plan_borne = (self.plan_fenetre_pleine
+                       if self.plan_fenetre_pleine is not None
+                       else self.plan_travail)
         try:
             f = fenetre_simulation_du_plan(
-                self.dossier / f"{self.nom_projet}.p{self.plan_travail}")
+                self.dossier / f"{self.nom_projet}.p{_plan_borne}")
             if f.get("debut") and f.get("fin"):
                 self.duree_reference_h = (
                     _en_minutes(instant_hecras(f["fin"]))
@@ -3365,6 +3422,77 @@ if __name__ == "__main__":
               str(pids_hecras()))
     _verifier("fermer_processus ne leve pas sur un PID inexistant",
               fermer_processus({999999: "Fantome.exe"}) == [])
+
+    # EN REPRISE, LA BORNE HAUTE RESTE CELLE DU PLAN DE REFERENCE. Le plan
+    # d'etape dont une reprise repart a pu etre raccourci par le calage
+    # precedent ; lire la borne SUR LUI la bornait a son tour, et l'apport
+    # repris ne pouvait plus rallonger jusqu'a son propre evenement. Mesure
+    # sur un cas reel (14/09/2026) : 36 h au plan de reference, 32 h 06 au
+    # plan d'etape. limiter_duree() ne fait que RACCOURCIR : une borne trop
+    # basse est donc un plafond, jamais un plancher.
+    _bac_f = Path(tempfile.mkdtemp(prefix="calage_borne_"))
+    try:
+        (_bac_f / "Essai.p01").write_text(
+            "Plan Title=reference\n"
+            "Simulation Date=01JAN2000,00:00,02JAN2000,12:00\n",
+            encoding="utf-8")                                     # 36 h
+        (_bac_f / "Essai.p20").write_text(
+            "Plan Title=etape\n"
+            "Simulation Date=01JAN2000,00:00,02JAN2000,08:06\n",
+            encoding="utf-8")                                     # 32 h 06
+
+        def _borne(plan_travail, plan_plein):
+            """Ce que preparer() releve, sans rien cloner ni calculer."""
+            f = fenetre_simulation_du_plan(
+                _bac_f / f"Essai.p{plan_plein or plan_travail}")
+            return (_en_minutes(instant_hecras(f["fin"]))
+                    - _en_minutes(instant_hecras(f["debut"]))) / 60.0
+
+        _verifier("calage ordinaire : la borne est celle du plan de travail",
+                  abs(_borne("01", None) - 36.0) < 1e-9,
+                  f"{_borne('01', None):.2f} h")
+        _verifier("reprise : la borne reste les 36 h du plan de reference",
+                  abs(_borne("20", "01") - 36.0) < 1e-9,
+                  f"{_borne('20', '01'):.2f} h au lieu de "
+                  f"{_borne('20', None):.2f} h")
+        _verifier("le plan d'etape est bien le plus court des deux",
+                  _borne("20", None) < _borne("01", None),
+                  f"{_borne('20', None):.2f} h < {_borne('01', None):.2f} h")
+        _verifier("le pilote retient le plan de la borne, normalise",
+                  PiloteHecRas(_bac_f, "Essai", "p20",
+                               plan_fenetre_pleine="p01"
+                               ).plan_fenetre_pleine == "01")
+        _verifier("sans reprise, aucun plan de borne n'est retenu",
+                  PiloteHecRas(_bac_f, "Essai", "p01"
+                               ).plan_fenetre_pleine is None)
+    finally:
+        shutil.rmtree(_bac_f, ignore_errors=True)
+
+    # LA LIGNE QUI EXPLIQUE N'EST PAS LA DERNIERE. Compte rendu reel d'un
+    # calcul avorte (14/09/2026) : l'erreur est suivie du tableau des temps,
+    # quatre lignes — exactement ce que l'ancien filtre gardait.
+    _compte_rendu = [
+        "Plan: Q100_sans_apport",
+        "Geometry Writer Failed",
+        "Error Processing Geometry",
+        "Completing Geometry, Flow and Plan\t      25",
+        "Unsteady Flow Computations\t<1",
+        "Computation Speed\tSimulation/Runtime",
+        "Unsteady Flow Computations\t617968x",
+    ]
+    _retenues = _lignes_qui_expliquent(_compte_rendu)
+    _verifier("les messages HEC-RAS gardent l'erreur, pas le tableau des temps",
+              any("Error Processing Geometry" in l for l in _retenues)
+              and any("Geometry Writer Failed" in l for l in _retenues)
+              and not any("617968x" in l for l in _retenues),
+              " | ".join(_retenues))
+    # SANS MOT D'ECHEC, LA FIN RESTE LE REPLI : on ne sait pas mieux qu'avant,
+    # et rendre les dernieres lignes vaut mieux que ne rien rendre.
+    _banal = ["ligne un", "ligne deux", "ligne trois", "ligne quatre",
+              "ligne cinq"]
+    _verifier("sans mot d'echec, ce sont les dernieres lignes qui sont rendues",
+              _lignes_qui_expliquent(_banal, 3) == _banal[-3:],
+              str(_lignes_qui_expliquent(_banal, 3)))
 
     print()
     if _echecs_test:

@@ -40,7 +40,7 @@ from qgis.core import (
 from qgis.gui import (QgsCollapsibleGroupBox, QgsFieldComboBox, QgsGui,
                       QgsMapLayerComboBox, QgsMessageBar)
 from qgis.PyQt.QtCore import QEvent, QMetaType, QSettings, Qt, QTimer
-from qgis.PyQt.QtGui import QIcon, QKeySequence
+from qgis.PyQt.QtGui import QIcon, QKeySequence, QTextCursor
 from qgis.PyQt.QtWidgets import (
     QAbstractItemView,
     QAction,
@@ -2410,6 +2410,9 @@ class DialogueParametrage(QDialog):
         conducteur, juste au-dessus : l'oeil fait le lien sans qu'on
         l'explique.
         """
+        # Le groupe « Excel des hydrogrammes objectifs » suit le meme
+        # etat que ce bouton : gris tant que rien n'est compose.
+        self._maj_groupe_classeur()
         bouton = getattr(self, "bouton_controle", None)
         if bouton is None:
             return                      # appele avant la construction du bas
@@ -2480,28 +2483,6 @@ class DialogueParametrage(QDialog):
         self.label_premier_apport = texte_etat()
         f.addRow(self.label_premier_apport)
 
-        # LE PREFIXE VIT A COTE DE « Premier apport » PARCE QUE LES DEUX
-        # DESIGNENT LES MEMES PLANS : la reprise cherche
-        # « <prefixe>-Apport_<precedent> ». Les separer ferait chercher, un
-        # jour, un plan sous un nom qu'on n'a pas ecrit.
-        self.edit_prefixe_scenario = QLineEdit()
-        self.edit_prefixe_scenario.setPlaceholderText(
-            "Q100 — obligatoire")
-        self.edit_prefixe_scenario.setToolTip(
-            "Préfixe posé devant le titre de chaque plan créé par le "
-            "calage : « Q100 » donne « Q100_sans_apport », "
-            "« Q100_Apport_A1 » et, à l'arrivée, « Q100_avec_apports ».\n\n"
-            "OBLIGATOIRE, et c'est pour cela : sans lui, le calage du Q10 "
-            "REMPLACERAIT les plans du Q100, qui porteraient exactement les "
-            "mêmes titres.\n\n"
-            "Le souligné est ajouté tout seul : « Q100 » et « Q100_ » "
-            "donnent le même titre.\n\n"
-            "Titre complet limité à 30 caractères — le champ « Short "
-            "Identifier », dont RAS Mapper fait le nom du dossier de "
-            "résultats. Au-delà, la composition REFUSE plutôt que de "
-            "tronquer : deux plans tronqués au même identifiant "
-            "partageraient ce dossier.")
-        f.addRow("Préfixe de scénario :", self.edit_prefixe_scenario)
         return groupe
 
     def _dossier_projet(self):
@@ -3017,6 +2998,53 @@ class DialogueParametrage(QDialog):
         # objet ne se suit pas.
         return groupe_param
 
+    def _groupe_prefixe_scenario(self):
+        """
+        LE PREFIXE, SEUL DANS SON GROUPE ET TOUJOURS ACTIF (0.8.4).
+
+        Il vivait a l'onglet 4, a cote de « Premier apport », parce que les
+        deux designent les memes plans. Il remonte ici parce qu'il nomme
+        DESORMAIS LE FICHIER LUI-MEME — « donnees_calage_Q100.xlsx » —, et
+        qu'on le saisit donc avant de composer, pas avant de lancer.
+
+        HORS DU GROUPE VOISIN, QUI SE GRISE. « Excel des hydrogrammes
+        objectifs » se grise tant que rien n'est compose ; le prefixe, lui,
+        doit etre saisi AVANT la composition. Un champ obligatoire dans un
+        bloc desactive serait une impasse — Qt desactive tous les enfants
+        d'un parent desactive, l'etat propre du champ n'y peut rien.
+        """
+        groupe = QGroupBox("Préfixe de scénario")
+        groupe.setToolTip(
+            "Nomme les plans HEC-RAS de ce calage, et le fichier Excel des "
+            "objectifs.")
+        f = formulaire(groupe)
+        self.edit_prefixe_scenario = QLineEdit()
+        self.edit_prefixe_scenario.setPlaceholderText(
+            "Q100 — obligatoire")
+        self.edit_prefixe_scenario.setToolTip(
+            "Préfixe posé devant le titre de chaque plan créé par le "
+            "calage : « Q100 » donne « Q100_sans_apport », "
+            "« Q100_Apport_A1 » et, à l'arrivée, « Q100_avec_apports ».\n\n"
+            "OBLIGATOIRE, et c'est pour cela : sans lui, le calage du Q10 "
+            "REMPLACERAIT les plans du Q100, qui porteraient exactement les "
+            "mêmes titres.\n\n"
+            "Il nomme aussi le fichier Excel des objectifs — "
+            "« donnees_calage_Q100.xlsx » : deux scénarios ont donc deux "
+            "classeurs, et composer l'un n'écrase pas l'autre.\n\n"
+            "Le souligné est ajouté tout seul : « Q100 » et « Q100_ » "
+            "donnent le même titre.\n\n"
+            "Titre complet limité à 30 caractères — le champ « Short "
+            "Identifier », dont RAS Mapper fait le nom du dossier de "
+            "résultats. Au-delà, la composition REFUSE plutôt que de "
+            "tronquer : deux plans tronqués au même identifiant "
+            "partageraient ce dossier.")
+        f.addRow("&Préfixe de scénario :", self.edit_prefixe_scenario)
+        f.addRow(texte_aide(
+            "Nomme les plans du calage <i>et</i> le fichier Excel des "
+            "objectifs. Changer de préfixe compose un nouveau classeur au "
+            "lieu d’écraser le précédent."))
+        return groupe
+
     def _groupe_classeur(self):
         # « EXCEL DES HYDROGRAMMES OBJECTIFS », ET NON « CLASSEUR ». Le mot
         # « classeur » est celui du CODE et de la chaine, ou il designe un
@@ -3026,40 +3054,38 @@ class DialogueParametrage(QDialog):
         groupe_actions = QGroupBox("Excel des hydrogrammes objectifs")
         v_classeur = QVBoxLayout(groupe_actions)
         v_classeur.setSpacing(8)
-        consigne = QLabel(
+        self.label_classeur_attente = texte_aide("")
+        v_classeur.addWidget(self.label_classeur_attente)
+        self.consigne_classeur = QLabel(
             "Dans la feuille <b>Cibles</b>, saisissez un hydrogramme par section. "
             "Enregistrez l’Excel, puis relancez le contrôle en bas de la fenêtre.")
-        consigne.setWordWrap(True)
-        v_classeur.addWidget(consigne)
-        # LES DEUX BOUTONS SONT EMPILES, PAS COTE A COTE (0.8.2). Une
-        # QHBoxLayout ne se replie pas : a 13 pt, ces deux libelles
-        # demandaient 703 px a eux seuls, le groupe 747 et la page 773 pour
-        # 750 disponibles — l'onglet 3 debordait horizontalement, et le
-        # dernier champ sortait de la vue. C'est le seul onglet qui le
-        # faisait, et il le faisait depuis la 0.8.0 (mesure du banc et de
-        # la sonde, 11/09/2026).
-        #
-        # Empiles, ils gardent leurs libelles entiers — « Ouvrir » et
-        # « Reprendre » sont deux entrees differentes dans le meme fichier,
-        # et les abreger obligerait a deviner laquelle fait quoi. Le cout
-        # est une ligne de plus en hauteur, sur une page qui defile deja.
-        ligne_classeur = QVBoxLayout()
+        self.consigne_classeur.setWordWrap(True)
+        v_classeur.addWidget(self.consigne_classeur)
+        # COTE A COTE, LIBELLES COURTS (0.8.4, demande utilisateur). La 0.8.2
+        # les avait EMPILES : a 13 pt, « Ouvrir les objectifs dans Excel » et
+        # « Reprendre un Excel existant… » demandaient 703 px a eux seuls, le
+        # groupe 747 et la page 773 pour 750 disponibles — l'onglet 3
+        # debordait horizontalement. Raccourcis, ils tiennent sur une ligne
+        # et rendent la hauteur que l'empilement coutait. Ce que les libelles
+        # longs disaient vit dans les infobulles.
+        ligne_classeur = QHBoxLayout()
         ligne_classeur.setSpacing(6)
-        bouton_ouvrir = QPushButton("Ouvrir les &objectifs dans Excel")
-        bouton_ouvrir.setToolTip(
-            "C'est dans sa feuille Cibles que se saisissent les hydrogrammes "
-            "objectifs, une colonne par section.")
-        bouton_ouvrir.clicked.connect(self._ouvrir_classeur)
-        ligne_classeur.addWidget(bouton_ouvrir)
-        bouton_recontroler = QPushButton(
-            "Reprendre un Excel existant…")
+        self.bouton_ouvrir_classeur = QPushButton("Ouvrir dans &Excel")
+        self.bouton_ouvrir_classeur.setToolTip(
+            "Ouvre l'Excel des hydrogrammes objectifs. C'est dans sa feuille "
+            "Cibles que se saisissent les hydrogrammes, une colonne par "
+            "section.")
+        self.bouton_ouvrir_classeur.clicked.connect(self._ouvrir_classeur)
+        ligne_classeur.addWidget(self.bouton_ouvrir_classeur)
+        bouton_recontroler = QPushButton("&Reprendre un Excel…")
         bouton_recontroler.setToolTip(
-            "Rejoue tous les contrôles sur un fichier composé lors d'une "
-            "autre session, sans rien recomposer. Les chemins des shapefiles "
-            "y sont relus.")
+            "Reprend un Excel des objectifs composé lors d'une autre "
+            "session : rejoue tous les contrôles sans rien recomposer. Les "
+            "chemins des shapefiles y sont relus.")
         bouton_recontroler.clicked.connect(self._recontroler_classeur)
         ligne_classeur.addWidget(bouton_recontroler)
-        for _b in (bouton_ouvrir, bouton_recontroler):
+        ligne_classeur.addStretch(1)
+        for _b in (self.bouton_ouvrir_classeur, bouton_recontroler):
             _b.setSizePolicy(QSizePolicy.Policy.Maximum,
                              QSizePolicy.Policy.Fixed)
         v_classeur.addLayout(ligne_classeur)
@@ -3072,9 +3098,9 @@ class DialogueParametrage(QDialog):
         # aspect que les proprietes de couche QGIS, et l'etat replie est
         # MEMORISE par QGIS d'une session a l'autre (QgsSettings, cle formee
         # des objectName du groupe et de ses parents — d'ou le nom pose).
-        groupe_pente = QgsCollapsibleGroupBox("Hypothèse de pente des apports")
-        groupe_pente.setObjectName("grpPente")
-        groupe_pente.setToolTip("Le calcul de la pente proposée et les cas où l’ajuster.")
+        self.groupe_pente = QgsCollapsibleGroupBox("Hypothèse de pente des apports")
+        self.groupe_pente.setObjectName("grpPente")
+        self.groupe_pente.setToolTip("Le calcul de la pente proposée et les cas où l’ajuster.")
         detail_pente = texte_aide(
             "<b>Pente des apports</b> — colonne « Pente_m_par_m », feuille "
             "Correspondance. <b>Pré-remplie</b> à la composition : pente "
@@ -3087,10 +3113,40 @@ class DialogueParametrage(QDialog):
             "prudence. Elle dépend du tronçon, d'où la saisie par apport.<br><br>"
             "Laissée vide — profil trop court ou géométrie non prétraitée — "
             "le calage la déduit lui-même, comme avant.")
-        QVBoxLayout(groupe_pente).addWidget(detail_pente)
-        groupe_pente.setCollapsed(True)
-        v_classeur.addWidget(groupe_pente)
+        QVBoxLayout(self.groupe_pente).addWidget(detail_pente)
+        self.groupe_pente.setCollapsed(True)
+        v_classeur.addWidget(self.groupe_pente)
+        self._maj_groupe_classeur()
         return groupe_actions
+
+    def _maj_groupe_classeur(self):
+        """
+        Grise ce qui n'a pas d'objet tant qu'aucun Excel n'existe (0.8.4,
+        demande utilisateur), et dit pourquoi.
+
+        « REPRENDRE UN EXCEL… » RESTE ACTIF, ET C'EST DELIBERE : c'est la
+        SEULE porte d'entree vers un calage d'une autre session. Le griser
+        avec le reste fermerait la reprise a cle — il faudrait recomposer,
+        donc recharger le modele et ses couches, pour rouvrir un classeur
+        qu'on a deja sous la main. Le groupe entier n'est donc pas
+        desactive : seuls le bouton qui ouvrirait un fichier absent et la
+        consigne qui parle de sa saisie le sont.
+        """
+        pret = bool(getattr(self, "classeur", None))
+        for widget in (getattr(self, "bouton_ouvrir_classeur", None),
+                       getattr(self, "consigne_classeur", None),
+                       getattr(self, "groupe_pente", None)):
+            if widget is not None:
+                widget.setEnabled(pret)
+        label = getattr(self, "label_classeur_attente", None)
+        if label is not None:
+            label.setVisible(not pret)
+            if not pret:
+                label.setText(
+                    "Aucun Excel composé : renseignez le préfixe ci-dessus, "
+                    "puis cliquez <b>Contrôle paramétrage</b> en bas de la "
+                    "fenêtre. « Reprendre un Excel… » reste disponible pour "
+                    "rouvrir celui d’une autre session.")
 
     # --- Onglet 3 : Objectifs et precision -----------------------------------
 
@@ -3112,6 +3168,7 @@ class DialogueParametrage(QDialog):
         # Voir _bouton_controle_parametrage : quatre demenagements en cinq
         # versions ont fini par montrer que ce geste n'appartient a AUCUN
         # onglet — il consomme les trois premiers et prepare le quatrieme.
+        v.addWidget(self._groupe_prefixe_scenario())
         v.addWidget(self._groupe_classeur())
         v.addWidget(self._groupe_ce_que_portent_les_cibles())
         v.addWidget(self._groupe_precision())
@@ -3585,6 +3642,33 @@ class DialogueParametrage(QDialog):
         self.label_suivi_dossier.setTextFormat(Qt.TextFormat.RichText)
         v.addWidget(self.label_suivi_dossier)
 
+        # ERREURS ET AVERTISSEMENTS, SOUS LA BANNIERE (0.8.4, demande
+        # utilisateur). Ils ne vivaient que dans le journal de lancement —
+        # un fichier .log dont la banniere donnait le CHEMIN. Un chemin
+        # n'est pas un message : le 14/09/2026, un calage repris s'est
+        # arrete sur un calcul de reference sans resultats, et les douze
+        # avertissements de recadencement des cibles qui le precedaient
+        # n'ont jamais paru a l'ecran.
+        #   REPLIE PAR DEFAUT, ET DEPLIE TOUT SEUL QUAND QUELQUE CHOSE
+        # ARRIVE : un encadre vide et ouvert en permanence apprend a ne plus
+        # etre lu.
+        self.groupe_alertes = QgsCollapsibleGroupBox(
+            "Erreurs et avertissements")
+        self.groupe_alertes.setObjectName("grpAlertesSuivi")
+        self.groupe_alertes.setToolTip(
+            "Les lignes du journal de lancement qui portent un arrêt, une "
+            "erreur ou un avertissement. Le journal entier est dans le "
+            "dossier de l'Excel des objectifs.")
+        va_alertes = QVBoxLayout(self.groupe_alertes)
+        self.texte_alertes = QTextEdit()
+        self.texte_alertes.setReadOnly(True)
+        self.texte_alertes.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
+        self.texte_alertes.setMinimumHeight(110)
+        va_alertes.addWidget(self.texte_alertes)
+        self.groupe_alertes.setCollapsed(True)
+        self.groupe_alertes.setVisible(False)
+        v.addWidget(self.groupe_alertes)
+
         groupe_avancement = QGroupBox("Avancement")
         va = QVBoxLayout(groupe_avancement)
         va.setSpacing(9)
@@ -3929,6 +4013,84 @@ class DialogueParametrage(QDialog):
             + (f"<br><span style='font-size:9pt; color:{ISL_ARDOISE}'>"
                f"{detail}</span>" if detail else ""))
 
+    # Ce qui fait qu'une ligne du journal merite l'ecran. Volontairement
+    # COURT : tout ce qui est ajoute ici rapproche l'encadre du journal
+    # entier, que personne ne lit. « Traceback » y figure parce qu'une pile
+    # d'appels annonce toujours un arret, et sa premiere ligne suffit a
+    # savoir qu'il y en a une.
+    MARQUEURS_ALERTE = ("AVERTISSEMENT", "ARRET", "ERREUR", "ECHEC",
+                        "Traceback", "Error:", "converti en")
+    # Le journal d'un calage de quatorze heures pese plusieurs mega-octets :
+    # ras-commander y reecrit sa banniere a chaque calcul. On n'en lit que la
+    # fin, et l'on n'affiche que les dernieres lignes retenues.
+    OCTETS_JOURNAL_LUS = 1_000_000
+    LIGNES_ALERTE_MAX = 60
+
+    def _journal_du_calage(self):
+        """
+        Le journal de lancement le plus recent, ou None.
+
+        CELUI DE LA SESSION D'ABORD — self.journal_lance, pose au lancement.
+        A defaut, le plus recent « calage_*.log » a cote de l'Excel des
+        objectifs : c'est la que noyau.lancer_calage les ecrit, et c'est ce
+        qui permet de lire l'echec d'hier apres avoir rouvert QGIS.
+        """
+        if self.journal_lance and Path(self.journal_lance).exists():
+            return Path(self.journal_lance)
+        if not self.classeur:
+            return None
+        try:
+            journaux = sorted(Path(self.classeur).parent.glob("calage_*.log"))
+        except OSError:
+            return None
+        return journaux[-1] if journaux else None
+
+    def _lignes_alerte(self):
+        """
+        Les lignes du journal qui portent un arret, une erreur ou un
+        avertissement. Liste vide si le journal manque ou ne dit rien.
+
+        NE LEVE JAMAIS : appelee par le minuteur du suivi, toutes les deux
+        secondes, sur un fichier qu'un autre processus est en train d'ecrire.
+        """
+        chemin = self._journal_du_calage()
+        if chemin is None:
+            return []
+        try:
+            with open(chemin, "rb") as f:
+                f.seek(0, os.SEEK_END)
+                debut = max(0, f.tell() - self.OCTETS_JOURNAL_LUS)
+                f.seek(debut)
+                brut = f.read().decode("utf-8", "replace")
+        except OSError:
+            return []
+        # La premiere ligne d'une lecture tronquee est coupee : on la jette.
+        lignes = brut.splitlines()[1:] if debut else brut.splitlines()
+        retenues = [ligne.rstrip() for ligne in lignes
+                    if any(m in ligne for m in self.MARQUEURS_ALERTE)]
+        return retenues[-self.LIGNES_ALERTE_MAX:]
+
+    def _peindre_alertes(self):
+        """Remplit l'encadre des alertes, et l'efface du regard s'il est vide."""
+        groupe = getattr(self, "groupe_alertes", None)
+        if groupe is None:
+            return
+        lignes = self._lignes_alerte()
+        groupe.setVisible(bool(lignes))
+        if not lignes:
+            self.texte_alertes.setPlainText("")
+            return
+        groupe.setTitle(f"Erreurs et avertissements ({len(lignes)})")
+        # SEUL UN CONTENU NOUVEAU DEPLIE, et une seule fois : deplier a
+        # chaque tour du minuteur empecherait de replier l'encadre.
+        texte = "\n".join(lignes)
+        if texte != self.texte_alertes.toPlainText():
+            self.texte_alertes.setPlainText(texte)
+            self.texte_alertes.moveCursor(QTextCursor.MoveOperation.End)
+            if not getattr(self, "_alertes_depliees", False):
+                self._alertes_depliees = True
+                groupe.setCollapsed(False)
+
     def _rafraichir_suivi(self):
         """
         Relit l'etat et redessine. Ne leve jamais : c'est un affichage
@@ -3937,6 +4099,9 @@ class DialogueParametrage(QDialog):
         """
         try:
             self._peindre_suivi()
+            # APRES la peinture, et hors de son chemin : un journal illisible
+            # ne doit pas emporter l'avancement, qui est ce qu'on vient voir.
+            self._peindre_alertes()
         except Exception as e:                              # noqa: BLE001
             # Le filet reste — il est necessaire. Ce qui change, c'est qu'il
             # laisse desormais un temoin : un onglet Suivi devenu muet le
@@ -4851,6 +5016,7 @@ class DialogueParametrage(QDialog):
             self._remplir_premier_apport()
             if self.classeur:
                 self._appliquer_reglages_du_classeur(self.classeur)
+        self._maj_groupe_classeur()
         try:
             etat = noyau.etat_cibles(self.classeur)
         except Exception as e:
@@ -5093,47 +5259,33 @@ class DialogueParametrage(QDialog):
                 f"et au moins deux instants en face des débits — puis "
                 f"relancer.")
             return
-        # HEC-RAS OUVERT : ON DEMANDE, ON N'INTERDIT PAS (0.7.24, demande
-        # utilisateur).
+        # HEC-RAS OUVERT : ON REFUSE (0.8.4, demande utilisateur).
         #
-        # La chaine ecrivait deja cet avertissement dans son journal de
-        # lancement — a la ligne 15, que personne ne lit pendant qu'un calcul
-        # demarre. Le 09/09/2026, un calage est parti avec l'interface
-        # ouverte et s'est arrete 218 s plus tard sur un calcul de reference
-        # sans resultats. Un avertissement qui n'arrive qu'apres coup n'est
-        # pas un avertissement.
+        # La 0.7.24 posait une QUESTION, au motif que l'interface peut etre
+        # ouverte sur un AUTRE projet et que tasklist ne dit que « Ras.exe
+        # tourne ». La question a ete essayee, et le texte qui la portait
+        # etait trop long pour etre lu au moment ou l'on veut lancer : on
+        # repondait « Oui ». Le calage partait, et s'arretait 218 s plus tard
+        # sur un calcul de reference sans resultats (09/09/2026).
         #
-        # UNE QUESTION ET NON UN VERROU, meme regle que _confirmer_malgre_calage :
-        # l'interface peut etre ouverte sur un AUTRE projet, et personne ne
-        # peut le savoir d'ici — tasklist ne dit que « Ras.exe tourne ». Un
-        # refus se retournerait alors contre un usage legitime.
+        # UN SEUL BOUTON, « Ok ». Il n'y a rien a arbitrer : fermer HEC-RAS
+        # coute quelques secondes, le laisser ouvert coute le calage et peut
+        # abimer le modele. Le cas legitime — HEC-RAS ouvert sur un AUTRE
+        # projet — se regle en le fermant lui aussi.
         #
-        # « None » NE POSE AUCUNE QUESTION : hors de Windows, ou si tasklist
-        # est indisponible, on ne sait pas. Demander « HEC-RAS est peut-etre
-        # ouvert ? » a chaque lancement apprendrait a repondre oui sans lire.
+        # « None » N'ARRETE RIEN : hors de Windows, ou si tasklist est
+        # indisponible, on ne sait pas, et refuser sur une ignorance
+        # bloquerait un lancement valide.
         if noyau.hecras_ouvert() is True:
             with sans_sablier(self):
-                reponse = QMessageBox.warning(
+                QMessageBox.warning(
                     self, "HEC-RAS est ouvert",
-                    "<b>HEC-RAS tourne sur ce poste.</b><br><br>"
-                    "S'il est ouvert sur CE projet, le calage a toutes les "
-                    "chances d'échouer, et il peut abîmer le modèle : "
-                    "l'interface réécrit les fichiers du projet depuis sa "
-                    "mémoire, par-dessus ce que la chaîne vient d'y écrire. "
-                    "Le chien de garde qui ferme les boîtes de dialogue "
-                    "pendant les calculs répond « Oui » à « Save Edits » — "
-                    "c'est ainsi qu'un plan calculé s'est retrouvé vide de sa "
-                    "géométrie et de son débit.<br><br>"
-                    "<b>Fermer HEC-RAS, puis relancer.</b><br><br>"
-                    "S'il est ouvert sur un autre projet, il n'y a rien à "
-                    "craindre — mais on ne peut pas le savoir d'ici.",
-                    QMessageBox.StandardButton.Cancel
-                    | QMessageBox.StandardButton.Yes,
-                    QMessageBox.StandardButton.Cancel)
-            if reponse != QMessageBox.StandardButton.Yes:
-                dire(self.label_lancement,
-                     "Lancement annulé — fermer HEC-RAS, puis relancer.")
-                return
+                    "HEC-RAS est ouvert sur ce poste. Ce n'est pas permis "
+                    "par le plugin. Fermer HEC-RAS et relancer le calage.",
+                    QMessageBox.StandardButton.Ok)
+            dire(self.label_lancement,
+                 "Lancement refusé — fermer HEC-RAS, puis relancer.")
+            return
         try:
             info = noyau.lancer_calage(self.classeur)
         except Exception as e:
@@ -5463,11 +5615,12 @@ class DialogueParametrage(QDialog):
             # sache provoquer.
             if not self.edit_prefixe_scenario.text().strip():
                 raise ValueError(
-                    "Onglet 4 : renseigner le préfixe de scénario. Il nomme "
+                    "Onglet 3 : renseigner le préfixe de scénario. Il nomme "
                     "les plans de CE calage — « Q100 » donne "
-                    "« Q100_sans_apport », « Q100_avec_apports » — et c'est "
-                    "lui qui empêche un second scénario d'effacer les plans "
-                    "du premier.")
+                    "« Q100_sans_apport », « Q100_avec_apports » —, il nomme "
+                    "aussi son Excel — « donnees_calage_Q100.xlsx » —, et "
+                    "c'est lui qui empêche un second scénario d'effacer les "
+                    "plans du premier.")
             c_sections = couche_vivante(self.couche_sections)
             c_injections = couche_vivante(self.couche_injections)
             if c_sections is None or c_injections is None:

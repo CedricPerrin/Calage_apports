@@ -1552,6 +1552,10 @@ def commande_caler(args):
                 f"{sections} de la feuille Correspondance."))
 
     plan_reference = texte("Plan_reference", "p01")
+    # LA FENETRE PLEINE RESTE CELLE DU PLAN DE REFERENCE, meme en reprise ou
+    # « plan_reference » devient le plan de l'etape precedente, deja
+    # raccourci par le calage d'avant. Voir PiloteHecRas.preparer().
+    plan_fenetre_pleine = plan_reference
     if depart > 0:
         deja = apports[:depart]
         etape_precedente = etape_apport(apports[depart - 1], prefixe_etape)
@@ -1607,6 +1611,7 @@ def commande_caler(args):
         fenetre_simulation=fenetre or None,
         pas_travail_h=pas_travail_h,
         apports_a_caler=apports_a_caler,
+        plan_fenetre_pleine=plan_fenetre_pleine,
     )
 
     # La precision est saisie en POURCENTAGE, la chaine raisonne en rapports.
