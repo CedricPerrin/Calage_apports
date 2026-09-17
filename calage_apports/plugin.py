@@ -2410,9 +2410,6 @@ class DialogueParametrage(QDialog):
         conducteur, juste au-dessus : l'oeil fait le lien sans qu'on
         l'explique.
         """
-        # Le groupe « Excel des hydrogrammes objectifs » suit le meme
-        # etat que ce bouton : gris tant que rien n'est compose.
-        self._maj_groupe_classeur()
         bouton = getattr(self, "bouton_controle", None)
         if bouton is None:
             return                      # appele avant la construction du bas
@@ -3054,7 +3051,11 @@ class DialogueParametrage(QDialog):
         groupe_actions = QGroupBox("Excel des hydrogrammes objectifs")
         v_classeur = QVBoxLayout(groupe_actions)
         v_classeur.setSpacing(8)
-        self.label_classeur_attente = texte_aide("")
+        self.label_classeur_attente = texte_aide(
+            "Aucun Excel composé : renseignez le préfixe ci-dessus, puis "
+            "cliquez <b>Contrôle paramétrage</b> en bas de la fenêtre. "
+            "« Reprendre un Excel… » reste disponible pour rouvrir celui "
+            "d’une autre session.")
         v_classeur.addWidget(self.label_classeur_attente)
         self.consigne_classeur = QLabel(
             "Dans la feuille <b>Cibles</b>, saisissez un hydrogramme par section. "
@@ -3119,10 +3120,27 @@ class DialogueParametrage(QDialog):
         self._maj_groupe_classeur()
         return groupe_actions
 
+    @property
+    def classeur(self):
+        """Chemin de l'Excel des objectifs ; None tant que rien n'est compose ni repris."""
+        return self._classeur
+
+    @classeur.setter
+    def classeur(self, chemin):
+        # LE GROUPE « Excel des hydrogrammes objectifs » SUIT CET ETAT, ET
+        # L'APPREND ICI. Trois endroits l'affectent — construction,
+        # composition, reprise — et le rafraichir a chacun, c'est en oublier
+        # un tot ou tard. A la construction l'onglet 3 n'existe pas encore :
+        # il se peint lui-meme en naissant (_groupe_classeur).
+        self._classeur = chemin
+        if hasattr(self, "bouton_ouvrir_classeur"):
+            self._maj_groupe_classeur()
+
     def _maj_groupe_classeur(self):
         """
         Grise ce qui n'a pas d'objet tant qu'aucun Excel n'existe (0.8.4,
-        demande utilisateur), et dit pourquoi.
+        demande utilisateur) ; la ligne d'attente, posee a la construction,
+        dit pourquoi et quoi faire.
 
         « REPRENDRE UN EXCEL… » RESTE ACTIF, ET C'EST DELIBERE : c'est la
         SEULE porte d'entree vers un calage d'une autre session. Le griser
@@ -3132,21 +3150,11 @@ class DialogueParametrage(QDialog):
         desactive : seuls le bouton qui ouvrirait un fichier absent et la
         consigne qui parle de sa saisie le sont.
         """
-        pret = bool(getattr(self, "classeur", None))
-        for widget in (getattr(self, "bouton_ouvrir_classeur", None),
-                       getattr(self, "consigne_classeur", None),
-                       getattr(self, "groupe_pente", None)):
-            if widget is not None:
-                widget.setEnabled(pret)
-        label = getattr(self, "label_classeur_attente", None)
-        if label is not None:
-            label.setVisible(not pret)
-            if not pret:
-                label.setText(
-                    "Aucun Excel composé : renseignez le préfixe ci-dessus, "
-                    "puis cliquez <b>Contrôle paramétrage</b> en bas de la "
-                    "fenêtre. « Reprendre un Excel… » reste disponible pour "
-                    "rouvrir celui d’une autre session.")
+        pret = bool(self.classeur)
+        for widget in (self.bouton_ouvrir_classeur, self.consigne_classeur,
+                       self.groupe_pente):
+            widget.setEnabled(pret)
+        self.label_classeur_attente.setVisible(not pret)
 
     # --- Onglet 3 : Objectifs et precision -----------------------------------
 
@@ -4019,7 +4027,7 @@ class DialogueParametrage(QDialog):
     # d'appels annonce toujours un arret, et sa premiere ligne suffit a
     # savoir qu'il y en a une.
     MARQUEURS_ALERTE = ("AVERTISSEMENT", "ARRET", "ERREUR", "ECHEC",
-                        "Traceback", "Error:", "converti en")
+                        "Traceback", "Error:")
     # Le journal d'un calage de quatorze heures pese plusieurs mega-octets :
     # ras-commander y reecrit sa banniere a chaque calcul. On n'en lit que la
     # fin, et l'on n'affiche que les dernieres lignes retenues.
@@ -4031,19 +4039,19 @@ class DialogueParametrage(QDialog):
         Le journal de lancement le plus recent, ou None.
 
         CELUI DE LA SESSION D'ABORD — self.journal_lance, pose au lancement.
-        A defaut, le plus recent « calage_*.log » a cote de l'Excel des
-        objectifs : c'est la que noyau.lancer_calage les ecrit, et c'est ce
-        qui permet de lire l'echec d'hier apres avoir rouvert QGIS.
+        A defaut, le plus recent a cote de l'Excel des objectifs, la ou
+        noyau.lancer_calage les ecrit et ou noyau.dernier_journal sait les
+        retrouver : c'est ce qui permet de lire l'echec d'hier apres avoir
+        rouvert QGIS.
         """
         if self.journal_lance and Path(self.journal_lance).exists():
             return Path(self.journal_lance)
         if not self.classeur:
             return None
         try:
-            journaux = sorted(Path(self.classeur).parent.glob("calage_*.log"))
+            return noyau.dernier_journal(self.classeur)
         except OSError:
             return None
-        return journaux[-1] if journaux else None
 
     def _lignes_alerte(self):
         """
@@ -4052,29 +4060,39 @@ class DialogueParametrage(QDialog):
 
         NE LEVE JAMAIS : appelee par le minuteur du suivi, toutes les deux
         secondes, sur un fichier qu'un autre processus est en train d'ecrire.
+
+        ET NE RELIT QUE CE QUI A CHANGE. Un calcul HEC-RAS dure des minutes
+        sans qu'une ligne s'ecrive, et le journal est le plus souvent sur un
+        partage reseau : relire un mega-octet toutes les deux secondes pour
+        n'y rien trouver de neuf, c'est ce que _dossier_suivi evite deja
+        pour l'avancement. Meme cle — taille et date —, un stat par tour.
         """
         chemin = self._journal_du_calage()
         if chemin is None:
             return []
         try:
+            st = os.stat(chemin)
+            cle = (str(chemin), st.st_size, st.st_mtime_ns)
+            if cle == getattr(self, "_cle_journal_lu", None):
+                return self._alertes_lues
+            debut = max(0, st.st_size - self.OCTETS_JOURNAL_LUS)
             with open(chemin, "rb") as f:
-                f.seek(0, os.SEEK_END)
-                debut = max(0, f.tell() - self.OCTETS_JOURNAL_LUS)
                 f.seek(debut)
                 brut = f.read().decode("utf-8", "replace")
         except OSError:
             return []
-        # La premiere ligne d'une lecture tronquee est coupee : on la jette.
-        lignes = brut.splitlines()[1:] if debut else brut.splitlines()
+        lignes = brut.splitlines()
+        if debut:
+            del lignes[:1]      # coupee au milieu par la lecture tronquee
         retenues = [ligne.rstrip() for ligne in lignes
                     if any(m in ligne for m in self.MARQUEURS_ALERTE)]
-        return retenues[-self.LIGNES_ALERTE_MAX:]
+        self._cle_journal_lu = cle
+        self._alertes_lues = retenues[-self.LIGNES_ALERTE_MAX:]
+        return self._alertes_lues
 
     def _peindre_alertes(self):
         """Remplit l'encadre des alertes, et l'efface du regard s'il est vide."""
-        groupe = getattr(self, "groupe_alertes", None)
-        if groupe is None:
-            return
+        groupe = self.groupe_alertes
         lignes = self._lignes_alerte()
         groupe.setVisible(bool(lignes))
         if not lignes:
@@ -5016,7 +5034,6 @@ class DialogueParametrage(QDialog):
             self._remplir_premier_apport()
             if self.classeur:
                 self._appliquer_reglages_du_classeur(self.classeur)
-        self._maj_groupe_classeur()
         try:
             etat = noyau.etat_cibles(self.classeur)
         except Exception as e:

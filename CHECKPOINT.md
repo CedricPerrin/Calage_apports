@@ -4,7 +4,34 @@ Point de reprise pour ouvrir une nouvelle conversation avec un contexte
 minimal. L'état courant et les règles en vigueur restent dans `STATUT.txt` ;
 ce fichier ne dit que **où on en est** et **par quoi reprendre**.
 
-## Reprendre ici — 14 septembre 2026 : 0.8.4, NON COMMITÉE
+## Reprendre ici — 17 septembre 2026 : revue de qualité de la 0.8.4
+
+La 0.8.4 est commitée (`f4aaf6e`, `main`). Sur la branche
+`claude/ponytail-lycxeg`, un passage `/simplify` : quatre relectures
+(réutilisation, simplification, efficacité, profondeur du correctif), puis
+les correctifs retenus. Aucune promesse de la 0.8.4 ne change ; `STATUT.txt`
+§ 1 (entrée du 17/09, items 3, 5, 8 et 9) dit ce qui a bougé et ce qui a
+été écarté.
+
+- **`DialogueParametrage.classeur` est une propriété** : son setter
+  rafraîchit le groupe « Excel des hydrogrammes objectifs » — trois
+  affectations, un seul rafraîchissement.
+- **Le Suivi ne relit le journal que s'il a changé** (un `stat` par tour) ;
+  `noyau.dernier_journal` le retrouve, à côté de `lancer_calage` qui le nomme.
+- **`_sans_tableau_des_temps`** coupe le compte rendu HEC-RAS à l'en-tête du
+  tableau des temps ; plus de liste de mots d'échec.
+- **`plan_fenetre_pleine` n'est passé qu'en reprise** ;
+  `PiloteHecRas._duree_borne_h()` porte la borne et le banc l'éprouve.
+- **Le recadencement des cibles dit `AVERTISSEMENT`** depuis la chaîne.
+
+**À faire sur le poste** : rejouer `test_plugin_qgis.py` (QGIS) et
+`pont_hecras.py autotest` (h5py) ; refaire l'archive (`python
+src/faire_zip.py`), `calage_apports_0.8.4.zip` datant d'avant la revue.
+Deux points ouverts à trancher : la règle « HEC-RAS ouvert = refus » ne vit
+que dans le plugin ; `suivi/`, `resultats_finaux/` et les journaux restent
+partagés entre les scénarios d'un même dossier de sortie.
+
+## Reprendre ici — 14 septembre 2026 : 0.8.4
 
 Six demandes utilisateur après un calage réel repris — Suhihandia, reprise à
 SUH12 — et le constat qui les a fait naître : ce calage s'arrête au calcul de
@@ -28,7 +55,8 @@ référence, et rien de ce qui l'annonçait n'était visible à l'écran.
 - **La ligne du calcul de référence nomme ce qu'elle met à zéro** — le
   comportement, lui, était déjà correct en reprise.
 - **Les messages de HEC-RAS gardent la ligne qui explique**, non les quatre
-  dernières, qui sont son tableau des temps (`_lignes_qui_expliquent`). C'est
+  dernières, qui sont son tableau des temps (`_sans_tableau_des_temps` depuis
+  la revue du 17/09). C'est
   ce qui empêchait de diagnostiquer l'arrêt de Suhihandia.
 - **En reprise, la borne haute de la fenêtre reste celle du plan de
   référence** — mesuré sur le cas réel : 36 h au `.p01`, 32 h 06 au `.p20`

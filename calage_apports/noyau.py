@@ -206,6 +206,11 @@ def nom_classeur(prefixe=""):
     est libre a la saisie — « Q100 V2 », « Q100/bis » — et un nom de fichier
     ne l'est pas. On ne refuse pas, on remplace : le titre des plans, lui,
     garde le prefixe tel qu'il a ete tape.
+
+    MEME REGLE QUE suivi.assainir_nom_fichier, copiee plutot qu'importee :
+    suivi.py charge matplotlib a l'import, ce que le processus QGIS n'a pas a
+    faire pour nommer un fichier. Si la regle change, elle change aux deux
+    endroits.
     """
     prefixe = str(prefixe or "").strip().strip("-_")
     if not prefixe:
@@ -2408,6 +2413,20 @@ def charger_couches_modele(fichier_geometrie_hdf):
     return appeler_pont("modele", "--geometrie", str(fichier_geometrie_hdf))
 
 
+def dernier_journal(chemin_classeur):
+    """
+    Le journal de lancement le plus recent ecrit a cote du classeur, ou None.
+
+    ICI, A COTE DE lancer_calage QUI LES NOMME : « calage_<horodatage>.log »
+    n'est ecrit qu'a un endroit, et qui cherche un journal — l'onglet Suivi
+    du plugin, pour lire l'echec d'hier apres avoir rouvert QGIS — passe par
+    la meme fonction. L'horodatage du nom ordonne les fichiers comme leurs
+    dates, sans lire une seule date de modification.
+    """
+    return max(Path(chemin_classeur).parent.glob("calage_*.log"),
+               default=None)
+
+
 def lancer_calage(chemin_classeur):
     """
     Lance le calage complet en ARRIERE-PLAN : cette operation dure des heures
@@ -2439,6 +2458,7 @@ def lancer_calage(chemin_classeur):
 
     chemin_classeur = Path(chemin_classeur)
     horodatage = time.strftime("%Y%m%d_%H%M%S")
+    # Le nom que dernier_journal retrouve : les deux vont ensemble.
     journal = chemin_classeur.parent / f"calage_{horodatage}.log"
 
     # DIX SECONDES CONTRE QUATORZE HEURES. restaurer_interpreteur() ne
@@ -2758,6 +2778,18 @@ if __name__ == "__main__":
     print(f"   [{'OK' if _ok else 'ECHEC'}] {_libelle}  ->  "
           f"{Path(_q100).name} et {Path(_q10).name}")
     assert _ok, _libelle
+    # ET LE DERNIER JOURNAL EST CELUI AU NOM LE PLUS GRAND : l'horodatage du
+    # nom suffit, aucune date de fichier n'est lue.
+    for _nom in ("calage_20260913_235959.log", "calage_20260914_082326.log"):
+        (_dossier_p / _nom).write_text("", encoding="utf-8")
+    _rendu = dernier_journal(_q100)
+    _ok = _rendu is not None and _rendu.name == "calage_20260914_082326.log"
+    print(f"   [{'OK' if _ok else 'ECHEC'}] dernier_journal  ->  "
+          f"{_rendu.name if _rendu else None}")
+    assert _ok, f"dernier_journal rend {_rendu}"
+    _ok = dernier_journal(dossier / "sans_journal" / "x.xlsx") is None
+    print(f"   [{'OK' if _ok else 'ECHEC'}] dernier_journal sans journal  ->  None")
+    assert _ok, "dernier_journal devrait rendre None sans journal"
 
     # ET RECOMPOSER N'EFFACE PAS UNE SAISIE QU'ON NE SAIT PAS RELIRE.
     # preparer_classeur() preserve les cibles deja collees en les cherchant

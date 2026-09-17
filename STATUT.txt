@@ -22,6 +22,41 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+MISE A JOUR DU 17 SEPTEMBRE 2026 — REVUE DE QUALITE DE LA 0.8.4
+  Quatre relectures du commit 0.8.4 (reutilisation, simplification,
+  efficacite, profondeur du correctif), puis les correctifs retenus. Rien de
+  ce que la 0.8.4 promet ne change ; ce qui change est OU la regle vit et CE
+  QU'ELLE COUTE. Le detail est dans les items 3, 5, 8 et 9 ci-dessous, mis a
+  jour ; en resume :
+  - plugin : DialogueParametrage.classeur est une PROPRIETE dont le setter
+    rafraichit le groupe « Excel des hydrogrammes objectifs » — trois
+    affectations, un seul rafraichissement, plus de gardes getattr ;
+  - plugin : l'onglet Suivi ne relit le journal QUE S'IL A CHANGE (un stat
+    par tour) — il relisait un mega-octet toutes les deux secondes, le plus
+    souvent sur un partage reseau ;
+  - noyau.dernier_journal retrouve les « calage_*.log » a cote de
+    lancer_calage, qui les nomme ;
+  - chaine : le recadencement des cibles dit AVERTISSEMENT ; « converti en »
+    n'est plus un marqueur du plugin ;
+  - chaine : _sans_tableau_des_temps() remplace la liste de mots d'echec ;
+  - chaine : plan_fenetre_pleine n'est passe qu'EN REPRISE, et
+    PiloteHecRas._duree_borne_h() porte la lecture de la borne, que le banc
+    eprouve directement au lieu d'en recopier la formule.
+  ECARTE, A DESSEIN : importer suivi.assainir_nom_fichier dans noyau (il
+  tirerait matplotlib dans QGIS ; la regle est copiee et dit d'ou elle
+  vient) ; faire refuser la chaine elle-meme quand HEC-RAS est ouvert (la
+  regle ne vit que dans le plugin — a trancher) ; nommer les journaux et le
+  dossier suivi/ par scenario (deux scenarios d'un meme dossier de sortie
+  partagent encore suivi/ et resultats_finaux/, et l'onglet Suivi montre le
+  dernier journal du dossier, quel que soit le scenario — a trancher).
+  L'ARCHIVE calage_apports_0.8.4.zip DATE D'AVANT CETTE REVUE : python
+  src/faire_zip.py la refait.
+  BANCS : noyau.py 46 OK ; les blocs 0.8.4 de pilote_hecras.py OK (la suite
+  entiere et pont_hecras autotest exigent ras_commander et h5py, absents du
+  bac a sable) ; test_plugin_qgis.py NON REJOUE ICI (QGIS) : a rejouer sur le
+  poste, trois de ses controles lisent les widgets que la propriete
+  rafraichit.
+
 MISE A JOUR DU 14 SEPTEMBRE 2026 — 0.8.4, DEUX SCENARIOS, DEUX CLASSEURS
   SIX DEMANDES UTILISATEUR APRES UN CALAGE REEL REPRIS (Suhihandia, SUH12).
 
@@ -53,6 +88,10 @@ MISE A JOUR DU 14 SEPTEMBRE 2026 — 0.8.4, DEUX SCENARIOS, DEUX CLASSEURS
      reste fermerait la reprise a cle — il faudrait recomposer, donc
      recharger le modele et ses couches, pour rouvrir un classeur qu'on a
      deja sous la main.
+       LE GROUPE APPREND L'ETAT PAR LA PROPRIETE classeur DE LA FENETRE
+     (setter, revue du 17/09) : construction, composition et reprise
+     l'affectent, un seul endroit le rafraichit. La ligne d'attente est
+     posee a la construction et ne fait que se montrer ou se cacher.
 
   4. LES DEUX BOUTONS REVIENNENT COTE A COTE, LIBELLES RACCOURCIS — « Ouvrir
      dans Excel » et « Reprendre un Excel… ». La 0.8.2 les avait EMPILES
@@ -69,12 +108,16 @@ MISE A JOUR DU 14 SEPTEMBRE 2026 — 0.8.4, DEUX SCENARIOS, DEUX CLASSEURS
        UN ENCADRE REPLIABLE SOUS LA BANNIERE, qui se montre seulement s'il a
      quelque chose et se deplie UNE FOIS a l'arrivee d'un contenu neuf. Il
      ne retient que les lignes portant AVERTISSEMENT, ARRET, ERREUR, ECHEC,
-     Traceback, Error: ou « converti en » — le reste du journal est le bruit
-     de ras-commander, qui reecrit sa banniere a chaque calcul. Lecture du
-     dernier mega-octet seulement, 60 lignes au plus.
+     Traceback ou Error: — le reste du journal est le bruit de ras-commander,
+     qui reecrit sa banniere a chaque calcul. Le recadencement des cibles dit
+     AVERTISSEMENT depuis la chaine (pont_hecras), et non par un bout de
+     phrase retenu dans le plugin. Lecture du dernier mega-octet seulement,
+     60 lignes au plus, et SEULEMENT SI LE JOURNAL A CHANGE : un stat par
+     tour (taille, date), meme cle que _dossier_suivi.
        LE JOURNAL DE LA SESSION D'ABORD (journal_lance), a defaut le plus
-     recent « calage_*.log » a cote de l'Excel des objectifs : c'est ce qui
-     permet de lire l'echec d'hier apres avoir rouvert QGIS.
+     recent a cote de l'Excel des objectifs, par noyau.dernier_journal — qui
+     vit a cote de lancer_calage, qui les nomme : c'est ce qui permet de
+     lire l'echec d'hier apres avoir rouvert QGIS.
 
   6. HEC-RAS OUVERT N'EST PLUS UNE QUESTION, C'EST UN REFUS. La 0.7.24 posait
      une question, au motif que l'interface peut etre ouverte sur un AUTRE
@@ -101,10 +144,14 @@ MISE A JOUR DU 14 SEPTEMBRE 2026 — 0.8.4, DEUX SCENARIOS, DEUX CLASSEURS
      tableau. L'erreur, ecrite juste au-dessus, etait poussee dehors.
        On lisait donc une vitesse de calcul absurde en guise de diagnostic,
      et il fallait rouvrir HEC-RAS pour apprendre ce qu'il avait refuse de
-     faire. _lignes_qui_expliquent() prefere desormais les lignes portant un
-     mot d'echec (error, failed, cannot, missing, abort, diverg...) et ne
-     retombe sur la fin que s'il n'y en a aucune. Meme regle pour le HDF et
-     pour le _compute_pXX.log, une seule fonction pour les deux.
+     faire. _sans_tableau_des_temps() COUPE le compte rendu a l'en-tete du
+     tableau, « Computation Task » — un bloc fixe se coupe a son en-tete —,
+     et les dernieres lignes sont a nouveau celles qui comptent. Une liste
+     de mots d'echec a ete essayee puis retiree (revue du 17/09) : elle
+     ratait l'explication qui n'en porte aucun — « Computing 2D Flow Area
+     tables: Associated terrain has been updated », du cas du 31/08 — et
+     gardait les avertissements d'un calcul qui a tourne. Meme regle pour le
+     HDF et pour le _compute_pXX.log.
 
   9. EN REPRISE, LA BORNE HAUTE DE LA FENETRE RESTE CELLE DU PLAN DE
      REFERENCE. preparer() relevait duree_reference_h SUR LE PLAN QU'IL VIENT
@@ -116,10 +163,14 @@ MISE A JOUR DU 14 SEPTEMBRE 2026 — 0.8.4, DEUX SCENARIOS, DEUX CLASSEURS
      l'utilisateur le 14/09 : .p01 rend 36 h (01JAN2000,00:00 ->
      02JAN2000,12:00), .p20 rend 32 h 06 (-> 02JAN2000,08:06). L'apport
      repris ne pouvait donc plus rallonger au-dela de 32 h 06.
-       LE PONT PASSE plan_fenetre_pleine, qui reste le « Plan_reference » du
-     classeur meme quand la reprise deplace le plan de depart. PLUS LENT,
-     JAMAIS FAUX : on retire un plafond, limiter_duree() raccourcit ensuite
-     au besoin de l'apport.
+       LE PONT PASSE plan_fenetre_pleine EN REPRISE SEULEMENT — le
+     « Plan_reference » du classeur, quand la reprise deplace le plan de
+     depart. En calage ordinaire le pilote lit la borne sur son plan de
+     travail, qui porte la fenetre imposee s'il y en a une, comme avant la
+     0.8.4 ; PiloteHecRas._duree_borne_h() porte la regle et le banc
+     l'eprouve directement (revue du 17/09). PLUS LENT, JAMAIS FAUX : on
+     retire un plafond, limiter_duree() raccourcit ensuite au besoin de
+     l'apport.
        CE N'EST PAS LA CAUSE DE L'ARRET DE SUHIHANDIA : 32 h 06 contre 36 h
      est une troncature mineure, et elle ne produit pas « la simulation n'a
      pas tourne ». C'est un defaut reel, decouvert en cherchant l'autre.
