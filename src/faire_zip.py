@@ -377,6 +377,20 @@ if __name__ == "__main__":
             if zf.read(f"{RACINE}/{CHAINE}/{module}.py") != \
                     (DOSSIER / f"{module}.py").read_bytes():
                 echecs.append(f"{module}.py embarque differe de la source")
+        # LA DOCUMENTATION LIVREE CITE LA VERSION QU'ELLE ACCOMPAGNE (0.8.5).
+        # Le LISEZMOI de l'archive 0.8.4 disait « Version 0.8.2 » et nommait
+        # calage_apports_0.8.2.zip : deux versions de retard dans le seul
+        # document qu'un poste distant lit avant d'installer. Meme controle
+        # pour le README du depot, qui annonce la version des sources.
+        version = _version()
+        lisezmoi = zf.read(f"{RACINE}/LISEZMOI.md").decode("utf-8", errors="replace")
+        for attendu in (f"Version **{version}**", f"calage_apports_{version}.zip"):
+            if attendu not in lisezmoi:
+                echecs.append(f"LISEZMOI.md ne cite pas « {attendu} » : la "
+                              f"documentation est en retard sur metadata.txt")
+        readme = (DEPOT / "README.md").read_text(encoding="utf-8", errors="replace")
+        if f"Version des sources du plugin : **{version}**" not in readme:
+            echecs.append(f"README.md n'annonce pas la version {version} des sources")
         if any("__pycache__" in n or n.endswith(".pyc") for n in noms):
             echecs.append("l'archive contient du bytecode")
         for nom in noms:

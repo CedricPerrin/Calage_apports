@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.8.4
+version=0.8.5
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,27 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.8.4 — Le préfixe de scénario nomme l'Excel ; les erreurs remontent au Suivi.
+changelog=0.8.5 — Relecture ergonomique : thème sombre des widgets peints, questions à défaut sûr, police suivie.
+    Les trois widgets dessinés au QPainter de l'onglet Suivi — ruban,
+    jauges, courbe — et la colonne Statut du tableau suivent le thème
+    sombre : ils gardaient les couleurs du clair sur le fond Night
+    Mapping (ardoise à 2,3:1, rouge à 1,8:1). Ils suivent aussi la
+    police du poste au lieu d'écrire 7,5, 8 et 11 pt en dur, et portent
+    un nom et une description accessibles.
+    Les quatre questions Oui/Non n'avaient pas de bouton par défaut posé
+    — dont celle qui autorise à recomposer pendant qu'un calage tourne.
+    Elles portent désormais des verbes, et le refus est le défaut, Entrée,
+    Échap et la croix compris.
+    Le teal institutionnel (3,4:1 sur fond clair) ne sert plus de couleur
+    de texte ; le teal sombre (4,9:1) le remplace. Les liens du fil
+    conducteur se prennent au clavier. Trois refus parlaient encore du
+    « dossier du projet » ; les boîtes du contrôle portent le nom du
+    bouton ; le préfixe de scénario se dit obligatoire dans son libellé ;
+    le rang de l'aide a une constante. faire_zip.py refuse une archive
+    dont le LISEZMOI cite une autre version que metadata.txt.
+    Méthode de calage, valeurs par défaut et règles de contrôle inchangées.
+
+0.8.4 — Le préfixe de scénario nomme l'Excel ; les erreurs remontent au Suivi.
     L'Excel des objectifs s'appelle désormais « donnees_calage_<préfixe>.xlsx » :
     deux scénarios d'un même dossier de sortie ont deux classeurs, et
     composer l'un n'écrase plus l'autre. Le préfixe passe donc à l'onglet 3,

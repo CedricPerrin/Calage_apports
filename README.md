@@ -3,7 +3,7 @@
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 
-Version des sources du plugin : **0.8.4**. La
+Version des sources du plugin : **0.8.5**. La
 [note d’ergonomie du 11 septembre 2026](docs/ergonomie_2026-09-11.md)
 décrit le parcours, les choix d’interface et les points de recette.
 
@@ -24,6 +24,15 @@ l'Excel des objectifs — `donnees_calage_Q100.xlsx` —, si bien que deux
 scénarios d'un même dossier de sortie ont deux classeurs ; les erreurs et
 avertissements du journal de lancement remontent dans l'onglet Suivi ; et
 HEC-RAS ouvert refuse le lancement au lieu de poser une question.
+La **0.8.5** vient d'une [relecture ergonomique du 17 septembre](docs/ergonomie_2026-09-17.md)
+menée avec la grille du dépôt `ergonomie` : l'onglet Suivi suit le thème
+sombre — ses widgets peints et son tableau gardaient les couleurs du clair,
+ardoise à 2,3:1 et rouge à 1,8:1 sur Night Mapping — et la police du
+poste ; les quatre questions Oui/Non ont un défaut sûr et des verbes ; le
+teal institutionnel ne sert plus de couleur de texte ; les liens du fil
+conducteur se prennent au clavier. Le banc gagne 23 contrôles, **non
+rejoués** : cette version a été écrite sans QGIS, et son premier passage au
+banc reste à faire.
 
 Pour chaque apport, de l'amont vers l'aval : estimer, calculer, comparer à la
 cible, corriger, répéter jusqu'à concordance, puis vérifier la cohérence des
@@ -138,6 +147,14 @@ Six rubriques : **Modèle → Sorties → Objectifs → Lancer → Suivi**, puis
 accessibles en bas de la fenêtre. Les pages longues défilent ; les détails
 secondaires se déplient à la demande. Les images sont produites avec un
 projet de démonstration par [src/captures_plugin.py](src/captures_plugin.py).
+
+> **Les six captures datent de la 0.8.2** et n'ont pas été refaites depuis :
+> la 0.8.3 a ajouté le statut « repris » au Suivi, la 0.8.4 a déplacé le
+> préfixe de scénario à l'onglet Objectifs et remis ses deux boutons côte à
+> côte, la 0.8.5 change le libellé du préfixe. **Les onglets 3, 4 et 5 ne
+> ressemblent donc plus exactement aux images.** À refaire par
+> `captures_plugin.py`, sous le Python de QGIS — une capture périmée
+> ressemble à une capture.
 
 **1. Modèle** — le projet HEC-RAS (**on désigne le fichier `.prj`, pas le
 dossier**), le plan de référence, la géométrie, la zone 2D, le **profil en

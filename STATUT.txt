@@ -22,6 +22,99 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+MISE A JOUR DU 18 SEPTEMBRE 2026 — 0.8.5, LA RELECTURE ERGONOMIQUE DU 17
+  SEIZE CONSTATS TENUS, SEPT PISTES ECARTEES — docs/ergonomie_2026-09-17.md,
+  ecrite avec la grille du depot « ergonomie » (synthese des six depots) et
+  validee par l'utilisateur. Les correctifs ont ete ECRITS SANS QGIS, depuis
+  un clone Linux : lire BANCS, plus bas, avant de croire ce qui suit.
+
+  1. LE THEME SOMBRE S'ARRETAIT AUX TEXTES HTML. interface.texte_theme
+     remappait les couleurs des etiquettes riches ; les trois widgets
+     dessines au QPainter de l'onglet Suivi — ruban, jauges, courbe — et la
+     colonne Statut du tableau gardaient les teintes du clair sur le fond
+     Night Mapping : ardoise 2,3:1, rouge 1,8:1, vert 2,2:1. POURQUOI LA
+     RECETTE DU 11/09 NE L'A PAS VU : ses six scenarios sombres ont ete
+     mesures sur un projet VIDE, l'onglet Suivi n'y portait aucune donnee.
+       interface.couleur(nom_hex, widget) — meme table que texte_theme — et
+     une methode couleur() sur chaque widget peint, que le banc interroge
+     sans ecran. Le filet de la banniere suit aussi. En sombre, l'encre des
+     segments pleins du ruban est le fond de la fenetre : les teintes
+     remappees sont claires, le blanc n'y tenait plus.
+  2. QUATRE QUESTIONS OUI/NON N'AVAIENT PAS DE BOUTON PAR DEFAUT POSE — la
+     relecture en comptait trois ; « Chaine de calage introuvable » etait la
+     quatrieme. QMessageBox.question(Yes | No) sans defaultButton laisse Qt
+     choisir, et sur Oui/Non il ne retient rien : Entree allait au premier
+     bouton autoDefault, « Oui ». La docstring de _confirmer_malgre_calage
+     promettait « non ». La garde de keyPressEvent ne protege pas une boite
+     modale : c'est une autre fenetre.
+       confirmer(parent, titre, texte, oui, non) : des VERBES — « Recomposer
+     quand meme » / « Attendre la fin du calage », « Installer » / « Plus
+     tard », « Prolonger par des zeros » / « Laisser tel quel », « Designer
+     le dossier… » / « Plus tard » —, le refus en defaut ET en echappement.
+     AUCUN BOUTON CLIQUE VAUT NON, mannequin de recette compris. Plus aucun
+     QMessageBox.question dans plugin.py ; le banc le verifie.
+  3. LE TEAL INSTITUTIONNEL (#3A8D94) SERVAIT DE COULEUR DE TEXTE a cinq
+     endroits : 3,4:1 sur le fond clair, sous les 4,5:1 de WCAG 1.4.3. Le
+     teal sombre (#2E7176, 4,9:1) le remplace pour les textes — COULEUR_STATUT
+     « en cours », ligne de position, fenetre modifiee, legende « mesure »,
+     banniere « Calage en cours ». Le teal institutionnel reste celui des
+     TRAITS (courbe), ou 3:1 suffit. En sombre les deux vont au meme #7CC4C8.
+  4. LES WIDGETS PEINTS SUIVENT LA POLICE DU POSTE. Ils ecrivaient 7,5, 8 et
+     11 pt en dur, et 46/56/190 px de hauteur : a 13 pt tout le reste
+     grandissait, pas eux. _taille_police(widget, facteur) prend une fraction
+     de la police du widget — la feuille de style la pose sur tout QWidget,
+     plancher 10 pt compris, et changeEvent(FontChange) recalcule la
+     hauteur. Largeurs de legende par horizontalAdvance, plus « 6 px par
+     caractere ». Mesure hors ecran : 44/55/190 px a 10 pt, 54/62/238 a 13.
+  5. NOMS ET DESCRIPTIONS ACCESSIBLES des trois widgets peints, remis a
+     chaque actualiser() — « Volume : 94,2 %, hors tolerance ». Qt exposait
+     ces widgets a UI Automation comme des objets muets.
+  6. LES LIENS DU FIL CONDUCTEUR SE PRENNENT AU CLAVIER —
+     LinksAccessibleByKeyboard. Tab selectionne le lien, Entree l'active, et
+     c'est le QLabel qui consomme Entree : la garde de la fenetre ne voit que
+     ce qui lui remonte. Verifie sous PyQt6 hors ecran.
+  7. PETITS : trois refus disaient encore « dossier du projet » depuis que
+     l'on designe un .prj (0.7.13) ; les boites du controle s'appelaient
+     « Composition et controle » et « Composition » pour un bouton nomme
+     « Controle parametrage » ; « (obligatoire) » entre dans le libelle du
+     prefixe, un placeholder disparaissant a la premiere frappe ; le rang de
+     l'aide etait ecrit « 5 » cinq fois — ONGLET_AIDE, DERNIER_ONGLET ; une
+     phrase pres de LARGEUR_PLANCHER_MAX dit pourquoi la fenetre depasse les
+     580 px du HIG QGIS.
+  8. faire_zip.py REFUSE UNE ARCHIVE DONT LE LISEZMOI CITE UNE AUTRE VERSION
+     que metadata.txt, ou dont le README n'annonce pas la version des
+     sources. Le LISEZMOI de la 0.8.4 disait « 0.8.2 » et nommait
+     calage_apports_0.8.2.zip. Le controle a ete vu ROUGE sur l'ancien
+     LISEZMOI avant d'etre vu vert sur le nouveau.
+  9. TROUVE AU PASSAGE, PAR LE SHIM : RubanApports ecrivait
+     self.sizePolicy().Expanding — forme non qualifiee, que PyQt6 pur refuse
+     (AttributeError). Le controle des « constantes qualifiees » du banc ne
+     regarde que « QSizePolicy. » ; cette ecriture-la lui echappait. Forme
+     qualifiee posee.
+
+  NON FAIT, ET POURQUOI : la matrice des trente scenarios (C12) n'est
+  toujours pas rejouable depuis le depot — un script de mesures qu'on ne
+  peut pas lancer ici serait ecrit a l'aveugle ; l'extension du filtre
+  « comprimes » du banc aux etiquettes et boutons (C13) — § 6 dit de ne pas
+  toucher aux fenetres etroites sans l'oeil sur QGIS ; les captures (C11),
+  qui exigent QGIS et datent toujours de la 0.8.2, le README le dit ; et
+  deux DECISIONS laissees a l'utilisateur (§ 6) : C9 — dire au fil
+  conducteur que le bouton ecrit dans la geometrie — et C16 — un
+  QProgressDialog sous « Installer… ».
+
+  BANCS : LE BANC QGIS N'A PAS TOURNE — il exige QGIS, absent du clone. Il
+  gagne 23 controles (contrastes des deux themes, couleurs remappees des
+  widgets peints et du tableau, defaut des quatre questions, fil au clavier,
+  noms accessibles, police des widgets peints, ONGLET_AIDE) : 301 attendus,
+  278 + 23. A LA PLACE : py_compile des quatre .py touches ; faire_zip.py
+  « archive conforme » ; essai_garde_fou_archive.py TOUT PASSE ; et les
+  trois widgets peints dessines hors ecran sous PyQt6 6.11 (shim qgis ->
+  PyQt6, qgis.core/gui inertes), en clair et en sombre, a 10 et 13 pt —
+  couleurs remappees presentes, brutes absentes, hauteurs qui suivent —,
+  plus confirmer() eprouvee : defaut, echappement, retour sans clic, retour
+  apres clic. LE PREMIER PASSAGE DU BANC SOUS QGIS EST LA PREMIERE CHOSE A
+  FAIRE AVEC CETTE VERSION.
+
 MISE A JOUR DU 14 SEPTEMBRE 2026 — 0.8.4, DEUX SCENARIOS, DEUX CLASSEURS
   SIX DEMANDES UTILISATEUR APRES UN CALAGE REEL REPRIS (Suhihandia, SUH12).
 
@@ -1876,7 +1969,7 @@ La note, le template et ce fichier restent a la racine.
                          onglets. plugin.py est une enveloppe mince ; noyau.py
                          porte la logique, testable hors QGIS. Aucune regle de
                          controle n'y est reecrite.
-  calage_apports_0.8.0.zip  Archive d'installation, VERSIONNEE : c'est ce
+  calage_apports_0.8.5.zip  Archive d'installation, VERSIONNEE : c'est ce
                          qu'on installe dans QGIS, telechargeable depuis
                          le depot sans rien reconstruire.
   methodologie_calage_amont_aval.docx / .pdf   Note methodologique V15.
@@ -2902,6 +2995,31 @@ dates fictives au 1er janvier.
     pont_hecras.py verifier repond ok (ras-commander 0.99.2, h5py 3.16).
     Le diagnostic de _charger_couches_modele part dans journaliser(), que
     le banc n'affiche pas : le faire remonter, puis rejouer.
+  - LA 0.8.5 N'A PAS ETE VUE SOUS QGIS (18/09). Rejouer test_plugin_qgis.py
+    (301 attendus), regarder l'onglet Suivi REMPLI en Night Mapping, refaire
+    les six captures (elles datent de la 0.8.2), installer le ZIP dans le
+    profil ISL. Puis Accessibility Insights (FastPass) sur la fenetre : les
+    noms accessibles sont poses, il dira ce que Windows en voit.
+  - DEUX DECISIONS D'ERGONOMIE LAISSEES OUVERTES PAR LA RELECTURE DU 17/09.
+    C9 — ce que « Controle parametrage » ECRIT ne se lit que dans l'infobulle
+    et l'aide (0.7.24), alors que la 0.7.7 disait qu'un survol n'est pas un
+    consentement ; le fil conducteur pourrait le dire en une ligne, visible
+    des six onglets. C16 — « Installer… » fige QGIS plusieurs minutes,
+    sablier seul ; un QProgressDialog alimente par les lignes de pip
+    donnerait le signe de vie que le sablier ne donne pas au bout de trois
+    minutes. Toutes deux a trancher par l'utilisateur, pas a coder d'office.
+  - LA MATRICE DES TRENTE SCENARIOS D'AFFICHAGE
+    (docs/ergonomie_2026-09-11-mesures.json) N'A PAS DE SCRIPT VERSIONNE :
+    la prochaine version ne pourra pas la reproduire, et la mesure sombre
+    d'un Suivi rempli n'a pas d'outil. A ecrire SUR LE POSTE QGIS, avec un
+    suivi synthetique pour le scenario sombre — pas depuis un clone qui ne
+    peut pas le lancer.
+  - UNE BRANCHE NON FUSIONNEE : claude/ponytail-lycxeg, commit 0fd1b9a du
+    17/09 (« Revue de qualite : classeur, journal du suivi, messages
+    HEC-RAS »), touche plugin.py, noyau.py, pilote_hecras.py, pont_hecras.py,
+    le banc, STATUT.txt et CHECKPOINT.md. Elle part de la 0.8.4 : la
+    fusionner dans la 0.8.5 demandera de resoudre STATUT et CHECKPOINT a la
+    main. A fusionner ou a jeter, en connaissance de cause.
 A FOURNIR PAR L'UTILISATEUR
   - LA COLONNE DE TEMPS DES CIBLES Q20. Le classeur source du dossier
     d'apports porte six hydrogrammes complets (418 lignes) mais UN SEUL

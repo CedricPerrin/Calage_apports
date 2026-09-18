@@ -40,7 +40,8 @@ from qgis.core import (
 from qgis.gui import (QgsCollapsibleGroupBox, QgsFieldComboBox, QgsGui,
                       QgsMapLayerComboBox, QgsMessageBar)
 from qgis.PyQt.QtCore import QEvent, QMetaType, QSettings, Qt, QTimer
-from qgis.PyQt.QtGui import QIcon, QKeySequence, QTextCursor
+from qgis.PyQt.QtGui import (QFont, QFontMetrics, QIcon, QKeySequence,
+                             QPalette, QTextCursor)
 from qgis.PyQt.QtWidgets import (
     QAbstractItemView,
     QAction,
@@ -79,6 +80,7 @@ from qgis.PyQt.QtWidgets import (
 
 from . import noyau
 from .interface import Etiquette as QLabel, Manuel as QTextBrowser
+from .interface import couleur as couleur_theme, sombre as fond_sombre
 from .interface import feuille as feuille_interface
 
 DOSSIER = os.path.dirname(__file__)
@@ -526,9 +528,16 @@ STYLE_ISL = feuille_interface(QApplication.palette())
 # archive ; suivi.py ne connait que les quatre autres.
 STATUT_REPRIS = "repris"
 
+# « EN COURS » EST LE TEAL SOMBRE, PAS LE TEAL INSTITUTIONNEL (0.8.5). Ces
+# teintes servent de couleur de TEXTE — colonne Statut du tableau, ligne de
+# position — et « #3A8D94 » sur le fond clair de QGIS rend 3,4:1, sous les
+# 4,5:1 que WCAG 1.4.3 demande a un texte de 10 pt ; « #2E7176 » rend 4,9:1.
+# Le teal institutionnel reste celui des TRAITS (courbe du suivi), ou 3:1
+# suffit. En theme sombre, interface.COULEURS_SOMBRES ramene les deux au
+# meme « #7CC4C8 ».
 COULEUR_STATUT = {
     "validé": ISL_VERT,
-    "en cours": ISL_TEAL,
+    "en cours": ISL_TEAL_SOMBRE,
     "échoué": ISL_ROUGE,
     "en attente": ISL_ARDOISE_CLAIR,
     STATUT_REPRIS: ISL_ARDOISE,
@@ -552,6 +561,26 @@ GLYPHE_STATUT = {
 }
 
 
+def _taille_police(widget, facteur):
+    """
+    Taille de police, en points, d'un texte dessine au QPainter.
+
+    LES WIDGETS PEINTS SUIVENT LA POLICE DU POSTE COMME LE RESTE DE LA
+    FENETRE (0.8.5). Ils ecrivaient 7,5, 8 et 11 pt en dur : a 13 pt — le cas
+    du banc — ou sous le reglage Windows « Taille du texte », tout le
+    formulaire grandissait et eux restaient a 7,5 pt. La taille est donc une
+    FRACTION de celle du widget, que la feuille de style pose sur tout
+    QWidget. Repli sur la police de l'application, puis sur 10 pt, si la
+    police est exprimee en pixels (pointSizeF() rend alors -1).
+    """
+    base = widget.font().pointSizeF()
+    if base <= 0:
+        base = QApplication.font().pointSizeF()
+    if base <= 0:
+        base = 10.0
+    return base * facteur
+
+
 class RubanApports(QWidget):
     """
     Une bande de segments, un par apport, coloree selon son statut.
@@ -565,13 +594,40 @@ class RubanApports(QWidget):
         super().__init__(parent)
         self.apports = []
         self.en_cours = None
-        self.setMinimumHeight(46)
-        self.setSizePolicy(self.sizePolicy().Expanding,
-                           self.sizePolicy().Fixed)
+        self._ajuster_hauteur()
+        self.setSizePolicy(QSizePolicy.Policy.Expanding,
+                           QSizePolicy.Policy.Fixed)
+        # CE QUE LE LECTEUR D'ECRAN DIT D'UN WIDGET PEINT (0.8.5) : sans nom,
+        # Qt l'expose a UI Automation comme un objet muet. Le detail suit
+        # chaque actualisation, dans la description.
+        self.setAccessibleName("Avancement par apport")
+        self.setAccessibleDescription("aucun calage suivi")
+
+    def _ajuster_hauteur(self):
+        # Deux lignes de la police du widget — le segment, puis son trait —
+        # et les marges : 46 px a 10 pt, la valeur qui etait ecrite en dur.
+        self.setMinimumHeight(2 * self.fontMetrics().height() + 14)
+
+    def changeEvent(self, evenement):                       # noqa: N802
+        super().changeEvent(evenement)
+        if evenement.type() == QEvent.Type.FontChange:
+            self._ajuster_hauteur()
+
+    def couleur(self, nom_hex):
+        """La teinte de charte, remappee si le fond est sombre (interface.couleur)."""
+        return couleur_theme(nom_hex, self)
 
     def actualiser(self, apports, en_cours):
         self.apports = apports or []
         self.en_cours = en_cours
+        comptes = {}
+        for apport in self.apports:
+            statut = apport.get("statut") or "sans statut"
+            comptes[statut] = comptes.get(statut, 0) + 1
+        self.setAccessibleDescription(
+            "aucun calage suivi" if not self.apports else
+            f"{len(self.apports)} apport(s) : "
+            + ", ".join(f"{n} {statut}" for statut, n in comptes.items()))
         self.update()
 
     def paintEvent(self, evenement):                        # noqa: N802
@@ -580,7 +636,7 @@ class RubanApports(QWidget):
         peintre = QPainter(self)
         peintre.setRenderHint(QPainter.RenderHint.Antialiasing)
         if not self.apports:
-            peintre.setPen(QColor(ISL_ARDOISE_CLAIR))
+            peintre.setPen(self.couleur(ISL_ARDOISE_CLAIR))
             peintre.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter,
                              "aucun calage suivi")
             peintre.end()
@@ -590,10 +646,16 @@ class RubanApports(QWidget):
         marge, ecart = 1, 3
         largeur = (self.width() - 2 * marge - ecart * (n - 1)) / n
         hauteur = self.height() - 18
+        # SUR UN SEGMENT PLEIN, L'ENCRE EST CELLE DU FOND DE LA FENETRE quand
+        # le theme est sombre : les teintes remappees y sont claires, et un
+        # texte blanc dessus ne se lirait plus. En clair, blanc sur les
+        # teintes pleines, comme avant.
+        encre_pleine = (self.palette().color(QPalette.ColorRole.Window)
+                        if fond_sombre(self) else QColor("#FFFFFF"))
         for i, apport in enumerate(self.apports):
             statut = apport.get("statut")
             x = marge + i * (largeur + ecart)
-            couleur = QColor(COULEUR_STATUT.get(statut, ISL_ARDOISE_CLAIR))
+            couleur = self.couleur(COULEUR_STATUT.get(statut, ISL_ARDOISE_CLAIR))
             # CE QUI EST FAIT est plein ; CE QUI RESTE est un simple contour.
             # La difference se voit sans distinguer les teintes — c'est la
             # clarte qui porte l'information, la couleur ne fait que la
@@ -614,13 +676,14 @@ class RubanApports(QWidget):
             # cherche des yeux en revenant voir le calcul.
             if i == self.en_cours:
                 peintre.setPen(Qt.PenStyle.NoPen)
-                peintre.setBrush(QColor(ISL_TEAL_SOMBRE))
+                peintre.setBrush(self.couleur(ISL_TEAL_SOMBRE))
                 peintre.drawRoundedRect(int(x), int(hauteur) + 2,
                                         int(largeur), 4, 2, 2)
             if largeur > 30:
-                peintre.setPen(QColor("#FFFFFF" if acheve else ISL_ARDOISE))
+                peintre.setPen(encre_pleine if acheve
+                               else self.couleur(ISL_ARDOISE))
                 police = peintre.font()
-                police.setPointSizeF(7.5)
+                police.setPointSizeF(_taille_police(self, 0.75))
                 police.setBold(True)
                 peintre.setFont(police)
                 peintre.drawText(
@@ -645,12 +708,51 @@ class JaugeAtteinte(QWidget):
         self.libelle = libelle
         self.tolerance = tolerance_pct
         self.valeur = None
-        # 56 px, mesures a l'ecran : en dessous, le libelle et la valeur sont
-        # rognes a mi-hauteur par le remplissage du QGroupBox.
-        self.setMinimumHeight(56)
+        # La hauteur suit les deux polices de la jauge (0.8.5). Elle etait
+        # ecrite « 56 px, mesures a l'ecran » : en dessous, le libelle et la
+        # valeur sont rognes a mi-hauteur par le remplissage du QGroupBox —
+        # et a 13 pt, 56 px ne suffisaient plus.
+        self._ajuster_hauteur()
+        self.setAccessibleName(f"Atteinte de la cible — {libelle}")
+        self.setAccessibleDescription(f"{libelle} : pas encore évalué")
+
+    def _metriques(self):
+        """(h_libelle, h_valeur, haut de la piste, h_piste), derives des polices."""
+        petite, grande = QFont(self.font()), QFont(self.font())
+        petite.setPointSizeF(_taille_police(self, 0.8))
+        grande.setPointSizeF(_taille_police(self, 1.1))
+        grande.setBold(True)
+        h_libelle = QFontMetrics(petite).height()
+        h_valeur = QFontMetrics(grande).height()
+        haut_piste = 2 + h_libelle + h_valeur + 6
+        return h_libelle, h_valeur, haut_piste, max(12, round(0.75 * h_libelle))
+
+    def _ajuster_hauteur(self):
+        _, _, haut_piste, h_piste = self._metriques()
+        self.setMinimumHeight(haut_piste + h_piste + 4)
+
+    def changeEvent(self, evenement):                       # noqa: N802
+        super().changeEvent(evenement)
+        if evenement.type() == QEvent.Type.FontChange:
+            self._ajuster_hauteur()
+
+    def couleur(self, nom_hex):
+        """La teinte de charte, remappee si le fond est sombre (interface.couleur)."""
+        return couleur_theme(nom_hex, self)
+
+    def lecture(self):
+        """(texte affiche, conforme) — conforme vaut None tant que rien n'est evalue."""
+        if self.valeur is None:
+            return "—", None
+        return f"{self.valeur:.1f} %", abs(self.valeur - 100.0) <= self.tolerance
 
     def actualiser(self, valeur_pct):
         self.valeur = valeur_pct
+        texte, conforme = self.lecture()
+        self.setAccessibleDescription(
+            f"{self.libelle} : pas encore évalué" if conforme is None else
+            f"{self.libelle} : {texte}, "
+            + ("conforme" if conforme else "hors tolérance"))
         self.update()
 
     def paintEvent(self, evenement):                        # noqa: N802
@@ -658,27 +760,26 @@ class JaugeAtteinte(QWidget):
 
         peintre = QPainter(self)
         peintre.setRenderHint(QPainter.RenderHint.Antialiasing)
+        h_libelle, h_valeur, haut, hauteur = self._metriques()
         police = peintre.font()
-        police.setPointSizeF(8.0)
+        police.setPointSizeF(_taille_police(self, 0.8))
         peintre.setFont(police)
 
-        peintre.setPen(QColor(ISL_ARDOISE))
-        peintre.drawText(0, 2, self.width(), 16,
+        peintre.setPen(self.couleur(ISL_ARDOISE))
+        peintre.drawText(0, 2, self.width(), h_libelle,
                          Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, self.libelle)
-        texte = ("—" if self.valeur is None else f"{self.valeur:.1f} %")
+        texte, conforme = self.lecture()
         police.setBold(True)
-        police.setPointSizeF(11.0)
+        police.setPointSizeF(_taille_police(self, 1.1))
         peintre.setFont(police)
-        conforme = (self.valeur is not None
-                    and abs(self.valeur - 100.0) <= self.tolerance)
-        peintre.setPen(QColor(ISL_VERT if conforme else
-                              (ISL_ARDOISE_CLAIR if self.valeur is None
-                               else ISL_ROUGE)))
-        peintre.drawText(0, 18, self.width(), 20,
+        peintre.setPen(self.couleur(ISL_VERT if conforme else
+                                    (ISL_ARDOISE_CLAIR if conforme is None
+                                     else ISL_ROUGE)))
+        peintre.drawText(0, 2 + h_libelle, self.width(), h_valeur,
                          Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, texte)
 
         # Piste : +/- 10 % autour de la cible, ce qui cadre l'ecart utile.
-        haut, hauteur, etendue = 42, 12, 10.0
+        etendue = 10.0
         peintre.setPen(Qt.PenStyle.NoPen)
         # La piste doit se VOIR : sans elle, on ne lit qu'un trait rouge sans
         # savoir sur quelle etendue il se situe.
@@ -697,9 +798,7 @@ class JaugeAtteinte(QWidget):
         # L'alpha se pose donc par setAlpha(), jamais par concatenation. Et
         # tant qu'a la rendre visible, la piste demande son sens au fond REEL
         # du widget : sur clair on assombrit, sur sombre on eclaircit.
-        from qgis.PyQt.QtGui import QPalette
-        sombre = (self.palette().color(QPalette.ColorRole.Window).lightness()
-                  < 128)
+        sombre = fond_sombre(self)
         piste = QColor(255, 255, 255, 38) if sombre else QColor(0, 0, 0, 36)
         peintre.setBrush(piste)
         peintre.drawRoundedRect(0, haut, self.width(), hauteur, 3, 3)
@@ -708,7 +807,7 @@ class JaugeAtteinte(QWidget):
         demi = self.tolerance / etendue * (self.width() / 2.0)
         # Sur fond sombre le vert translucide se noie : il lui faut le double
         # d'opacite pour dire la meme chose.
-        bande = QColor(ISL_VERT)
+        bande = self.couleur(ISL_VERT)
         bande.setAlpha(0x66 if sombre else 0x33)
         peintre.setBrush(bande)
         peintre.drawRect(int(centre - demi), haut, int(2 * demi), hauteur)
@@ -716,11 +815,11 @@ class JaugeAtteinte(QWidget):
         if self.valeur is not None:
             ecart = max(-etendue, min(etendue, self.valeur - 100.0))
             largeur = ecart / etendue * (self.width() / 2.0)
-            peintre.setBrush(QColor(ISL_VERT if conforme else ISL_ROUGE))
+            peintre.setBrush(self.couleur(ISL_VERT if conforme else ISL_ROUGE))
             x = centre if largeur >= 0 else centre + largeur
             peintre.drawRoundedRect(int(x), haut + 2, max(int(abs(largeur)), 2),
                                     hauteur - 4, 2, 2)
-        peintre.setPen(QColor(ISL_ARDOISE))
+        peintre.setPen(self.couleur(ISL_ARDOISE))
         peintre.drawLine(int(centre), haut - 2, int(centre), haut + hauteur + 2)
         peintre.end()
 
@@ -767,34 +866,67 @@ class CourbeComparaison(QWidget):
     sur la meme origine des temps.
     """
 
+    _TEXTE_ATTENTE = "La comparaison apparaît après le premier essai évalué."
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.courbes = None
         self.precedentes = []
-        self.setMinimumHeight(190)
+        self._ajuster_hauteur()
+        self.setAccessibleName("Cible et débit calculé à la section")
+        self.setAccessibleDescription(self._TEXTE_ATTENTE)
+
+    def _ajuster_hauteur(self):
+        # 190 px a 10 pt — la valeur qui etait ecrite en dur —, davantage
+        # quand la police grandit ; 16 px est la hauteur de ligne de la
+        # police de reference.
+        self.setMinimumHeight(
+            max(190, round(190 * self.fontMetrics().height() / 16)))
+
+    def changeEvent(self, evenement):                       # noqa: N802
+        super().changeEvent(evenement)
+        if evenement.type() == QEvent.Type.FontChange:
+            self._ajuster_hauteur()
+
+    def couleur(self, nom_hex):
+        """La teinte de charte, remappee si le fond est sombre (interface.couleur)."""
+        return couleur_theme(nom_hex, self)
 
     def actualiser(self, courbes, precedentes=None):
         self.courbes = courbes or None
         self.precedentes = list(precedentes or [])
+        if not self.courbes:
+            description = self._TEXTE_ATTENTE
+        else:
+            decalage = float(self.courbes.get("decalage_h") or 0.0)
+            deja = sum(1 for c in self.precedentes
+                       if len(c.get("debit") or []) > 1)
+            description = (
+                "Cible et débit calculé au dernier essai évalué"
+                + (f", cible décalée de {decalage:+.2f} h"
+                   if abs(decalage) >= 0.005 else "")
+                + (f", {deja} section(s) calée(s) derrière" if deja else ""))
+        self.setAccessibleDescription(description)
         self.update()
 
     def paintEvent(self, evenement):                        # noqa: N802
-        from qgis.PyQt.QtGui import QColor, QPainter, QPen, QPolygonF
+        from qgis.PyQt.QtGui import QPainter, QPen, QPolygonF
         from qgis.PyQt.QtCore import QPointF
 
         peintre = QPainter(self)
         peintre.setRenderHint(QPainter.RenderHint.Antialiasing)
         police = peintre.font()
-        police.setPointSizeF(7.5)
+        police.setPointSizeF(_taille_police(self, 0.75))
         peintre.setFont(police)
+        metriques = QFontMetrics(police)
+        h_texte = metriques.height()
 
         if not self.courbes:
             # Message EXPLICITE sur ce qu'on attend : « au premier essai » se
             # lisait comme une panne au bout de la troisieme heure de calcul.
-            peintre.setPen(QColor(ISL_ARDOISE_CLAIR))
-            peintre.drawText(
-                self.rect(), Qt.AlignmentFlag.AlignCenter,
-                "La comparaison apparaît après le premier essai évalué.")
+            peintre.setPen(self.couleur(ISL_ARDOISE_CLAIR))
+            peintre.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter,
+                             self._TEXTE_ATTENTE)
             peintre.end()
             return
 
@@ -806,9 +938,6 @@ class CourbeComparaison(QWidget):
             peintre.end()
             return
 
-        gauche, droite, haut, bas = 46, 8, 8, 22
-        largeur = max(self.width() - gauche - droite, 10)
-        hauteur = max(self.height() - haut - bas, 10)
         # LES SECTIONS DEJA CALEES ENTRENT DANS L'ECHELLE, mais PAS dans la
         # fenetre de crue : celle-ci se calcule sur la paire courante, qui est
         # ce qu'on juge. Les couper a l'echelle les ecraserait ; les laisser
@@ -816,6 +945,13 @@ class CourbeComparaison(QWidget):
         deja = [c for c in self.precedentes if len(c.get("debit") or []) > 1]
         q_max = max([max(qc), max(qs)]
                     + [max(c["debit"]) for c in deja]) or 1.0
+        # LES MARGES SUIVENT LA POLICE : la gauche loge la plus large des
+        # graduations, le bas une ligne de texte.
+        gauche = max(metriques.horizontalAdvance(f"{q_max:.0f}"),
+                     metriques.horizontalAdvance("m³/s")) + 12
+        droite, haut, bas = 8, 8, h_texte + 8
+        largeur = max(self.width() - gauche - droite, 10)
+        hauteur = max(self.height() - haut - bas, 10)
         t_min, t_max = _fenetre_crue(tc, qc, ts, qs, max(max(qc), max(qs)) or 1.0)
         etendue_t = (t_max - t_min) or 1.0
 
@@ -824,21 +960,21 @@ class CourbeComparaison(QWidget):
                            haut + hauteur * (1.0 - q / (1.08 * q_max)))
 
         # Repere discret : trois graduations de debit, l'axe des temps.
-        peintre.setPen(QPen(QColor(ISL_ARDOISE_CLAIR), 1, Qt.PenStyle.DotLine))
+        peintre.setPen(QPen(self.couleur(ISL_ARDOISE_CLAIR), 1, Qt.PenStyle.DotLine))
         for fraction in (0.25, 0.5, 0.75, 1.0):
             y = haut + hauteur * (1.0 - fraction / 1.08)
             peintre.drawLine(gauche, int(y), gauche + largeur, int(y))
-        peintre.setPen(QColor(ISL_ARDOISE))
+        peintre.setPen(self.couleur(ISL_ARDOISE))
         for fraction in (0.5, 1.0):
             y = haut + hauteur * (1.0 - fraction / 1.08)
-            peintre.drawText(0, int(y) - 7, gauche - 5, 14,
+            peintre.drawText(0, int(y) - h_texte // 2, gauche - 5, h_texte,
                              Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
                              f"{fraction * q_max:.0f}")
-        peintre.drawText(0, haut + hauteur - 6, gauche - 5, 14,
+        peintre.drawText(0, haut + hauteur - h_texte // 2, gauche - 5, h_texte,
                          Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, "m³/s")
-        peintre.drawText(gauche, haut + hauteur + 2, largeur, 14,
+        peintre.drawText(gauche, haut + hauteur + 2, largeur, h_texte,
                          Qt.AlignmentFlag.AlignLeft, f"{t_min:.0f} h")
-        peintre.drawText(gauche, haut + hauteur + 2, largeur, 14,
+        peintre.drawText(gauche, haut + hauteur + 2, largeur, h_texte,
                          Qt.AlignmentFlag.AlignRight, f"{t_max:.0f} h")
 
         # DERRIERE, ET CLIPPEES. Une section calee peut deborder la fenetre de
@@ -853,7 +989,7 @@ class CourbeComparaison(QWidget):
             # jamais le sens.
             anterieure = bool(courbe.get("anterieur"))
             peintre.setPen(QPen(
-                QColor(ISL_ARDOISE if anterieure else ISL_VERT), 1.2,
+                self.couleur(ISL_ARDOISE if anterieure else ISL_VERT), 1.2,
                 Qt.PenStyle.DashDotLine if anterieure
                 else Qt.PenStyle.DotLine))
             peintre.drawPolyline(QPolygonF(
@@ -862,7 +998,7 @@ class CourbeComparaison(QWidget):
         for temps, debits, couleur, style, epaisseur in (
                 (tc, qc, ISL_ARDOISE, Qt.PenStyle.DashLine, 1.6),
                 (ts, qs, ISL_TEAL, Qt.PenStyle.SolidLine, 2.0)):
-            peintre.setPen(QPen(QColor(couleur), epaisseur, style))
+            peintre.setPen(QPen(self.couleur(couleur), epaisseur, style))
             peintre.drawPolyline(QPolygonF(
                 [point(t, q) for t, q in zip(temps, debits)]))
         peintre.setClipping(False)
@@ -872,21 +1008,27 @@ class CourbeComparaison(QWidget):
         # sans quoi le lecteur croirait les deux courbes sur la meme origine
         # des temps, et jugerait un calage juste sur une superposition qui ne
         # lui est pas comparable.
+        # LES LARGEURS SE MESURENT SUR LA POLICE (0.8.5) : « 6 px par
+        # caractere » n'etait vrai que pour une police et une taille.
         decalage = float(self.courbes.get("decalage_h") or 0.0)
         libelle_cible = ("cible" if abs(decalage) < 0.005
                          else f"cible décalée de {decalage:+.2f} h")
-        largeur_cible = 24 + 6 * len(libelle_cible)
-        x_mesure = gauche + largeur - 56
+        y_legende = haut + h_texte // 2
+        largeur_mesure = metriques.horizontalAdvance("mesuré") + 26
+        largeur_cible = metriques.horizontalAdvance(libelle_cible) + 26
+        x_mesure = gauche + largeur - largeur_mesure
         x_cible = x_mesure - largeur_cible
-        peintre.setPen(QPen(QColor(ISL_ARDOISE), 1.6, Qt.PenStyle.DashLine))
-        peintre.drawLine(x_cible, haut + 6, x_cible + 18, haut + 6)
-        peintre.setPen(QColor(ISL_ARDOISE))
-        peintre.drawText(x_cible + 22, haut, largeur_cible - 22, 14,
+        peintre.setPen(QPen(self.couleur(ISL_ARDOISE), 1.6, Qt.PenStyle.DashLine))
+        peintre.drawLine(x_cible, y_legende, x_cible + 18, y_legende)
+        peintre.setPen(self.couleur(ISL_ARDOISE))
+        peintre.drawText(x_cible + 22, haut, largeur_cible - 22, h_texte,
                          Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, libelle_cible)
-        peintre.setPen(QPen(QColor(ISL_TEAL), 2.0))
-        peintre.drawLine(x_mesure, haut + 6, x_mesure + 18, haut + 6)
-        peintre.setPen(QColor(ISL_TEAL))
-        peintre.drawText(x_mesure + 22, haut, 40, 14,
+        peintre.setPen(QPen(self.couleur(ISL_TEAL), 2.0))
+        peintre.drawLine(x_mesure, y_legende, x_mesure + 18, y_legende)
+        # LE MOT EST EN TEAL SOMBRE, LE TRAIT EN TEAL INSTITUTIONNEL : 3:1
+        # suffit a un trait (WCAG 1.4.11), pas a un texte de 7,5 pt (1.4.3).
+        peintre.setPen(self.couleur(ISL_TEAL_SOMBRE))
+        peintre.drawText(x_mesure + 22, haut, largeur_mesure - 22, h_texte,
                          Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, "mesuré")
         # La troisieme entree n'apparait QUE s'il y a quelque chose derriere :
         # au premier apport, une legende annoncant des sections calees qui
@@ -895,12 +1037,12 @@ class CourbeComparaison(QWidget):
         if courantes:
             libelle_deja = (f"{len(courantes)} section(s) calée(s)"
                             if len(courantes) > 1 else "1 section calée")
-            largeur_deja = 24 + 6 * len(libelle_deja)
+            largeur_deja = metriques.horizontalAdvance(libelle_deja) + 26
             x_deja = x_cible - largeur_deja
-            peintre.setPen(QPen(QColor(ISL_VERT), 1.2, Qt.PenStyle.DotLine))
-            peintre.drawLine(x_deja, haut + 6, x_deja + 18, haut + 6)
-            peintre.setPen(QColor(ISL_VERT))
-            peintre.drawText(x_deja + 22, haut, largeur_deja - 22, 14,
+            peintre.setPen(QPen(self.couleur(ISL_VERT), 1.2, Qt.PenStyle.DotLine))
+            peintre.drawLine(x_deja, y_legende, x_deja + 18, y_legende)
+            peintre.setPen(self.couleur(ISL_VERT))
+            peintre.drawText(x_deja + 22, haut, largeur_deja - 22, h_texte,
                              Qt.AlignmentFlag.AlignLeft
                              | Qt.AlignmentFlag.AlignVCenter, libelle_deja)
         # LE CALAGE PRECEDENT A SA PROPRE LIGNE DE LEGENDE, SOUS LA
@@ -911,15 +1053,15 @@ class CourbeComparaison(QWidget):
         if anterieures:
             libelle_avant = (f"{len(anterieures)} section(s) du calage "
                              f"précédent")
-            largeur_avant = 24 + 6 * len(libelle_avant)
+            largeur_avant = metriques.horizontalAdvance(libelle_avant) + 26
             x_avant = max(gauche, gauche + largeur - largeur_avant)
-            y_avant = haut + 20
-            peintre.setPen(QPen(QColor(ISL_ARDOISE), 1.2,
+            y_avant = haut + h_texte + 6
+            peintre.setPen(QPen(self.couleur(ISL_ARDOISE), 1.2,
                                 Qt.PenStyle.DashDotLine))
             peintre.drawLine(x_avant, y_avant, x_avant + 18, y_avant)
-            peintre.setPen(QColor(ISL_ARDOISE))
-            peintre.drawText(x_avant + 22, y_avant - 7, largeur_avant - 22,
-                             14, Qt.AlignmentFlag.AlignLeft
+            peintre.setPen(self.couleur(ISL_ARDOISE))
+            peintre.drawText(x_avant + 22, y_avant - h_texte // 2,
+                             largeur_avant - 22, h_texte, Qt.AlignmentFlag.AlignLeft
                              | Qt.AlignmentFlag.AlignVCenter, libelle_avant)
         peintre.end()
 
@@ -1510,6 +1652,37 @@ def texte_rapport_controle(anomalies, tableau):
     return "\n\n".join(rapport)
 
 
+def confirmer(parent, titre, texte, oui, non):
+    """
+    Une question a deux issues, nommees par des VERBES, dont le defaut est
+    celle qui ne coute rien. Vrai si l'utilisateur a choisi « oui ».
+
+    QMessageBox.question(..., Yes | No) SANS defaultButton LAISSE QT CHOISIR :
+    il retient le premier bouton de role Accept — or « Oui » porte le role
+    Yes, donc aucun —, et Entree va alors au premier bouton autoDefault de la
+    chaine de focus, « Oui » en disposition Windows. La garde de
+    DialogueParametrage.keyPressEvent ne protege pas une boite modale : c'est
+    une autre fenetre. Trois questions etaient dans ce cas (0.8.5), dont
+    celle qui autorise a recomposer pendant qu'un calage tourne — et dont la
+    docstring promettait « non » par defaut.
+
+    LES BOUTONS DISENT CE QU'ILS FONT — « Recomposer quand meme » plutot que
+    « Oui » —, comme _confirmer_reprise le fait deja. Le refus est le bouton
+    par defaut ET le bouton d'echappement : Entree, Echap et la croix disent
+    tous « non ». AUCUN BOUTON CLIQUE VAUT NON, un talon de recette compris.
+    """
+    boite = QMessageBox(parent)
+    boite.setIcon(QMessageBox.Icon.Question)
+    boite.setWindowTitle(titre)
+    boite.setText(texte)
+    bouton_oui = boite.addButton(oui, QMessageBox.ButtonRole.AcceptRole)
+    bouton_non = boite.addButton(non, QMessageBox.ButtonRole.RejectRole)
+    boite.setDefaultButton(bouton_non)
+    boite.setEscapeButton(bouton_non)
+    boite.exec()
+    return boite.clickedButton() is bouton_oui
+
+
 def rendre_redimensionnable(boite, largeur=900, hauteur=420):
     """
     Rend une QMessageBox etirable, et son detail lisible.
@@ -1593,6 +1766,11 @@ DELAI_PREMIER_ETAT_S = 240
 # Largeur minimale que la barre d'onglets peut imposer a la fenetre. C'est la
 # petite fenetre de la recette (docs/ergonomie_2026-09-11.md, 800 x 620) :
 # au-dela, les libelles s'elident au lieu d'elargir la fenetre.
+#   LE HIG QGIS DIT « AUCUN DIALOGUE AU-DELA DE 580 PX DE HAUT ET 1000 DE
+# LARGE » (docs.qgis.org, developers_guide/hig). La fenetre s'ouvre a
+# 940 x 760 et l'ecart est VOULU : elle n'est pas un dialogue a valider en un
+# clic mais un poste de travail qu'on garde ouvert pendant qu'on dessine ;
+# chaque onglet defile, et la hauteur se borne a l'ecran moins 64 px.
 LARGEUR_PLANCHER_MAX = 800
 
 # LES CINQ ONGLETS QUI PORTENT UN NUMERO. « Aide et configuration » n'en a
@@ -1606,9 +1784,14 @@ ONGLET_RESULTATS = 1
 ONGLET_OBJECTIFS = 2
 ONGLET_LANCER = 3
 ONGLET_SUIVI = 4
-# Les trois autres rangs n'ont pas de nom : aucun code n'y renvoie, et une
-# constante que personne ne lit finit par designer autre chose que ce qu'elle
-# dit. La suite d'essais verifie que ces trois-la tombent bien sur leur onglet.
+# L'AIDE A LE SIEN AUSSI (0.8.5) : F1, « Suivant » et Alt + fleche droite y
+# renvoient, et son rang etait ecrit « 5 » a cinq endroits. Le jour ou un
+# onglet s'insere, F1 aurait ouvert autre chose et « Suivant » se serait
+# arrete un cran trop tot, sans un mot. Les deux rangs restants — Sorties et
+# Objectifs — n'ont pas de nom : aucun code n'y renvoie. La suite d'essais
+# verifie que les rangs nommes tombent bien sur leur onglet.
+ONGLET_AIDE = 5
+DERNIER_ONGLET = ONGLET_AIDE
 
 
 def _cle_fichier(chemin):
@@ -1815,6 +1998,16 @@ class DialogueParametrage(QDialog):
         self.label_fil.setObjectName("filConducteur")
         self.label_fil.setWordWrap(True)
         self.label_fil.setTextFormat(Qt.TextFormat.RichText)
+        # LES LIENS DU FIL SE PRENNENT AUSSI AU CLAVIER (0.8.5). Un QLabel
+        # riche n'accepte par defaut que la souris ; le seul repere permanent
+        # de la fenetre — « Choisir le profil en long », « verifier le
+        # lancement » — etait donc hors d'atteinte de Tab dans une fenetre
+        # dont tout le reste se parcourt au clavier. Tab atteint le lien,
+        # Entree l'active — et c'est le QLabel qui consomme Entree, pas
+        # keyPressEvent : la garde ci-dessous ne voit que ce qui lui remonte.
+        self.label_fil.setTextInteractionFlags(
+            Qt.TextInteractionFlag.LinksAccessibleByKeyboard
+            | Qt.TextInteractionFlag.LinksAccessibleByMouse)
         self.label_fil.linkActivated.connect(self._aller_etape)
         agencement.addWidget(self.label_fil)
 
@@ -1839,7 +2032,8 @@ class DialogueParametrage(QDialog):
         boutons.addWidget(self.bouton_precedent)
         self.bouton_suivant = QPushButton("Suivant")
         self.bouton_suivant.clicked.connect(
-            lambda: self.onglets.setCurrentIndex(min(5, self.onglets.currentIndex() + 1)))
+            lambda: self.onglets.setCurrentIndex(
+                min(DERNIER_ONGLET, self.onglets.currentIndex() + 1)))
         boutons.addWidget(self.bouton_suivant)
         bouton_fermer = QPushButton("Fermer")
         bouton_fermer.setMinimumWidth(90)
@@ -1859,7 +2053,7 @@ class DialogueParametrage(QDialog):
             action.setShortcut(QKeySequence(raccourci))
             action.setShortcutContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
             action.triggered.connect(lambda _=False, pas=sens: self.onglets.setCurrentIndex(
-                max(0, min(5, self.onglets.currentIndex() + pas))))
+                max(0, min(DERNIER_ONGLET, self.onglets.currentIndex() + pas))))
             self.addAction(action)
         ecran = self.screen() or QApplication.primaryScreen()
         if ecran is not None:
@@ -1938,12 +2132,12 @@ class DialogueParametrage(QDialog):
             return
         indice = self.onglets.currentIndex()
         self.bouton_precedent.setEnabled(indice > 0)
-        self.bouton_suivant.setEnabled(indice < 5)
-        titre = self.onglets.tabText(min(5, indice + 1))
+        self.bouton_suivant.setEnabled(indice < DERNIER_ONGLET)
+        titre = self.onglets.tabText(min(DERNIER_ONGLET, indice + 1))
         self.bouton_suivant.setToolTip(f"Ouvrir {titre} — Alt + flèche droite")
 
     def _aller_etape(self, lien):
-        if lien in ("0", "1", "2", "3", "4", "5"):
+        if lien.isdigit() and int(lien) <= DERNIER_ONGLET:
             self.onglets.setCurrentIndex(int(lien))
 
     def keyPressEvent(self, evenement):
@@ -1969,13 +2163,14 @@ class DialogueParametrage(QDialog):
         actionne. Echap continue de fermer : QDialog le traite avant nous.
         """
         if evenement.key() == Qt.Key.Key_F1:
-            self.onglets.setCurrentIndex(5)
+            self.onglets.setCurrentIndex(ONGLET_AIDE)
             evenement.accept()
             return
         if (evenement.modifiers() & Qt.KeyboardModifier.AltModifier
                 and evenement.key() in (Qt.Key.Key_Left, Qt.Key.Key_Right)):
             sens = -1 if evenement.key() == Qt.Key.Key_Left else 1
-            self.onglets.setCurrentIndex(max(0, min(5, self.onglets.currentIndex() + sens)))
+            self.onglets.setCurrentIndex(
+                max(0, min(DERNIER_ONGLET, self.onglets.currentIndex() + sens)))
             evenement.accept()
             return
         if evenement.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
@@ -2634,7 +2829,7 @@ class DialogueParametrage(QDialog):
 
         if self._fenetre_modifiee():
             dire(self.label_fenetre,
-                 f"<span style='color:{ISL_TEAL}'><b>Fenêtre modifiée</b> — "
+                 f"<span style='color:{ISL_TEAL_SOMBRE}'><b>Fenêtre modifiée</b> — "
                  f"elle sera imposée au plan de calcul.</span>")
             return [f"Fenêtre de simulation : {saisie['debut']} → "
                     f"{saisie['fin']}  (modifiée)"]
@@ -2722,7 +2917,8 @@ class DialogueParametrage(QDialog):
         try:
             if not self.info_projet:
                 raise ValueError(
-                    "choisir d'abord le dossier du projet HEC-RAS.")
+                    "choisir d'abord le fichier .prj du projet HEC-RAS "
+                    "(« Choisir le projet… »).")
             numero_geom = self._geometrie_effective()
             if not numero_geom:
                 raise ValueError("choisir un plan de référence.")
@@ -3038,7 +3234,9 @@ class DialogueParametrage(QDialog):
             "résultats. Au-delà, la composition REFUSE plutôt que de "
             "tronquer : deux plans tronqués au même identifiant "
             "partageraient ce dossier.")
-        f.addRow("&Préfixe de scénario :", self.edit_prefixe_scenario)
+        # « OBLIGATOIRE » DANS LE LIBELLE, PAS SEULEMENT DANS LE PLACEHOLDER
+        # (0.8.5) : un placeholder disparait a la premiere frappe.
+        f.addRow("&Préfixe de scénario (obligatoire) :", self.edit_prefixe_scenario)
         f.addRow(texte_aide(
             "Nomme les plans du calage <i>et</i> le fichier Excel des "
             "objectifs. Changer de préfixe compose un nouveau classeur au "
@@ -3461,7 +3659,8 @@ class DialogueParametrage(QDialog):
         controler) gère l'affichage des erreurs.
         """
         if not self.info_projet:
-            raise ValueError("choisir d'abord le dossier du projet HEC-RAS.")
+            raise ValueError("choisir d'abord le fichier .prj du projet "
+                             "HEC-RAS (« Choisir le projet… »).")
         numero_geom = self._geometrie_effective()
         if not numero_geom:
             raise ValueError("choisir un plan de référence.")
@@ -3931,9 +4130,10 @@ class DialogueParametrage(QDialog):
             journaliser("Detection d'un calage en cours", e)
             return None
 
-    def _confirmer_malgre_calage(self, consequence):
+    def _confirmer_malgre_calage(self, consequence, geste="Continuer"):
         """
         Demande confirmation si un calage tourne. Vrai si l'on peut y aller.
+        « geste » nomme le bouton qui passe outre : « Recomposer », « Lancer ».
 
         POURQUOI UNE QUESTION ET NON UN VERROU : voir _calage_en_cours. Et
         pourquoi une question TOUT COURT : ni la composition ni le lancement
@@ -3948,13 +4148,10 @@ class DialogueParametrage(QDialog):
             return True
         titre = etat.get("titre") or "un calage"
         pid = etat.get("pid", "?")
-        return QMessageBox.question(
+        return confirmer(
             self, "Un calage est en cours",
-            f"« {titre} » tourne encore (processus {pid}).\n\n"
-            f"{consequence}\n\n"
-            f"Continuer quand même ?",
-            QMessageBox.StandardButton.Yes
-            | QMessageBox.StandardButton.No) == QMessageBox.StandardButton.Yes
+            f"« {titre} » tourne encore (processus {pid}).\n\n{consequence}",
+            oui=f"{geste} quand même", non="Attendre la fin du calage")
 
     def _ouvrir_dossier_suivi(self):
         dossier = self._dossier_suivi()
@@ -4003,9 +4200,13 @@ class DialogueParametrage(QDialog):
         C'est la regle que suit tout le reste de la fenetre, et la seule qui
         tienne en theme clair comme en theme sombre.
         """
+        # LE FILET SUIT LE THEME COMME LE TITRE (0.8.5) : le titre passe par
+        # Etiquette, qui remappe ses couleurs en sombre ; le filet, ecrit dans
+        # une feuille de style, ne passait par rien.
+        filet = couleur_theme(couleur, self.label_suivi_banniere).name()
         self.label_suivi_banniere.setStyleSheet(
             f"background-color: palette(base);"
-            f"border-left: 5px solid {couleur};"
+            f"border-left: 5px solid {filet};"
             f"border-radius: 3px; padding: 12px 16px;")
         self.label_suivi_banniere.setText(
             f"<span style='font-size:13pt; font-weight:bold; color:{couleur}'>"
@@ -4293,7 +4494,7 @@ class DialogueParametrage(QDialog):
                        if en_cours is not None and en_cours < len(apports)
                        else "—")
                 self._banniere(
-                    ISL_TEAL, "Calage en cours", glyphe="▶",
+                    ISL_TEAL_SOMBRE, "Calage en cours", glyphe="▶",
                     detail=f"Apport {(en_cours or 0) + 1} sur {etat.get('total')} — "
                     f"{nom}. Mis à jour "
                     f"{etat.get('maj', '')[11:]}.")
@@ -4302,7 +4503,7 @@ class DialogueParametrage(QDialog):
         if en_cours is not None and en_cours < len(apports):
             a = apports[en_cours]
             self.label_suivi_position.setText(
-                f"<b style='color:{ISL_TEAL}'>{a['apport']} → "
+                f"<b style='color:{ISL_TEAL_SOMBRE}'>{a['apport']} → "
                 f"{a['section']}</b> &nbsp;·&nbsp; essai <b>{a['essais']}</b>"
                 f" &nbsp;·&nbsp; apport <b>{a['ordre']}</b> sur "
                 f"<b>{etat.get('total')}</b>")
@@ -4423,8 +4624,6 @@ class DialogueParametrage(QDialog):
                " — qualité du calcul, pas écart à la cible."))
 
     def _remplir_table_suivi(self, apports):
-        from qgis.PyQt.QtGui import QColor
-
         self.table_suivi.setRowCount(len(apports))
         for ligne, a in enumerate(apports):
             statut = a.get("statut", "")
@@ -4438,8 +4637,10 @@ class DialogueParametrage(QDialog):
             for colonne, valeur in enumerate(valeurs):
                 cellule = QTableWidgetItem(str(valeur))
                 if colonne == 2:
-                    cellule.setForeground(QColor(
-                        COULEUR_STATUT.get(statut, ISL_ARDOISE)))
+                    # Remappee en theme sombre, comme les widgets peints :
+                    # l'ardoise sur le fond Night Mapping rendait 2,3:1.
+                    cellule.setForeground(couleur_theme(
+                        COULEUR_STATUT.get(statut, ISL_ARDOISE), self.table_suivi))
                     police = cellule.font()
                     police.setBold(True)
                     cellule.setFont(police)
@@ -4632,17 +4833,15 @@ class DialogueParametrage(QDialog):
         # installée ET vérifiée, et l'annoncer autrement finirait par mentir.
         paquets = [p for _, p in noyau.PAQUETS_HECRAS]
         with sans_sablier(self):
-            reponse = QMessageBox.question(
+            accepte = confirmer(
                 self, "Installer l'environnement Python HEC-RAS",
                 f"Un environnement Python va être créé dans :\n{cible}\n\n"
                 f"puis {len(paquets)} paquets y seront installés depuis "
                 f"PyPI :\n{', '.join(paquets)}\n\n"
                 f"Téléchargement de plusieurs centaines de Mo, plusieurs "
-                f"minutes. QGIS restera figé pendant l'opération.\n\n"
-                f"Continuer ?",
-                QMessageBox.StandardButton.Yes
-                | QMessageBox.StandardButton.No)
-        if reponse != QMessageBox.StandardButton.Yes:
+                f"minutes. QGIS restera figé pendant l'opération.",
+                oui="Installer", non="Plus tard")
+        if not accepte:
             return
 
         # ON PROPOSE, PLUTOT QUE DE DEMANDER DE CHERCHER. Un sélecteur de
@@ -4743,15 +4942,15 @@ class DialogueParametrage(QDialog):
         du profil QGIS, qui ne contient ni la chaine ni l'interpreteur.
         """
         if noyau.trouver_chaine() is None:
-            reponse = QMessageBox.question(
-                self, "Chaîne de calage introuvable",
-                "Le dossier de la chaîne de calage n'a pas été trouvé.\n\n"
-                "Installé depuis une archive, le plugin ne peut pas le "
-                "deviner : il doit contenir criteres.py, geometrie.py, "
-                "controle_donnees.py, livrables.py et pont_hecras.py.\n\n"
-                "Le désigner maintenant ?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-            if reponse == QMessageBox.StandardButton.Yes:
+            # QUATRIEME QUESTION OUI/NON SANS DEFAUT, que la relecture du 17/09
+            # n'avait pas comptee : meme correctif que les trois autres.
+            if confirmer(
+                    self, "Chaîne de calage introuvable",
+                    "Le dossier de la chaîne de calage n'a pas été trouvé.\n\n"
+                    "Installé depuis une archive, le plugin ne peut pas le "
+                    "deviner : il doit contenir criteres.py, geometrie.py, "
+                    "controle_donnees.py, livrables.py et pont_hecras.py.",
+                    oui="Désigner le dossier…", non="Plus tard"):
                 self._choisir_chaine()
 
         if noyau.interpreteur_hecras() is None:
@@ -5181,7 +5380,7 @@ class DialogueParametrage(QDialog):
         if not self._confirmer_malgre_calage(
                 "Lancer maintenant ferait travailler deux calages sur les "
                 "mêmes plans du même modèle, et le second écraserait les "
-                "étapes du premier."):
+                "étapes du premier.", geste="Lancer"):
             return
         # CE QU'UN RELANCEMENT PERD — la question qui manquait. Elle ne se
         # pose que s'il y a quelque chose a perdre, et elle POSE le depart
@@ -5367,7 +5566,7 @@ class DialogueParametrage(QDialog):
         apports = prolongation.get("apports") or []
 
         with sans_sablier(self):
-            reponse = QMessageBox.question(
+            accepte = confirmer(
                 self, "Hydrogrammes cibles trop courts",
                 f"{len(apports)} hydrogramme(s) cible(s) s'arrêtent avant la "
                 f"fin de la simulation ({duree:.2f} h) : "
@@ -5379,9 +5578,8 @@ class DialogueParametrage(QDialog):
                 f"Une crue arrêtée avant la fin de sa fenêtre est retombée : "
                 f"zéro est la valeur juste, et non la dernière connue. Seule "
                 f"la feuille Cibles du classeur est modifiée.",
-                QMessageBox.StandardButton.Yes
-                | QMessageBox.StandardButton.No)
-        if reponse != QMessageBox.StandardButton.Yes:
+                oui="Prolonger par des zéros", non="Laisser tel quel")
+        if not accepte:
             return
         try:
             bilan = noyau.prolonger_cibles(self.classeur, duree)
@@ -5596,12 +5794,14 @@ class DialogueParametrage(QDialog):
         # lire. Une question, pas un verrou — voir _confirmer_malgre_calage.
         if not self._confirmer_malgre_calage(
                 "Composer maintenant réécrirait la géométrie HEC-RAS et le "
-                "classeur que ce calage est en train de lire."):
+                "classeur que ce calage est en train de lire.",
+                geste="Recomposer"):
             return
         try:
             if not self.info_projet:
                 raise ValueError(
-                    "Onglet 1 : choisir d'abord le dossier du projet HEC-RAS.")
+                    "Onglet 1 : choisir d'abord le fichier .prj du projet "
+                    "HEC-RAS (« Choisir le projet… »).")
             plan = self.combo_plan.currentData()
             if plan is None:
                 raise ValueError("Onglet 1 : choisir un plan de référence.")
@@ -5763,8 +5963,12 @@ class DialogueParametrage(QDialog):
             afficher_pk_sur_carte(self.paquet, parametres["Sens_axe"],
                                   self.crs_modele)
 
+            # LA BOITE PORTE LE NOM DU BOUTON (0.8.5) : « Composition et
+            # controle » puis « Composition » pour un geste que la fenetre
+            # appelle « Controle parametrage », c'etait trois noms pour une
+            # chose — la regle de la 0.7.14, en sens inverse.
             self._rendre_compte_du_controle(
-                "Composition et contrôle", anomalies, tableau, prolongation,
+                "Contrôle paramétrage — compte rendu", anomalies, tableau, prolongation,
                 avant=f"{compte_rendu_ecriture}\n\n"
                       f"Paquet composé dans {dossier_sortie}\n",
                 apres=(f"\nPente des apports : {len(pentes)}/"
@@ -5775,7 +5979,7 @@ class DialogueParametrage(QDialog):
         except Exception as e:
             journaliser("Composition et contrôle du paquet", e)
             QMessageBox.critical(
-                self, "Composition",
+                self, "Contrôle paramétrage — échec",
                 str(e) + ("\n\nLa géométrie HEC-RAS a DÉJÀ été réécrite : "
                           "les sections et injections de l'onglet 1 y sont, "
                           "et l'échec ci-dessus est survenu après. Une "

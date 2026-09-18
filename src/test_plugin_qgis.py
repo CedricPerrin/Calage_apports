@@ -302,6 +302,7 @@ class BoiteMessage:
         self.redimensionnable = False
         self.boutons = []
         self.bouton_defaut = None
+        self.bouton_echappement = None
 
     def setWindowTitle(self, t): pass          # noqa: E704, N802
     def setIcon(self, i): pass                 # noqa: E704, N802
@@ -309,6 +310,9 @@ class BoiteMessage:
     def setDetailedText(self, t): self.detail = t   # noqa: E704, N802
     def setInformativeText(self, t): self.informatif = t  # noqa: E704, N802
     def setDefaultButton(self, b): self.bouton_defaut = b  # noqa: E704, N802
+    # confirmer() (0.8.5) pose aussi le bouton d'echappement : Echap et la
+    # croix disent « non », comme Entree.
+    def setEscapeButton(self, b): self.bouton_echappement = b  # noqa: E704, N802
     def exec(self): BoiteMessage.dernier = self     # noqa: E704
 
     def addButton(self, libelle, role):  # noqa: N802
@@ -662,7 +666,7 @@ else:
         # Le rapport porte le tableau des PK, plusieurs dizaines de lignes
         # larges : la fenetre qui le presente doit pouvoir s'agrandir.
         _rapport_compo = getattr(BoiteMessage, "dernier", None)
-        verifier("« Composition et contrôle » est redimensionnable",
+        verifier("« Contrôle paramétrage — compte rendu » est redimensionnable",
                  _rapport_compo is not None and _rapport_compo.redimensionnable,
                  "poignée posée" if _rapport_compo else "aucune boîte affichée")
         # « donnees_calage_ESSAI.xlsx » : depuis la 0.8.4, le prefixe de
@@ -1189,10 +1193,14 @@ verifier("la barre d'onglets ne defile pas, meme au plus etroit",
 verifier("les rangs nommes designent le bon onglet",
          dlg.onglets.tabText(mod_plugin.ONGLET_MODELE).startswith("1.")
          and dlg.onglets.tabText(mod_plugin.ONGLET_LANCER).startswith("4.")
-         and dlg.onglets.tabText(mod_plugin.ONGLET_SUIVI).startswith("5."),
+         and dlg.onglets.tabText(mod_plugin.ONGLET_SUIVI).startswith("5.")
+         and dlg.onglets.tabText(mod_plugin.ONGLET_AIDE).startswith("Aide")
+         and mod_plugin.DERNIER_ONGLET == dlg.onglets.count() - 1,
          f"{mod_plugin.ONGLET_MODELE}={dlg.onglets.tabText(mod_plugin.ONGLET_MODELE)} | "
          f"{mod_plugin.ONGLET_LANCER}={dlg.onglets.tabText(mod_plugin.ONGLET_LANCER)} | "
-         f"{mod_plugin.ONGLET_SUIVI}={dlg.onglets.tabText(mod_plugin.ONGLET_SUIVI)}")
+         f"{mod_plugin.ONGLET_SUIVI}={dlg.onglets.tabText(mod_plugin.ONGLET_SUIVI)} | "
+         f"{mod_plugin.ONGLET_AIDE}={dlg.onglets.tabText(mod_plugin.ONGLET_AIDE)} "
+         f"(dernier : {dlg.onglets.count() - 1})")
 
 # ---------------------------------------------------------------------------
 # ONGLET SUIVI. Ce qui compte n'est pas qu'il s'affiche, mais qu'il SACHE
@@ -1572,8 +1580,22 @@ verifier("un calage vivant est detecte, et nomme",
          (dlg._calage_en_cours() or {}).get("pid") == os.getpid(),
          f"pid detecte : {(dlg._calage_en_cours() or {}).get('pid')} "
          f"/ le notre : {os.getpid()}")
+BoiteMessage.dernier = None
 verifier("il fait refuser composer et lancer, par defaut",
-         dlg._confirmer_malgre_calage("essai") is False)
+         dlg._confirmer_malgre_calage("essai", geste="Recomposer") is False)
+# LE DEFAUT EST POSE, ET C'EST LE REFUS (0.8.5). QMessageBox.question(Yes | No)
+# sans defaultButton laissait Qt choisir — et sur Oui/Non il ne retenait
+# rien : Entree allait au premier bouton autoDefault, « Oui ». La docstring
+# promettait « non » ; confirmer() le pose, et le mannequin l'enregistre.
+_boite_calage = BoiteMessage.dernier
+verifier("la question « calage en cours » a pour defaut le refus, et des verbes",
+         _boite_calage is not None and _boite_calage.bouton_defaut is not None
+         and _boite_calage.bouton_defaut.role == _RolesBouton.RejectRole
+         and _boite_calage.bouton_echappement is _boite_calage.bouton_defaut
+         and [b.text() for b in _boite_calage.boutons]
+         == ["Recomposer quand même", "Attendre la fin du calage"],
+         str([b.text() for b in _boite_calage.boutons]) if _boite_calage
+         else "aucune boite")
 # ET UN CALAGE TERMINE NE FERME RIEN : son avancement.json reste en place, et
 # son PID a pu etre reattribue depuis.
 _ecrire_etat(termine=True)
@@ -2523,6 +2545,9 @@ def _rectangle_dans(widget, parent):
     return QRect(widget.mapTo(parent, QPoint(0, 0)), widget.size())
 
 
+_hauteurs_peintes = {}
+
+
 def _eprouver_petite_fenetre(points):
     """Vrais clics/touches et geometrie Qt, sans modele ni effet d'ecriture.
 
@@ -2556,6 +2581,16 @@ def _eprouver_petite_fenetre(points):
             verifier(f"police {points} pt : les saisies suivent la police demandee",
                      fenetre.edit_projet_hecras.font().pointSizeF() >= points,
                      str(fenetre.edit_projet_hecras.font().pointSizeF()))
+            # LES WIDGETS PEINTS AUSSI (0.8.5, C4). Ils ecrivaient 7,5, 8 et
+            # 11 pt en dur ; ils dessinent desormais en fraction de leur
+            # police, que la feuille de style pose sur tout QWidget — avec
+            # son plancher de 10 pt, d'ou le min().
+            _peints = (fenetre.ruban_apports, fenetre.jauges["volume_pct"],
+                       fenetre.courbe_suivi)
+            verifier(f"police {points} pt : les widgets peints suivent la police",
+                     all(w.font().pointSizeF() >= min(points, 10.0) for w in _peints),
+                     str([w.font().pointSizeF() for w in _peints]))
+            _hauteurs_peintes[points] = [w.minimumHeight() for w in _peints]
             verifier(f"police {points} pt : Qt utilise la famille demandee",
                      QFontInfo(fenetre.edit_projet_hecras.font()).family()
                      == police.family(),
@@ -2698,6 +2733,199 @@ def _eprouver_petite_fenetre(points):
 
 for _points in (9, 13):
     _eprouver_petite_fenetre(_points)
+
+verifier("les widgets peints grandissent avec la police (9 -> 13 pt)",
+         len(_hauteurs_peintes.get(13, [])) == 3
+         and all(h13 > h9 for h9, h13 in zip(_hauteurs_peintes.get(9, []),
+                                             _hauteurs_peintes[13])),
+         str(_hauteurs_peintes))
+
+# ---------------------------------------------------------------------------
+print("\n7 bis. CE QUE LA RELECTURE DU 17/09/2026 A CHANGE (0.8.5)")
+# docs/ergonomie_2026-09-17.md. Tout ce qui suit se mesure SANS ecran : les
+# couleurs se demandent aux widgets, jamais aux pixels.
+from qgis.PyQt.QtCore import QEvent as _QEvent                 # noqa: E402
+from qgis.PyQt.QtGui import QColor as _QColor, QKeyEvent       # noqa: E402
+from qgis.PyQt.QtGui import QPalette as _QPalette              # noqa: E402
+from calage_apports import interface as mod_interface          # noqa: E402
+
+
+def _contraste(a, b):
+    """Rapport de contraste WCAG 2 entre deux couleurs « #rrggbb »."""
+    def luminance(couleur):
+        canaux = [int(couleur.lstrip("#")[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+        lineaires = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+                     for c in canaux]
+        return 0.2126 * lineaires[0] + 0.7152 * lineaires[1] + 0.0722 * lineaires[2]
+    clair, fonce = sorted((luminance(a), luminance(b)), reverse=True)
+    return (clair + 0.05) / (fonce + 0.05)
+
+
+# --- LES COULEURS DE TEXTE TIENNENT 4,5:1 DANS LES DEUX THEMES (WCAG 1.4.3) --
+# Les fonds sont ceux releves par la recette du 11/09 : « #f0f0f0 » pour le
+# theme clair de QGIS, « #323232 » pour Night Mapping. C'est le calcul que
+# Sensi a fait a la main le 11/09, versionne — le teal institutionnel
+# « #3A8D94 » rend 3,4:1 et servait de couleur de texte a cinq endroits.
+_FOND_CLAIR, _FOND_SOMBRE = "#f0f0f0", "#323232"
+_sous_seuil = {statut: round(_contraste(c, _FOND_CLAIR), 2)
+               for statut, c in mod_plugin.COULEUR_STATUT.items()
+               if _contraste(c, _FOND_CLAIR) < 4.5}
+verifier("theme clair : chaque couleur de statut tient 4,5:1 sur le fond",
+         not _sous_seuil, str(_sous_seuil) or "toutes >= 4,5:1")
+verifier("theme clair : « en cours » est le teal sombre, pas l'institutionnel",
+         mod_plugin.COULEUR_STATUT["en cours"] == mod_plugin.ISL_TEAL_SOMBRE
+         and _contraste(mod_plugin.ISL_TEAL_SOMBRE, _FOND_CLAIR) >= 4.5
+         and _contraste(mod_plugin.ISL_TEAL, _FOND_CLAIR) < 4.5,
+         f"sombre {_contraste(mod_plugin.ISL_TEAL_SOMBRE, _FOND_CLAIR):.2f}:1, "
+         f"institutionnel {_contraste(mod_plugin.ISL_TEAL, _FOND_CLAIR):.2f}:1")
+verifier("theme clair : plus aucun texte ecrit en teal institutionnel dans plugin.py",
+         not re.search(r"color:\{ISL_TEAL\}", Path(mod_plugin.__file__)
+                       .read_text(encoding="utf-8")))
+_remappees = set(mod_interface.COULEURS_SOMBRES.values())
+_sous_seuil = {c: round(_contraste(c, _FOND_SOMBRE), 2) for c in _remappees
+               if _contraste(c, _FOND_SOMBRE) < 4.5}
+verifier("theme sombre : chaque couleur remappee tient 4,5:1 sur le fond",
+         not _sous_seuil, str(_sous_seuil) or "toutes >= 4,5:1")
+verifier("theme sombre : le fond de la fenetre sert d'encre lisible sur chaque teinte remappee",
+         all(_contraste(_FOND_SOMBRE, c) >= 4.5 for c in _remappees),
+         str({c: round(_contraste(_FOND_SOMBRE, c), 2) for c in _remappees}))
+verifier("ruban : le blanc tient 4,5:1 sur chaque segment plein du theme clair",
+         all(_contraste("#ffffff", c) >= 4.5
+             for statut, c in mod_plugin.COULEUR_STATUT.items()
+             if statut != "en attente"),
+         str({statut: round(_contraste("#ffffff", c), 2)
+              for statut, c in mod_plugin.COULEUR_STATUT.items()}))
+
+# --- LES WIDGETS PEINTS ET LE TABLEAU SUIVENT LE THEME SOMBRE (C1) ------------
+# Les six scenarios sombres de la recette du 11/09 avaient ete mesures sur un
+# projet VIDE : l'onglet Suivi n'y portait aucune donnee, et les trois widgets
+# dessines au QPainter gardaient les teintes du clair — 2,3:1 pour l'ardoise,
+# 1,8:1 pour le rouge. Ici on leur pose la palette de Night Mapping et on leur
+# demande la couleur qu'ils emploieraient.
+_nuit = _QPalette()
+_nuit.setColor(_QPalette.ColorRole.Window, _QColor(_FOND_SOMBRE))
+_nuit.setColor(_QPalette.ColorRole.WindowText, _QColor("#e0e0e0"))
+_nuit.setColor(_QPalette.ColorRole.Base, _QColor("#232323"))
+_peints = {"ruban": dlg.ruban_apports, "jauge": dlg.jauges["volume_pct"],
+           "courbe": dlg.courbe_suivi}
+for _w in _peints.values():
+    _w.setPalette(_nuit)
+verifier("theme sombre : ruban, jauge et courbe remappent leurs couleurs",
+         all(_w.couleur(mod_plugin.ISL_ROUGE).name().lower() == "#f29d97"
+             and _w.couleur(mod_plugin.ISL_ARDOISE).name().lower() == "#bbcad2"
+             and _w.couleur(mod_plugin.ISL_VERT).name().lower() == "#91cdaa"
+             for _w in _peints.values()),
+         str({n: _w.couleur(mod_plugin.ISL_ROUGE).name() for n, _w in _peints.items()}))
+for _w in _peints.values():
+    _w.setPalette(_QPalette())
+verifier("theme clair : les memes rendent la couleur de charte telle quelle",
+         dlg.jauges["volume_pct"].couleur(mod_plugin.ISL_ROUGE).name().lower()
+         == mod_plugin.ISL_ROUGE.lower(),
+         dlg.jauges["volume_pct"].couleur(mod_plugin.ISL_ROUGE).name())
+dlg.table_suivi.setPalette(_nuit)
+_ecrire_etat(total=1, en_cours=None,
+             apports=[{"ordre": 1, "apport": "A1", "section": "SC1",
+                       "statut": "échoué", "essais": 3, "volume_pct": 80.0,
+                       "pic_pct": 70.0, "forme_pct": 90.0, "duree_s": 900,
+                       "motif": "essai"}])
+dlg._rafraichir_suivi()
+verifier("theme sombre : la colonne Statut du tableau est remappee",
+         dlg.table_suivi.rowCount() >= 1
+         and dlg.table_suivi.item(0, 2).foreground().color().name().lower()
+         == "#f29d97",
+         dlg.table_suivi.item(0, 2).foreground().color().name()
+         if dlg.table_suivi.rowCount() else "tableau vide")
+dlg.table_suivi.setPalette(_QPalette())
+dlg.label_suivi_banniere.setPalette(_nuit)
+dlg._banniere(mod_plugin.ISL_ROUGE, "essai de filet")
+verifier("theme sombre : le filet de la banniere suit le titre",
+         "#f29d97" in dlg.label_suivi_banniere.styleSheet().lower(),
+         dlg.label_suivi_banniere.styleSheet()[:90])
+dlg.label_suivi_banniere.setPalette(_QPalette())
+
+# --- LES TROIS AUTRES QUESTIONS A DEUX ISSUES : DEFAUT SUR, VERBES (C3) -----
+# La premiere — « calage en cours » — est eprouvee a la section du suivi, la
+# ou l'etat vivant est pose. Le mannequin ne clique rien : « Installer »
+# lancerait pip, « Prolonger » ecrirait dans un classeur.
+BoiteMessage.dernier = None
+dlg._installer_interpreteur()
+_boite_pip = BoiteMessage.dernier
+verifier("« Installer l'environnement » : « Plus tard » est le defaut, « Installer » le verbe",
+         _boite_pip is not None and _boite_pip.bouton_defaut is not None
+         and _boite_pip.bouton_defaut.text() == "Plus tard"
+         and _boite_pip.bouton_defaut.role == _RolesBouton.RejectRole
+         and _boite_pip.boutons[0].text() == "Installer",
+         str([b.text() for b in _boite_pip.boutons]) if _boite_pip else "aucune boite")
+BoiteMessage.dernier = None
+dlg._proposer_prolongation({"duree_h": 48.0, "apports": ["A1", "A2"]})
+_boite_zeros = BoiteMessage.dernier
+verifier("« Hydrogrammes trop courts » : « Laisser tel quel » est le defaut",
+         _boite_zeros is not None and _boite_zeros.bouton_defaut is not None
+         and _boite_zeros.bouton_defaut.text() == "Laisser tel quel"
+         and _boite_zeros.boutons[0].text() == "Prolonger par des zéros",
+         str([b.text() for b in _boite_zeros.boutons]) if _boite_zeros else "aucune boite")
+# La quatrieme ne se montre que sans chaine : on la lui fait croire, et l'on
+# releve TOUTES les boites parcourues — sur un poste sans interpreteur, le
+# diagnostic en montre une seconde apres celle-ci.
+_vues = []
+_exec_origine = BoiteMessage.exec
+with _patch.object(BoiteMessage, "exec",
+                   lambda self: (_vues.append(self), _exec_origine(self))), \
+     _patch.object(mod_plugin.noyau, "trouver_chaine", lambda: None):
+    dlg._diagnostic()
+_boite_chaine = next((b for b in _vues
+                      if b.boutons and b.boutons[0].text().startswith("Désigner")), None)
+verifier("« Chaîne introuvable » : « Plus tard » est le defaut, « Désigner » le verbe",
+         _boite_chaine is not None and _boite_chaine.bouton_defaut is not None
+         and _boite_chaine.bouton_defaut.text() == "Plus tard",
+         str([[b.text() for b in v.boutons] for v in _vues]))
+dlg._diagnostic()          # le diagnostic reel reprend sa place dans l'onglet
+verifier("plus aucun QMessageBox.question dans plugin.py",
+         not re.search(r"^\s*\w[^#\n]*QMessageBox\.question\(", Path(mod_plugin.__file__)
+                       .read_text(encoding="utf-8"), re.MULTILINE))
+
+# --- LES LIENS DU FIL CONDUCTEUR REPONDENT AU CLAVIER (C5) --------------------
+_flags = dlg.label_fil.textInteractionFlags()
+verifier("fil conducteur : les liens sont accessibles au clavier",
+         bool(_flags & Qt.TextInteractionFlag.LinksAccessibleByKeyboard)
+         and dlg.label_fil.focusPolicy() != Qt.FocusPolicy.NoFocus,
+         f"flags={int(_flags)} focus={dlg.label_fil.focusPolicy()}")
+_cible = re.search(r"href=['\"](\d)['\"]", dlg.label_fil.text())
+if _cible is None:
+    print("   ignore : le fil ne porte aucun lien dans cet etat")
+else:
+    _voulu = int(_cible.group(1))
+    dlg.onglets.setCurrentIndex(mod_plugin.ONGLET_AIDE if _voulu != mod_plugin.ONGLET_AIDE
+                                else mod_plugin.ONGLET_MODELE)
+    dlg.label_fil.setFocus()
+    # Tab selectionne le premier lien (QLabel.focusNextPrevChild), Entree
+    # l'active — et c'est le QLabel qui consomme Entree, pas la garde de la
+    # fenetre. Evenements envoyes au widget : la fenetre est hors ecran.
+    for _touche in (Qt.Key.Key_Tab, Qt.Key.Key_Return):
+        QApplication.sendEvent(dlg.label_fil, QKeyEvent(
+            _QEvent.Type.KeyPress, _touche, Qt.KeyboardModifier.NoModifier))
+    QApplication.processEvents()
+    verifier("fil conducteur : Tab puis Entree ouvrent l'etape du lien",
+             dlg.onglets.currentIndex() == _voulu,
+             f"onglet {dlg.onglets.currentIndex()}, attendu {_voulu}")
+
+# --- LES WIDGETS PEINTS ONT UN NOM ET UNE DESCRIPTION ACCESSIBLES (C6) --------
+verifier("les widgets peints ont un nom accessible",
+         all(w.accessibleName() for w in (dlg.ruban_apports, dlg.courbe_suivi,
+                                          *dlg.jauges.values())),
+         str([w.accessibleName() for w in (dlg.ruban_apports, dlg.courbe_suivi)]))
+_ecrire_etat()          # l'etat synthetique a trois apports, A2 en cours chiffre
+dlg._rafraichir_suivi()
+verifier("la description accessible d'une jauge dit la valeur et le verdict",
+         "%" in dlg.jauges["volume_pct"].accessibleDescription()
+         and ("conforme" in dlg.jauges["volume_pct"].accessibleDescription()
+              or "tolérance" in dlg.jauges["volume_pct"].accessibleDescription()),
+         dlg.jauges["volume_pct"].accessibleDescription())
+verifier("la description accessible du ruban compte les apports",
+         "3 apport" in dlg.ruban_apports.accessibleDescription(),
+         dlg.ruban_apports.accessibleDescription())
+_ecrire_etat(termine=True)      # ne pas laisser un calage « vivant » derriere
+dlg._rafraichir_suivi()
 
 # ---------------------------------------------------------------------------
 print("\n8. DECHARGEMENT")

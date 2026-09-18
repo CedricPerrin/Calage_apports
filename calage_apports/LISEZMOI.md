@@ -2,9 +2,9 @@
 
 Préparation et contrôle du paquet de calage pour **HEC-RAS uniquement**.
 Voir `methodologie_calage_amont_aval.docx`, § 2.4.
-Version **0.8.2** : widgets natifs QGIS — sections repliables dont l'état
-est mémorisé, messages dans un bandeau plutôt qu'en fenêtre modale, et la
-fenêtre rouvre là où on l'a laissée.
+Version **0.8.5** : relecture ergonomique — l'onglet Suivi suit le thème
+sombre et la police du poste, les questions à deux issues portent des verbes
+et un défaut sûr, les liens du fil conducteur se prennent au clavier.
 
 ## Ce que fait le plugin
 
@@ -59,7 +59,7 @@ et figerait l'interface.
 ## Installation
 
 **Depuis l'archive.** `calage_apports_<version>.zip` —
-`calage_apports_0.8.2.zip` pour cette version — est **à la racine du dépôt** : la télécharger
+`calage_apports_0.8.5.zip` pour cette version — est **à la racine du dépôt** : la télécharger
 suffit, il n'y a rien à reconstruire. Le nom porte la version pour qu'on
 sache, sur un poste distant, ce qu'on installe ; il n'y en a jamais qu'une
 dans le dépôt, la plus récente. Puis, dans QGIS :
@@ -303,6 +303,21 @@ débordement de l'onglet Objectifs à 13 pt, présent depuis la 0.8.0, est
 corrigé : la page demandait 773 px pour 750 disponibles, elle en demande
 514. La relecture automatique des cibles et la mémoire de la géométrie
 sont éprouvées au banc, pas encore par un usage réel.
+
+**La 0.8.4, le 14 septembre : 278 contrôles, aucun échec.**
+
+**La 0.8.5, le 18 septembre 2026, vient d'une relecture ergonomique**
+(`docs/ergonomie_2026-09-17.md`) : seize constats tenus, sept pistes
+écartées. Le banc gagne **23 contrôles** — contrastes des deux thèmes,
+couleurs remappées des widgets peints et du tableau, défaut des quatre
+questions, liens du fil au clavier, noms accessibles, police des widgets
+peints — mais **n'a pas été rejoué** : il exige QGIS, et cette version a
+été écrite depuis un clone sans lui. Ce qui a été mesuré à sa place : les
+trois widgets peints dessinés hors écran sous PyQt6 en clair et en sombre,
+à 10 et 13 pt — couleurs remappées présentes, hauteurs qui suivent la
+police —, et `confirmer()` éprouvée pour son défaut, son échappement et son
+retour sans clic. Le passage du banc sous QGIS est la première chose à
+faire avec cette version.
 
 > Ce que les calages livrés n'ont PAS rencontré : un volume plancher, un
 > apport refusé, un modèle incohérent. Les garde-fous qui traitent ces cas

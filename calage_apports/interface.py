@@ -4,7 +4,7 @@
 import re
 
 from qgis.PyQt.QtCore import QEvent
-from qgis.PyQt.QtGui import QPalette
+from qgis.PyQt.QtGui import QColor, QPalette
 from qgis.PyQt.QtWidgets import QLabel, QTextBrowser
 
 
@@ -18,6 +18,23 @@ COULEURS_SOMBRES = {
 
 def sombre(widget):
     return widget.palette().color(QPalette.ColorRole.Window).lightness() < 128
+
+
+def couleur(nom_hex, widget):
+    """
+    La couleur de charte à employer sur CE widget : remappée s'il est sombre.
+
+    Les textes riches passent par texte_theme ; les widgets dessinés au
+    QPainter — ruban, jauges, courbe du suivi — et le tableau du suivi
+    n'y passaient pas et gardaient les teintes du thème clair sur le fond
+    Night Mapping : l'ardoise y tombait à 2,3:1, le rouge à 1,8:1
+    (docs/ergonomie_2026-09-17.md, C1). Même table que texte_theme, pour que
+    les deux ne divergent pas ; une couleur qui n'y figure pas est rendue
+    telle quelle.
+    """
+    if sombre(widget):
+        nom_hex = COULEURS_SOMBRES.get(nom_hex.lower(), nom_hex)
+    return QColor(nom_hex)
 
 
 def texte_theme(texte, widget):

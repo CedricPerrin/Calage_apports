@@ -4,7 +4,51 @@ Point de reprise pour ouvrir une nouvelle conversation avec un contexte
 minimal. L'état courant et les règles en vigueur restent dans `STATUT.txt` ;
 ce fichier ne dit que **où on en est** et **par quoi reprendre**.
 
-## Reprendre ici — 14 septembre 2026 : 0.8.4, NON COMMITÉE
+## Reprendre ici — 18 septembre 2026 : 0.8.5, la relecture ergonomique livrée
+
+La relecture du 17 septembre (`docs/ergonomie_2026-09-17.md`, grille du
+dépôt `ergonomie`) validée par l'utilisateur, et ses correctifs — écrits
+**sans QGIS**, depuis un clone Linux : le banc n'a pas tourné, le reste a
+été mesuré autrement.
+
+- **Thème sombre** : ruban, jauges, courbe et colonne Statut du Suivi
+  passent par `interface.couleur()` — même table que les textes HTML ; le
+  filet de la bannière suit. Ils gardaient les couleurs du clair sur Night
+  Mapping (ardoise 2,3:1, rouge 1,8:1) : la recette du 11 avait mesuré ses
+  scénarios sombres sur un projet **vide**.
+- **Quatre questions Oui/Non** — pas trois : la relecture avait manqué
+  « Chaîne de calage introuvable » — deviennent `confirmer()` : des verbes,
+  le refus par défaut, Échap et croix compris.
+- **Police** : les widgets peints dessinent en fraction de leur police et
+  recalculent leur hauteur au `FontChange` ; noms et descriptions
+  accessibles à chaque `actualiser()`.
+- Teal sombre pour les textes, liens du fil conducteur au clavier,
+  « fichier .prj » dans trois refus, boîtes du contrôle nommées comme le
+  bouton, « (obligatoire) » au libellé du préfixe, `ONGLET_AIDE`, note HIG
+  580 px, et `faire_zip.py` refuse un LISEZMOI qui cite une autre version.
+- **Trouvé au passage** : `self.sizePolicy().Expanding` cassait sous PyQt6
+  pur — forme qualifiée posée.
+
+**Bancs : banc QGIS NON REJOUÉ** — 23 contrôles neufs, **301 attendus**.
+À la place : `py_compile` des quatre `.py` touchés ; `faire_zip.py`
+« archive conforme » ; garde-fou d'archive vert ; les trois widgets peints
+dessinés hors écran sous PyQt6 6.11 (shim `qgis`) en clair et en sombre à
+10 et 13 pt — couleurs remappées présentes, hauteurs qui suivent — et
+`confirmer()` éprouvée (défaut, échappement, retour sans clic).
+
+Par quoi reprendre : (1) **rejouer `test_plugin_qgis.py`** sous le Python
+de QGIS — rien de la 0.8.5 n'a été vu tourner sous QGIS ; (2) regarder
+l'onglet Suivi **rempli** en Night Mapping ; (3) refaire les six captures
+(`captures_plugin.py`), qui datent de la 0.8.2 ; (4) installer le ZIP 0.8.5
+dans le profil ISL ; (5) Accessibility Insights FastPass sur la fenêtre ;
+(6) deux décisions laissées ouvertes — C9, dire au fil conducteur que le
+bouton écrit dans la géométrie, et C16, un `QProgressDialog` sous
+« Installer… » ; (7) la branche `claude/ponytail-lycxeg` porte une revue de
+qualité de la 0.8.4 (commit `0fd1b9a` du 17/09) **non fusionnée**, qui
+touche `plugin.py`, `noyau.py`, la chaîne, le banc, `STATUT.txt` et ce
+fichier : à fusionner ou à jeter, en connaissance de cause.
+
+## État précédent — 14 septembre 2026 : 0.8.4 (commit `f4aaf6e`)
 
 Six demandes utilisateur après un calage réel repris — Suhihandia, reprise à
 SUH12 — et le constat qui les a fait naître : ce calage s'arrête au calcul de
@@ -43,8 +87,8 @@ Par quoi reprendre : (1) **relancer le calage repris de Suhihandia avec la
 0.8.4**, et lire l'encadré « Erreurs et avertissements » de l'onglet Suivi —
 il dira ce que HEC-RAS refuse, ce que l'ancien diagnostic cachait derrière son
 tableau des temps ; (2) voir les changements à l'écran dans QGIS ;
-(3) installer le ZIP 0.8.4 dans le profil ISL ; (4) **commit** — l'arbre est
-sale sur `main`.
+(3) installer le ZIP 0.8.4 dans le profil ISL ; (4) **commit** — fait,
+`f4aaf6e` sur `main`.
 
 ## État précédent — 13 septembre 2026 : 0.8.3 commitée et poussée
 
