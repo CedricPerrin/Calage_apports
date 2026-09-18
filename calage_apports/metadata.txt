@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.8.5
+version=0.8.6
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,17 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.8.5 — Relecture ergonomique : thème sombre des widgets peints, questions à défaut sûr, police suivie.
+changelog=0.8.6 — La revue de qualité de la 0.8.4 rejoint la 0.8.5.
+    Fusion de la branche de revue du 17 septembre : « classeur » devient une
+    propriété dont le setter rafraîchit le groupe « Excel des hydrogrammes
+    objectifs » ; l'onglet Suivi ne relit le journal de lancement que s'il a
+    changé ; noyau.dernier_journal retrouve les journaux là où lancer_calage
+    les nomme ; dans la chaîne, le compte rendu HEC-RAS est coupé à l'en-tête
+    du tableau des temps, le recadencement des cibles dit AVERTISSEMENT, et
+    plan_fenetre_pleine n'est passé qu'en reprise. Aucune promesse de la 0.8.4
+    ni de la 0.8.5 ne change.
+
+0.8.5 — Relecture ergonomique : thème sombre des widgets peints, questions à défaut sûr, police suivie.
     Les trois widgets dessinés au QPainter de l'onglet Suivi — ruban,
     jauges, courbe — et la colonne Statut du tableau suivent le thème
     sombre : ils gardaient les couleurs du clair sur le fond Night

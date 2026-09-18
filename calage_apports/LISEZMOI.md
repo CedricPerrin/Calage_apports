@@ -2,9 +2,10 @@
 
 Préparation et contrôle du paquet de calage pour **HEC-RAS uniquement**.
 Voir `methodologie_calage_amont_aval.docx`, § 2.4.
-Version **0.8.5** : relecture ergonomique — l'onglet Suivi suit le thème
-sombre et la police du poste, les questions à deux issues portent des verbes
-et un défaut sûr, les liens du fil conducteur se prennent au clavier.
+Version **0.8.6** : la relecture ergonomique du 17 septembre — l'onglet Suivi
+suit le thème sombre et la police du poste, les questions à deux issues
+portent des verbes et un défaut sûr, les liens du fil conducteur se prennent
+au clavier — et la revue de qualité de la 0.8.4, fusionnée le 18.
 
 ## Ce que fait le plugin
 
@@ -59,7 +60,7 @@ et figerait l'interface.
 ## Installation
 
 **Depuis l'archive.** `calage_apports_<version>.zip` —
-`calage_apports_0.8.5.zip` pour cette version — est **à la racine du dépôt** : la télécharger
+`calage_apports_0.8.6.zip` pour cette version — est **à la racine du dépôt** : la télécharger
 suffit, il n'y a rien à reconstruire. Le nom porte la version pour qu'on
 sache, sur un poste distant, ce qu'on installe ; il n'y en a jamais qu'une
 dans le dépôt, la plus récente. Puis, dans QGIS :
@@ -318,6 +319,16 @@ trois widgets peints dessinés hors écran sous PyQt6 en clair et en sombre,
 police —, et `confirmer()` éprouvée pour son défaut, son échappement et son
 retour sans clic. Le passage du banc sous QGIS est la première chose à
 faire avec cette version.
+
+**La 0.8.6, le même jour, fusionne la revue de qualité de la 0.8.4** menée
+le 17 sur une branche : `classeur` devient une propriété qui rafraîchit le
+groupe des objectifs, le Suivi ne relit le journal que s'il a changé,
+`noyau.dernier_journal` retrouve les journaux là où `lancer_calage` les
+nomme, et la chaîne coupe le compte rendu HEC-RAS à l'en-tête du tableau des
+temps. L'autotest de `noyau.py` est vert ici ; celui de `pilote_hecras.py`
+s'arrête à l'import de `ras-commander`, absent de ce clone, après ses six
+premiers contrôles ; le banc QGIS et `pont_hecras.py autotest` restent à
+rejouer sur le poste.
 
 > Ce que les calages livrés n'ont PAS rencontré : un volume plancher, un
 > apport refusé, un modèle incohérent. Les garde-fous qui traitent ces cas

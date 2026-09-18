@@ -3,7 +3,7 @@
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 
-Version des sources du plugin : **0.8.5**. La
+Version des sources du plugin : **0.8.6**. La
 [note d’ergonomie du 11 septembre 2026](docs/ergonomie_2026-09-11.md)
 décrit le parcours, les choix d’interface et les points de recette.
 
@@ -33,6 +33,11 @@ teal institutionnel ne sert plus de couleur de texte ; les liens du fil
 conducteur se prennent au clavier. Le banc gagne 23 contrôles, **non
 rejoués** : cette version a été écrite sans QGIS, et son premier passage au
 banc reste à faire.
+La **0.8.6** fusionne la revue de qualité de la 0.8.4 menée le 17 sur une
+branche : `classeur` en propriété, journal du Suivi relu seulement s'il a
+changé, `noyau.dernier_journal`, compte rendu HEC-RAS coupé au tableau des
+temps, `plan_fenetre_pleine` en reprise seulement. Rien de visible ne
+change ; le banc QGIS reste à rejouer.
 
 Pour chaque apport, de l'amont vers l'aval : estimer, calculer, comparer à la
 cible, corriger, répéter jusqu'à concordance, puis vérifier la cohérence des

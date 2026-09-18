@@ -4,7 +4,29 @@ Point de reprise pour ouvrir une nouvelle conversation avec un contexte
 minimal. L'état courant et les règles en vigueur restent dans `STATUT.txt` ;
 ce fichier ne dit que **où on en est** et **par quoi reprendre**.
 
-## Reprendre ici — 18 septembre 2026 : 0.8.5, la relecture ergonomique livrée
+## Reprendre ici — 18 septembre 2026 (suite) : 0.8.6, la revue de qualité fusionnée
+
+La branche `claude/ponytail-lycxeg` (revue de qualité de la 0.8.4, 17/09) est
+fusionnée dans `main` — merge `e402072` — et l'archive refaite sous un nom
+neuf, `calage_apports_0.8.6.zip` : la 0.8.5 était déjà sur GitHub, et une
+archive dont le contenu change porte un autre nom. Aucune promesse ne change.
+
+**Bancs :** `noyau.py` vert ici ; `pilote_hecras.py` s'arrête à l'import de
+`ras-commander`, absent de ce clone ; `faire_zip.py` conforme, garde-fou vert ;
+**banc QGIS toujours non rejoué**.
+
+Par quoi reprendre : (1) **rejouer `test_plugin_qgis.py`** — 301 contrôles
+attendus, dont trois de la revue et vingt-trois de la 0.8.5 jamais vus sous
+QGIS ; (2) `pont_hecras.py autotest` sur le poste ; (3) installer le ZIP
+**0.8.6** dans le profil ISL ; (4) le reste de la liste de la 0.8.5
+ci-dessous — Night Mapping avec un Suivi rempli, captures, Accessibility
+Insights, décisions C9 et C16 ; (5) les deux points que la revue laisse à
+trancher (`STATUT.txt` § 6) : « HEC-RAS ouvert = refus » n'existe que dans le
+plugin ; `suivi/` et les journaux sont partagés entre scénarios d'un même
+dossier de sortie. La branche `claude/ponytail-lycxeg` peut être supprimée
+sur GitHub : tout est dans `main`.
+
+## État précédent — 18 septembre 2026 : 0.8.5, la relecture ergonomique livrée
 
 La relecture du 17 septembre (`docs/ergonomie_2026-09-17.md`, grille du
 dépôt `ergonomie`) validée par l'utilisateur, et ses correctifs — écrits

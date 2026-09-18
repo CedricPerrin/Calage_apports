@@ -22,6 +22,23 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+MISE A JOUR DU 18 SEPTEMBRE 2026 (SUITE) — 0.8.6, LA REVUE DU 17 FUSIONNEE
+  La branche claude/ponytail-lycxeg (revue de qualite de la 0.8.4, entree du
+  17/09 ci-dessous) est fusionnee dans main — merge e402072 —, aucune
+  promesse ne change. Le code a fusionne seul ; STATUT et CHECKPOINT
+  portaient chacun une entree neuve au meme endroit, les deux sont gardees.
+  L'ARCHIVE EST REFAITE SOUS UN NOM NEUF, calage_apports_0.8.6.zip : une
+  archive dont le contenu change porte un autre nom (regle du 08/09), et la
+  0.8.5 etait deja sur GitHub.
+  BANCS : noyau.py autotest VERT ici (douze sections, geopandas installe
+  pour l'occasion) ; pilote_hecras.py s'arrete a l'import de ras_commander,
+  absent de ce clone, apres ses six premiers controles ; faire_zip.py
+  « archive conforme » ; essai_garde_fou_archive.py TOUT PASSE ; les widgets
+  peints rejoues hors ecran sur le code fusionne. test_plugin_qgis.py et
+  pont_hecras.py autotest : A REJOUER SUR LE POSTE — trois controles de la
+  revue lisent les widgets que la propriete classeur rafraichit, et vingt-
+  trois de la 0.8.5 n'ont jamais tourne.
+
 MISE A JOUR DU 18 SEPTEMBRE 2026 — 0.8.5, LA RELECTURE ERGONOMIQUE DU 17
   SEIZE CONSTATS TENUS, SEPT PISTES ECARTEES — docs/ergonomie_2026-09-17.md,
   ecrite avec la grille du depot « ergonomie » (synthese des six depots) et
@@ -2019,7 +2036,7 @@ La note, le template et ce fichier restent a la racine.
                          onglets. plugin.py est une enveloppe mince ; noyau.py
                          porte la logique, testable hors QGIS. Aucune regle de
                          controle n'y est reecrite.
-  calage_apports_0.8.5.zip  Archive d'installation, VERSIONNEE : c'est ce
+  calage_apports_0.8.6.zip  Archive d'installation, VERSIONNEE : c'est ce
                          qu'on installe dans QGIS, telechargeable depuis
                          le depot sans rien reconstruire.
   methodologie_calage_amont_aval.docx / .pdf   Note methodologique V15.
