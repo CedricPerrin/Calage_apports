@@ -1456,7 +1456,10 @@ def _cibles_depuis_classeur(chemin_template, journal=None):
         if pas_initial is not None and journal is not None:
             # « X min » et non « X h » : les pas saisis vont de la minute a
             # l'heure, la minute les couvre tous sans decimale inutile.
-            journal(f"Cible « {nom_cible} » : pas de temps "
+            # AVERTISSEMENT, ET LE MOT Y EST : c'est a lui que l'onglet Suivi
+            # du plugin reconnait ce qui merite l'ecran (MARQUEURS_ALERTE),
+            # pas a un bout de phrase qui changerait avec la phrase.
+            journal(f"AVERTISSEMENT : cible « {nom_cible} » : pas de temps "
                     f"{60 * pas_initial:g} min → converti en "
                     f"{60 * PAS_ENTREE_H:g} min")
         apports.append(str(ligne[col_apport]))
@@ -1552,10 +1555,12 @@ def commande_caler(args):
                 f"{sections} de la feuille Correspondance."))
 
     plan_reference = texte("Plan_reference", "p01")
-    # LA FENETRE PLEINE RESTE CELLE DU PLAN DE REFERENCE, meme en reprise ou
-    # « plan_reference » devient le plan de l'etape precedente, deja
-    # raccourci par le calage d'avant. Voir PiloteHecRas.preparer().
-    plan_fenetre_pleine = plan_reference
+    # EN REPRISE SEULEMENT : « plan_reference » devient alors le plan de
+    # l'etape precedente, deja raccourci par le calage d'avant, et le pilote
+    # doit savoir sur quel plan lire la fenetre pleine. En calage ordinaire
+    # il la lit sur son plan de travail, qui porte la fenetre imposee s'il y
+    # en a une — voir PiloteHecRas._duree_borne_h().
+    plan_fenetre_pleine = None
     if depart > 0:
         deja = apports[:depart]
         etape_precedente = etape_apport(apports[depart - 1], prefixe_etape)
@@ -1568,6 +1573,7 @@ def commande_caler(args):
         trouve = plan_par_titre(texte("Dossier_projet_HECRAS"),
                                 texte("Nom_projet"), etape_precedente)
         if trouve:
+            plan_fenetre_pleine = plan_reference
             plan_reference = f"p{trouve}"
             reprise = (f"Reprise a l'apport {apports[depart]} : {len(deja)} "
                        f"apport(s) amont {deja} tenus pour cales, depart du "

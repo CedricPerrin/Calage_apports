@@ -1324,7 +1324,8 @@ _journal_essai = _dossier_etat() / "calage_20260914_082326.log"
 _journal_essai.write_text(
     "ras-commander v0.99.2 | An open-source project\n"
     "PROJECT DATAFRAMES (single source of truth)\n"
-    "Cible « Cible_SUH01 » : pas de temps 30 min \u2192 converti en 6 min\n"
+    "AVERTISSEMENT : cible « Cible_SUH01 » : pas de temps 30 min \u2192 "
+    "converti en 6 min\n"
     "   pente de « SUH12 » : 0.00034676 m/m\n"
     "    ARRET : le calcul de reference (apports a zero) n'est pas "
     "exploitable\n",
