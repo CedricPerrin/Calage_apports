@@ -1,5 +1,19 @@
 # Identité et recette UX ISL — Calage_apports
 
+## Complément préparé, non intégré — 20 septembre 2026
+
+La [PR #4](https://github.com/CedricPerrin/Calage_apports/pull/4) déplace aussi la
+recherche initiale des interpréteurs dans une tâche QGIS : progression, annulation
+entre sondes, cible figée et choix au retour du dialogue. Noyau et deux tests de
+cible/recherche passent localement. Trois scénarios natifs sont ajoutés.
+**Ce complément n’est pas dans main** : les nouveaux jobs [QGIS et noyau](https://github.com/CedricPerrin/Calage_apports/actions/runs/35511883676)
+s’arrêtent avant attribution d’un exécuteur, sans étape exécutée. Leur cause n’est
+pas exposée par le connecteur ; le navigateur disponible n’est pas connecté.
+Le propriétaire GitHub doit rendre l’annotation accessible ou transmettre son texte.
+Le mainteneur/Codex relance les tests, corrige si nécessaire, puis fusionne la PR.
+La fusion est déjà autorisée ; aucun nouveau choix technique n’est demandé à
+l’ingénieur. La recherche de main demeure synchrone tant que cette validation manque.
+
 Référence : [ISL UX 0.1](https://github.com/CedricPerrin/ergonomie/blob/d112591b9a1bbc6ccd792c1b318821eade9982ce/DESIGN_SYSTEM_ISL.md), adoptée pour l’exécution par lots demandée le 20 septembre 2026.
 
 | Rôle | Couleur / règle |
@@ -31,7 +45,7 @@ Qt hors écran sous Linux ne valide pas Windows/QGIS ni le lecteur d’écran.
 [Plan propre au dépôt](https://github.com/CedricPerrin/ergonomie/blob/main/audits/Calage_apports.md) ·
 [Recette commune](https://github.com/CedricPerrin/ergonomie/blob/main/guides/RECETTE_UX_PC.md).
 
-## Lots B et C — réalisés dans la branche, recette native requise
+## Lots B et C — intégrés dans main, recette sur poste requise
 
 B : le fil conducteur annonce l'écriture dans la géométrie HEC-RAS, la sauvegarde horodatée et les fichiers produits. L'attribution historique des couleurs à PIO/Helvetica est corrigée. Les rôles existants `interface.py` conservent l'adaptation au thème ; aucune palette scientifique n'est modifiée.
 
@@ -55,8 +69,8 @@ Aucune archive de diffusion remplacée : la prochaine archive aura une nouvelle 
 
 ## Intégration et prochaine intervention — 20 septembre 2026
 
-L’utilisateur demande la fusion de la [PR #3](https://github.com/CedricPerrin/Calage_apports/pull/3)
-dans `main`. Le [registre commun](https://github.com/CedricPerrin/ergonomie/blob/main/SUIVI_LOTS_2026-09-20.md) consigne le résultat de la fusion,
+La [PR #3](https://github.com/CedricPerrin/Calage_apports/pull/3)
+est fusionnée dans `main`. Le [registre commun](https://github.com/CedricPerrin/ergonomie/blob/main/SUIVI_LOTS_2026-09-20.md) consigne le résultat de la fusion,
 le commit et sa CI. Utiliser cette version des sources pour la recette ; les
 anciennes archives et observations restent attachées à leur version d’origine.
 
