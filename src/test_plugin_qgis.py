@@ -2928,13 +2928,17 @@ else:
     dlg.activateWindow()
     QApplication.setActiveWindow(dlg)
     QApplication.processEvents()
-    # Entrer par Tab dans le QLabel choisit son premier lien. Un setFocus()
-    # sans motif sur une fenêtre masquée ne reproduit pas ce parcours Qt.
-    dlg.label_fil.setFocus(Qt.FocusReason.TabFocusReason)
+    # Qt distingue le focus du QLabel et celui de son lien interne. Le premier
+    # doit exister dans une fenêtre active avant Tab puis Entrée.
+    dlg.bouton_controle.setFocus()
+    dlg.label_fil.setFocus()
     QApplication.processEvents()
+    QTest.keyClick(dlg.label_fil, Qt.Key.Key_Tab)
+    verifier("fil conducteur : Tab sélectionne le texte du lien",
+             bool(dlg.label_fil.selectedText()), dlg.label_fil.selectedText())
     QTest.keyClick(dlg.label_fil, Qt.Key.Key_Return)
     QApplication.processEvents()
-    verifier("fil conducteur : focus Tab puis Entree ouvrent l'etape du lien",
+    verifier("fil conducteur : Tab puis Entree ouvrent l'etape du lien",
              dlg.onglets.currentIndex() == _voulu,
              f"onglet {dlg.onglets.currentIndex()}, attendu {_voulu}")
 

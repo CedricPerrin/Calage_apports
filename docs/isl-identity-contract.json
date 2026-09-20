@@ -1,0 +1,83 @@
+{
+  "reference_version": "0.1.0",
+  "rules": [
+    {
+      "file": "calage_apports/plugin.py",
+      "binding": "ISL_TEAL",
+      "source": "brand.teal",
+      "expected": "#3A8D94"
+    },
+    {
+      "file": "calage_apports/plugin.py",
+      "binding": "ISL_TEAL_SOMBRE",
+      "source": "themes.light.action",
+      "expected": "#2E7176"
+    },
+    {
+      "file": "calage_apports/plugin.py",
+      "binding": "ISL_ROUGE",
+      "source": "themes.light.error",
+      "expected": "#A03028"
+    },
+    {
+      "file": "calage_apports/plugin.py",
+      "binding": "ISL_VERT",
+      "source": "themes.light.success",
+      "expected": "#386F55"
+    },
+    {
+      "file": "calage_apports/interface.py",
+      "binding": "COULEURS_SOMBRES",
+      "source": "themes.dark.action",
+      "path": [
+        "#3a8d94"
+      ],
+      "expected": "#7CC4C8"
+    },
+    {
+      "file": "calage_apports/interface.py",
+      "binding": "COULEURS_SOMBRES",
+      "source": "themes.dark.action",
+      "path": [
+        "#2e7176"
+      ],
+      "expected": "#7CC4C8"
+    },
+    {
+      "file": "calage_apports/interface.py",
+      "binding": "COULEURS_SOMBRES",
+      "source": "themes.dark.error",
+      "path": [
+        "#a03028"
+      ],
+      "expected": "#F29D97"
+    },
+    {
+      "file": "calage_apports/interface.py",
+      "binding": "COULEURS_SOMBRES",
+      "source": "themes.dark.success",
+      "path": [
+        "#386f55"
+      ],
+      "expected": "#91CDAA"
+    },
+    {
+      "file": "calage_apports/interface.py",
+      "binding": "feuille.accent",
+      "source": "themes.dark.action",
+      "path": [
+        "body"
+      ],
+      "expected": "#7CC4C8"
+    },
+    {
+      "file": "calage_apports/interface.py",
+      "binding": "feuille.accent",
+      "source": "themes.light.action",
+      "path": [
+        "orelse"
+      ],
+      "expected": "#2E7176"
+    }
+  ]
+}
