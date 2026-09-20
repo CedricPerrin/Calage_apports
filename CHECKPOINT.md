@@ -1,5 +1,19 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## Complément préparé, non intégré — 20 septembre 2026
+
+La [PR #4](https://github.com/CedricPerrin/Calage_apports/pull/4) déplace aussi la
+recherche initiale des interpréteurs dans une tâche QGIS : progression, annulation
+entre sondes, cible figée et choix au retour du dialogue. Noyau et deux tests de
+cible/recherche passent localement. Trois scénarios natifs sont ajoutés.
+**Ce complément n’est pas dans main** : les nouveaux jobs [QGIS et noyau](https://github.com/CedricPerrin/Calage_apports/actions/runs/35511883676)
+s’arrêtent avant attribution d’un exécuteur, sans étape exécutée. Leur cause n’est
+pas exposée par le connecteur ; le navigateur disponible n’est pas connecté.
+Le propriétaire GitHub doit rendre l’annotation accessible ou transmettre son texte.
+Le mainteneur/Codex relance les tests, corrige si nécessaire, puis fusionne la PR.
+La fusion est déjà autorisée ; aucun nouveau choix technique n’est demandé à
+l’ingénieur. La recherche de main demeure synchrone tant que cette validation manque.
+
 Point de reprise pour ouvrir une nouvelle conversation avec un contexte
 minimal. L'état courant et les règles en vigueur restent dans `STATUT.txt` ;
 ce fichier ne dit que **où on en est** et **par quoi reprendre**.
