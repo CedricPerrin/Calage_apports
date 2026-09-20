@@ -56,3 +56,40 @@ class TacheInstallation(QgsTask):
             f"{journal}\n{self.message}", "Calage des apports",
             Qgis.MessageLevel.Success if chemin else Qgis.MessageLevel.Critical)
         self.resultat.emit(chemin, self.message, journal)
+
+
+class TacheRecherchePython(QgsTask):
+    """Recherche seule : aucune installation ni publication de réglage."""
+    phase = pyqtSignal(str)
+    resultat = pyqtSignal(object, str, str)
+
+    def __init__(self, cible):
+        super().__init__("Recherche des interpréteurs Python", QgsTask.CanCancel)
+        self.setProperty("calageInstallation", True)
+        self.cible = Path(cible)
+        self.lignes = []
+        self.candidats = None
+        self.message = "Recherche non exécutée."
+
+    def _journal(self, ligne):
+        self.lignes.append(ligne)
+        self.phase.emit(ligne)
+
+    def run(self):
+        try:
+            self._journal("Recherche des interpréteurs Python…")
+            self.candidats = noyau.pythons_candidats(self._journal, self.isCanceled)
+            self.message = ("Recherche annulée." if self.isCanceled() else
+                            f"{len(self.candidats)} interpréteur(s) utilisable(s).")
+            return not self.isCanceled()
+        except Exception as erreur:  # noqa: BLE001 — frontière du worker QGIS
+            self.message = f"Recherche interrompue : {erreur}"
+            return False
+
+    def finished(self, succes):
+        candidats = self.candidats if succes and not self.isCanceled() else None
+        journal = "\n".join(self.lignes)
+        QgsMessageLog.logMessage(
+            f"{journal}\n{self.message}", "Calage des apports",
+            Qgis.MessageLevel.Info if candidats is not None else Qgis.MessageLevel.Warning)
+        self.resultat.emit(candidats, self.message, journal)

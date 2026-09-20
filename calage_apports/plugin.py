@@ -82,7 +82,7 @@ from qgis.PyQt.QtWidgets import (
 )
 
 from . import materiel, noyau
-from .installation import TacheInstallation, installation_en_cours
+from .installation import TacheInstallation, TacheRecherchePython, installation_en_cours
 from .interface import Etiquette as QLabel, Manuel as QTextBrowser
 from .interface import couleur as couleur_theme, sombre as fond_sombre
 from .interface import feuille as feuille_interface
@@ -1935,6 +1935,8 @@ class DialogueParametrage(QDialog):
         super().__init__(parent or iface.mainWindow())
         self.iface = iface
         self._tache_installation = None
+        self._python_en_attente = None
+        self._choix_python_ouvert = False
         self.setWindowTitle(f"{NOM_PLUGIN} — {EDITEUR}")
         self.setObjectName("calageFenetre")
         self.setWindowIcon(QIcon(os.path.join(DOSSIER, "icon.png")))
@@ -4675,6 +4677,7 @@ class DialogueParametrage(QDialog):
     def showEvent(self, evenement):                          # noqa: N802
         """Reprend le suivi si la fenetre revient sur l'onglet du suivi."""
         super().showEvent(evenement)
+        QTimer.singleShot(0, self._choisir_python_recherche)
         minuteur = getattr(self, "minuteur_suivi", None)
         if minuteur is not None and self.onglets.currentIndex() == ONGLET_SUIVI:
             self._rafraichir_suivi()
@@ -5553,13 +5556,21 @@ class DialogueParametrage(QDialog):
             return
         self._tache_installation = tache
         tache.phase.connect(self._phase_installation)
-        tache.resultat.connect(self._fin_installation)
+        fin = self._fin_recherche_python if isinstance(tache, TacheRecherchePython) else self._fin_installation
+        tache.resultat.connect(fin)
         for bouton in self._commandes_poste:
             bouton.setEnabled(False)
         self.progression_installation.show()
         self._phase_installation(tache.lignes[-1] if tache.lignes else "Installation en attente…")
 
     def _phase_installation(self, phase):
+        if isinstance(self._tache_installation, TacheRecherchePython):
+            self.progression_installation.setAccessibleName("Recherche des interpréteurs Python")
+            dire(self.label_diagnostic, phase + "\nQGIS reste utilisable. "
+                 "La recherche continue si cette fenêtre est fermée. "
+                 "Elle peut être annulée dans le gestionnaire de tâches QGIS.")
+            return
+        self.progression_installation.setAccessibleName("Installation Python en cours")
         dire(self.label_diagnostic, phase + "\nQGIS reste utilisable. "
              "L'installation continue si cette fenêtre est fermée. "
              "Ne quittez pas QGIS ; l'arrêt pendant pip n'est pas proposé.")
@@ -5569,13 +5580,19 @@ class DialogueParametrage(QDialog):
         if tache is not None:
             try:
                 tache.phase.disconnect(self._phase_installation)
-                tache.resultat.disconnect(self._fin_installation)
+                fin = self._fin_recherche_python if isinstance(tache, TacheRecherchePython) else self._fin_installation
+                tache.resultat.disconnect(fin)
             except (TypeError, RuntimeError):
                 pass
             self._tache_installation = None
 
     def _installer_interpreteur(self):
-        """Confirme cible et paquets, puis confie l'installation à QgsTask."""
+        """Confirme la cible ; recherche et installation restent hors du fil GUI."""
+        if self._choix_python_ouvert:
+            return
+        if self._python_en_attente is not None:
+            self._choisir_python_recherche()
+            return
         if self._installation_occupe():
             return
         # emplacement_venv_hecras() rend TOUJOURS un chemin depuis le
@@ -5600,20 +5617,37 @@ class DialogueParametrage(QDialog):
         if not accepte:
             return
 
-        # ON PROPOSE, PLUTOT QUE DE DEMANDER DE CHERCHER. Un sélecteur de
-        # fichier vide est sans issue précisément sur le poste où ce bouton
-        # sert : celui qui n'a pas encore d'interpréteur. Relevé le
-        # 01/09/2026 — l'utilisateur voyait deux « python.exe » dans son PATH,
-        # tous deux des leurres WindowsApps de zéro octet, et n'avait rien à
-        # désigner.
-        #
-        # LES CANDIDATS SONT VALIDÉS EN ÉTANT EXÉCUTÉS, pas retenus sur leur
-        # emplacement (voir noyau.pythons_candidats) : une recherche par
-        # chemin aurait proposé « QGIS\LTR\bin\python.exe », qui est un
-        # lanceur et ne démarre pas hors de l'environnement de QGIS.
-        with sans_sablier(self):
-            candidats = noyau.pythons_candidats()
+        tache = TacheRecherchePython(cible)
+        self._suivre_installation(tache)
+        QgsApplication.taskManager().addTask(tache)
 
+    def _fin_recherche_python(self, candidats, message, journal):
+        cible = self._tache_installation.cible
+        self._detacher_installation()
+        self.progression_installation.hide()
+        for bouton in self._commandes_poste:
+            bouton.setEnabled(True)
+        dire(self.label_diagnostic, message)
+        if candidats is None:
+            return  # annulation/erreur : aucun sélecteur ni installation implicite
+        self._python_en_attente = (cible, candidats)
+        # finished() doit rendre la main au gestionnaire avant une boîte de choix.
+        QTimer.singleShot(0, self._choisir_python_recherche)
+
+    def _choisir_python_recherche(self):
+        if (self._python_en_attente is None or self._choix_python_ouvert
+                or not self.isVisible()):
+            return
+        cible, candidats = self._python_en_attente
+        self._python_en_attente = None
+        self._choix_python_ouvert = True
+        try:
+            self._proposer_python(cible, candidats)
+        finally:
+            self._choix_python_ouvert = False
+
+    def _proposer_python(self, cible, candidats):
+        """Choix sur le fil graphique ; la cible confirmée reste inchangée."""
         base = ""
         PARCOURIR = "Parcourir moi-même…"
         if candidats:

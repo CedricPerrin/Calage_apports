@@ -783,7 +783,7 @@ def _origine_python(chemin):
     return "QGIS" if ("qgis" in bas or "osgeo4w" in bas) else "independant"
 
 
-def pythons_candidats():
+def pythons_candidats(journal=None, annule=None):
     r"""
     Interpreteurs capables de servir de BASE au venv HEC-RAS, valides un par
     un en les executant. Rend une liste de dicts {chemin, version, origine},
@@ -800,6 +800,10 @@ def pythons_candidats():
     """
     trouves = []
     for chemin in _emplacements_python():
+        if annule is not None and annule():
+            return []
+        if journal is not None:
+            journal(f"Vérification de Python : {chemin}")
         version = _python_utilisable(chemin)
         if version is not None:
             trouves.append({"chemin": Path(chemin), "version": version,
