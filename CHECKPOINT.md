@@ -4,7 +4,13 @@ Point de reprise pour ouvrir une nouvelle conversation avec un contexte
 minimal. L'état courant et les règles en vigueur restent dans `STATUT.txt` ;
 ce fichier ne dit que **où on en est** et **par quoi reprendre**.
 
-## Reprendre ici — 18 septembre 2026 (suite) : 0.8.6, la revue de qualité fusionnée
+## Reprendre ici — 20 septembre 2026 : lots UX B/C en recette
+
+L’exécution par lots autorise C9 et C16. Les effets du contrôle sont visibles ; création du venv, pip et vérification passent par `QgsTask`. La cible confirmée est figée et la préférence Python n’est publiée qu’après succès. Voir [implémentation, bancs et limites](docs/UX_ISL.md).
+
+La prochaine étape est la recette native de cette branche, en particulier fermeture/réouverture et déchargement/rechargement pendant l’installation. Les quatre tests ciblés passent localement (trois avec enveloppe QgsTask simulée) ; le banc QGIS n’a pas tourné. L’autotest noyau complet manque de geopandas ici. Aucune archive de diffusion n’est refaite avant cette recette.
+
+## État précédent — 18 septembre 2026 (suite) : 0.8.6, la revue de qualité fusionnée
 
 La branche `claude/ponytail-lycxeg` (revue de qualité de la 0.8.4, 17/09) est
 fusionnée dans `main` — merge `e402072` — et l'archive refaite sous un nom

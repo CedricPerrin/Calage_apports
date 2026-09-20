@@ -22,6 +22,18 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+MISE A JOUR DU 20 SEPTEMBRE 2026 — LOTS UX B/C, BRANCHE DE RECETTE
+  Execution par lots demandee par l'utilisateur. C9 : effets du controle
+  visibles dans le fil. C16 : venv/pip/verification dans QgsTask, phases
+  visibles et journal QGIS ; cible confirmee figee, reglage publie seulement
+  apres succes. Ne pas fermer QGIS pendant pip ; pas d'annulation simulee.
+  Voir docs/UX_ISL.md pour limites, bancs et recette native encore a faire.
+  Aucun changement du moteur scientifique ni remplacement du ZIP 0.8.6.
+  CONTROLES : compilation ; cible explicite (1 test), worker Qt/thread avec
+  enveloppe QgsTask simulee (3 tests). QGIS/Windows non executes ici.
+  Autotest noyau complet bloque par geopandas absent de cette copie.
+
+
 MISE A JOUR DU 18 SEPTEMBRE 2026 (SUITE) — 0.8.6, LA REVUE DU 17 FUSIONNEE
   La branche claude/ponytail-lycxeg (revue de qualite de la 0.8.4, entree du
   17/09 ci-dessous) est fusionnee dans main — merge e402072 —, aucune
@@ -3067,14 +3079,10 @@ dates fictives au 1er janvier.
     les six captures (elles datent de la 0.8.2), installer le ZIP dans le
     profil ISL. Puis Accessibility Insights (FastPass) sur la fenetre : les
     noms accessibles sont poses, il dira ce que Windows en voit.
-  - DEUX DECISIONS D'ERGONOMIE LAISSEES OUVERTES PAR LA RELECTURE DU 17/09.
-    C9 — ce que « Controle parametrage » ECRIT ne se lit que dans l'infobulle
-    et l'aide (0.7.24), alors que la 0.7.7 disait qu'un survol n'est pas un
-    consentement ; le fil conducteur pourrait le dire en une ligne, visible
-    des six onglets. C16 — « Installer… » fige QGIS plusieurs minutes,
-    sablier seul ; un QProgressDialog alimente par les lignes de pip
-    donnerait le signe de vie que le sablier ne donne pas au bout de trois
-    minutes. Toutes deux a trancher par l'utilisateur, pas a coder d'office.
+  - C9 ET C16 : EXECUTION AUTORISEE PAR LOTS LE 20/09.
+    Implementes dans la branche de recette : effets dans le fil ; installation
+    en tache QGIS avec phases. Recette native et decision de livraison restent
+    ouvertes (docs/UX_ISL.md). Les sondes initiales des Python restent synchrones.
   - LA MATRICE DES TRENTE SCENARIOS D'AFFICHAGE
     (docs/ergonomie_2026-09-11-mesures.json) N'A PAS DE SCRIPT VERSIONNE :
     la prochaine version ne pourra pas la reproduire, et la mesure sombre
