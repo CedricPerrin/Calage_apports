@@ -2175,6 +2175,37 @@ verifier("l'onglet Lancer enchaine apports, sorties, prefixe, lancement",
          str(_ordre_lancer))
 # ET LE PREFIXE A QUITTE « Objectifs ». Laisse aux deux endroits, il aurait
 # donne deux champs a lire pour un seul reglage.
+# L'ORDRE DE L'ONGLET OBJECTIFS (20/09/2026, demande utilisateur) : ce qu'on
+# vise, puis le geste qui ouvre la saisie, puis la saisie. Le classeur venait
+# en premier alors qu'il n'existe pas encore — la page s'ouvrait sur un groupe
+# grise.
+_ordre_objectifs = [g.title() for g in dlg.onglets.widget(
+    mod_plugin.ONGLET_OBJECTIFS).findChildren(_QGroupBoxA)]
+_attendu_objectifs = ["Précision du calage", "Excel des hydrogrammes objectifs",
+                      "Ce que portent les hydrogrammes cibles"]
+verifier("l'onglet Objectifs enchaine precision, Excel, cibles",
+         [g for g in _ordre_objectifs
+          if g in _attendu_objectifs] == _attendu_objectifs,
+         str(_ordre_objectifs))
+# LA LIGNE QUI DEMANDE DE COMPOSER EST HORS DU GROUPE QU'ELLE DEBLOQUE :
+# dedans, elle expliquait depuis l'interieur d'un groupe grise comment le
+# degriser.
+verifier("le geste a poser est dit hors du groupe qu'il debloque",
+         dlg.label_classeur_attente.parent()
+         is not dlg.findChild(_QGroupBoxA, "")
+         and "Contrôle paramétrage" in dlg.label_classeur_attente.text()
+         and not [g for g in dlg.onglets.widget(
+             mod_plugin.ONGLET_OBJECTIFS).findChildren(_QGroupBoxA)
+             if dlg.label_classeur_attente in g.findChildren(type(
+                 dlg.label_classeur_attente))],
+         dlg.label_classeur_attente.text()[:70])
+# ET IL NE RENVOIE PLUS AU PREFIXE « CI-DESSUS » : le prefixe a change
+# d'onglet en 0.9.0, la consigne le suivait sans le dire.
+verifier("la consigne nomme l'onglet ou vit desormais le prefixe",
+         "ci-dessus" not in dlg.label_classeur_attente.text()
+         and "Lancer" in dlg.label_classeur_attente.text(),
+         dlg.label_classeur_attente.text())
+
 verifier("le prefixe de scenario a quitte l'onglet Objectifs",
          "Préfixe de scénario" not in [g.title() for g in dlg.onglets.widget(
              mod_plugin.ONGLET_OBJECTIFS).findChildren(_QGroupBoxA)],
@@ -2190,7 +2221,18 @@ verifier("le prefixe de scenario a quitte l'onglet Objectifs",
 # n'avait produit, et sept controles sans rapport tombaient. Un essai qui
 # doit reparer l'etat qu'il abime est un essai qui le reparera mal un jour.
 _recap_dlg = mod_plugin.DialogueParametrage(iface)
-_recap_dlg._dire_reprise()
+# SANS L'APPELER A LA MAIN : c'est la construction qui doit l'avoir rempli.
+# Le banc l'appelait, et ne pouvait donc pas voir qu'a l'ouverture de la
+# fenetre reelle il restait vide — constate le 20 septembre 2026 sur le QGIS
+# du poste, pas au banc.
+# isHidden(), NON isVisibleTo() : QTabWidget masque les pages qui ne sont
+# pas a l'ecran, si bien que tout widget d'un autre onglet est « invisible »
+# pour Qt. isHidden() ne dit que ce qui nous interesse — le label a-t-il ete
+# masque par texte_etat("") faute d'avoir ete rempli.
+verifier("le recapitulatif est rempli des l'ouverture, sans rien toucher",
+         bool(_recap_dlg.label_reprise.text())
+         and not _recap_dlg.label_reprise.isHidden(),
+         repr(_recap_dlg.label_reprise.text()[:60]))
 verifier("sans paquet compose, le recapitulatif dit quoi faire",
          "Contrôle paramétrage" in _recap_dlg.label_reprise.text(),
          _recap_dlg.label_reprise.text()[:80])
@@ -2244,6 +2286,58 @@ verifier("il vit au bas de la fenetre, et il porte son nom court",
          dlg.bouton_controle.text() == "Contrôle paramétrage"
          and dlg.bouton_controle.parent() is dlg,
          dlg.bouton_controle.text())
+# LA BARRE DE PREPARATION (20/09/2026, demande utilisateur). Elle compte la
+# SAISIE avant lancement, non le calage — celui-ci dure des heures et se lit a
+# l'onglet Suivi. On eprouve donc son libelle, son compte, et le fait qu'elle
+# vive au bas de la fenetre, a cote du bouton qu'elle prepare.
+_barre_prep = dlg.barre_preparation
+verifier("la barre de preparation est au bas de la fenetre, comme le bouton",
+         _barre_prep.parent() is dlg
+         and _barre_prep.parent() is dlg.bouton_controle.parent(),
+         str(_barre_prep.parent()))
+verifier("elle compte les quatre etapes de la saisie",
+         _barre_prep.maximum() == len(dlg._etapes_preparation()) == 4,
+         f"{_barre_prep.value()}/{_barre_prep.maximum()}")
+# LE COMPTE EN CHIFFRES, PAS SEULEMENT UN REMPLISSAGE : une barre aux trois
+# quarts ne dit pas laquelle des quatre etapes manque.
+verifier("elle porte son compte en chiffres et se nomme « Préparation »",
+         _barre_prep.isTextVisible() and "Préparation" in _barre_prep.format()
+         and "%v" in _barre_prep.format() and "%m" in _barre_prep.format(),
+         _barre_prep.format())
+# ET ELLE DIT QU'ELLE NE PARLE PAS DU CALAGE. C'est la confusion que la
+# demande nommait : une barre dans une fenetre de calage se lit comme
+# l'avancement du calcul.
+verifier("son infobulle distingue la saisie du calage",
+         "SAISIE" in _barre_prep.toolTip() and "non du calage" in _barre_prep.toolTip(),
+         _barre_prep.toolTip()[:70])
+# LE COMPTE SUIT L'ETAT REEL, et il vient de la MEME liste que le fil.
+_avant_barre = _barre_prep.value()
+_dossier_avant = dlg.edit_dossier_sortie.text()
+dlg.edit_dossier_sortie.setText("")
+dlg._maj_fil()
+_vide = _barre_prep.value()
+dlg.edit_dossier_sortie.setText(str(Path(tempfile.gettempdir()) / "barre_essai"))
+dlg._maj_fil()
+verifier("renseigner le dossier de sortie fait avancer la barre",
+         _barre_prep.value() == _vide + 1,
+         f"{_vide} -> {_barre_prep.value()}")
+verifier("et sa description accessible nomme ce qui manque encore",
+         (str(_barre_prep.value()) in _barre_prep.accessibleDescription()
+          and ("il reste" in _barre_prep.accessibleDescription()
+               or _barre_prep.value() == _barre_prep.maximum())),
+         _barre_prep.accessibleDescription())
+verifier("le compte n'est plus dit deux fois : le fil ne le porte plus",
+         "/4" not in dlg.label_fil.text(),
+         dlg.label_fil.text()[:80])
+verifier("la barre et le fil comptent la meme chose",
+         _barre_prep.value() == sum(bool(ok) for _, ok in dlg._etapes_preparation()),
+         f"barre={_barre_prep.value()}")
+dlg.edit_dossier_sortie.setText(_dossier_avant)
+dlg._maj_fil()
+verifier("et l'etat de depart est rendu",
+         _barre_prep.value() == _avant_barre,
+         f"{_barre_prep.value()} attendu {_avant_barre}")
+
 verifier("aucun onglet ne porte plus l'encadre « Contrôle du paramétrage »",
          "Contrôle du paramétrage" not in _groupes_objectifs
          and "Contrôle du paramétrage" not in
@@ -2589,8 +2683,12 @@ verifier("aucun sablier ne subsiste apres la suspension",
          QApplication.overrideCursor() is None,
          "aucun" if QApplication.overrideCursor() is None else "IL EN RESTE UN")
 
+# LE COMPTE EST DANS LA BARRE, PAS DANS LE FIL : il s'y lisait deux fois.
+# Le fil garde ce que la barre ne sait pas dire — quoi faire, et le lien.
 verifier("fil conducteur renseigne et coherent",
-         "Préparation" in dlg.label_fil.text()
+         ("Prochaine étape" in dlg.label_fil.text()
+          or "Paquet composé" in dlg.label_fil.text()
+          or "Calage lancé" in dlg.label_fil.text())
          and bool(re.search(r"href=['\"][0-5]['\"]", dlg.label_fil.text())),
          dlg.label_fil.text().replace("<b>", "").replace("</b>", "")[:90])
 BoiteMessage.informations.clear()

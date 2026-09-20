@@ -10,7 +10,7 @@ Les ZIP déjà publiés précèdent ce lot : utiliser les sources de `main` pour
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 
-Version des sources du plugin : **0.9.0**. La
+Version des sources du plugin : **0.9.1**. La
 [note d’ergonomie du 11 septembre 2026](docs/ergonomie_2026-09-11.md)
 décrit le parcours, les choix d’interface et les points de recette.
 
@@ -191,7 +191,12 @@ référence, la seconde en **aval** de la première.
 Cinq rubriques : **Modèle → Objectifs → Lancer → Suivi**, puis
 **Aide et configuration**. Les commandes de navigation et **Contrôle paramétrage** restent
 accessibles en bas de la fenêtre. Les pages longues défilent ; les détails
-secondaires se déplient à la demande. Les images sont produites avec un
+secondaires se déplient à la demande. Au bas de la fenêtre, **une barre
+compte les quatre étapes de la saisie avant lancement** — modèle, profil en
+long, dossier de sortie, paquet composé — à côté du bouton qu'elle prépare ;
+elle ne dit rien du calage lui-même, qui se lit à l'étape Suivi. Le fil
+conducteur, juste au-dessus, ne porte plus que la prochaine étape et son
+lien : le compte s'y lisait une seconde fois. Les images sont produites avec un
 projet de démonstration par [src/captures_plugin.py](src/captures_plugin.py).
 
 > **Les captures datent de la 0.8.2 et ne montrent plus la fenêtre.** La
@@ -210,14 +215,16 @@ y dessine est écrit dans la géométrie par le bouton du bas.
 
 ![Onglet 1 — Modèle](docs/captures/onglet_1_modele.png)
 
-**2. Objectifs** — ouvrir ou reprendre l’Excel des hydrogrammes objectifs,
-puis vérifier **ce que ces hydrogrammes portent** une fois l’Excel validé :
-débit de pointe, heure du pic
+**2. Objectifs** — dans l'ordre du parcours. D'abord la **précision du
+calage** : elle distingue l’**écart admis à la cible** de l’erreur de bilan de
+masse HEC-RAS, et le nombre maximal d’essais y reste réglable. Ensuite le
+geste qui ouvre la saisie — **Contrôle paramétrage**, en bas de la fenêtre,
+compose l'Excel — dit **hors** du groupe qu'il débloque. Puis l’**Excel des
+hydrogrammes objectifs**, à ouvrir ou à reprendre. Enfin **ce que ces
+hydrogrammes portent** une fois l’Excel validé : débit de pointe, heure du pic
 et volume de chaque apport. Une cible collée dans la mauvaise colonne, un
 facteur d'unité ou une colonne restée vide s'y voient avant les heures de
-calcul. La précision distingue l’**écart admis à la cible** de l’erreur de
-bilan de masse HEC-RAS. Le nombre maximal d’essais reste réglable ; le
-résultat se lit en pourcentage d’atteinte de la cible.
+calcul ; le résultat se lit en pourcentage d’atteinte de la cible.
 
 ![Onglet Objectifs](docs/captures/onglet_3_objectifs.png)
 

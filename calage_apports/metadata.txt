@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.9.0
+version=0.9.1
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,34 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.9.0 — Cinq onglets, la reprise annoncée avant le clic, et les
+changelog=0.9.1 — L'onglet Objectifs suit l'ordre du parcours, et la
+    préparation se compte au bas de la fenêtre.
+    La précision du calage d'abord — ce qu'on vise —, puis le geste qui
+    ouvre la saisie, puis l'Excel des hydrogrammes et ce qu'ils portent. La
+    page s'ouvrait sur le groupe de l'Excel, grisé tant qu'aucun n'est
+    composé ; la ligne qui demandait de cliquer « Contrôle paramétrage »
+    vivait DANS ce groupe, expliquant depuis l'intérieur d'un groupe grisé
+    comment le dégriser. Elle ne renvoie plus non plus à un préfixe
+    « ci-dessus » : il a changé d'onglet en 0.9.0, et la consigne le
+    suivait sans le dire.
+    Une barre de progression accompagne « Contrôle paramétrage » : elle
+    compte les quatre étapes de la SAISIE avant lancement — modèle, profil
+    en long, dossier de sortie, paquet composé — et non le calage, qui se
+    lit à l'onglet Suivi. Elle lit la même liste que le fil conducteur,
+    qui cesse d'afficher le compte : les deux se lisaient à trois
+    centimètres l'un de l'autre.
+    TROIS DÉFAUTS QUE SEULE LA FENÊTRE RÉELLE A MONTRÉS, le 20 septembre
+    2026, sur le QGIS du poste. QGIS ne savait plus lire la version du
+    plugin : une ligne de changelog non indentée rend metadata.txt
+    illisible par configparser, et « pluginMetadata(version) » rendait
+    « __error__ » depuis la 0.8.5 — le gestionnaire d'extensions affichait
+    donc une version vide. Les lignes de continuation sont indentées, et
+    faire_zip refuse désormais une archive dont QGIS ne lirait pas la
+    version. Le récapitulatif de reprise restait vide à l'ouverture :
+    aucun chemin ne l'appelait avant qu'on touche un réglage. Et le compte
+    de préparation était dit deux fois.
+
+    0.9.0 — Cinq onglets, la reprise annoncée avant le clic, et les
     paramètres hors du classeur. Trois demandes utilisateur du 20 septembre.
     L'onglet « Sorties » disparaît : dossier de sortie, conservation des
     plans d'étape et configuration complète rejoignent « Lancer », après
@@ -43,7 +70,7 @@ changelog=0.9.0 — Cinq onglets, la reprise annoncée avant le clic, et les
     descendent dans la feuille de garde. Les classeurs composés avant
     cette version sont encore lus par leur feuille, sans rien demander.
 
-0.8.8 — La longueur d'un titre de plan est mesurée, et le
+    0.8.8 — La longueur d'un titre de plan est mesurée, et le
     contrôle éprouve les titres de reprise.
     La borne passe de 30 à 32, et l'on sait enfin d'où elle vient. Le champ
     « Short Identifier » accepte au moins 40 caractères sous HEC-RAS 7.0.1
@@ -60,7 +87,7 @@ changelog=0.9.0 — Cinq onglets, la reprise annoncée avant le clic, et les
     trop long passait le contrôle et faisait refuser le calage une fois
     lancé.
 
-0.8.7 — Lots UX B et C : le contrôle dit ce qu'il écrit, et
+    0.8.7 — Lots UX B et C : le contrôle dit ce qu'il écrit, et
     l'installation du Python de la chaîne passe dans une tâche QGIS.
     B : le fil conducteur annonce l'écriture dans la géométrie HEC-RAS, la
     sauvegarde horodatée et les fichiers produits.
@@ -74,7 +101,7 @@ changelog=0.9.0 — Cinq onglets, la reprise annoncée avant le clic, et les
     Limite : la recherche initiale des interpréteurs reste synchrone.
     Banc sous QGIS 3.44.7 / Qt 5.15.13 : 299 contrôles réussis.
 
-0.8.6 — La revue de qualité de la 0.8.4 rejoint la 0.8.5.
+    0.8.6 — La revue de qualité de la 0.8.4 rejoint la 0.8.5.
     Fusion de la branche de revue du 17 septembre : « classeur » devient une
     propriété dont le setter rafraîchit le groupe « Excel des hydrogrammes
     objectifs » ; l'onglet Suivi ne relit le journal de lancement que s'il a
@@ -84,7 +111,7 @@ changelog=0.9.0 — Cinq onglets, la reprise annoncée avant le clic, et les
     plan_fenetre_pleine n'est passé qu'en reprise. Aucune promesse de la 0.8.4
     ni de la 0.8.5 ne change.
 
-0.8.5 — Relecture ergonomique : thème sombre des widgets peints, questions à défaut sûr, police suivie.
+    0.8.5 — Relecture ergonomique : thème sombre des widgets peints, questions à défaut sûr, police suivie.
     Les trois widgets dessinés au QPainter de l'onglet Suivi — ruban,
     jauges, courbe — et la colonne Statut du tableau suivent le thème
     sombre : ils gardaient les couleurs du clair sur le fond Night
@@ -104,7 +131,7 @@ changelog=0.9.0 — Cinq onglets, la reprise annoncée avant le clic, et les
     dont le LISEZMOI cite une autre version que metadata.txt.
     Méthode de calage, valeurs par défaut et règles de contrôle inchangées.
 
-0.8.4 — Le préfixe de scénario nomme l'Excel ; les erreurs remontent au Suivi.
+    0.8.4 — Le préfixe de scénario nomme l'Excel ; les erreurs remontent au Suivi.
     L'Excel des objectifs s'appelle désormais « donnees_calage_<préfixe>.xlsx » :
     deux scénarios d'un même dossier de sortie ont deux classeurs, et
     composer l'un n'écrase plus l'autre. Le préfixe passe donc à l'onglet 3,
@@ -124,7 +151,7 @@ changelog=0.9.0 — Cinq onglets, la reprise annoncée avant le clic, et les
     de la fenetre de simulation reste celle du plan de reference, non celle
     du plan d'etape dont on repart, deja raccourci.
 
-0.8.3 — Relancer demande par où reprendre ; le suivi garde le calage précédent.
+    0.8.3 — Relancer demande par où reprendre ; le suivi garde le calage précédent.
     Relancer après avoir changé un réglage repartait du calcul de
     référence sans rien demander, et refaisait des heures de calcul déjà
     faites. Le plugin demande désormais par où reprendre, en nommant les

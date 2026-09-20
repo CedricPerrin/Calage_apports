@@ -22,6 +22,46 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+VERSION 0.9.1 — 20 SEPTEMBRE 2026. LA FENETRE A ETE REGARDEE.
+
+  Plugin INSTALLE dans le profil ISL et OUVERT dans QGIS 3.44.8-Solothurn.
+  Banc QGIS : 310 controles, aucun echec.
+
+  DEMANDES TRAITEES. L'onglet Objectifs suit l'ordre du parcours :
+  precision du calage, puis la ligne qui demande de cliquer « Controle
+  parametrage » pour composer l'Excel, puis l'Excel, puis ce que portent
+  les cibles. Cette ligne est SORTIE du groupe qu'elle debloque — dedans,
+  elle expliquait depuis l'interieur d'un groupe grise comment le degriser
+  — et elle ne renvoie plus a un prefixe « ci-dessus », qui a change
+  d'onglet en 0.9.0. Une BARRE DE PROGRESSION accompagne « Controle
+  parametrage » : quatre etapes de la SAISIE avant lancement, compte en
+  chiffres, libelle et infobulle disant qu'elle ne parle pas du calage.
+  Elle lit la meme liste que le fil conducteur (_etapes_preparation).
+
+  TROIS DEFAUTS QUE SEULE LA FENETRE REELLE A MONTRES.
+  1. QGIS NE SAVAIT PLUS LIRE LA VERSION DU PLUGIN. Une ligne de changelog
+     a la colonne zero rend metadata.txt illisible par configparser : le
+     format veut des lignes de continuation INDENTEES.
+     qgis.utils.pluginMetadata(« version ») rendait « __error__ » DEPUIS LA
+     0.8.5, et le gestionnaire d'extensions affichait une version vide.
+     Corrige, et faire_zip.py REFUSE desormais une archive dont QGIS ne
+     lirait pas la version — le meme fichier, lu par les deux chemins, doit
+     dire la meme chose.
+  2. LE RECAPITULATIF DE REPRISE RESTAIT VIDE A L'OUVERTURE : rien ne
+     l'appelait avant qu'on touche le premier apport ou le prefixe. Le banc
+     l'appelait a la main, et ne pouvait donc pas le voir.
+  3. LE COMPTE DE PREPARATION ETAIT DIT DEUX FOIS, dans le fil et dans la
+     barre. Le fil ne le porte plus : il garde la prochaine etape et son
+     lien.
+
+  CE QUI N'EST PAS PROUVE. Vu en THEME SOMBRE seulement, police du poste,
+  fenetre 940 x 780 : ni clair, ni 13 pt, ni petite fenetre a l'oeil. La
+  barre prend le style QProgressBar du theme QGIS — a 0/4, bordure claire
+  et aucun remplissage, elle se lit d'abord comme un champ. Les six
+  captures du depot datent toujours de la 0.8.2. AUCUN CALAGE N'A ETE
+  LANCE. Le banc avec --modele rend six echecs, anterieurs (voir 0.9.0).
+
+
 VERSION 0.9.0 — 20 SEPTEMBRE 2026. TROIS DEMANDES UTILISATEUR.
 
   1. L'ONGLET « Sorties » N'EXISTE PLUS. Ses trois groupes — dossier de

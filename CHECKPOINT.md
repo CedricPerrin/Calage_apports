@@ -1,6 +1,30 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
-## Reprendre ici — 20 septembre 2026 : 0.9.0, trois demandes utilisateur
+## Reprendre ici — 20 septembre 2026 (suite) : 0.9.1, la fenêtre regardée
+
+Plugin **installé dans le profil ISL et ouvert** dans QGIS 3.44.8-Solothurn.
+Banc QGIS : **310 contrôles, aucun échec**.
+
+- **Onglet Objectifs dans l'ordre du parcours** : précision, la ligne qui
+  demande de composer — **sortie du groupe qu'elle débloque** —, l'Excel,
+  puis ce que portent les cibles.
+- **Une barre « Préparation n/4 »** à côté de « Contrôle paramétrage » :
+  la saisie avant lancement, pas le calage. Le fil conducteur ne dit plus
+  le compte, qui se lisait deux fois.
+- **Trois défauts que seule la fenêtre réelle a montrés** : QGIS ne savait
+  plus lire la version du plugin (changelog non indenté → `metadata.txt`
+  illisible par `configparser`, `__error__` depuis la 0.8.5) ; le
+  récapitulatif de reprise restait vide à l'ouverture ; le compte était
+  dit deux fois. `faire_zip.py` refuse maintenant une archive dont QGIS ne
+  lirait pas la version.
+
+Par quoi reprendre : (1) **refaire les six captures** — elles datent de la
+0.8.2 ; (2) regarder la fenêtre en **thème clair**, à **13 pt**, et en
+petite fenêtre — seul le sombre à 940 × 780 a été vu ; (3) **lancer un
+calage** : rien de la chaîne n'a tourné aujourd'hui ; (4) instruire les six
+échecs du banc `--modele`, antérieurs ; (5) `pont_hecras.py autotest`.
+
+## État précédent — 20 septembre 2026 : 0.9.0, trois demandes utilisateur
 
 Cinq onglets, la reprise annoncée avant le clic, les paramètres hors du
 classeur. **Banc QGIS rejoué sur le poste** (`C:\Program Files\QGIS\LTR`) :

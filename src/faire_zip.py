@@ -43,11 +43,41 @@ def _version():
     Le retranscrire ici en donnerait deux, et c'est la copie qui aurait tort
     le jour ou l'on oublierait de la suivre.
     """
+    version = None
     for ligne in (SOURCE / "metadata.txt").read_text(
             encoding="utf-8").splitlines():
         if ligne.startswith("version="):
-            return ligne.split("=", 1)[1].strip()
-    raise SystemExit(f"{SOURCE / 'metadata.txt'} ne declare pas de version=")
+            version = ligne.split("=", 1)[1].strip()
+            break
+    if version is None:
+        raise SystemExit(
+            f"{SOURCE / 'metadata.txt'} ne declare pas de version=")
+
+    # ET QGIS DOIT LA LIRE AUSSI, PAR SON PROPRE CHEMIN. Lire la ligne a la
+    # main marche toujours ; QGIS, lui, passe par configparser, et une ligne
+    # de changelog non indentee lui fait rendre « __error__ » pour TOUTES les
+    # cles du fichier. Constate le 20 septembre 2026 sur le profil ISL :
+    # qgis.utils.pluginMetadata(« calage_apports », « version ») rendait
+    # « __error__ » depuis la 0.8.5, et le gestionnaire d'extensions affichait
+    # donc une version vide. Le format le veut : la valeur d'une cle se
+    # poursuit sur les lignes INDENTEES, et une ligne a la colonne zero est
+    # lue comme une nouvelle cle.
+    import configparser
+
+    lecteur = configparser.ConfigParser()
+    try:
+        lecteur.read(SOURCE / "metadata.txt", encoding="utf-8")
+        vue_par_qgis = lecteur.get("general", "version", raw=True).strip()
+    except Exception as e:                                  # noqa: BLE001
+        raise SystemExit(
+            f"{SOURCE / 'metadata.txt'} est illisible par configparser, donc "
+            f"par QGIS : {e}. Les lignes de continuation du changelog "
+            f"doivent etre INDENTEES.")
+    if vue_par_qgis != version:
+        raise SystemExit(
+            f"QGIS lirait la version « {vue_par_qgis} » la ou metadata.txt "
+            f"declare « {version} ».")
+    return version
 
 
 # L'ARCHIVE PORTE SA VERSION DANS SON NOM (demande utilisateur, 08/09/2026).

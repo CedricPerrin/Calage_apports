@@ -2025,6 +2025,24 @@ class DialogueParametrage(QDialog):
         boutons.setSpacing(8)
         self.bouton_controle = self._bouton_controle_parametrage()
         boutons.addWidget(self.bouton_controle)
+        # LA PROGRESSION DE LA SAISIE, A COTE DU GESTE QU'ELLE PREPARE
+        # (20/09/2026, demande utilisateur). ELLE NE PARLE PAS DU CALAGE :
+        # celui-ci dure des heures et se lit a l'onglet Suivi. Le libelle le
+        # dit — « Préparation » —, l'infobulle le redit, et la barre est au
+        # BAS de la fenetre, la ou vit ce qui prepare, non dans le Suivi.
+        # Elle porte son compte EN CHIFFRES : une barre remplie aux trois
+        # quarts ne dit pas qu'il manque le dossier de sortie.
+        self.barre_preparation = QProgressBar()
+        self.barre_preparation.setObjectName("barrePreparation")
+        self.barre_preparation.setFormat("Préparation %v/%m")
+        self.barre_preparation.setMinimum(0)
+        self.barre_preparation.setMaximum(4)
+        self.barre_preparation.setValue(0)
+        self.barre_preparation.setTextVisible(True)
+        self.barre_preparation.setMaximumWidth(170)
+        self.barre_preparation.setSizePolicy(QSizePolicy.Policy.Preferred,
+                                             QSizePolicy.Policy.Fixed)
+        boutons.addWidget(self.barre_preparation)
         boutons.addStretch(1)
         self.bouton_precedent = QPushButton("Précédent")
         self.bouton_precedent.setToolTip("Étape précédente — Alt + flèche gauche")
@@ -2044,6 +2062,13 @@ class DialogueParametrage(QDialog):
 
         self._maj_resume()
         self._maj_fil()
+        # LE RECAPITULATIF EST VIDE TANT QUE PERSONNE N'A TOUCHE AU COMBO NI
+        # AU PREFIXE. Vu sur la fenetre REELLE, le 20 septembre 2026 : le
+        # banc appelait _dire_reprise() a la main et ne pouvait donc pas voir
+        # qu'aucun chemin ne l'appelait a l'ouverture. Un compte rendu qui
+        # n'apparait qu'apres avoir touche un reglage sans rapport n'existe
+        # pas pour qui ne le touche pas.
+        self._dire_reprise()
         self._maj_navigation()
         self._nommer_champs()
         # Une action de fenêtre intercepte aussi les raccourcis lorsque le
@@ -2236,15 +2261,25 @@ class DialogueParametrage(QDialog):
         ensuite. Chaque etape est franchie ou non, sans jamais deviner —
         l'etat vient de ce qui existe reellement, pas d'un compteur interne.
         """
-        etapes = [
-            ("Modèle chargé", self.info_projet is not None
-             and couche_vivante(self.couche_sections) is not None),
-            ("Profil en long",
-             couche_vivante(self.combo_axe.currentLayer()) is not None),
-            ("Dossier de sortie", bool(self.edit_dossier_sortie.text().strip())),
-            ("Paquet composé", bool(self.classeur)),
-        ]
+        etapes = self._etapes_preparation()
         suivante = next((nom for nom, ok in etapes if not ok), None)
+        # LA BARRE DIT LA MEME CHOSE QUE LE FIL, et depuis la meme liste : deux
+        # lectures de l'avancement qui divergeraient donneraient une barre
+        # pleine sous un fil qui reclame encore une etape.
+        barre = getattr(self, "barre_preparation", None)
+        if barre is not None:
+            faites = sum(bool(ok) for _, ok in etapes)
+            barre.setMaximum(len(etapes))
+            barre.setValue(faites)
+            reste = [nom for nom, ok in etapes if not ok]
+            barre.setToolTip(
+                "Avancement de la SAISIE avant lancement, non du calage.\n\n"
+                + ("Il reste : " + ", ".join(reste) + "."
+                   if reste else "Tout est renseigné."))
+            barre.setAccessibleName("Préparation avant lancement")
+            barre.setAccessibleDescription(
+                f"{faites} étape(s) sur {len(etapes)}"
+                + (" ; il reste " + ", ".join(reste) if reste else ""))
         # LE FIL NE DIT PLUS « LANCER » PENDANT QU'UN CALAGE TOURNE. Il est le
         # seul repere permanent de la fenetre, et il continuait d'ordonner
         # « renseigner les cibles puis lancer » pendant les HEURES du calcul.
@@ -2265,8 +2300,13 @@ class DialogueParametrage(QDialog):
                       "Dossier de sortie": (ONGLET_LANCER, "Choisir le dossier de sortie"),
                       "Paquet composé": (ONGLET_OBJECTIFS, "Définir les objectifs, puis contrôler le paramétrage")}
             indice, action = cibles[suivante]
-            nombre = sum(bool(ok) for _, ok in etapes)
-            fin = (f"<b>Préparation : {nombre}/4.</b> "
+            # LE COMPTE A QUITTE LE FIL : la barre du bas le porte
+            # desormais, et les deux se lisaient a trois centimetres l'un de
+            # l'autre — « Préparation : 0/4 » au-dessus de
+            # « Préparation 0/4 ». Vu sur la fenetre reelle le 20 septembre
+            # 2026 ; le code ne le montrait pas. Le fil garde ce que la
+            # barre ne sait pas dire : QUOI faire, et le lien pour y aller.
+            fin = (f"<b>Prochaine étape :</b> "
                    f"<a href='{indice}'>{action}</a>")
         # Effets visibles avant l'action, meme sans consulter l'infobulle.
         fin += ("<br><b>Contrôle paramétrage :</b> écrit dans la géométrie HEC-RAS "
@@ -2632,6 +2672,25 @@ class DialogueParametrage(QDialog):
         else:
             etat = "Tout ce que ce contrôle consomme est prêt."
         bouton.setToolTip(etat + "\n\n" + self._INFOBULLE_CONTROLE)
+
+    def _etapes_preparation(self):
+        """
+        LES QUATRE ETAPES DE LA SAISIE AVANT LANCEMENT, et la seule liste qui
+        les dise. Le fil conducteur les enonce, la barre du bas les compte.
+
+        ELLES NE SONT PAS CELLES DE _etapes_avant_controle, et la difference
+        est voulue : celles-ci vont jusqu'au paquet COMPOSE, qui est ce que le
+        bouton PRODUIT. Les compter parmi ses prealables l'aurait laisse gris
+        exactement quand il faut cliquer — voir _etapes_avant_controle.
+        """
+        return [
+            ("Modèle chargé", self.info_projet is not None
+             and couche_vivante(self.couche_sections) is not None),
+            ("Profil en long",
+             couche_vivante(self.combo_axe.currentLayer()) is not None),
+            ("Dossier de sortie", bool(self.edit_dossier_sortie.text().strip())),
+            ("Paquet composé", bool(self.classeur)),
+        ]
 
     def _etapes_avant_controle(self):
         """
@@ -3257,12 +3316,6 @@ class DialogueParametrage(QDialog):
         groupe_actions = QGroupBox("Excel des hydrogrammes objectifs")
         v_classeur = QVBoxLayout(groupe_actions)
         v_classeur.setSpacing(8)
-        self.label_classeur_attente = texte_aide(
-            "Aucun Excel composé : renseignez le préfixe ci-dessus, puis "
-            "cliquez <b>Contrôle paramétrage</b> en bas de la fenêtre. "
-            "« Reprendre un Excel… » reste disponible pour rouvrir celui "
-            "d’une autre session.")
-        v_classeur.addWidget(self.label_classeur_attente)
         self.consigne_classeur = QLabel(
             "Dans la feuille <b>Cibles</b>, saisissez un hydrogramme par section. "
             "Enregistrez l’Excel, puis relancez le contrôle en bas de la fenêtre.")
@@ -3382,9 +3435,24 @@ class DialogueParametrage(QDialog):
         # Voir _bouton_controle_parametrage : quatre demenagements en cinq
         # versions ont fini par montrer que ce geste n'appartient a AUCUN
         # onglet — il consomme les trois premiers et prepare le quatrieme.
+        # L'ORDRE EST CELUI DU PARCOURS (20/09/2026, demande utilisateur) :
+        # ce qu'on vise, le geste qui ouvre la saisie, puis la saisie et sa
+        # verification. Le classeur venait en premier alors qu'il n'existe
+        # pas encore : la page s'ouvrait sur un groupe grise.
+        v.addWidget(self._groupe_precision())
+        # LE GESTE QUI DEBLOQUE LA SAISIE, HORS DU GROUPE QU'IL DEBLOQUE.
+        # Cette ligne vivait DANS « Excel des hydrogrammes objectifs » : elle
+        # expliquait, depuis l'interieur d'un groupe grise, comment le
+        # degriser. Posee entre les deux, elle est l'etape qu'elle decrit.
+        self.label_classeur_attente = texte_aide(
+            "Aucun Excel composé : cliquez <b>Contrôle paramétrage</b>, en "
+            "bas de la fenêtre, pour le composer et pouvoir y saisir les "
+            "hydrogrammes. Le <b>préfixe de scénario</b>, qui le nomme, se "
+            "renseigne à l’étape <b>Lancer</b>. « Reprendre un Excel… » "
+            "reste disponible pour rouvrir celui d’une autre session.")
+        v.addWidget(self.label_classeur_attente)
         v.addWidget(self._groupe_classeur())
         v.addWidget(self._groupe_ce_que_portent_les_cibles())
-        v.addWidget(self._groupe_precision())
         v.addStretch(1)
         return page
 

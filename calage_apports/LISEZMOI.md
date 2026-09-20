@@ -2,7 +2,10 @@
 
 Préparation et contrôle du paquet de calage pour **HEC-RAS uniquement**.
 Voir `methodologie_calage_amont_aval.docx`, § 2.4.
-Version **0.9.0** : **cinq onglets** au lieu de six — les Sorties rejoignent
+Version **0.9.1** : l'onglet Objectifs suit l'ordre du parcours —
+précision, puis le geste qui ouvre la saisie, puis les hydrogrammes — et une
+barre compte la préparation au bas de la fenêtre. Avant, la **0.9.0** :
+**cinq onglets** au lieu de six — les Sorties rejoignent
 Lancer, avec le préfixe de scénario juste au-dessus du bouton —, un
 **récapitulatif** qui dit d'où le calage repart avant qu'on clique, et les
 **paramètres hors du classeur**, dans un JSON voisin. Avant : la borne d'un
@@ -61,7 +64,7 @@ et figerait l'interface.
 ## Installation
 
 **Depuis l'archive.** `calage_apports_<version>.zip` —
-`calage_apports_0.9.0.zip` pour cette version — est **à la racine du dépôt** : la télécharger
+`calage_apports_0.9.1.zip` pour cette version — est **à la racine du dépôt** : la télécharger
 suffit, il n'y a rien à reconstruire. Le nom porte la version pour qu'on
 sache, sur un poste distant, ce qu'on installe ; il n'y en a jamais qu'une
 dans le dépôt, la plus récente. Puis, dans QGIS :
@@ -387,6 +390,44 @@ descendent dans la feuille de garde, celle qui s'ouvre. Un classeur composé
 **avant** cette version est encore lu par sa feuille, sans rien demander :
 un calage en cours ne s'arrête pas parce que l'outil a changé d'avis sur le
 rangement de ses paramètres.
+
+**La 0.9.1 applique a « Objectifs » la regle que la 0.9.0 a posee pour
+« Lancer » :** l'ordre de la page est celui du parcours. La **precision du
+calage** vient d'abord — c'est ce qu'on vise ; puis la ligne qui demande de
+cliquer **Controle parametrage** pour composer l'Excel et pouvoir y saisir
+les hydrogrammes ; puis l'**Excel des hydrogrammes objectifs** ; puis **ce
+que ces hydrogrammes portent**. La page s'ouvrait jusque-la sur le groupe de
+l'Excel, grise tant qu'aucun n'est compose — et la ligne qui disait comment
+le degriser vivait **dedans**. Elle ne renvoie plus non plus a un prefixe
+« ci-dessus » : il a change d'onglet en 0.9.0, et la consigne le suivait
+sans le dire.
+
+**Une barre de progression accompagne « Controle parametrage »**, au bas de
+la fenetre. Elle compte les **quatre etapes de la saisie avant lancement** —
+modele charge, profil en long, dossier de sortie, paquet compose — et porte
+son compte **en chiffres** : une barre aux trois quarts ne dirait pas qu'il
+manque le dossier de sortie. **Elle ne parle pas du calage**, qui dure des
+heures et se lit a l'onglet Suivi. Elle lit la meme liste que le fil
+conducteur : deux comptes qui divergeraient donneraient une barre pleine
+sous un fil qui reclame encore une etape. Le fil, lui, ne dit plus le
+compte — les deux se lisaient a trois centimetres l'un de l'autre.
+
+**Trois defauts que seule la fenetre REELLE a montres**, le 20 septembre
+2026, sur le QGIS du poste :
+
+- **QGIS ne savait plus lire la version du plugin.** Une ligne de changelog
+  a la colonne zero rend `metadata.txt` illisible par `configparser` : le
+  format veut une valeur poursuivie sur des lignes INDENTEES.
+  `pluginMetadata("calage_apports", "version")` rendait `__error__` depuis
+  la 0.8.5, et le gestionnaire d'extensions affichait une version vide.
+  `faire_zip.py` refuse maintenant une archive dont QGIS ne lirait pas la
+  version : le meme fichier, lu par les deux chemins, doit dire la meme
+  chose.
+- **Le recapitulatif de reprise restait vide a l'ouverture.** Rien ne
+  l'appelait avant qu'on touche le premier apport ou le prefixe. Le banc
+  l'appelait a la main, et ne pouvait donc pas le voir.
+- **Le compte de preparation etait dit deux fois**, dans le fil et dans la
+  barre.
 
 > Ce que les calages livrés n'ont PAS rencontré : un volume plancher, un
 > apport refusé, un modèle incohérent. Les garde-fous qui traitent ces cas
