@@ -142,3 +142,89 @@ def test_fermeture_reouverture_et_dechargement_pendant_installation(
         premier.deleteLater()
         principale.deleteLater()
         qgis_app.processEvents()
+
+
+def test_recherche_hors_gui_reprise_apres_fermeture_sans_installation_implicite(
+        qgis_app, monkeypatch, tmp_path):
+    demarre, terminer = threading.Event(), threading.Event()
+    battements, choix, installations = [], [], []
+    candidats = [{"chemin": tmp_path / "python", "version": (3, 12, 1),
+                  "origine": "independant"}]
+
+    def rechercher(journal, annule):
+        assert threading.current_thread() is not threading.main_thread()
+        journal("Vérification lente simulée")
+        demarre.set()
+        assert terminer.wait(8)
+        return candidats
+
+    monkeypatch.setattr(installation.noyau, "pythons_candidats", rechercher)
+    monkeypatch.setattr(installation.noyau, "emplacement_venv_hecras", lambda: tmp_path)
+    monkeypatch.setattr(plugin, "confirmer", lambda *a, **k: True)
+    monkeypatch.setattr(installation.noyau, "installer_interpreteur",
+                        lambda *a, **k: installations.append(True))
+    principale = QMainWindow()
+    fenetre = plugin.DialogueParametrage(SimpleNamespace(mainWindow=lambda: principale))
+
+    def proposer(cible, trouves):
+        assert threading.current_thread() is threading.main_thread()
+        choix.append((cible, trouves))
+
+    monkeypatch.setattr(fenetre, "_proposer_python", proposer)
+    fenetre.show()
+    minuteur = QTimer()
+    minuteur.timeout.connect(lambda: battements.append(True))
+    minuteur.start(10)
+    fenetre._installer_interpreteur()
+    tache = fenetre._tache_installation
+    try:
+        attendre(qgis_app, lambda: demarre.is_set() and len(battements) >= 3)
+        fenetre._installer_interpreteur()
+        assert fenetre._tache_installation is tache
+        assert not choix and not installations
+        fenetre.close()
+        # La destination ne doit pas suivre un changement du paramétrage du poste.
+        monkeypatch.setattr(installation.noyau, "emplacement_venv_hecras",
+                            lambda: tmp_path / "autre")
+    finally:
+        terminer.set()
+        attendre(qgis_app, lambda: fenetre._tache_installation is None)
+        minuteur.stop()
+    assert not fenetre.isVisible() and not choix and not installations
+    assert fenetre._python_en_attente == (tmp_path, candidats)
+    fenetre.show()
+    attendre(qgis_app, lambda: len(choix) == 1)
+    fenetre._choisir_python_recherche()
+    assert choix == [(tmp_path, candidats)] and not installations
+    fenetre.close()
+    fenetre.deleteLater()
+    principale.deleteLater()
+
+
+@pytest.mark.parametrize("issue", ["annulation", "exception"])
+def test_recherche_interrompue_ne_propose_aucune_installation(
+        qgis_app, monkeypatch, tmp_path, issue):
+    demarre, terminer = threading.Event(), threading.Event()
+    resultats = []
+
+    def rechercher(journal, annule):
+        demarre.set()
+        assert terminer.wait(8)
+        if issue == "exception":
+            raise RuntimeError("incident de recherche simulé")
+        assert annule()
+        return []
+
+    monkeypatch.setattr(installation.noyau, "pythons_candidats", rechercher)
+    tache = installation.TacheRecherchePython(tmp_path)
+    tache.resultat.connect(lambda *r: resultats.append(r))
+    QgsApplication.taskManager().addTask(tache)
+    try:
+        attendre(qgis_app, demarre.is_set)
+        if issue == "annulation":
+            tache.cancel()
+    finally:
+        terminer.set()
+        attendre(qgis_app, lambda: bool(resultats))
+    assert resultats[0][0] is None
+    assert ("annulée" if issue == "annulation" else "incident") in resultats[0][1]
