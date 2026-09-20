@@ -23,6 +23,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
+          cache-dependency-path: requirements-dev.txt
       - run: python -m pip install -r requirements-dev.txt pytest
       - run: python calage_apports/noyau.py
       - run: python -m pytest src/test_installation_cible.py -q
@@ -39,7 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Dépendances de test, sans h5py dans QGIS
-        run: python3 -m pip install --break-system-packages pytest openpyxl
+        run: python3 -m pip install --break-system-packages pytest -r requirements-dev.txt
       - name: Version réellement éprouvée
         run: python3 -c "from qgis.core import Qgis; from qgis.PyQt.QtCore import QT_VERSION_STR; print('QGIS', Qgis.QGIS_VERSION, 'Qt', QT_VERSION_STR)"
       - name: Tâche native et cycle du dialogue

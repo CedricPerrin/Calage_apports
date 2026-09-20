@@ -1,4 +1,5 @@
 """Gestionnaire QgsTask réel et cycle du dialogue, sans pip ni modèle métier."""
+import os
 import sys
 import threading
 import time
@@ -17,7 +18,8 @@ from calage_apports import installation, plugin
 
 @pytest.fixture(scope="module")
 def qgis_app(tmp_path_factory):
-    QgsApplication.setPrefixPath("/usr", True)
+    if os.environ.get("QGIS_PREFIX_PATH"):
+        QgsApplication.setPrefixPath(os.environ["QGIS_PREFIX_PATH"], True)
     app = QgsApplication.instance() or QgsApplication([], True)
     app.initQgis()
     app.setOrganizationName("ISL-UX-tests")
