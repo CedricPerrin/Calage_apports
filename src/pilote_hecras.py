@@ -32,8 +32,21 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from calage import (ETAPE_AVEC_APPORTS, ETAPE_SANS_APPORT, Modele,
-                    PREFIXE_ETAPE_APPORT, ResultatCalcul, titre_etape)
+from calage import (ETAPE_AVEC_APPORTS, ETAPE_SANS_APPORT,
+                    LONGUEUR_MAX_TITRE_PLAN, Modele, PREFIXE_ETAPE_APPORT,
+                    ResultatCalcul, titre_etape)
+
+# LE PLAFOND DE ras-commander, AFFIRME ICI PARCE QUE C'EST ICI QU'IL S'APPLIQUE.
+# jalonner() passe le titre d'etape a clone_plan(new_title=) et
+# clone_unsteady(new_title=), qui LEVENT ValueError au-dela de 32 (0.99.1 :
+# « Plan title must be 32 characters or less »). Relever
+# LONGUEUR_MAX_TITRE_PLAN sans cesser de passer « new_title= » deplacerait
+# simplement le refus du controle du classeur vers le milieu du calage, apres
+# le calcul de reference. Voir le commentaire de la constante dans calage.py.
+assert LONGUEUR_MAX_TITRE_PLAN <= 32, (
+    "LONGUEUR_MAX_TITRE_PLAN passe le plafond de clone_plan/clone_unsteady "
+    "(32) : titrer par _renommer_plan / _renommer_unsteady seuls avant de "
+    "le relever.")
 
 # Les mois d'un plan HEC-RAS sont ecrits en anglais, sur trois lettres
 # majuscules. Une date construite avec les mois de la machine — « OCT » en

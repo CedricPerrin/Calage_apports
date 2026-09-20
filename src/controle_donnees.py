@@ -80,10 +80,14 @@ def _controler_prefixe_scenario(valeurs, noms_apports, erreur):
     plus haut par le controle de la feuille Correspondance : le redire ici
     refuserait un classeur deux fois pour la meme raison.
 
-    LE TITRE DE REPRISE EST INCLUS quand « Premier_apport » est renseigne : il
-    est alors certain d'etre produit, et c'est le plus long des titres.
-    Absent, on ne refuse pas un classeur a cause d'un titre qui ne sera
-    peut-etre jamais construit.
+    LES TITRES DE REPRISE SONT TOUS INCLUS, un par depart possible — ce sont
+    les plus longs. Ne juger que « Premier_apport » ne suffisait pas : ce
+    parametre se decide AU LANCEMENT (noyau.ecrire_parametre), donc APRES ce
+    controle. Vide au moment du controle, il laissait passer un prefixe que
+    la reprise refusait ensuite, le lancement deja demande — constate le
+    20 septembre 2026 sur le calage « Aran-Q100-V1 » repris a son sixieme
+    apport. Le premier apport est exclu : partir de lui n'est pas une
+    reprise, et ne construit pas ce titre.
     """
     try:
         from calage import (ETAPE_AVEC_APPORTS, ETAPE_SANS_APPORT,
@@ -103,9 +107,7 @@ def _controler_prefixe_scenario(valeurs, noms_apports, erreur):
     prefixe = _propre("Prefixe_scenario")
     noms = [ETAPE_SANS_APPORT, ETAPE_AVEC_APPORTS]
     noms += [f"{PREFIXE_ETAPE_APPORT}{a}" for a in noms_apports]
-    premier = _propre("Premier_apport")
-    if premier in noms_apports:
-        noms.append(f"sans {premier} et aval")
+    noms += [f"sans {a} et aval" for a in noms_apports[1:]]
 
     refus = []
     for nom in noms:
@@ -206,8 +208,13 @@ def controler_template(chemin):
 
     # LE PREFIXE SE JUGE SUR LES NOMS D'APPORT REELS : il est donc controle
     # ici, et non a la section 1, qui ne les connait pas encore.
-    _controler_prefixe_scenario(valeurs, [str(a) for a in corr[col_apport]],
-                                erreur)
+    # DANS L'ORDRE DECLARE : _controler_prefixe_scenario exclut le premier
+    # apport, qui seul ne donne pas de titre de reprise. L'ordre des lignes
+    # de la feuille n'est pas force d'etre celui de la colonne Ordre.
+    _controler_prefixe_scenario(
+        valeurs,
+        [str(a) for a in corr.sort_values(col_ordre)[col_apport]],
+        erreur)
 
     # --- 3. Cibles ---------------------------------------------------------
     cib = feuilles["Cibles"]
@@ -753,16 +760,22 @@ if __name__ == "__main__":
     afficher(controler_template(tmp), "Template fautif (8 anomalies attendues)")
 
     print("\n2 bis. Prefixe de scenario et longueur des titres de plan")
-    # « Riviere1-Q100 » (13) donne « Riviere1-Q100-Apport_APP06 » : 26
+    # « Riviere1-Q100 » (13) donne « Riviere1-Q100_Apport_APP06 » : 26
     # caracteres, l'exemple exact de la demande — il doit PASSER.
-    # « Riviere1_Q100_1000 » (18) donne 31 caracteres : refuse.
     # Les trois premieres lignes prouvent que le controle ne crie pas a tort —
     # un garde-fou qui se declenche sans raison apprend a etre ignore.
+    #
+    # LE DERNIER EST LA REGRESSION DU 20 SEPTEMBRE 2026. Vingt-deux
+    # caracteres : tous les titres « <prefixe>_Apport_APP07 » tiennent (35),
+    # mais le titre de reprise « <prefixe>_sans APP07 et aval » fait 41 pour
+    # 40 tenables. Avant le correctif, ce classeur passait le controle avec
+    # « Premier_apport » vide — la valeur ne s'ecrit qu'au lancement — et le
+    # calage etait refuse ensuite, une fois lance.
     tmp_prefixe = Path(tempfile.gettempdir()) / "template_prefixe.xlsx"
     _echecs_prefixe = []
     for prefixe, refus_attendu in (("", False), ("Q100", False),
                                    ("Riviere1-Q100", False),
-                                   ("Riviere1_Q100_1000", True)):
+                                   ("Riviere1_Q100_1000_ABC", True)):
         with pd.ExcelWriter(tmp_prefixe, engine="openpyxl") as w:
             pd.DataFrame({
                 "Parametre": ["Dossier_projet_HECRAS", "Nom_projet",

@@ -10,7 +10,7 @@ Les ZIP déjà publiés précèdent ce lot : utiliser les sources de `main` pour
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 
-Version des sources du plugin : **0.8.7**. La
+Version des sources du plugin : **0.8.8**. La
 [note d’ergonomie du 11 septembre 2026](docs/ergonomie_2026-09-11.md)
 décrit le parcours, les choix d’interface et les points de recette.
 
@@ -54,6 +54,17 @@ seulement après succès vérifié, double lancement refusé. Ni annulation au
 milieu de `pip`, ni recherche d'interpréteurs asynchrone. Banc sous QGIS
 3.44.7 / Qt 5.15.13 : **299 contrôles réussis** ;
 [détail et limites](docs/UX_ISL.md).
+
+La **0.8.8** remplace une déduction par deux faits. Le champ
+`Short Identifier` d'un plan — dont RAS Mapper fait le nom du dossier de
+résultats — accepte **au moins 40 caractères** sous HEC-RAS 7.0.1, là où la
+chaîne s'arrêtait à 30, le plus long exemple d'un relevé de 103 plans. Mais
+le plafond utile est **32**, et il vient de `ras-commander` 0.99.1, qui lève
+`ValueError` au-delà sur `Plan Title` et `Flow Title` : la borne est celle de
+la bibliothèque, pas du format. Et le
+contrôle du classeur éprouve le titre de **reprise** pour chaque départ
+possible : il ne jugeait que « Premier_apport », qui s'écrit au lancement,
+donc après lui.
 
 Pour chaque apport, de l'amont vers l'aval : estimer, calculer, comparer à la
 cible, corriger, répéter jusqu'à concordance, puis vérifier la cohérence des

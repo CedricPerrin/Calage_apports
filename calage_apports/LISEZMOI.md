@@ -2,10 +2,11 @@
 
 Préparation et contrôle du paquet de calage pour **HEC-RAS uniquement**.
 Voir `methodologie_calage_amont_aval.docx`, § 2.4.
-Version **0.8.7** : les lots UX B et C du 20 septembre — le fil conducteur
-annonce ce que le contrôle écrit dans la géométrie, et l'installation du
-Python de la chaîne passe dans une tâche QGIS, avec journal, phases et refus
-du double lancement.
+Version **0.8.8** : la longueur tenable d'un titre de plan passe de 30 à
+**32**, et l'on sait d'où elle vient — non du format HEC-RAS, qui en accepte
+au moins 40, mais de ras-commander, qui refuse au-delà de 32. Le contrôle du
+classeur éprouve en outre les titres de **reprise**, qui lui échappaient.
+Avant, les lots UX B et C de la 0.8.7.
 
 ## Ce que fait le plugin
 
@@ -60,7 +61,7 @@ et figerait l'interface.
 ## Installation
 
 **Depuis l'archive.** `calage_apports_<version>.zip` —
-`calage_apports_0.8.7.zip` pour cette version — est **à la racine du dépôt** : la télécharger
+`calage_apports_0.8.8.zip` pour cette version — est **à la racine du dépôt** : la télécharger
 suffit, il n'y a rien à reconstruire. Le nom porte la version pour qu'on
 sache, sur un poste distant, ce qu'on installe ; il n'y en a jamais qu'une
 dans le dépôt, la plus récente. Puis, dans QGIS :
@@ -340,6 +341,23 @@ pendant le travail. Il n'y a **pas d'annulation au milieu de pip**, et la
 recherche initiale des interpréteurs reste **synchrone**. Banc sous QGIS
 3.44.7 / Qt 5.15.13 : **299 contrôles réussis** ; la recette visuelle et
 métier sur le poste ISL reste à faire.
+
+**La 0.8.8, le 20 septembre 2026, remplace une déduction par deux faits.** Le
+champ `Short Identifier`, dont RAS Mapper fait le nom du dossier de résultats,
+accepte **au moins 40 caractères** : une règle de 40 tapée dans le champ sous
+HEC-RAS 7.0.1, le plan enregistré, la ligne du `.pNN` relue intacte. La borne
+de 30 venait du plus long **exemple** d'un relevé de 103 plans, pas d'un essai.
+Mais le plafond utile n'est ni 30 ni 40 : **ras-commander 0.99.1 lève
+`ValueError` au-delà de 32** sur `Plan Title` et `Flow Title`, dans
+`clone_plan` et `clone_unsteady` — que le pilote appelle tous deux avec le
+titre d'étape. Monter plus haut ne ferait que déplacer le refus du contrôle
+vers le milieu du calage ; un `assert` le rappelle dans `pilote_hecras.py`.
+La borne est donc **32**, et elle appartient à la bibliothèque, pas au
+format. Second correctif : le
+contrôle du classeur éprouve le titre de reprise pour **chaque** départ
+possible. Il ne jugeait que « Premier_apport », paramètre qui s'écrit **au
+lancement**, donc après le contrôle — un préfixe trop long passait le
+contrôle et faisait refuser le calage une fois lancé.
 
 > Ce que les calages livrés n'ont PAS rencontré : un volume plancher, un
 > apport refusé, un modèle incohérent. Les garde-fous qui traitent ces cas

@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.8.7
+version=0.8.8
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,24 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.8.7 — Lots UX B et C : le contrôle dit ce qu'il écrit, et
+changelog=0.8.8 — La longueur d'un titre de plan est mesurée, et le
+    contrôle éprouve les titres de reprise.
+    La borne passe de 30 à 32, et l'on sait enfin d'où elle vient. Le champ
+    « Short Identifier » accepte au moins 40 caractères sous HEC-RAS 7.0.1
+    (mesure du 20 septembre 2026 : règle de 40 tapée dans le champ, plan
+    enregistré, ligne du .pNN relue intacte) ; les 30 précédents étaient le
+    plus long exemple d'un relevé de 103 plans, pas une borne éprouvée. Mais
+    ras-commander 0.99.1 lève ValueError au-delà de 32 sur « Plan Title »
+    et « Flow Title », dans clone_plan et clone_unsteady, que le pilote
+    appelle tous deux : 32 est le plafond effectif, et il est de la
+    bibliothèque, non du format. Un assert le rappelle dans pilote_hecras.
+    Le contrôle du classeur éprouve désormais le titre de reprise pour
+    CHAQUE départ possible, non plus pour le seul « Premier_apport » : ce
+    paramètre s'écrit au lancement, après le contrôle, si bien qu'un préfixe
+    trop long passait le contrôle et faisait refuser le calage une fois
+    lancé.
+
+0.8.7 — Lots UX B et C : le contrôle dit ce qu'il écrit, et
     l'installation du Python de la chaîne passe dans une tâche QGIS.
     B : le fil conducteur annonce l'écriture dans la géométrie HEC-RAS, la
     sauvegarde horodatée et les fichiers produits.

@@ -104,19 +104,38 @@ ETAPE_AVEC_APPORTS = "avec_apports"
 # le NOM DU DOSSIER DE RESULTATS (documentation USACE : le sous-repertoire des
 # cartes stockees est « labeled the same name as the RAS Plan Short ID »).
 #
-# MESUREE, PAS DEVINEE. Releve sur les 103 fichiers .pXX de 01-cas_test/ :
-#   - largeur du champ : 64 sur les 67 plans ecrits par l'interface HEC-RAS,
-#     24 sur les 34 ecrits par cette chaine, 17 et 22 sur deux clones bruts
-#     de ras-commander. Trois largeurs coexistent dans des projets qui
-#     s'ouvrent : le format n'impose donc aucune largeur fixe ;
-#   - contenu utile : 14 plans DEPASSENT 24, jusqu'a 30 caracteres, ecrits ET
-#     calcules par l'interface (leurs .bXX sont la).
-# 30 est donc un PLANCHER DEMONTRE. Le tampon reel est probablement 64
-# (l'interface bourre a cette largeur sur 67 plans sur 67), mais aucun
-# document USACE ne publie de limite, et l'essai n'a pas ete fait. On ne
-# suppose pas. POUR RELEVER : ouvrir un plan dans HEC-RAS, taper 40
-# caracteres dans « Short ID », enregistrer, relire la ligne
-# « Short Identifier= » du .pXX. Une seule constante a changer.
+# ELLE NE VIENT PAS DU FORMAT : C'EST ras-commander QUI LA POSE. Le titre
+# d'etape est ecrit dans TROIS champs, et chacun a sa contrainte propre :
+#
+#   « Short Identifier= » du .pXX : HEC-RAS 7.0.1 en accepte AU MOINS 40.
+#       Mesure du 20 septembre 2026 : une regle de 40 caracteres
+#       (« ----+----1----+----2----+----3----+----4 ») tapee dans le champ
+#       « Short ID » de l'interface, plan enregistre, HEC-RAS ferme, ligne du
+#       .pXX relue INTACTE. Plancher demontre, pas limite : l'interface bourre
+#       le champ a 64 sur 67 des 103 plans releves dans 01-cas_test/, et
+#       l'essai s'est arrete a 40. ras-commander, lui, tronque ce champ a 24
+#       EN SILENCE (RasPlan.set_shortid, clone_plan) — sans effet sur notre
+#       chemin : _renommer_plan reecrit la ligne derriere le clonage.
+#
+#   « Plan Title= » du .pXX et « Flow Title= » du .uXX : ras-commander 0.99.1
+#       LEVE ValueError au-dela de 32 (« Plan title must be 32 characters or
+#       less »), dans clone_plan et clone_unsteady — que le pilote appelle
+#       tous deux avec le titre d'etape. Ce n'est pas une troncature qu'on
+#       pourrait reecrire apres coup : c'est un refus, au milieu du calage.
+#
+# 32 EST DONC LE PLAFOND EFFECTIF, et il est de la BIBLIOTHEQUE. Le relever
+# demande de cesser de passer « new_title= » a clone_plan / clone_unsteady et
+# de titrer uniquement par _renommer_plan / _renommer_unsteady, qui eux ne
+# tronquent rien. Tant que l'appel existe, 32 est la borne — monter la
+# constante ne ferait que deplacer le refus du controle vers le calcul.
+#
+# CE QUE 30 COUTAIT, ET D'OU IL VENAIT. Du meme releve de 103 plans : 14 y
+# depassaient 24, jusqu'a 30 caracteres, ecrits ET calcules par l'interface.
+# C'etait le plus long EXEMPLE rencontre, pas une limite eprouvee. Un prefixe
+# de scenario de douze caracteres suffisait a le franchir — un calage
+# « Riviere1-Q10 » repris a son sixieme apport demande
+# « Riviere1-Q10_sans APP07 et aval », 31 — et la chaine refusait au
+# lancement un titre que HEC-RAS comme ras-commander acceptaient.
 #
 # LE 24 D'AVANT N'ETAIT PAS UNE LIMITE DE HEC-RAS mais une convention de
 # ras-commander (RasPlan.set_shortid, clone_plan, update_flow_title) que
@@ -131,7 +150,7 @@ ETAPE_AVEC_APPORTS = "avec_apports"
 # 26 caracteres se reduiraient TOUTES au meme identifiant, donc au meme
 # dossier de resultats — le doublon meme que le prefixe supprime.
 # On REFUSE, avant le premier calcul.
-LONGUEUR_MAX_TITRE_PLAN = 30
+LONGUEUR_MAX_TITRE_PLAN = 32
 
 # Separateur pose entre le prefixe de scenario et le nom d'etape.
 # Souligne comme les noms d'etape eux-memes (voir ETAPE_AVEC_APPORTS). Un
@@ -2609,15 +2628,24 @@ if __name__ == "__main__":
     # « Short Identifier » partagent le dossier de resultats que RAS Mapper
     # nomme d'apres ce champ. C'est le doublon que le prefixe supprime, et il
     # serait absurde qu'il le refabrique.
+    # UN CARACTERE DE TROP, CALCULE DEPUIS LA BORNE : le banc suit la
+    # constante. Fige en dur, il rouillait a chaque mesure du champ
+    # « Short Identifier » — c'est ce qui est arrive le 20 septembre 2026.
+    _prefixe_trop = "P" * (LONGUEUR_MAX_TITRE_PLAN - 12)
     try:
-        etape_apport("APP06", "Riviere1_Q100_1000")     # 18 + 1 + 12 = 31
+        etape_apport("APP06", _prefixe_trop)   # len + 1 + 12 = borne + 1
         _refus = ""
     except ValueError as _e:
         _refus = str(_e)
-    controler("un titre de 31 caracteres est REFUSE, pas tronque",
+    controler(f"un titre de {LONGUEUR_MAX_TITRE_PLAN + 1} caracteres est "
+              f"REFUSE, pas tronque",
               bool(_refus), _refus or "aucune erreur levee")
     controler("le refus dit de combien raccourcir",
               "1 caractere(s)" in _refus, _refus)
+    # LE TITRE DE REPRISE EST LE PLUS LONG : c'est lui qui fixe la marge du
+    # prefixe, et c'est lui qui a bute le 20 septembre 2026 sur la borne a 30.
+    controler("un prefixe de 12 laisse tenir un titre de reprise (31)",
+              len(titre_etape("sans APP07 et aval", "Riviere1-Q10")) == 31)
 
     # LE CALAGE ENTIER SOUS PREFIXE. On rejoue caler() plutot que d'eprouver la
     # seule fonction : c'est caler() qui doit poser le prefixe PARTOUT, etat de
