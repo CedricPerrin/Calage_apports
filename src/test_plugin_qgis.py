@@ -460,8 +460,8 @@ print("\n2. ACTION 1 — FENETRE DE PARAMETRAGE A SIX ONGLETS")
 # suivantes) ne dependent d'aucun modele, et ne doivent donc pas etre sautes
 # faute d'un modele HEC-RAS present sur la machine qui lance ce test.
 dlg = mod_plugin.DialogueParametrage(iface)
-verifier("6 onglets crees (4 etapes + suivi + aide)",
-         dlg.onglets.count() == 6,
+verifier("5 onglets crees (3 etapes + suivi + aide)",
+         dlg.onglets.count() == 5,
          [dlg.onglets.tabText(i) for i in range(dlg.onglets.count())])
 
 # LE GROUPE « EXCEL DES HYDROGRAMMES OBJECTIFS » EST GRIS TANT QU'AUCUN
@@ -1184,7 +1184,7 @@ else:
 
 # ---------------------------------------------------------------------------
 print("\n6. ONGLET AIDE — CONTENU ET DIAGNOSTIC")
-verifier("6 onglets, dont le suivi et l'aide", dlg.onglets.count() == 6,
+verifier("5 onglets, dont le suivi et l'aide", dlg.onglets.count() == 5,
          [dlg.onglets.tabText(i) for i in range(dlg.onglets.count())])
 # LA BARRE D'ONGLETS NE DOIT PAS DEFILER, ET CE N'EST PAS LA BRIEVETE DES
 # LIBELLES QUI L'ASSURE — c'est le plancher minimumWidth de la fenetre.
@@ -1218,8 +1218,8 @@ verifier("la barre d'onglets ne defile pas, meme au plus etroit",
 # que rien ne le signale — Qt ne s'en plaint pas.
 verifier("les rangs nommes designent le bon onglet",
          dlg.onglets.tabText(mod_plugin.ONGLET_MODELE).startswith("1.")
-         and dlg.onglets.tabText(mod_plugin.ONGLET_LANCER).startswith("4.")
-         and dlg.onglets.tabText(mod_plugin.ONGLET_SUIVI).startswith("5.")
+         and dlg.onglets.tabText(mod_plugin.ONGLET_LANCER).startswith("3.")
+         and dlg.onglets.tabText(mod_plugin.ONGLET_SUIVI).startswith("4.")
          and dlg.onglets.tabText(mod_plugin.ONGLET_AIDE).startswith("Aide")
          and mod_plugin.DERNIER_ONGLET == dlg.onglets.count() - 1,
          f"{mod_plugin.ONGLET_MODELE}={dlg.onglets.tabText(mod_plugin.ONGLET_MODELE)} | "
@@ -2145,15 +2145,77 @@ verifier("l'onglet 1 ne porte plus ni l'écriture ni la mise à jour",
          and "Écrire, composer et contrôler" not in _boutons_modele,
          f"{_groupes_modele} | {_boutons_modele}")
 
-# L'ORDRE DES ONGLETS DU MILIEU S'INVERSE (0.7.24, demande utilisateur) :
-# les dossiers d'abord, les objectifs ensuite.
+# L'ONGLET « SORTIES » A DISPARU (20/09/2026, demande utilisateur) : ses
+# groupes ont rejoint « Lancer », ou se prennent les decisions du lancement.
 verifier("l'ordre des onglets est celui des constantes",
-         dlg.onglets.tabText(mod_plugin.ONGLET_RESULTATS).startswith("2.")
-         and "Sorties" in dlg.onglets.tabText(mod_plugin.ONGLET_RESULTATS)
-         and dlg.onglets.tabText(mod_plugin.ONGLET_OBJECTIFS).startswith("3.")
-         and "Objectifs" in dlg.onglets.tabText(
-             mod_plugin.ONGLET_OBJECTIFS),
+         dlg.onglets.tabText(mod_plugin.ONGLET_OBJECTIFS).startswith("2.")
+         and "Objectifs" in dlg.onglets.tabText(mod_plugin.ONGLET_OBJECTIFS)
+         and dlg.onglets.tabText(mod_plugin.ONGLET_LANCER).startswith("3.")
+         and "Lancer" in dlg.onglets.tabText(mod_plugin.ONGLET_LANCER),
          [dlg.onglets.tabText(i) for i in range(dlg.onglets.count())])
+verifier("plus aucun onglet « Sorties »",
+         not [i for i in range(dlg.onglets.count())
+              if "Sorties" in dlg.onglets.tabText(i)],
+         [dlg.onglets.tabText(i) for i in range(dlg.onglets.count())])
+
+# L'ORDRE DEMANDE, GROUPE PAR GROUPE (20/09/2026, demande utilisateur) :
+# les apports a determiner, puis les sorties, puis le prefixe, puis le
+# lancement. C'est l'ORDRE qui est le correctif, pas la seule presence — un
+# reglage lu apres le bouton qu'il regle ne sert a rien.
+_ordre_lancer = [g.title() for g in dlg.onglets.widget(
+    mod_plugin.ONGLET_LANCER).findChildren(_QGroupBoxA)]
+_attendu_lancer = ["Préparation du lancement", "Apports à déterminer",
+                   "Dossier de sortie", "Conservation des plans d’étape",
+                   "Configuration complète", "Préfixe de scénario",
+                   "Lancer le calage"]
+verifier("l'onglet Lancer enchaine apports, sorties, prefixe, lancement",
+         [g for g in _ordre_lancer if g in _attendu_lancer] == _attendu_lancer,
+         str(_ordre_lancer))
+# ET LE PREFIXE A QUITTE « Objectifs ». Laisse aux deux endroits, il aurait
+# donne deux champs a lire pour un seul reglage.
+verifier("le prefixe de scenario a quitte l'onglet Objectifs",
+         "Préfixe de scénario" not in [g.title() for g in dlg.onglets.widget(
+             mod_plugin.ONGLET_OBJECTIFS).findChildren(_QGroupBoxA)],
+         str([g.title() for g in dlg.onglets.widget(
+             mod_plugin.ONGLET_OBJECTIFS).findChildren(_QGroupBoxA)]))
+
+# LE RECAPITULATIF DE REPRISE (20/09/2026, demande utilisateur). Sans
+# classeur, il dit ce qui manque plutot que de rester vide.
+dlg._dire_reprise()
+verifier("sans paquet compose, le recapitulatif dit quoi faire",
+         "Contrôle paramétrage" in dlg.label_reprise.text(),
+         dlg.label_reprise.text()[:80])
+# AVEC UN CLASSEUR, il nomme le plan de depart AVEC SON PREFIXE, les apports
+# tenus pour cales et ceux qui restent a calculer. C'est le cas signale le
+# 20 septembre : apres un ECHEC, _confirmer_reprise ne pose aucune question
+# — rien n'est « valide » a perdre — et aucun ecran ne disait d'ou l'on
+# repartait.
+import pandas as _pd                                          # noqa: E402
+_cl = Path(tempfile.gettempdir()) / "recap_reprise.xlsx"
+_pd.DataFrame({"Ordre": [1, 2, 3, 4],
+               "Nom_Apport (BC line)": ["A1", "A2", "A3", "A4"],
+               "Nom_Section (reference line)": ["S1", "S2", "S3", "S4"]}
+              ).to_excel(_cl, sheet_name="Correspondance", index=False)
+dlg.edit_prefixe_scenario.setText("Q100")
+dlg.classeur = str(_cl)
+dlg._remplir_premier_apport()
+dlg.combo_premier_apport.setCurrentIndex(3)          # depart a « A3 »
+_recap = dlg.label_reprise.text()
+verifier("le recapitulatif nomme le plan de depart avec son prefixe",
+         "Q100_Apport_A2" in _recap, _recap)
+verifier("le recapitulatif nomme les apports tenus pour cales",
+         "A1, A2" in _recap, _recap)
+verifier("le recapitulatif nomme les apports restant a calculer",
+         "A3, A4" in _recap, _recap)
+verifier("le recapitulatif previent si le plan de depart manque",
+         "S’il manque" in _recap, _recap)
+dlg.combo_premier_apport.setCurrentIndex(0)          # « tous »
+verifier("sans depart choisi, le recapitulatif annonce le calage complet",
+         "Calage complet" in dlg.label_reprise.text()
+         and "Q100_sans_apport" in dlg.label_reprise.text(),
+         dlg.label_reprise.text())
+dlg.edit_prefixe_scenario.setText("")
+dlg.classeur = None
 
 # L'ACTION N'APPARTIENT PLUS A AUCUN ONGLET (0.7.24, demande utilisateur).
 # Elle est redescendue au bas de la fenetre, a cote de « Fermer », ou elle
@@ -2336,10 +2398,10 @@ _jetable.deleteLater()
 
 # « RELIRE UN HYDROGRAMME » A QUITTE LA FENETRE (0.7.22). L'outil vit encore,
 # en ligne de commande ; c'est l'onglet qui n'avait pas a le porter.
-verifier("l'onglet des resultats ne porte plus la relecture d'hydrogramme",
+verifier("l'onglet du lancement ne porte plus la relecture d'hydrogramme",
          "Relire un hydrogramme déjà calculé" not in
          [g.title() for g in dlg.onglets.widget(
-             mod_plugin.ONGLET_RESULTATS).findChildren(_QGroupBoxA)])
+             mod_plugin.ONGLET_LANCER).findChildren(_QGroupBoxA)])
 
 # L'ELAGAGE EST UNE CASE, ET ELLE DIT CE QU'ELLE FERA. La conservation est
 # neutre ; la suppression reste un avertissement. Ici on eprouve la decision
@@ -2390,12 +2452,13 @@ verifier("et les oublie quand il n'y a plus de calage suivi",
          dlg.courbe_suivi.precedentes == []
          and dlg.courbe_suivi.courbes is None)
 
-# LE MENAGE EST A L'ONGLET DES RESULTATS, ET C'EST UNE CASE (0.7.22). Elle se
-# coche avant le calage ; c'est la chaine qui elague a la fin, quand le plan
-# final existe. Cet onglet est passe en 2e position en 0.7.24.
-_page_resultats = dlg.onglets.widget(mod_plugin.ONGLET_RESULTATS)
+# LE MENAGE EST UNE CASE (0.7.22), ET IL VIT DESORMAIS DANS « Lancer »
+# (20/09/2026) : il se coche avant le calage, avec le reste de ce qui decide
+# du lancement ; c'est la chaine qui elague a la fin, quand le plan final
+# existe.
+_page_resultats = dlg.onglets.widget(mod_plugin.ONGLET_LANCER)
 _groupes_resultats = [g.title() for g in _page_resultats.findChildren(_QGroupBoxA)]
-verifier("l'onglet des sorties porte la conservation des plans d’etape",
+verifier("l'onglet du lancement porte la conservation des plans d’etape",
          "Conservation des plans d’étape" in _groupes_resultats, _groupes_resultats)
 verifier("l'elagage est une case a cocher, plus un bouton",
          "Élaguer les plans d'étape…" not in
@@ -2623,9 +2686,9 @@ def _eprouver_petite_fenetre(points):
                      == police.family(),
                      f"demandee={police.family()}, "
                      f"resolue={QFontInfo(fenetre.edit_projet_hecras.font()).family()}")
-            attendus = ("1. Modèle", "2. Sorties", "3. Objectifs", "4. Lancer",
-                        "5. Suivi", "Aide et configuration")
-            verifier(f"police {points} pt : les six etapes sont identifiables",
+            attendus = ("1. Modèle", "2. Objectifs", "3. Lancer",
+                        "4. Suivi", "Aide et configuration")
+            verifier(f"police {points} pt : les cinq etapes sont identifiables",
                      tuple(fenetre.onglets.tabText(i)
                            for i in range(fenetre.onglets.count())) == attendus)
             boutons = fenetre.findChildren(QPushButton)
@@ -2736,20 +2799,23 @@ def _eprouver_petite_fenetre(points):
             QApplication.processEvents()
             verifier(f"police {points} pt : Alt-gauche revient depuis un bouton",
                      fenetre.onglets.currentIndex() == 0)
-            fenetre.onglets.setCurrentIndex(5)
-            navigateur = fenetre.onglets.widget(5).findChild(QTextBrowser)
+            # LE RANG NOMME, PAS LE NOMBRE. Ecrit « 5 », il a suivi l'aide
+            # d'un onglet a l'autre jusqu'au jour ou « Sorties » est sorti.
+            fenetre.onglets.setCurrentIndex(mod_plugin.ONGLET_AIDE)
+            navigateur = fenetre.onglets.widget(
+                mod_plugin.ONGLET_AIDE).findChild(QTextBrowser)
             navigateur.setFocus()
             QTest.keyClick(navigateur, Qt.Key.Key_Left,
                            Qt.KeyboardModifier.AltModifier)
             QApplication.processEvents()
             verifier(f"police {points} pt : Alt-gauche quitte le navigateur d'aide",
-                     fenetre.onglets.currentIndex() == 4)
+                     fenetre.onglets.currentIndex() == mod_plugin.ONGLET_SUIVI)
             fenetre.bouton_controle.setFocus()
             QTest.keyClick(fenetre.bouton_controle, Qt.Key.Key_Right,
                            Qt.KeyboardModifier.AltModifier)
             QApplication.processEvents()
             verifier(f"police {points} pt : Alt-droite revient a l'aide",
-                     fenetre.onglets.currentIndex() == 5)
+                     fenetre.onglets.currentIndex() == mod_plugin.ONGLET_AIDE)
         finally:
             if fenetre is not None:
                 fenetre.close()

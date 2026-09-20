@@ -1782,17 +1782,16 @@ LARGEUR_PLANCHER_MAX = 800
 # et « widget(2) » a la main : il regardait le bon widget par coincidence, et
 # rien ne l'aurait averti.
 ONGLET_MODELE = 0
-ONGLET_RESULTATS = 1
-ONGLET_OBJECTIFS = 2
-ONGLET_LANCER = 3
-ONGLET_SUIVI = 4
+ONGLET_OBJECTIFS = 1
+ONGLET_LANCER = 2
+ONGLET_SUIVI = 3
 # L'AIDE A LE SIEN AUSSI (0.8.5) : F1, « Suivant » et Alt + fleche droite y
 # renvoient, et son rang etait ecrit « 5 » a cinq endroits. Le jour ou un
-# onglet s'insere, F1 aurait ouvert autre chose et « Suivant » se serait
-# arrete un cran trop tot, sans un mot. Les deux rangs restants — Sorties et
-# Objectifs — n'ont pas de nom : aucun code n'y renvoie. La suite d'essais
-# verifie que les rangs nommes tombent bien sur leur onglet.
-ONGLET_AIDE = 5
+# onglet s'insere — ou en sort, comme « Sorties » le 20 septembre 2026 — F1
+# aurait ouvert autre chose et « Suivant » se serait arrete un cran trop tot,
+# sans un mot. La suite d'essais verifie que les rangs nommes tombent bien
+# sur leur onglet.
+ONGLET_AIDE = 4
 DERNIER_ONGLET = ONGLET_AIDE
 
 
@@ -1927,16 +1926,15 @@ class DialogueParametrage(QDialog):
             (self._onglet_modele(), "1. Modèle",
              "Projet HEC-RAS, plan de référence, zone 2D, profil en long, "
              "et chargement des couches existantes du modèle."),
-            (self._onglet_resultats(), "2. Sorties",
-             "Dossiers de sortie et de suivi, et résumé de la configuration."),
-            (self._onglet_objectifs(), "3. Objectifs",
+            (self._onglet_objectifs(), "2. Objectifs",
              "Précision attendue sur le volume et la pointe, nombre maximal "
              "d'essais, le classeur où se saisissent les hydrogrammes "
              "cibles, et ce que ces hydrogrammes portent une fois validés."),
-            (self._onglet_validation(), "4. Lancer",
+            (self._onglet_validation(), "3. Lancer",
              "Correspondance sections / injections, état des hydrogrammes "
-             "cibles, apports à déterminer, et lancement du calage."),
-            (self._onglet_suivi(), "5. Suivi",
+             "cibles, apports à déterminer, dossiers de sortie, préfixe de "
+             "scénario, et lancement du calage."),
+            (self._onglet_suivi(), "4. Suivi",
              "Où en est le calage : apport en cours, essai, avancement, "
              "temps restant, et ce qui s'est passé quand il s'arrête."),
             (self._onglet_aide(), "Aide et configuration",
@@ -2256,15 +2254,16 @@ class DialogueParametrage(QDialog):
         #   partage reseau. Y lire l'etat du calage rendrait la saisie poussive.
         if self.pid_lance:
             fin = (f"<b>Calage lancé</b> — processus {self.pid_lance}. "
-                   "<a href='4'>Voir le suivi</a>")
+                   f"<a href='{ONGLET_SUIVI}'>Voir le suivi</a>")
         elif suivante is None:
             fin = ("<b>Paquet composé.</b> Renseigner les cibles, puis "
-                   "<a href='3'>vérifier le lancement</a>.")
+                   f"<a href='{ONGLET_LANCER}'>vérifier le lancement</a>.")
         else:
-            cibles = {"Modèle chargé": (0, "Choisir le modèle et charger ses couches"),
-                      "Profil en long": (0, "Choisir le profil en long"),
-                      "Dossier de sortie": (1, "Choisir le dossier de sortie"),
-                      "Paquet composé": (2, "Définir les objectifs, puis contrôler le paramétrage")}
+            cibles = {"Modèle chargé": (ONGLET_MODELE, "Choisir le modèle et charger ses couches"),
+                      "Profil en long": (ONGLET_MODELE, "Choisir le profil en long"),
+                      # LE DOSSIER DE SORTIE A SUIVI SON GROUPE DANS « Lancer ».
+                      "Dossier de sortie": (ONGLET_LANCER, "Choisir le dossier de sortie"),
+                      "Paquet composé": (ONGLET_OBJECTIFS, "Définir les objectifs, puis contrôler le paramétrage")}
             indice, action = cibles[suivante]
             nombre = sum(bool(ok) for _, ok in etapes)
             fin = (f"<b>Préparation : {nombre}/4.</b> "
@@ -3240,6 +3239,9 @@ class DialogueParametrage(QDialog):
         # « OBLIGATOIRE » DANS LE LIBELLE, PAS SEULEMENT DANS LE PLACEHOLDER
         # (0.8.5) : un placeholder disparait a la premiere frappe.
         f.addRow("&Préfixe de scénario (obligatoire) :", self.edit_prefixe_scenario)
+        # LE RECAPITULATIF NOMME LES PLANS AVEC CE PREFIXE : il le suit a la
+        # frappe, sinon il annoncerait des titres que le calage ne creera pas.
+        self.edit_prefixe_scenario.textChanged.connect(self._dire_reprise)
         f.addRow(texte_aide(
             "Nomme les plans du calage <i>et</i> le fichier Excel des "
             "objectifs. Changer de préfixe compose un nouveau classeur au "
@@ -3380,7 +3382,6 @@ class DialogueParametrage(QDialog):
         # Voir _bouton_controle_parametrage : quatre demenagements en cinq
         # versions ont fini par montrer que ce geste n'appartient a AUCUN
         # onglet — il consomme les trois premiers et prepare le quatrieme.
-        v.addWidget(self._groupe_prefixe_scenario())
         v.addWidget(self._groupe_classeur())
         v.addWidget(self._groupe_ce_que_portent_les_cibles())
         v.addWidget(self._groupe_precision())
@@ -3524,16 +3525,8 @@ class DialogueParametrage(QDialog):
 
     # --- Onglet 2 : Resultats et suivi --------------------------------------
 
-    def _onglet_resultats(self):
-        page = QWidget()
-        v = QVBoxLayout(page)
-        v.setSpacing(10)
-
-        consigne = QLabel(
-            "Choisissez où enregistrer le paquet de calage, puis indiquez "
-            "si les plans d’étape doivent être conservés après livraison.")
-        consigne.setWordWrap(True)
-        v.addWidget(consigne)
+    def _groupe_dossier_sortie(self):
+        """Ou le paquet, les resultats et le suivi sont ecrits."""
         groupe = QGroupBox("Dossier de sortie")
         f = formulaire(groupe)
         ligne = QHBoxLayout()
@@ -3576,8 +3569,10 @@ class DialogueParametrage(QDialog):
         f.addRow(detail_dossiers)
         f.addRow(texte_aide(
             "Pendant le calcul, consultez l’étape Suivi pour lire l’avancement."))
-        v.addWidget(groupe)
+        return groupe
 
+    def _groupe_menage(self):
+        """Ce qu'il advient des plans d'etape apres le calage."""
         # « RELIRE UN HYDROGRAMME DEJA CALCULE » A QUITTE LA FENETRE (0.7.22,
         # demande utilisateur). C'etait un outil de diagnostic — exporter en
         # CSV le debit a une section — dans un onglet qui parle des sorties du
@@ -3619,8 +3614,10 @@ class DialogueParametrage(QDialog):
         self.label_elagage.setWordWrap(True)
         fm.addRow(self.label_elagage)
         self._dire_elagage()
-        v.addWidget(groupe_menage)
+        return groupe_menage
 
+    def _groupe_configuration(self):
+        """Tout le parametrage, replie : on l'ouvre pour verifier."""
         groupe_resume = QgsCollapsibleGroupBox("Configuration complète")
         groupe_resume.setObjectName("grpConfiguration")
         v2 = QVBoxLayout(groupe_resume)
@@ -3630,10 +3627,7 @@ class DialogueParametrage(QDialog):
         self.texte_resume.setMinimumHeight(160)
         v2.addWidget(self.texte_resume)
         groupe_resume.setCollapsed(True)
-        v.addWidget(groupe_resume)
-        v.addStretch(1)
-
-        return page
+        return groupe_resume
 
     def _dire_elagage(self):
         """La conservation est un choix normal ; seule la suppression alerte."""
@@ -3792,6 +3786,20 @@ class DialogueParametrage(QDialog):
         # apres.
         v.addWidget(self._groupe_copies_de_travail())
 
+        # LES SORTIES ONT REJOINT CETTE PAGE (demande utilisateur, 20/09/2026).
+        # Elles occupaient un onglet a elles seules, traverse une fois et plus
+        # jamais rouvert : le dossier de sortie et le sort des plans d'etape
+        # sont des reglages DU LANCEMENT, et se lisent la ou l'on lance.
+        v.addWidget(self._groupe_dossier_sortie())
+        v.addWidget(self._groupe_menage())
+        v.addWidget(self._groupe_configuration())
+
+        # LE PREFIXE EST LE DERNIER REGLAGE AVANT LE CLIC. Il vivait a
+        # l'onglet Objectifs depuis la 0.8.4, ou il nommait l'Excel ; il nomme
+        # aussi tous les plans du calage, et c'est cette seconde portee qui
+        # decide de sa place — juste au-dessus du bouton qui les cree.
+        v.addWidget(self._groupe_prefixe_scenario())
+
         groupe_lancer = QGroupBox("Lancer le calage")
         vl = QVBoxLayout(groupe_lancer)
         vl.setSpacing(8)
@@ -3801,6 +3809,10 @@ class DialogueParametrage(QDialog):
             "L’étape <b>Suivi</b> affiche automatiquement son avancement.")
         explication.setWordWrap(True)
         vl.addWidget(explication)
+        # CE QUE CE CLIC VA FAIRE, EN TOUTES LETTRES. Voir _dire_reprise.
+        self.label_reprise = texte_etat()
+        self.label_reprise.setObjectName("recapReprise")
+        vl.addWidget(self.label_reprise)
         ligne_lancer = QHBoxLayout()
         bouton_lancer = QPushButton("Lancer le calage")
         bouton_lancer.setObjectName("boutonAccent")
@@ -3811,7 +3823,8 @@ class DialogueParametrage(QDialog):
         bouton_lancer.clicked.connect(self._lancer_calage)
         ligne_lancer.addWidget(bouton_lancer)
         bouton_suivi = QPushButton("Consulter le suivi")
-        bouton_suivi.clicked.connect(lambda: self.onglets.setCurrentIndex(4))
+        bouton_suivi.clicked.connect(
+            lambda: self.onglets.setCurrentIndex(ONGLET_SUIVI))
         ligne_lancer.addWidget(bouton_suivi)
         ligne_lancer.addStretch(1)
         vl.addLayout(ligne_lancer)
@@ -4107,9 +4120,9 @@ class DialogueParametrage(QDialog):
         le dit donc, au lieu de laisser deviner.
         """
         if not self.classeur:
-            return "onglet Sorties"
+            return "onglet Lancer"
         cache = getattr(self, "_suivi_du_classeur", None)
-        return "classeur" if cache and cache[1] is not None else "onglet Sorties"
+        return "classeur" if cache and cache[1] is not None else "onglet Lancer"
 
     def _dossier_suivi_de_l_onglet_3(self):
         """Ce que les champs de l'onglet 3 designent, ou None."""
@@ -4172,7 +4185,7 @@ class DialogueParametrage(QDialog):
         if dossier is None or not dossier.is_dir():
             self._signaler(
                 "Suivi", "Aucun dossier de suivi : renseigner le dossier de "
-                "sortie (onglet Sorties), puis composer le paquet.",
+                "sortie (onglet Lancer), puis composer le paquet.",
                 Qgis.MessageLevel.Warning)
             return
         os.startfile(str(dossier))  # noqa: S606 (usage Windows assume)
@@ -4199,7 +4212,7 @@ class DialogueParametrage(QDialog):
         autre = self._dossier_suivi_de_l_onglet_3()
         if autre is None or Path(autre) == Path(dossier):
             return ""
-        return (f"<br>L'onglet Sorties en désigne un autre — <i>{autre}</i> — qui "
+        return (f"<br>L'onglet Lancer en désigne un autre — <i>{autre}</i> — qui "
                 f"n'est pas surveillé : c'est le classeur lancé qui fait foi. "
                 f"Recomposer le paquet pour que les deux s'accordent.")
 
@@ -5168,6 +5181,11 @@ class DialogueParametrage(QDialog):
             dire(self.label_premier_apport,
                  "Tous les apports seront calés, à partir d'un calcul de "
                  "référence « sans_apport ».")
+            # LE RECAPITULATIF SUIT AUSSI CE RETOUR-LA. Pose seulement en fin
+            # de methode, il gardait a l'ecran la reprise precedente quand on
+            # revenait a « tous » — un compte rendu perime, le defaut meme
+            # que ce recapitulatif existe pour corriger.
+            self._dire_reprise()
             return
         try:
             noms = [a for a, _ in noyau.apports_du_classeur(self.classeur)]
@@ -5182,6 +5200,95 @@ class DialogueParametrage(QDialog):
              if amont else
              "Premier apport de la liste : le calage part du calcul de "
              "référence « sans_apport », comme sans ce réglage.")
+        self._dire_reprise()
+
+    def _titre_etape(self, nom):
+        """
+        Titre du plan d'une etape, prefixe compris — la MEME regle que
+        calage.titre_etape, redite ici pour un seul usage d'affichage : la
+        chaine n'est pas importable dans le processus QGIS.
+        """
+        prefixe = ""
+        champ = getattr(self, "edit_prefixe_scenario", None)
+        if champ is not None:
+            prefixe = champ.text().strip()
+        if not prefixe:
+            return nom
+        return f"{prefixe}{'' if prefixe[-1] in '-_' else '_'}{nom}"
+
+    def _dire_reprise(self, *_):
+        """
+        Ce que le lancement va faire, en toutes lettres, au-dessus du bouton.
+
+        POURQUOI EN PERMANENCE DANS LA PAGE. La question de reprise
+        (_confirmer_reprise) ne se pose que s'il y a des apports VALIDES a
+        perdre. Apres un ECHEC, l'apport ou le calage s'est arrete n'est pas
+        valide et rien en aval n'a tourne : plus rien ne se perd, la question
+        ne se pose donc pas, et AUCUN ecran ne disait d'ou le calcul
+        repartait. C'est le cas signale le 20 septembre 2026 — « la
+        methodologie de reprise n'est pas claire ». Un compte rendu se lit
+        dans la page, avant le clic, et se relit apres ; une boite ne se
+        relit pas.
+
+        IL NOMME LES PLANS AVEC LEUR PREFIXE. « Apport_ARA06 » ne se trouve
+        pas dans le gestionnaire de plans : ce qui s'y trouve est
+        « Aran-Q100-V1_Apport_ARA06 ». Un compte rendu qui nomme autrement
+        que le modele oblige a traduire.
+        """
+        label = getattr(self, "label_reprise", None)
+        if label is None:
+            return
+        if not self.classeur:
+            dire(label, "Le récapitulatif s’affichera une fois le paquet "
+                        "composé par « Contrôle paramétrage ».")
+            return
+        try:
+            tous = [a for a, _ in noyau.apports_du_classeur(self.classeur)]
+        except Exception as e:                              # noqa: BLE001
+            journaliser("Apports du classeur pour le récapitulatif", e)
+            dire(label, f"(liste des apports illisible : {e})")
+            return
+        dossier = self._dossier_suivi()
+        precedent = noyau.lire_avancement(dossier) if dossier else None
+        valides = [a.get("apport")
+                   for a in ((precedent or {}).get("apports") or [])
+                   if a.get("statut") == "validé"]
+        premier = self._premier_apport()
+        conserves, perdus, _propose = plan_de_reprise(tous, valides, premier)
+        rang = tous.index(premier) if premier in tous else 0
+        a_calculer = tous[rang:]
+
+        if not premier or rang == 0:
+            phrases = [
+                f"<b>Calage complet</b> — les {len(tous)} apports seront "
+                f"calculés, de l’amont vers l’aval, à partir du calcul de "
+                f"référence « {self._titre_etape('sans_apport')} »."]
+        else:
+            phrases = [
+                f"<b>Reprise à « {premier} »</b> — le calage repart du plan "
+                f"« {self._titre_etape('Apport_' + tous[rang - 1])} » et n’y "
+                f"touche pas.",
+                f"<b>Tenus pour calés</b> ({rang}) : "
+                f"{', '.join(tous[:rang])}.",
+                f"<b>À calculer</b> ({len(a_calculer)}) : "
+                f"{', '.join(a_calculer)}."]
+            phrases.append(
+                "La chaîne vérifie au lancement que ce plan est bien dans le "
+                "modèle. S’il manque, elle le dit et repart du plan de "
+                "référence — les apports amont valent alors ce qu’ils y "
+                "valent.")
+        # CE QUE LE CALAGE PRECEDENT PERD, DIT ICI AUSSI. La boite ne le
+        # demande que s'il y a des apports valides a perdre ; le dire dans la
+        # page couvre le cas ou il n'y en a pas — un calage arrete en echec.
+        if perdus:
+            phrases.append(
+                f"<b>Refaits</b> ({len(perdus)}) — le calage précédent les "
+                f"avait validés : {', '.join(perdus)}.")
+        elif valides:
+            phrases.append(
+                f"Le calage précédent avait validé {len(conserves)} "
+                f"apport(s) ; aucun n’est refait.")
+        dire(label, "<br>".join(phrases))
 
     def _appliquer_reglages_du_classeur(self, classeur):
         """
