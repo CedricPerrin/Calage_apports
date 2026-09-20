@@ -414,13 +414,11 @@ def construire_couche_polygones_depuis_wkt(nom_couche, entites, crs_authid):
 # ---------------------------------------------------------------------------
 # Charte graphique ISL Ingenierie
 #
-# Couleurs RELEVEES sur les visuels de la charte (charte/), pas devinees :
-#   - le pictogramme du domaine « Prevention des inondations & ouvrages de
-#     protection » — celui de ce projet — donne le teal d'accent ;
-#   - la frise institutionnelle donne le bleu ardoise.
-# Typographie de la charte : Helvetica Neue. Elle n'est pas installee de
-# serie sous Windows ; Arial en est le substitut metrique usuel, d'ou la
-# pile de replis.
+# Identite ISL UX 0.1 : couleurs INSTITUTIONNELLES de charte/ :
+# bleu-vert #3A8D94, ardoise #9BAEB7, gris #707173. Les variantes textuelles
+# repondent au contraste ; elles ne recolorent pas le logo. Les pictogrammes
+# PIO existants sont autorises, sans reprendre la palette PIO comme habillage.
+# La police des controles suit le poste/QGIS ; aucune police de marque embarquee.
 #
 # Le style reste VOLONTAIREMENT RETENU : il ne fixe que des couleurs de
 # texte et de bordure, jamais de fond, hormis le bouton principal. QGIS se
@@ -2266,6 +2264,9 @@ class DialogueParametrage(QDialog):
             nombre = sum(bool(ok) for _, ok in etapes)
             fin = (f"<b>Préparation : {nombre}/4.</b> "
                    f"<a href='{indice}'>{action}</a>")
+        # Effets visibles avant l'action, meme sans consulter l'infobulle.
+        fin += ("<br><b>Contrôle paramétrage :</b> écrit dans la géométrie HEC-RAS "
+                "après sauvegarde horodatée, puis crée les shapefiles et le classeur.")
         self.label_fil.setText(fin)
         self.label_fil.setToolTip("\n".join(
             f"{'Fait' if ok else 'À faire'} : {nom}" for nom, ok in etapes))
