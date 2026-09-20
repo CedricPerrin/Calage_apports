@@ -52,3 +52,20 @@ Les commandes sont versionnées dans `.github/workflows/ux-qgis.yml` et se relan
 API utilisées : [tâches QGIS](https://docs.qgis.org/3.40/en/docs/pyqgis_developer_cookbook/tasks.html), [QgsTask](https://api.qgis.org/api/classQgsTask.html), consultées le 20/09/2026 ; `run()` n'accède à aucun widget, `finished()` revient sur le fil graphique.
 
 Aucune archive de diffusion remplacée : la prochaine archive aura une nouvelle version après la recette native.
+
+## Intégration et prochaine intervention — 20 septembre 2026
+
+L’utilisateur demande la fusion de la [PR #3](https://github.com/CedricPerrin/Calage_apports/pull/3)
+dans `main`. Le [registre commun](https://github.com/CedricPerrin/ergonomie/blob/main/SUIVI_LOTS_2026-09-20.md) consigne le résultat de la fusion,
+le commit et sa CI. Utiliser cette version des sources pour la recette ; les
+anciennes archives et observations restent attachées à leur version d’origine.
+
+| Suite | Responsable | Preuve attendue |
+|---|---|---|
+| Installation réelle sur le réseau ISL, copie de modèle, suivi et arrêt Windows ; affichage DPI/thèmes et Narrateur. | Ingénieur utilisateur, accompagné du référent UX | Configuration, scénario, résultat et capture/journal si défaut |
+| Corriger un défaut reproductible et mettre à jour ses guides | Mainteneur du dépôt, assisté de Codex | Correctif et contrôle ciblé réussis |
+| Préparer la diffusion après recette | Mainteneur et interlocuteur informatique ISL si nécessaire | Archive identifiée, contenu vérifié et installation contrôlée |
+
+La [fiche commune](https://github.com/CedricPerrin/ergonomie/blob/main/guides/A_FAIRE_SUR_PC.md) précise les gestes. L’intégration des sources ne coche
+aucune observation d’usage. Les couleurs institutionnelles et l’utilisation possible
+des pictogrammes PIO sont déjà décidées.

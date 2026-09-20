@@ -22,8 +22,9 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
-MISE A JOUR DU 20 SEPTEMBRE 2026 — LOTS UX B/C, BRANCHE DE RECETTE
-  Execution par lots demandee par l'utilisateur. C9 : effets du controle
+MISE A JOUR DU 20 SEPTEMBRE 2026 — LOTS UX B/C, INTEGRATION DANS MAIN
+  Fusion de la PR #3 demandee explicitement par l'utilisateur. Sources de
+  main a utiliser pour la recette ; ancien ZIP 0.8.6 distinct. C9 : effets du controle
   visibles dans le fil. C16 : venv/pip/verification dans QgsTask, phases
   visibles et journal QGIS ; cible confirmee figee, reglage publie seulement
   apres succes. Ne pas fermer QGIS pendant pip ; pas d'annulation simulee.

@@ -4,9 +4,9 @@ Point de reprise pour ouvrir une nouvelle conversation avec un contexte
 minimal. L'état courant et les règles en vigueur restent dans `STATUT.txt` ;
 ce fichier ne dit que **où on en est** et **par quoi reprendre**.
 
-## Reprendre ici — 20 septembre 2026 : lots UX B/C en recette
+## Reprendre ici — 20 septembre 2026 : intégration des lots UX B/C
 
-L’exécution par lots autorise C9 et C16. Les effets du contrôle sont visibles ; création du venv, pip et vérification passent par `QgsTask`. La cible confirmée est figée et la préférence Python n’est publiée qu’après succès. Voir [implémentation, bancs et limites](docs/UX_ISL.md).
+L’utilisateur demande la fusion de la PR #3 dans `main`. La recette se fait depuis ces sources, avec les preuves et responsables de `docs/UX_ISL.md`. L’exécution par lots autorise C9 et C16. Les effets du contrôle sont visibles ; création du venv, pip et vérification passent par `QgsTask`. La cible confirmée est figée et la préférence Python n’est publiée qu’après succès. Voir [implémentation, bancs et limites](docs/UX_ISL.md).
 
 La recette automatisée est maintenant verte : noyau complet ; QGIS 3.44.7 / Qt 5.15.13, quatre tests du gestionnaire/cycle, quatre tests cible/worker et 299 contrôles du banc historique. Les phases pip sont simulées, le gestionnaire et les widgets sont réels. Dix correspondances ISL sont contrôlées en CI. Voir `docs/UX_ISL.md` pour le lien de preuve et la portée du harnais Linux (sonde PID POSIX, pas tasklist Windows).
 
