@@ -29,9 +29,14 @@ MISE A JOUR DU 20 SEPTEMBRE 2026 — LOTS UX B/C, BRANCHE DE RECETTE
   apres succes. Ne pas fermer QGIS pendant pip ; pas d'annulation simulee.
   Voir docs/UX_ISL.md pour limites, bancs et recette native encore a faire.
   Aucun changement du moteur scientifique ni remplacement du ZIP 0.8.6.
-  CONTROLES : compilation ; cible explicite (1 test), worker Qt/thread avec
-  enveloppe QgsTask simulee (3 tests). QGIS/Windows non executes ici.
-  Autotest noyau complet bloque par geopandas absent de cette copie.
+  CONTROLES COMPLETES : autotest noyau integral reussi localement et en CI.
+  QGIS 3.44.7 / Qt 5.15.13 reels : 4 tests gestionnaire/cycle, 4 cible/worker,
+  299 controles du banc historique. Pip seul simule ; fenetres et QgsTask reels.
+  Harnais Linux : PID POSIX, police resolue, focus de fenetre actif pour liens.
+  tasklist Windows, reseau ISL, lecteur d'ecran/DPI et modele metier restent
+  a observer sur le poste cible. Les 10 mappings ISL sont verifies en CI.
+  FICHIERS : workflow ux-qgis.yml, test_installation_qgis.py, banc historique,
+  tools/check_isl_identity.py, docs/isl-identity-contract.json et docs/UX_ISL.md.
 
 
 MISE A JOUR DU 18 SEPTEMBRE 2026 (SUITE) — 0.8.6, LA REVUE DU 17 FUSIONNEE

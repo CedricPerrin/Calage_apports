@@ -8,7 +8,9 @@ ce fichier ne dit que **où on en est** et **par quoi reprendre**.
 
 L’exécution par lots autorise C9 et C16. Les effets du contrôle sont visibles ; création du venv, pip et vérification passent par `QgsTask`. La cible confirmée est figée et la préférence Python n’est publiée qu’après succès. Voir [implémentation, bancs et limites](docs/UX_ISL.md).
 
-La prochaine étape est la recette native de cette branche, en particulier fermeture/réouverture et déchargement/rechargement pendant l’installation. Les quatre tests ciblés passent localement (trois avec enveloppe QgsTask simulée) ; le banc QGIS n’a pas tourné. L’autotest noyau complet manque de geopandas ici. Aucune archive de diffusion n’est refaite avant cette recette.
+La recette automatisée est maintenant verte : noyau complet ; QGIS 3.44.7 / Qt 5.15.13, quatre tests du gestionnaire/cycle, quatre tests cible/worker et 299 contrôles du banc historique. Les phases pip sont simulées, le gestionnaire et les widgets sont réels. Dix correspondances ISL sont contrôlées en CI. Voir `docs/UX_ISL.md` pour le lien de preuve et la portée du harnais Linux (sonde PID POSIX, pas tasklist Windows).
+
+Prochaine étape : recette sur le poste Windows ISL, installation réelle via son réseau, DPI/thèmes/lecteur d’écran et modèle représentatif. Aucun nouveau ZIP de diffusion avant cette recette ; aucun calcul métier ni archive 0.8.6 remplacé. Nouveaux fichiers : workflow `.github/workflows/ux-qgis.yml`, test `src/test_installation_qgis.py`, contrôle `tools/check_isl_identity.py` et contrat `docs/isl-identity-contract.json` ; banc historique rendu reproductible sous Linux.
 
 ## État précédent — 18 septembre 2026 (suite) : 0.8.6, la revue de qualité fusionnée
 

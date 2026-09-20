@@ -2772,7 +2772,7 @@ print("\n7 bis. CE QUE LA RELECTURE DU 17/09/2026 A CHANGE (0.8.5)")
 # docs/ergonomie_2026-09-17.md. Tout ce qui suit se mesure SANS ecran : les
 # couleurs se demandent aux widgets, jamais aux pixels.
 from qgis.PyQt.QtCore import QEvent as _QEvent                 # noqa: E402
-from qgis.PyQt.QtGui import QColor as _QColor, QKeyEvent       # noqa: E402
+from qgis.PyQt.QtGui import QColor as _QColor       # noqa: E402
 from qgis.PyQt.QtGui import QPalette as _QPalette              # noqa: E402
 from calage_apports import interface as mod_interface          # noqa: E402
 
