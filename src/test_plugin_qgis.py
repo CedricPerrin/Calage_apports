@@ -130,6 +130,12 @@ from qgis.PyQt.QtGui import QFont, QFontDatabase, QFontInfo    # noqa: E402
 # celle que Qt resout, au lieu de certifier une geometrie sur ce remplacement.
 if "Segoe UI" in QFontDatabase().families():
     qgs.setFont(QFont("Segoe UI", 9))
+else:
+    # L'alias par défaut « DejaVu LGC Sans » peut être résolu en « DejaVu Sans ».
+    # Tester une famille réellement disponible, avec les mêmes tailles demandées.
+    _police_resolue = QFont(qgs.font())
+    _police_resolue.setFamily(QFontInfo(qgs.font()).family())
+    qgs.setFont(_police_resolue)
 print(f"Plateforme Qt : {qgs.platformName()} ; police demandee : "
       f"{qgs.font().family()} ; police resolue : {QFontInfo(qgs.font()).family()}")
 
@@ -146,6 +152,26 @@ sys.modules["calage_apports"] = _paquet
 _spec.loader.exec_module(_paquet)
 
 from calage_apports import noyau, plugin as mod_plugin  # noqa: E402
+
+if os.name != "nt":
+    # Le produit interroge tasklist sur son poste Windows. Ici seul cet adaptateur
+    # OS est remplacé : les états du suivi et les widgets restent ceux du produit.
+    # Une sonde POSIX réelle permet d'éprouver vivant/disparu dans le conteneur.
+    # Ceci ne valide pas tasklist : la recette Windows conserve cette obligation.
+    def _processus_posix_de_recette(pid):
+        if not pid:
+            return None
+        try:
+            os.kill(int(pid), 0)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+        except (OSError, ValueError):
+            return None
+        return True
+    noyau.processus_vivant = _processus_posix_de_recette
+    print("Recette Linux : sonde PID POSIX ; tasklist Windows NON éprouvé.")
 
 echecs = []
 
@@ -2898,15 +2924,17 @@ else:
     _voulu = int(_cible.group(1))
     dlg.onglets.setCurrentIndex(mod_plugin.ONGLET_AIDE if _voulu != mod_plugin.ONGLET_AIDE
                                 else mod_plugin.ONGLET_MODELE)
-    dlg.label_fil.setFocus()
-    # Tab selectionne le premier lien (QLabel.focusNextPrevChild), Entree
-    # l'active — et c'est le QLabel qui consomme Entree, pas la garde de la
-    # fenetre. Evenements envoyes au widget : la fenetre est hors ecran.
-    for _touche in (Qt.Key.Key_Tab, Qt.Key.Key_Return):
-        QApplication.sendEvent(dlg.label_fil, QKeyEvent(
-            _QEvent.Type.KeyPress, _touche, Qt.KeyboardModifier.NoModifier))
+    dlg.show()
+    dlg.activateWindow()
+    QApplication.setActiveWindow(dlg)
     QApplication.processEvents()
-    verifier("fil conducteur : Tab puis Entree ouvrent l'etape du lien",
+    # Entrer par Tab dans le QLabel choisit son premier lien. Un setFocus()
+    # sans motif sur une fenêtre masquée ne reproduit pas ce parcours Qt.
+    dlg.label_fil.setFocus(Qt.FocusReason.TabFocusReason)
+    QApplication.processEvents()
+    QTest.keyClick(dlg.label_fil, Qt.Key.Key_Return)
+    QApplication.processEvents()
+    verifier("fil conducteur : focus Tab puis Entree ouvrent l'etape du lien",
              dlg.onglets.currentIndex() == _voulu,
              f"onglet {dlg.onglets.currentIndex()}, attendu {_voulu}")
 
