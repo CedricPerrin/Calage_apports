@@ -23,6 +23,7 @@ from pathlib import Path
 
 import pandas as pd
 
+import parametres
 import style_classeur
 
 DOSSIER = Path(__file__).resolve().parent
@@ -142,6 +143,51 @@ INSTRUCTIONS = [
 ]
 
 
+def ecrire_table_parametres(feuille):
+    """
+    Les parametres et leurs commentaires, a la suite de la feuille de garde.
+
+    C'EST LA SEULE DOCUMENTATION QUI RESTE DANS LE CLASSEUR depuis que les
+    valeurs sont parties dans le JSON. Elle n'est jamais relue par la chaine :
+    ce qui fait foi est le fichier de parametres, et cette table dit ce que
+    chaque cle veut dire. La feuille de garde est celle qui s'ouvre, donc
+    celle ou l'on tombe dessus sans la chercher.
+    """
+    from openpyxl.styles import Alignment, Font
+
+    ligne = feuille.max_row + 3
+    feuille.column_dimensions["C"].width = 26
+    feuille.column_dimensions["D"].width = 96
+    titre = feuille.cell(row=ligne, column=2, value="Les paramètres du calage")
+    titre.font = Font(name=style_classeur.POLICE, size=12, bold=True,
+                      color=style_classeur.ARDOISE)
+    ligne += 1
+    rappel = feuille.cell(
+        row=ligne, column=2,
+        value="Ils vivent dans le fichier .json qui porte le nom de ce "
+              "classeur, à côté de lui. Les deux se déplacent ensemble.")
+    rappel.font = Font(name=style_classeur.POLICE, size=10, italic=True,
+                       color="6B6B6B")
+    ligne += 2
+    for nom, _valeur in PARAMETRES:
+        if nom.startswith("---"):
+            cellule = feuille.cell(row=ligne, column=3,
+                                   value=nom.strip("- ").strip())
+            cellule.font = Font(name=style_classeur.POLICE, size=10, bold=True,
+                                color=style_classeur.ARDOISE)
+            ligne += 1
+            continue
+        cle = feuille.cell(row=ligne, column=3, value=nom)
+        cle.font = Font(name="Consolas", size=9.5,
+                        color=style_classeur.VIOLET_SOMBRE)
+        cle.alignment = Alignment(vertical="top")
+        texte = feuille.cell(row=ligne, column=4,
+                             value=style_classeur.COMMENTAIRES.get(nom, ""))
+        texte.font = Font(name=style_classeur.POLICE, size=9.5)
+        texte.alignment = Alignment(vertical="top", wrap_text=True)
+        ligne += 1
+
+
 def ecrire_instructions(feuille):
     """Feuille de garde. Jamais relue par la chaine : elle peut respirer."""
     from openpyxl.styles import Alignment, Font, PatternFill
@@ -206,23 +252,26 @@ def construire(chemin=None):
     if inconnus:
         raise SystemExit(f"parametre(s) sans commentaire dans "
                          f"style_classeur.COMMENTAIRES : {inconnus}")
-    parametres = pd.DataFrame({
-        "Parametre": [p for p, _ in PARAMETRES],
-        "Valeur": [v for _, v in PARAMETRES],
-        "Commentaire": [style_classeur.COMMENTAIRES.get(p, "")
-                        for p, _ in PARAMETRES],
-    })
     chemin.parent.mkdir(parents=True, exist_ok=True)
     with pd.ExcelWriter(chemin, engine="openpyxl") as w:
         # Feuille de garde d'abord : c'est elle qui s'ouvre.
         pd.DataFrame().to_excel(w, sheet_name="Instructions", index=False)
-        parametres.to_excel(w, sheet_name="Parametres", index=False)
         CORRESPONDANCE.to_excel(w, sheet_name="Correspondance", index=False)
         CIBLES.to_excel(w, sheet_name="Cibles", index=False)
+
+    # LES PARAMETRES ONT QUITTE LE CLASSEUR (20 septembre 2026, demande
+    # utilisateur) : les VALEURS partent dans le JSON voisin, et les
+    # COMMENTAIRES — qui sont de la documentation, pas de la donnee —
+    # descendent dans la feuille de garde, celle qui s'ouvre. Un fichier de
+    # valeurs se relit par la chaine ; un commentaire ne se lit que par un
+    # humain, et n'a rien a faire dans un fichier de donnees.
+    parametres.ecrire(chemin,
+                      {p: v for p, v in PARAMETRES if not p.startswith("---")})
 
     import openpyxl
     classeur = openpyxl.load_workbook(chemin)
     ecrire_instructions(classeur["Instructions"])
+    ecrire_table_parametres(classeur["Instructions"])
     classeur.active = 0
     classeur.save(chemin)
 

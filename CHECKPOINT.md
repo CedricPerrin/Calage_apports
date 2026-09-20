@@ -1,5 +1,37 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## Reprendre ici — 20 septembre 2026 : 0.9.0, trois demandes utilisateur
+
+Cinq onglets, la reprise annoncée avant le clic, les paramètres hors du
+classeur. **Banc QGIS rejoué sur le poste** (`C:\Program Files\QGIS\LTR`) :
+**297 contrôles, aucun échec** — c'est le premier passage depuis la 0.8.4, et
+il solde la dette « banc non rejoué » qui traînait depuis le 17 septembre.
+
+- **L'onglet « Sorties » disparaît.** Ses groupes rejoignent « Lancer », après
+  « Apports à déterminer » ; le préfixe de scénario quitte « Objectifs » pour
+  se poser au-dessus du bouton. L'ordre de la page est celui de la décision, et
+  c'est l'ordre que le banc éprouve.
+- **Un récapitulatif au-dessus du bouton** dit d'où le calage repart, de quel
+  plan d'étape — nommé avec son préfixe —, ce qui est tenu pour calé et ce qui
+  sera calculé. La boîte de reprise ne s'ouvrait pas après un **échec** : rien
+  n'étant « validé » en aval, rien ne se perdait, donc rien ne se disait.
+- **Les paramètres quittent l'Excel** pour `<nom du classeur>.json`, porté par
+  un module unique, `src/parametres.py` (chaîne à 10 modules). Un classeur
+  d'avant est encore lu par sa feuille — vérifié sur le classeur réel
+  d'Aran-Q100 : 40 paramètres, contrôle sans erreur.
+
+Par quoi reprendre : (1) **regarder la fenêtre** — rien n'a été vu à l'écran,
+tout est mesuré au banc ; (2) **refaire les six captures**
+(`captures_plugin.py`), celle dite « onglet 2 Sorties » montrant un onglet
+disparu ; (3) mesurer « Lancer » **rempli** à 13 pt sur petite fenêtre — sept
+groupes désormais ; (4) **instruire les six échecs du banc avec `--modele`**,
+reproduits à l'identique sur le commit précédent : ils sont antérieurs à ce
+chantier ; (5) installer le ZIP **0.9.0** dans le profil ISL et relancer le
+calage Aran-Q100 (son classeur n'a pas de JSON : c'est le chemin de
+compatibilité qui servira) ; (6) `pont_hecras.py autotest` sur le poste ;
+(7) la [PR #4](https://github.com/CedricPerrin/Calage_apports/pull/4), toujours
+bloquée par une CI sans exécuteur.
+
 ## Complément préparé, non intégré — 20 septembre 2026
 
 La [PR #4](https://github.com/CedricPerrin/Calage_apports/pull/4) déplace aussi la

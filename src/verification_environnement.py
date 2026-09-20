@@ -464,14 +464,21 @@ for nom, bloquant in attendus_chaine:
 try:
     import openpyxl
     wb = openpyxl.load_workbook(RACINE / "template_donnees_calage.xlsx")
-    attendues = {"Instructions", "Parametres", "Correspondance", "Cibles"}
+    # « Parametres » N'EST PLUS UNE FEUILLE (20 septembre 2026) : les valeurs
+    # vivent dans le JSON voisin. Le controle porte donc sur le couple, et
+    # c'est bien ce qu'il faut verifier — un template livre sans son JSON
+    # serait un template sans parametres.
+    attendues = {"Instructions", "Correspondance", "Cibles"}
     controler("feuilles du template", attendues <= set(wb.sheetnames),
               ", ".join(wb.sheetnames))
+    controler("aucune feuille « Parametres » residuelle",
+              "Parametres" not in set(wb.sheetnames), ", ".join(wb.sheetnames))
 
-    import pandas as _pd
-    _par = _pd.read_excel(RACINE / "template_donnees_calage.xlsx",
-                          sheet_name="Parametres")
-    _cles = set(_par["Parametre"].astype(str))
+    sys.path.insert(0, str(DOSSIER))
+    import parametres as _parametres
+    _json = _parametres.chemin(RACINE / "template_donnees_calage.xlsx")
+    controler("fichier de parametres du template", _json.is_file(), _json.name)
+    _cles = set(_parametres.lire(RACINE / "template_donnees_calage.xlsx"))
     _sig = {"Source_geometrie", "Fichier_SHP_Sections", "Fichier_SHP_Apports",
             "Fichier_SHP_Axe", "Sens_axe", "Pas_profil_m"}
     controler("parametres SIG du template", _sig <= _cles,

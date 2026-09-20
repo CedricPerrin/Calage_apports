@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.8.8
+version=0.9.0
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,25 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.8.8 — La longueur d'un titre de plan est mesurée, et le
+changelog=0.9.0 — Cinq onglets, la reprise annoncée avant le clic, et les
+    paramètres hors du classeur. Trois demandes utilisateur du 20 septembre.
+    L'onglet « Sorties » disparaît : dossier de sortie, conservation des
+    plans d'étape et configuration complète rejoignent « Lancer », après
+    les apports à déterminer ; le préfixe de scénario quitte
+    « Objectifs » et se pose juste au-dessus du bouton, qui crée les plans
+    qu'il nomme.
+    Le lancement dit ce qu'il va faire AVANT le clic : d'où le calage
+    repart, de quel plan d'étape — nommé avec son préfixe —, quels
+    apports sont tenus pour calés, lesquels seront calculés. La boîte de
+    reprise ne se posait que s'il y avait des apports VALIDÉS à perdre :
+    après un échec, elle ne s'ouvrait pas et aucun écran ne disait d'où
+    l'on repartait.
+    La feuille « Parametres » quitte l'Excel : les valeurs vivent dans un
+    JSON qui porte le nom du classeur, à côté de lui ; leurs commentaires
+    descendent dans la feuille de garde. Les classeurs composés avant
+    cette version sont encore lus par leur feuille, sans rien demander.
+
+0.8.8 — La longueur d'un titre de plan est mesurée, et le
     contrôle éprouve les titres de reprise.
     La borne passe de 30 à 32, et l'on sait enfin d'où elle vient. Le champ
     « Short Identifier » accepte au moins 40 caractères sous HEC-RAS 7.0.1

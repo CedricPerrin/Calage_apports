@@ -1732,11 +1732,13 @@ verifier("le classeur memorise est une chaine, pas un Path",
 # classeur, choix, ecriture, relecture. C'est ce chemin, et non la composition,
 # qui decide par ou repart un calage.
 if dlg.classeur:
-    import pandas as _pd
+    # LES PARAMETRES NE SONT PLUS DANS LE CLASSEUR (20 septembre 2026) : on
+    # les relit par le module qui les porte, celui-la meme que la chaine
+    # utilise. Les relire a la main ici aurait refait une seconde regle.
+    import parametres as _parametres
 
     def _parametre(cle):
-        _par = _pd.read_excel(dlg.classeur, sheet_name="Parametres")
-        return dict(zip(_par["Parametre"], _par["Valeur"])).get(cle)
+        return _parametres.lire(dlg.classeur).get(cle)
 
     verifier("le nom du clone de geometrie est ecrit dans le classeur",
              _parametre("Nom_clone_geometrie")
@@ -2179,12 +2181,19 @@ verifier("le prefixe de scenario a quitte l'onglet Objectifs",
          str([g.title() for g in dlg.onglets.widget(
              mod_plugin.ONGLET_OBJECTIFS).findChildren(_QGroupBoxA)]))
 
-# LE RECAPITULATIF DE REPRISE (20/09/2026, demande utilisateur). Sans
-# classeur, il dit ce qui manque plutot que de rester vide.
-dlg._dire_reprise()
+# LE RECAPITULATIF DE REPRISE (20/09/2026, demande utilisateur).
+#
+# SUR UNE FENETRE JETABLE, ET C'EST LA LECON. Eprouve sur « dlg », il devait
+# lui poser un classeur, un prefixe et un premier apport — puis les retirer.
+# Avec un modele, « dlg » portait deja un classeur REEL a cet endroit : le
+# rendre a None ensuite laissait la suite du banc devant un etat que rien
+# n'avait produit, et sept controles sans rapport tombaient. Un essai qui
+# doit reparer l'etat qu'il abime est un essai qui le reparera mal un jour.
+_recap_dlg = mod_plugin.DialogueParametrage(iface)
+_recap_dlg._dire_reprise()
 verifier("sans paquet compose, le recapitulatif dit quoi faire",
-         "Contrôle paramétrage" in dlg.label_reprise.text(),
-         dlg.label_reprise.text()[:80])
+         "Contrôle paramétrage" in _recap_dlg.label_reprise.text(),
+         _recap_dlg.label_reprise.text()[:80])
 # AVEC UN CLASSEUR, il nomme le plan de depart AVEC SON PREFIXE, les apports
 # tenus pour cales et ceux qui restent a calculer. C'est le cas signale le
 # 20 septembre : apres un ECHEC, _confirmer_reprise ne pose aucune question
@@ -2196,11 +2205,11 @@ _pd.DataFrame({"Ordre": [1, 2, 3, 4],
                "Nom_Apport (BC line)": ["A1", "A2", "A3", "A4"],
                "Nom_Section (reference line)": ["S1", "S2", "S3", "S4"]}
               ).to_excel(_cl, sheet_name="Correspondance", index=False)
-dlg.edit_prefixe_scenario.setText("Q100")
-dlg.classeur = str(_cl)
-dlg._remplir_premier_apport()
-dlg.combo_premier_apport.setCurrentIndex(3)          # depart a « A3 »
-_recap = dlg.label_reprise.text()
+_recap_dlg.edit_prefixe_scenario.setText("Q100")
+_recap_dlg.classeur = str(_cl)
+_recap_dlg._remplir_premier_apport()
+_recap_dlg.combo_premier_apport.setCurrentIndex(3)   # depart a « A3 »
+_recap = _recap_dlg.label_reprise.text()
 verifier("le recapitulatif nomme le plan de depart avec son prefixe",
          "Q100_Apport_A2" in _recap, _recap)
 verifier("le recapitulatif nomme les apports tenus pour cales",
@@ -2209,13 +2218,13 @@ verifier("le recapitulatif nomme les apports restant a calculer",
          "A3, A4" in _recap, _recap)
 verifier("le recapitulatif previent si le plan de depart manque",
          "S’il manque" in _recap, _recap)
-dlg.combo_premier_apport.setCurrentIndex(0)          # « tous »
+_recap_dlg.combo_premier_apport.setCurrentIndex(0)   # « tous »
 verifier("sans depart choisi, le recapitulatif annonce le calage complet",
-         "Calage complet" in dlg.label_reprise.text()
-         and "Q100_sans_apport" in dlg.label_reprise.text(),
-         dlg.label_reprise.text())
-dlg.edit_prefixe_scenario.setText("")
-dlg.classeur = None
+         "Calage complet" in _recap_dlg.label_reprise.text()
+         and "Q100_sans_apport" in _recap_dlg.label_reprise.text(),
+         _recap_dlg.label_reprise.text())
+_recap_dlg.close()
+_recap_dlg.deleteLater()
 
 # L'ACTION N'APPARTIENT PLUS A AUCUN ONGLET (0.7.24, demande utilisateur).
 # Elle est redescendue au bas de la fenetre, a cote de « Fermer », ou elle

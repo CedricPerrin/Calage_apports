@@ -16,6 +16,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+import parametres
+
 ERREUR, AVERTISSEMENT, INFO = "ERREUR", "AVERTISSEMENT", "INFO"
 
 # Ecart admis entre une condition limite externe et le perimetre du maillage,
@@ -127,8 +129,13 @@ PARAMETRE_AXE = "Fichier_SHP_Axe"
 
 
 def _lire(chemin):
+    """
+    Les feuilles du classeur. « Parametres » N'EN EST PLUS UNE (20 septembre
+    2026) : les parametres vivent dans le JSON voisin, et parametres.lire()
+    sait encore lire la feuille des classeurs d'avant.
+    """
     feuilles = pd.read_excel(chemin, sheet_name=None)
-    manquantes = {"Parametres", "Correspondance", "Cibles"} - set(feuilles)
+    manquantes = {"Correspondance", "Cibles"} - set(feuilles)
     if manquantes:
         raise ValueError(f"feuilles absentes du classeur : {sorted(manquantes)}")
     return feuilles
@@ -154,15 +161,18 @@ def controler_template(chemin):
         return [(ERREUR, f"classeur illisible : {e}")]
 
     # --- 1. Parametres -----------------------------------------------------
-    par = feuilles["Parametres"]
-    if {"Parametre", "Valeur"} <= set(par.columns):
-        valeurs = dict(zip(par["Parametre"], par["Valeur"]))
-    else:
-        valeurs = {}
-        erreur("feuille Parametres : colonnes 'Parametre' et 'Valeur' attendues")
+    valeurs = parametres.lire(chemin)
+    if not valeurs:
+        erreur(f"parametres du calage introuvables : ni "
+               f"« {parametres.chemin(chemin).name} » a cote du classeur, "
+               f"ni feuille « {parametres.FEUILLE_HERITEE} » dedans. Le "
+               f"JSON accompagne le classeur : deplacer l'un sans l'autre "
+               f"laisse un calage sans parametres.")
 
     for cle in PARAMETRES_REQUIS:
-        if cle not in valeurs or pd.isna(valeurs.get(cle)):
+        v = valeurs.get(cle)
+        if cle not in valeurs or v is None or (
+                isinstance(v, float) and pd.isna(v)):
             erreur(f"parametre manquant ou vide : {cle}")
 
     nb_max = valeurs.get("Nb_max_iterations_par_apport")
@@ -308,10 +318,9 @@ def controler_geometrie(chemin_template):
 
     anomalies, tableau = [], None
     try:
-        par = pd.read_excel(chemin_template, sheet_name="Parametres")
-        valeurs = dict(zip(par["Parametre"], par["Valeur"]))
+        valeurs = parametres.lire(chemin_template)
     except Exception as e:
-        return [(ERREUR, f"feuille Parametres illisible : {e}")], None
+        return [(ERREUR, f"parametres du calage illisibles : {e}")], None
 
     def chemin(cle):
         v = valeurs.get(cle)
@@ -491,8 +500,7 @@ def geometrie_hdf(chemin_template):
     permettent pas de le construire ou si le fichier n'existe pas.
     """
     anomalies = []
-    par = pd.read_excel(chemin_template, sheet_name="Parametres")
-    valeurs = dict(zip(par["Parametre"], par["Valeur"]))
+    valeurs = parametres.lire(chemin_template)
 
     def lire(cle):
         v = valeurs.get(cle)
@@ -545,8 +553,7 @@ def controler_contre_modele(chemin_template, chemin_geometrie_hdf=None):
             return anomalies
 
     # --- 0. la zone 2D declaree existe-t-elle ? ---------------------------
-    par = pd.read_excel(chemin_template, sheet_name="Parametres")
-    valeurs = dict(zip(par["Parametre"], par["Valeur"]))
+    valeurs = parametres.lire(chemin_template)
     zone_declaree = valeurs.get("Nom_zone_2D")
     zone_declaree = (str(zone_declaree).strip()
                      if zone_declaree is not None and not pd.isna(zone_declaree)
@@ -734,16 +741,14 @@ if __name__ == "__main__":
 
     print("\n2. Template volontairement fautif")
     tmp = Path(tempfile.gettempdir()) / "template_fautif.xlsx"
+    parametres.ecrire(tmp, {
+        "Dossier_projet_HECRAS": r"D:\projet", "Nom_projet": "Essai",
+        "Nb_max_iterations_par_apport": 2,
+        # Date au format francais : l'erreur de saisie la plus probable, et
+        # la plus silencieuse.
+        "Simulation_debut": "13/10/2014 00:00",
+        "Simulation_fin": "14OCT2014,04:00"})
     with pd.ExcelWriter(tmp, engine="openpyxl") as w:
-        pd.DataFrame({
-            "Parametre": ["Dossier_projet_HECRAS", "Nom_projet",
-                          "Nb_max_iterations_par_apport",
-                          # Date au format francais : l'erreur de saisie la
-                          # plus probable, et la plus silencieuse.
-                          "Simulation_debut", "Simulation_fin"],
-            "Valeur": [r"D:\projet", "Essai", 2,
-                       "13/10/2014 00:00", "14OCT2014,04:00"],
-        }).to_excel(w, sheet_name="Parametres", index=False)
         pd.DataFrame({
             "Ordre": [1, 2, 4],
             "Nom_Apport (BC line)": ["A1", "A2", "A2"],
@@ -776,13 +781,11 @@ if __name__ == "__main__":
     for prefixe, refus_attendu in (("", False), ("Q100", False),
                                    ("Riviere1-Q100", False),
                                    ("Riviere1_Q100_1000_ABC", True)):
+        parametres.ecrire(tmp_prefixe, {
+            "Dossier_projet_HECRAS": r"D:\projet", "Nom_projet": "Essai",
+            "Nom_zone_2D": "Perimeter 1",
+            "Nb_max_iterations_par_apport": 6, "Prefixe_scenario": prefixe})
         with pd.ExcelWriter(tmp_prefixe, engine="openpyxl") as w:
-            pd.DataFrame({
-                "Parametre": ["Dossier_projet_HECRAS", "Nom_projet",
-                              "Nom_zone_2D", "Nb_max_iterations_par_apport",
-                              "Prefixe_scenario"],
-                "Valeur": [r"D:\projet", "Essai", "Perimeter 1", 6, prefixe],
-            }).to_excel(w, sheet_name="Parametres", index=False)
             pd.DataFrame({
                 "Ordre": [1, 2],
                 "Nom_Apport (BC line)": ["APP06", "APP07"],
@@ -834,17 +837,14 @@ if __name__ == "__main__":
                      crs=CRS).to_file(dossier_shp / "apports.shp")
 
     def template_sig(chemin, ordre_sections, nom_apport_1="A1"):
+        parametres.ecrire(chemin, {
+            "Dossier_projet_HECRAS": r"D:\projet", "Nom_projet": "Essai",
+            "Nom_zone_2D": "Zone2D", "Nb_max_iterations_par_apport": 6,
+            "Fichier_SHP_Sections": str(dossier_shp / "sections.shp"),
+            "Fichier_SHP_Apports": str(dossier_shp / "apports.shp"),
+            "Fichier_SHP_Axe": str(dossier_shp / "axe.shp"),
+            "Sens_axe": "amont_aval"})
         with pd.ExcelWriter(chemin, engine="openpyxl") as w:
-            pd.DataFrame({
-                "Parametre": ["Dossier_projet_HECRAS", "Nom_projet", "Nom_zone_2D",
-                              "Nb_max_iterations_par_apport",
-                              "Fichier_SHP_Sections", "Fichier_SHP_Apports",
-                              "Fichier_SHP_Axe", "Sens_axe"],
-                "Valeur": [r"D:\projet", "Essai", "Zone2D", 6,
-                           str(dossier_shp / "sections.shp"),
-                           str(dossier_shp / "apports.shp"),
-                           str(dossier_shp / "axe.shp"), "amont_aval"],
-            }).to_excel(w, sheet_name="Parametres", index=False)
             pd.DataFrame({
                 "Ordre": [1, 2, 3, 4],
                 "Nom_Apport (BC line)": [nom_apport_1] + noms_a[1:],
@@ -892,12 +892,8 @@ if __name__ == "__main__":
                      crs=CRS).to_file(dossier_court / "apports.shp")
     t_court = dossier_court / "template_sig_court.xlsx"
     template_sig(t_court, noms_s)
-    _p = pd.read_excel(t_court, sheet_name="Parametres")
-    _p.loc[_p["Parametre"] == "Fichier_SHP_Apports", "Valeur"] = str(
-        dossier_court / "apports.shp")
-    with pd.ExcelWriter(t_court, engine="openpyxl", mode="a",
-                        if_sheet_exists="replace") as w:
-        _p.to_excel(w, sheet_name="Parametres", index=False)
+    parametres.ecrire_un(t_court, "Fichier_SHP_Apports",
+                         str(dossier_court / "apports.shp"))
     _anos, _tab = controler_geometrie(t_court)
 
     # CE MODULE N'AVAIT AUCUNE ASSERTION : son auto-test se contentait

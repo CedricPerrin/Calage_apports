@@ -22,6 +22,60 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+VERSION 0.9.0 — 20 SEPTEMBRE 2026. TROIS DEMANDES UTILISATEUR.
+
+  1. L'ONGLET « Sorties » N'EXISTE PLUS. Ses trois groupes — dossier de
+     sortie, conservation des plans d'etape, configuration complete —
+     rejoignent « Lancer », apres « Apports a determiner ». Le prefixe de
+     scenario quitte « Objectifs » et se pose juste au-dessus du bouton.
+     Cinq onglets : Modele, Objectifs, Lancer, Suivi, Aide et configuration.
+     L'ordre de la page de lancement est celui de la decision : apports,
+     sorties, prefixe, lancement — et c'est l'ORDRE que le banc eprouve.
+
+  2. LE LANCEMENT DIT CE QU'IL VA FAIRE, AVANT LE CLIC. Au-dessus du bouton,
+     en permanence : d'ou le calage repart, de quel plan d'etape (nomme AVEC
+     son prefixe, tel qu'il figure dans le gestionnaire de plans), quels
+     apports sont tenus pour cales, lesquels seront calcules.
+     POURQUOI : _confirmer_reprise ne pose sa question que s'il y a des
+     apports VALIDES a perdre. Apres un ECHEC, l'apport d'arret n'est pas
+     valide et rien en aval n'a tourne : plus rien ne se perd, la boite ne
+     s'ouvre pas, et aucun ecran ne disait d'ou l'on repartait. Seul le
+     journal le disait, apres le lancement.
+
+  3. LA FEUILLE « Parametres » QUITTE LE CLASSEUR. Les valeurs vivent dans
+     un JSON qui porte le nom du classeur, a cote de lui :
+     donnees_calage_Q100.xlsx va avec donnees_calage_Q100.json. LES DEUX SE
+     DEPLACENT ENSEMBLE — le controle le dit si l'un manque. Le classeur ne
+     garde que ce qu'on y ecrit : « Correspondance » et « Cibles ». Les
+     commentaires des parametres descendent dans la feuille de garde.
+     UN SEUL MODULE porte la lecture et l'ecriture : src/parametres.py,
+     embarque dans la chaine (10 modules). Toutes les lectures directes de
+     la feuille — douze sites dans controle_donnees, pont_hecras,
+     reconstruire_livrables, noyau, verification_environnement — passent
+     par lui.
+     COMPATIBILITE : un classeur compose AVANT le 20 septembre 2026 est
+     encore lu par sa feuille, sans rien demander. Verifie sur le classeur
+     d'un calage reel en cours (Aran-Q100) : 40 parametres lus, controle
+     complet sans erreur.
+
+  BANCS. Banc QGIS sur le poste, QGIS 3.44 LTR : 297 controles, AUCUN ECHEC,
+  dont neuf neufs. Les listes de controles avant/apres ont ete comparees dans
+  un worktree : les seize disparus sont les huit scenarios d'affichage de
+  l'onglet retire, a deux tailles de police — rien perdu.
+  Autotests verts : parametres (neuf), calage, criteres, suivi,
+  style_classeur, controle_donnees (section SIG comprise, sous le Python de
+  QGIS qui porte geopandas), creer_template, verification_environnement.
+  Archive 0.9.0 conforme, garde-fou adverse vert.
+
+  CE QUI N'EST PAS PROUVE. La fenetre n'a pas ete REGARDEE : tout est mesure
+  au banc. Les six captures du depot datent de la 0.8.2 et celle qui
+  s'appelle « onglet 2 Sorties » montre un onglet disparu. « Lancer » porte
+  desormais sept groupes et n'a pas ete mesure REMPLI a 13 pt sur petite
+  fenetre. Le banc avec --modele rend six echecs, REPRODUITS A L'IDENTIQUE
+  sur le commit precedent avec une copie neuve du modele : ils sont
+  anterieurs a cette intervention et restent a instruire.
+
+
 Complément préparé, non intégré — 20 septembre 2026
 
 La [PR #4](https://github.com/CedricPerrin/Calage_apports/pull/4) déplace aussi la

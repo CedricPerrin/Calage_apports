@@ -50,6 +50,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from calage import (Configuration, ResultatApport, ResultatCalage,  # noqa: E402
                     produire_livrables_finaux)
 from criteres import diagnostiquer                              # noqa: E402
+import parametres                                              # noqa: E402
 from pilote_hecras import (cartographier_hydrogrammes,          # noqa: E402
                            lire_hydrogramme_unsteady)
 from pont_hecras import (_cibles_depuis_classeur,               # noqa: E402
@@ -153,17 +154,20 @@ def classeur_remappe(chemin_template, dossier_shp, dossier_sortie, destination):
     ou les fichiers vivent AUJOURD'HUI. L'original n'est jamais touche.
     """
     feuilles = pd.read_excel(chemin_template, sheet_name=None)
-    par = feuilles["Parametres"]
+    valeurs = parametres.lire(chemin_template)
     for cle, nom in (("Fichier_SHP_Sections", "sections_controle.shp"),
                      ("Fichier_SHP_Apports", "lignes_injection.shp"),
                      ("Fichier_SHP_Axe", "axe_hydraulique.shp")):
         if dossier_shp is not None:
-            par.loc[par["Parametre"] == cle, "Valeur"] = str(Path(dossier_shp) / nom)
-    par.loc[par["Parametre"] == "Dossier_sortie", "Valeur"] = str(dossier_sortie.parent)
-    par.loc[par["Parametre"] == "Sous_dossier_resultats", "Valeur"] = dossier_sortie.name
+            valeurs[cle] = str(Path(dossier_shp) / nom)
+    valeurs["Dossier_sortie"] = str(dossier_sortie.parent)
+    valeurs["Sous_dossier_resultats"] = dossier_sortie.name
     with pd.ExcelWriter(destination, engine="openpyxl") as w:
         for nom, df in feuilles.items():
             df.to_excel(w, sheet_name=nom, index=False)
+    # LE JSON SUIT SA COPIE. Sans lui, le classeur remappe serait un classeur
+    # sans parametres — et le remappage n'a de sens que pour eux.
+    parametres.ecrire(destination, valeurs)
     return destination
 
 
@@ -178,8 +182,7 @@ def main():
     args = ap.parse_args()
 
     template = Path(args.template)
-    par = pd.read_excel(template, sheet_name="Parametres")
-    valeurs = dict(zip(par["Parametre"], par["Valeur"]))
+    valeurs = parametres.lire(template)
     dossier_modele = Path(str(valeurs["Dossier_projet_HECRAS"]))
     nom_projet = str(valeurs["Nom_projet"])
     zone = str(valeurs.get("Nom_zone_2D") or "") or None

@@ -2,11 +2,11 @@
 
 Préparation et contrôle du paquet de calage pour **HEC-RAS uniquement**.
 Voir `methodologie_calage_amont_aval.docx`, § 2.4.
-Version **0.8.8** : la longueur tenable d'un titre de plan passe de 30 à
-**32**, et l'on sait d'où elle vient — non du format HEC-RAS, qui en accepte
-au moins 40, mais de ras-commander, qui refuse au-delà de 32. Le contrôle du
-classeur éprouve en outre les titres de **reprise**, qui lui échappaient.
-Avant, les lots UX B et C de la 0.8.7.
+Version **0.9.0** : **cinq onglets** au lieu de six — les Sorties rejoignent
+Lancer, avec le préfixe de scénario juste au-dessus du bouton —, un
+**récapitulatif** qui dit d'où le calage repart avant qu'on clique, et les
+**paramètres hors du classeur**, dans un JSON voisin. Avant : la borne d'un
+titre de plan, mesurée (0.8.8), et les lots UX B et C (0.8.7).
 
 ## Ce que fait le plugin
 
@@ -61,7 +61,7 @@ et figerait l'interface.
 ## Installation
 
 **Depuis l'archive.** `calage_apports_<version>.zip` —
-`calage_apports_0.8.8.zip` pour cette version — est **à la racine du dépôt** : la télécharger
+`calage_apports_0.9.0.zip` pour cette version — est **à la racine du dépôt** : la télécharger
 suffit, il n'y a rien à reconstruire. Le nom porte la version pour qu'on
 sache, sur un poste distant, ce qu'on installe ; il n'y en a jamais qu'une
 dans le dépôt, la plus récente. Puis, dans QGIS :
@@ -358,6 +358,35 @@ contrôle du classeur éprouve le titre de reprise pour **chaque** départ
 possible. Il ne jugeait que « Premier_apport », paramètre qui s'écrit **au
 lancement**, donc après le contrôle — un préfixe trop long passait le
 contrôle et faisait refuser le calage une fois lancé.
+
+**La 0.9.0, le 20 septembre 2026, repond a trois demandes.**
+
+**Cinq onglets.** « Sorties » n'existe plus : le dossier de sortie, ses
+sous-dossiers, le sort des plans d'étape et la configuration complète sont
+dans « Lancer », après « Apports à déterminer ». Le **préfixe de scénario**
+quitte « Objectifs » et se pose juste au-dessus du bouton — il nomme les
+plans que ce bouton crée, et c'est cette portée-là qui décide de sa place.
+L'ordre de la page est celui de la décision : apports, sorties, préfixe,
+lancement.
+
+**Le lancement dit ce qu'il va faire.** Au-dessus du bouton, en permanence :
+d'où le calage repart, de quel plan d'étape — **nommé avec son préfixe**,
+tel qu'il figure dans le gestionnaire de plans —, quels apports sont tenus
+pour calés, lesquels seront calculés. La boîte de reprise, elle, ne se pose
+que s'il y a des apports **validés** à perdre : après un **échec**, l'apport
+d'arrêt n'est pas validé et rien en aval n'a tourné, donc rien ne se perd,
+donc elle ne s'ouvrait pas — et aucun écran ne disait d'où l'on repartait.
+Seul le journal le disait, après le lancement.
+
+**Les paramètres quittent le classeur.** Ils vivent dans un JSON qui porte
+le nom du classeur, à côté de lui : `donnees_calage_Q100.xlsx` va avec
+`donnees_calage_Q100.json`. **Les deux se déplacent ensemble** — le contrôle
+le dit si l'un manque. Le classeur ne garde que ce qu'on y écrit,
+« Correspondance » et « Cibles » ; les commentaires des paramètres
+descendent dans la feuille de garde, celle qui s'ouvre. Un classeur composé
+**avant** cette version est encore lu par sa feuille, sans rien demander :
+un calage en cours ne s'arrête pas parce que l'outil a changé d'avis sur le
+rangement de ses paramètres.
 
 > Ce que les calages livrés n'ont PAS rencontré : un volume plancher, un
 > apport refusé, un modèle incohérent. Les garde-fous qui traitent ces cas

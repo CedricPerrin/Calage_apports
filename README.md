@@ -10,7 +10,7 @@ Les ZIP déjà publiés précèdent ce lot : utiliser les sources de `main` pour
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 
-Version des sources du plugin : **0.8.8**. La
+Version des sources du plugin : **0.9.0**. La
 [note d’ergonomie du 11 septembre 2026](docs/ergonomie_2026-09-11.md)
 décrit le parcours, les choix d’interface et les points de recette.
 
@@ -66,6 +66,16 @@ contrôle du classeur éprouve le titre de **reprise** pour chaque départ
 possible : il ne jugeait que « Premier_apport », qui s'écrit au lancement,
 donc après lui.
 
+La **0.9.0** repond a trois demandes du 20 septembre. L'onglet **Sorties**
+disparait : ses groupes rejoignent **Lancer**, apres les apports a determiner,
+et le **prefixe de scenario** vient se poser juste au-dessus du bouton — cinq
+rubriques au lieu de six. Le lancement **dit ce qu'il va faire** avant le clic :
+d'ou le calage repart, de quel plan d'etape, quels apports sont tenus pour
+cales et lesquels seront calcules. Et la feuille **« Parametres » quitte
+l'Excel** : les valeurs vivent dans un JSON qui porte le nom du classeur, a
+cote de lui ; leurs commentaires descendent dans la feuille de garde. Les
+classeurs composes avant cette version sont **encore lus par leur feuille**.
+
 Pour chaque apport, de l'amont vers l'aval : estimer, calculer, comparer à la
 cible, corriger, répéter jusqu'à concordance, puis vérifier la cohérence des
 sections amont avant de passer au suivant.
@@ -83,7 +93,7 @@ Le calage laisse dans le modèle **un plan HEC-RAS par étape** —
 `Q100_sans_apport`, `Q100_Apport_A1`… puis `Q100_avec_apports`, qui n'est pas un
 clone mais la dernière étape retitrée, avec ses résultats. Ils sont conservés :
 ils documentent le calage et permettent de reprendre une séquence interrompue.
-Dans **Sorties**, une case permet leur suppression **sur demande**,
+Dans **Lancer**, une case permet leur suppression **sur demande**,
 uniquement après un calage réussi.
 
 La boucle ([src/calage.py](src/calage.py)) est **indépendante du solveur** : elle
@@ -109,8 +119,11 @@ dans un interpréteur séparé (conflit HDF5 avec QGIS), `qgis` et `PyQt` vienne
 de l'installation QGIS.
 
 Pour saisir les données d'un calage, partir de
-[template_donnees_calage.xlsx](template_donnees_calage.xlsx), puis lancer la
-chaîne en ligne de commande ou depuis le plugin.
+[template_donnees_calage.xlsx](template_donnees_calage.xlsx) **et de son
+[template_donnees_calage.json](template_donnees_calage.json)** — le classeur
+porte la correspondance et les cibles, le JSON porte les paramètres, et les
+deux se déplacent ensemble. La feuille de garde du classeur explique chaque
+paramètre. Puis lancer la chaîne en ligne de commande ou depuis le plugin.
 
 ### Avec quel Python ?
 
@@ -137,6 +150,7 @@ distribué : le plugin en embarque une copie autonome à l'installation.
 |---|---|
 | [src/calage.py](src/calage.py) | Boucle de calage séquentiel |
 | [src/criteres.py](src/criteres.py) | Analyse pure : recalage temporel, corrélation de forme, diagnostic |
+| [src/parametres.py](src/parametres.py) | Les paramètres d'un calage : le JSON voisin du classeur, et la lecture des classeurs d'avant |
 | [src/controle_donnees.py](src/controle_donnees.py) | Validation du classeur et de la chaîne SIG avant tout calcul |
 | [src/geometrie.py](src/geometrie.py) | Shapefiles, PK par projection curviligne, écriture dans la géométrie HEC-RAS |
 | [src/livrables.py](src/livrables.py) | Graphiques, tableaux, export Excel, note de synthèse |
@@ -174,19 +188,19 @@ référence, la seconde en **aval** de la première.
 
 ## La fenêtre du plugin
 
-Six rubriques : **Modèle → Sorties → Objectifs → Lancer → Suivi**, puis
+Cinq rubriques : **Modèle → Objectifs → Lancer → Suivi**, puis
 **Aide et configuration**. Les commandes de navigation et **Contrôle paramétrage** restent
 accessibles en bas de la fenêtre. Les pages longues défilent ; les détails
 secondaires se déplient à la demande. Les images sont produites avec un
 projet de démonstration par [src/captures_plugin.py](src/captures_plugin.py).
 
-> **Les six captures datent de la 0.8.2** et n'ont pas été refaites depuis :
-> la 0.8.3 a ajouté le statut « repris » au Suivi, la 0.8.4 a déplacé le
-> préfixe de scénario à l'onglet Objectifs et remis ses deux boutons côte à
-> côte, la 0.8.5 change le libellé du préfixe. **Les onglets 3, 4 et 5 ne
-> ressemblent donc plus exactement aux images.** À refaire par
-> `captures_plugin.py`, sous le Python de QGIS — une capture périmée
-> ressemble à une capture.
+> **Les captures datent de la 0.8.2 et ne montrent plus la fenêtre.** La
+> 0.9.0 supprime l'onglet Sorties, déplace le préfixe de scénario et ajoute
+> le récapitulatif de reprise ; avant elle, la 0.8.3 avait ajouté le statut
+> « repris » au Suivi et la 0.8.5 changé le libellé du préfixe. **Seul
+> l'onglet 1 ressemble encore à son image, et la capture « onglet 2 » montre
+> un onglet qui n'existe plus.** À refaire par `captures_plugin.py`, sous le
+> Python de QGIS — une capture périmée ressemble à une capture.
 
 **1. Modèle** — le projet HEC-RAS (**on désigne le fichier `.prj`, pas le
 dossier**), le plan de référence, la géométrie, la zone 2D, le **profil en
@@ -196,14 +210,7 @@ y dessine est écrit dans la géométrie par le bouton du bas.
 
 ![Onglet 1 — Modèle](docs/captures/onglet_1_modele.png)
 
-**2. Sorties** — dossier de sortie, sous-dossiers personnalisables et
-configuration complète consultable à la demande. Les plans d’étape sont
-**conservés par défaut** ; la case de suppression précise son effet et ne
-s’applique qu’après un calage réussi.
-
-![Onglet Sorties](docs/captures/onglet_2_sorties.png)
-
-**3. Objectifs** — ouvrir ou reprendre l’Excel des hydrogrammes objectifs,
+**2. Objectifs** — ouvrir ou reprendre l’Excel des hydrogrammes objectifs,
 puis vérifier **ce que ces hydrogrammes portent** une fois l’Excel validé :
 débit de pointe, heure du pic
 et volume de chaque apport. Une cible collée dans la mauvaise colonne, un
@@ -214,17 +221,24 @@ résultat se lit en pourcentage d’atteinte de la cible.
 
 ![Onglet Objectifs](docs/captures/onglet_3_objectifs.png)
 
-**4. Lancer** — l'appariement apport → section, l'état des cibles, le premier
-apport à caler, le **préfixe de scénario** — **obligatoire** : sans lui, caler
-le Q10 après le Q100 sur le même modèle effacerait les plans du Q100 —, puis le
-lancement, expliqué avant son activation. Un accès direct permet de
-consulter le suivi.
+**3. Lancer** — tout ce qui décide du lancement, dans l'ordre où il se
+décide : l'appariement apport → section et l'état des cibles ; le **premier
+apport à caler** ; le **dossier de sortie**, ses sous-dossiers et le sort des
+**plans d'étape** — conservés par défaut, la case de suppression ne
+s'appliquant qu'après un calage réussi ; la configuration complète, repliée ;
+le **préfixe de scénario** — **obligatoire** : sans lui, caler le Q10 après le
+Q100 sur le même modèle effacerait les plans du Q100 ; puis le lancement.
+**Au-dessus du bouton, un récapitulatif dit ce que ce clic va faire** : d'où le
+calage repart, de quel plan d'étape — nommé avec son préfixe, tel qu'il figure
+dans le gestionnaire de plans —, quels apports sont tenus pour calés et
+lesquels seront calculés. Il se lit avant, et se relit après. Un accès direct
+permet de consulter le suivi.
 
 ![Onglet 4 — Lancer](docs/captures/onglet_4_lancer.png)
 
-**5. Suivi** — où en est le calcul, apport par apport, rafraîchi tout seul. Le
+**4. Suivi** — où en est le calcul, apport par apport, rafraîchi tout seul. Le
 dossier surveillé est nommé en permanence : c'est celui que désigne l'Excel
-lancé. Les champs de **Sorties** préparent la prochaine composition. La
+lancé. Les champs de **Lancer** préparent la prochaine composition. La
 courbe porte la cible et la section de l’apport en cours, et **derrière,
 en vert pointillé, les sections déjà
 calées** : c'est la famille de courbes qui dit si tout se tient.

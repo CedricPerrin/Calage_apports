@@ -1630,11 +1630,14 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
         for nom_cible in noms_cibles:
             cibles[nom_cible] = []
 
+    # LE CLASSEUR NE PORTE PLUS QUE CE QU'ON Y ECRIT (20 septembre 2026,
+    # demande utilisateur) : la correspondance et les cibles. Les parametres
+    # partent dans le JSON voisin — voir chaine/parametres.py.
     with pd.ExcelWriter(chemin, engine="openpyxl") as w:
-        pd.DataFrame({"Parametre": list(valeurs), "Valeur": list(valeurs.values())}
-                     ).to_excel(w, sheet_name="Parametres", index=False)
         correspondance.to_excel(w, sheet_name="Correspondance", index=False)
         cibles.to_excel(w, sheet_name="Cibles", index=False)
+    import parametres as _parametres
+    _parametres.ecrire(chemin, valeurs)
 
     # MISE EN FORME, jamais bloquante. C'est le classeur qu'on ouvre tous les
     # jours pour y coller des hydrogrammes ; pandas le rendait nu. Mais un
@@ -1920,15 +1923,16 @@ def lire_parametres(chemin_classeur):
     +/-2 % puis lancer l'aurait DESSERRE a 5 % sans un mot, des lors que le
     lancement reecrit ces parametres (voir plugin, _lancer_calage).
 
-    Deux autres fonctions de ce module relisent deja cette feuille a la main
-    (chemins_du_classeur, dossier_suivi_du_classeur) ; elles pourraient
-    l'adopter, mais la seconde porte la regle du pont et n'a pas ete touchee.
+    DEPUIS LE 20 SEPTEMBRE 2026, LES PARAMETRES NE SONT PLUS UNE FEUILLE du
+    classeur mais un JSON a cote (chaine, parametres.py) : personne ne les
+    saisissait a la main, et la feuille etait la premiere chose vue en
+    ouvrant un classeur ou l'on ne vient que coller des hydrogrammes. Les
+    classeurs d'avant sont encore lus par leur feuille — c'est parametres.py
+    qui porte cette compatibilite, et lui seul.
     """
-    import pandas as pd
+    import parametres
 
-    par = pd.read_excel(chemin_classeur, sheet_name="Parametres")
-    return {str(c).strip(): (None if v is None or pd.isna(v) else v)
-            for c, v in zip(par["Parametre"], par["Valeur"])}
+    return parametres.lire(chemin_classeur)
 
 
 def ecrire_parametre(chemin_classeur, cle, valeur):
@@ -1939,25 +1943,14 @@ def ecrire_parametre(chemin_classeur, cle, valeur):
     « Premier_apport » en premier lieu : choisir par ou reprendre ne doit pas
     obliger a recomposer tout le paquet.
 
-    La feuille est reecrite en conservant la mise en forme du classeur :
-    openpyxl modifie la cellule sur place, la ou pandas reconstruirait le
-    fichier et perdrait styles, commentaires et listes deroulantes.
+    LE CLASSEUR N'EST PLUS TOUCHE (20 septembre 2026) : les parametres vivent
+    dans le JSON voisin. On y gagne ce que la reecriture openpyxl coutait —
+    ouvrir, modifier et resauvegarder un classeur de plusieurs milliers de
+    lignes de cibles pour changer un seul mot, sur un partage reseau.
     """
-    import openpyxl
+    import parametres
 
-    classeur = openpyxl.load_workbook(chemin_classeur)
-    feuille = classeur["Parametres"]
-    for ligne in feuille.iter_rows(min_row=1, max_col=2):
-        if str(ligne[0].value).strip() == cle:
-            ligne[1].value = valeur
-            classeur.save(chemin_classeur)
-            return True
-    # La cle peut manquer d'un classeur compose par une version anterieure :
-    # on l'ajoute plutot que d'echouer, sinon le reglage serait perdu sans que
-    # rien ne le dise.
-    feuille.cell(row=feuille.max_row + 1, column=1, value=cle)
-    feuille.cell(row=feuille.max_row, column=2, value=valeur)
-    classeur.save(chemin_classeur)
+    return parametres.ecrire_un(chemin_classeur, cle, valeur)
     return False
 
 
@@ -2081,14 +2074,11 @@ def chemins_du_classeur(chemin_classeur):
     precedente : se fier a ce qui est en memoire priverait l'utilisateur de la
     couche des PK des qu'il rouvre QGIS.
     """
-    import pandas as pd
-
-    par = pd.read_excel(chemin_classeur, sheet_name="Parametres")
-    valeurs = dict(zip(par["Parametre"], par["Valeur"]))
+    valeurs = lire_parametres(chemin_classeur)
 
     def chemin(cle):
         v = valeurs.get(cle)
-        if v is None or pd.isna(v) or not str(v).strip():
+        if v is None or not str(v).strip():
             return None
         p = Path(str(v))
         return p if p.exists() else None
@@ -2105,8 +2095,8 @@ def dossier_suivi_du_classeur(chemin_classeur):
     """
     Dossier ou le calage lance sur ce classeur ecrit son suivi.
 
-    LA MEME REGLE QUE LE PONT, et aucune autre : « Dossier_sortie » de la
-    feuille Parametres, sinon le dossier du classeur ; puis
+    LA MEME REGLE QUE LE PONT, et aucune autre : « Dossier_sortie » des
+    parametres du calage, sinon le dossier du classeur ; puis
     « Sous_dossier_suivi », sinon « suivi » (pont_hecras, commande caler).
 
     C'est ce que l'onglet de suivi doit regarder. Le classeur dit ou le
@@ -2114,15 +2104,12 @@ def dossier_suivi_du_classeur(chemin_classeur):
     prochain paquet — et les deux divergent des qu'on reprend le classeur
     d'un calcul precedent.
     """
-    import pandas as pd
-
     chemin_classeur = Path(chemin_classeur)
-    par = pd.read_excel(chemin_classeur, sheet_name="Parametres")
-    valeurs = dict(zip(par["Parametre"], par["Valeur"]))
+    valeurs = lire_parametres(chemin_classeur)
 
     def texte(cle, defaut=""):
         v = valeurs.get(cle)
-        return defaut if v is None or pd.isna(v) else str(v).strip()
+        return defaut if v is None else str(v).strip()
 
     racine = Path(texte("Dossier_sortie") or chemin_classeur.parent)
     return racine / texte("Sous_dossier_suivi", "suivi")
@@ -3388,10 +3375,10 @@ if __name__ == "__main__":
         ailleurs = bac_s / "sortie_du_classeur"
         classeur_s = bac_s / "compose_ici" / "donnees_calage.xlsx"
         classeur_s.parent.mkdir()
-        pd.DataFrame({"Parametre": ["Nom_projet", "Dossier_sortie",
-                                    "Sous_dossier_suivi"],
-                      "Valeur": ["Essai", str(ailleurs), "suivi_q100"]}
-                     ).to_excel(classeur_s, sheet_name="Parametres", index=False)
+        import parametres as _parametres
+        _parametres.ecrire(classeur_s, {"Nom_projet": "Essai",
+                                        "Dossier_sortie": str(ailleurs),
+                                        "Sous_dossier_suivi": "suivi_q100"})
         trouve = dossier_suivi_du_classeur(classeur_s)
         assert trouve == ailleurs / "suivi_q100", (
             f"le suivi doit suivre Dossier_sortie et Sous_dossier_suivi du "
@@ -3401,8 +3388,7 @@ if __name__ == "__main__":
 
         # Sans ces deux cles — classeur d'une version anterieure —, la regle
         # du pont vaut aussi : le dossier du classeur, sous-dossier « suivi ».
-        pd.DataFrame({"Parametre": ["Nom_projet"], "Valeur": ["Essai"]}
-                     ).to_excel(classeur_s, sheet_name="Parametres", index=False)
+        _parametres.ecrire(classeur_s, {"Nom_projet": "Essai"})
         trouve = dossier_suivi_du_classeur(classeur_s)
         assert trouve == classeur_s.parent / "suivi", trouve
         print("   sans Dossier_sortie : le dossier du classeur, sous-dossier « suivi »")

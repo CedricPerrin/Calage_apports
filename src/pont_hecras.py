@@ -45,6 +45,11 @@ DOSSIER = Path(__file__).resolve().parent
 if str(DOSSIER) not in sys.path:
     sys.path.insert(0, str(DOSSIER))
 
+# LES PARAMETRES DU CALAGE, depuis le 20 septembre 2026, vivent dans un JSON
+# a cote du classeur. Ce module n'importe que la bibliotheque standard : il
+# peut etre charge ici, avant pandas et avant ras-commander.
+import parametres                                           # noqa: E402
+
 # SORTIE EN UTF-8, IMPOSEE ICI. Les messages du journal portent des accents et
 # une fleche (« → »), et repondre() serialise en ensure_ascii=False. Redirigee
 # vers un fichier sous Windows, la sortie standard prend l'encodage local
@@ -523,8 +528,7 @@ def _pentes_deduites(pilote, chemin_template, apports):
     import geometrie as geo
 
     try:
-        par = pd.read_excel(chemin_template, sheet_name="Parametres")
-        valeurs = dict(zip(par["Parametre"], par["Valeur"]))
+        valeurs = parametres.lire(chemin_template)
         axe = valeurs.get(cd.PARAMETRE_AXE)
         if not axe or pd.isna(axe) or not Path(str(axe)).is_file():
             print("   pente : axe hydraulique absent, pente locale non "
@@ -599,8 +603,7 @@ def _profil_pour_livrables(pilote, chemin_template, resultat):
 
     rien = (None, None, None)
     try:
-        par = pd.read_excel(chemin_template, sheet_name="Parametres")
-        valeurs = dict(zip(par["Parametre"], par["Valeur"]))
+        valeurs = parametres.lire(chemin_template)
 
         fichier_axe = valeurs.get(cd.PARAMETRE_AXE)
         if (not fichier_axe or pd.isna(fichier_axe)
@@ -736,8 +739,7 @@ def _controler_apports_dans_unsteady(chemin_template):
     from pilote_hecras import cartographier_hydrogrammes
 
     try:
-        par = pd.read_excel(chemin_template, sheet_name="Parametres")
-        valeurs = dict(zip(par["Parametre"], par["Valeur"]))
+        valeurs = parametres.lire(chemin_template)
         corr = pd.read_excel(chemin_template, sheet_name="Correspondance")
     except Exception as e:
         return [(cd.AVERTISSEMENT,
@@ -803,8 +805,7 @@ def _contexte_modele(chemin_template):
     import pandas as pd
 
     try:
-        par = pd.read_excel(chemin_template, sheet_name="Parametres")
-        valeurs = dict(zip(par["Parametre"], par["Valeur"]))
+        valeurs = parametres.lire(chemin_template)
         corr = pd.read_excel(chemin_template, sheet_name="Correspondance")
     except Exception as e:
         raise RuntimeError(str(e)) from e
@@ -1490,8 +1491,7 @@ def commande_caler(args):
     from suivi import Suivi
 
     chemin_template = Path(args.template)
-    par = pd.read_excel(chemin_template, sheet_name="Parametres")
-    valeurs = dict(zip(par["Parametre"], par["Valeur"]))
+    valeurs = parametres.lire(chemin_template)
 
     def texte(cle, defaut=""):
         return _texte_parametre(valeurs, cle, defaut)
@@ -2099,11 +2099,12 @@ def commande_autotest(args):
 
     _tmp_prevol = Path(tempfile.gettempdir()) / "_essai_calage_prevol.xlsx"
 
-    def _durees(parametres):
+    def _durees(valeurs):
+        # « valeurs », non « parametres » : le module du meme nom porte
+        # desormais la lecture et l'ecriture, et un parametre homonyme le
+        # masquerait ici.
+        parametres.ecrire(_tmp_prevol, valeurs)
         with pd.ExcelWriter(_tmp_prevol, engine="openpyxl") as w:
-            pd.DataFrame({"Parametre": list(parametres),
-                          "Valeur": list(parametres.values())}
-                         ).to_excel(w, sheet_name="Parametres", index=False)
             pd.DataFrame({"Nom_Apport": ["A1"], "Nom_Section": ["S1"]}
                          ).to_excel(w, sheet_name="Correspondance", index=False)
         return _controler_durees_avant_calcul(_tmp_prevol)
@@ -2125,11 +2126,12 @@ def commande_autotest(args):
     # controle est purement informatif : s'il emportait son appelant, il
     # ferait echouer une composition parfaitement valide pour un constat qui
     # n'empeche aucun calage.
-    def _residus(parametres):
+    def _residus(valeurs):
+        # « valeurs », non « parametres » : le module du meme nom porte
+        # desormais la lecture et l'ecriture, et un parametre homonyme le
+        # masquerait ici.
+        parametres.ecrire(_tmp_prevol, valeurs)
         with pd.ExcelWriter(_tmp_prevol, engine="openpyxl") as w:
-            pd.DataFrame({"Parametre": list(parametres),
-                          "Valeur": list(parametres.values())}
-                         ).to_excel(w, sheet_name="Parametres", index=False)
             pd.DataFrame({"Nom_Apport": ["A1"], "Nom_Section": ["S1"]}
                          ).to_excel(w, sheet_name="Correspondance", index=False)
         return _controler_residus_unsteady(_tmp_prevol)
