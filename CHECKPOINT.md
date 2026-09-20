@@ -4,7 +4,15 @@ Point de reprise pour ouvrir une nouvelle conversation avec un contexte
 minimal. L'état courant et les règles en vigueur restent dans `STATUT.txt` ;
 ce fichier ne dit que **où on en est** et **par quoi reprendre**.
 
-## Reprendre ici — 18 septembre 2026 (suite) : 0.8.6, la revue de qualité fusionnée
+## Reprendre ici — 20 septembre 2026 : intégration des lots UX B/C
+
+L’utilisateur demande la fusion de la PR #3 dans `main`. La recette se fait depuis ces sources, avec les preuves et responsables de `docs/UX_ISL.md`. L’exécution par lots autorise C9 et C16. Les effets du contrôle sont visibles ; création du venv, pip et vérification passent par `QgsTask`. La cible confirmée est figée et la préférence Python n’est publiée qu’après succès. Voir [implémentation, bancs et limites](docs/UX_ISL.md).
+
+La recette automatisée est maintenant verte : noyau complet ; QGIS 3.44.7 / Qt 5.15.13, quatre tests du gestionnaire/cycle, quatre tests cible/worker et 299 contrôles du banc historique. Les phases pip sont simulées, le gestionnaire et les widgets sont réels. Dix correspondances ISL sont contrôlées en CI. Voir `docs/UX_ISL.md` pour le lien de preuve et la portée du harnais Linux (sonde PID POSIX, pas tasklist Windows).
+
+Prochaine étape : recette sur le poste Windows ISL, installation réelle via son réseau, DPI/thèmes/lecteur d’écran et modèle représentatif. Aucun nouveau ZIP de diffusion avant cette recette ; aucun calcul métier ni archive 0.8.6 remplacé. Nouveaux fichiers : workflow `.github/workflows/ux-qgis.yml`, test `src/test_installation_qgis.py`, contrôle `tools/check_isl_identity.py` et contrat `docs/isl-identity-contract.json` ; banc historique rendu reproductible sous Linux.
+
+## État précédent — 18 septembre 2026 (suite) : 0.8.6, la revue de qualité fusionnée
 
 La branche `claude/ponytail-lycxeg` (revue de qualité de la 0.8.4, 17/09) est
 fusionnée dans `main` — merge `e402072` — et l'archive refaite sous un nom

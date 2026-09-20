@@ -1,5 +1,12 @@
 # Calage_apports
 
+**20 septembre 2026 — lot UX B/C, intégration dans `main` demandée ([PR #3](https://github.com/CedricPerrin/Calage_apports/pull/3)).**
+Effets du contrôle explicités ; installation Python dans une tâche QGIS avec journal et protection contre les doubles lancements.
+Voir [les changements, contrôles et limites](docs/UX_ISL.md) et le
+[suivi d’intégration](https://github.com/CedricPerrin/ergonomie/blob/main/SUIVI_LOTS_2026-09-20.md). Les preuves antérieures ci-dessous restent datées ;
+la nouvelle recette visuelle et métier sur le poste ISL reste à réaliser.
+Les ZIP déjà publiés précèdent ce lot : utiliser les sources de `main` pour la recette.
+
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 

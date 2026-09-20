@@ -808,7 +808,7 @@ def pythons_candidats():
     return trouves
 
 
-def installer_interpreteur(python_base, journal=None):
+def installer_interpreteur(python_base, journal=None, *, cible=None):
     """
     Cree un environnement Python HEC-RAS et y installe ras-commander et h5py.
 
@@ -819,6 +819,8 @@ def installer_interpreteur(python_base, journal=None):
     journal : appelable recevant les lignes de sortie, pour que l'attente ne
         soit pas muette. pip peut prendre plusieurs minutes.
 
+    cible : dossier annoncé à la confirmation, figé avant le démarrage différé.
+
     Retourne (chemin_interpreteur, message). En cas d'echec, (None, motif).
 
     NE REMPLACE JAMAIS UN ENVIRONNEMENT EXISTANT : si le dossier est deja la,
@@ -828,7 +830,7 @@ def installer_interpreteur(python_base, journal=None):
     import subprocess
 
     dire = journal or (lambda _: None)
-    cible = emplacement_venv_hecras()
+    cible = Path(cible) if cible is not None else emplacement_venv_hecras()
     python_base = Path(python_base)
     if not python_base.is_file():
         return None, f"« {python_base} » n'est pas un fichier."

@@ -1,0 +1,59 @@
+name: UX QGIS
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ux-qgis-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  noyau:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: python -m pip install -r requirements-dev.txt pytest
+      - name: Identité ISL adoptée
+        run: python tools/check_isl_identity.py
+      - run: python calage_apports/noyau.py
+      - run: python -m pytest src/test_installation_cible.py -q
+
+  qgis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      # Image stable-noble déjà utilisée par Check HEC-RAS, figée le 20/09/2026.
+      image: qgis/qgis@sha256:a30b9a65df003c9977f9d30122496e824a8d8d1d1fd31aadbdb091d631f4ba49
+    env:
+      QT_QPA_PLATFORM: offscreen
+      QGIS_PREFIX_PATH: /usr
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dépendances de test, sans h5py dans QGIS
+        run: python3 -m pip install --break-system-packages pytest -r requirements-dev.txt
+      - name: Version réellement éprouvée
+        run: python3 -c "from qgis.core import Qgis; from qgis.PyQt.QtCore import QT_VERSION_STR; print('QGIS', Qgis.QGIS_VERSION, 'Qt', QT_VERSION_STR)"
+      - name: Tâche native et cycle du dialogue
+        run: python3 -m pytest src/test_installation_qgis.py -v --junitxml=artifacts/tache-qgis.xml
+      - name: Contrat du worker
+        run: python3 -m pytest src/test_installation_cible.py src/test_installation_tache.py -v --junitxml=artifacts/worker.xml
+      - name: Banc du plugin sans modèle externe
+        run: python3 src/test_plugin_qgis.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: recette-qgis-${{ github.sha }}
+          path: artifacts/
+          if-no-files-found: error

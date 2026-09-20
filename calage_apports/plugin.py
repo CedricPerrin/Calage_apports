@@ -25,6 +25,7 @@ from pathlib import Path
 
 from qgis.core import (
     Qgis,
+    QgsApplication,
     QgsCoordinateReferenceSystem,
     QgsFeature,
     QgsField,
@@ -79,6 +80,7 @@ from qgis.PyQt.QtWidgets import (
 )
 
 from . import noyau
+from .installation import TacheInstallation, installation_en_cours
 from .interface import Etiquette as QLabel, Manuel as QTextBrowser
 from .interface import couleur as couleur_theme, sombre as fond_sombre
 from .interface import feuille as feuille_interface
@@ -414,13 +416,11 @@ def construire_couche_polygones_depuis_wkt(nom_couche, entites, crs_authid):
 # ---------------------------------------------------------------------------
 # Charte graphique ISL Ingenierie
 #
-# Couleurs RELEVEES sur les visuels de la charte (charte/), pas devinees :
-#   - le pictogramme du domaine « Prevention des inondations & ouvrages de
-#     protection » — celui de ce projet — donne le teal d'accent ;
-#   - la frise institutionnelle donne le bleu ardoise.
-# Typographie de la charte : Helvetica Neue. Elle n'est pas installee de
-# serie sous Windows ; Arial en est le substitut metrique usuel, d'ou la
-# pile de replis.
+# Identite ISL UX 0.1 : couleurs INSTITUTIONNELLES de charte/ :
+# bleu-vert #3A8D94, ardoise #9BAEB7, gris #707173. Les variantes textuelles
+# repondent au contraste ; elles ne recolorent pas le logo. Les pictogrammes
+# PIO existants sont autorises, sans reprendre la palette PIO comme habillage.
+# La police des controles suit le poste/QGIS ; aucune police de marque embarquee.
 #
 # Le style reste VOLONTAIREMENT RETENU : il ne fixe que des couleurs de
 # texte et de bordure, jamais de fond, hormis le bouton principal. QGIS se
@@ -1207,6 +1207,8 @@ def avec_sablier(methode):
     """Curseur d'attente pendant toute la methode, rendu quoi qu'il arrive."""
     @functools.wraps(methode)
     def enveloppe(self):
+        if getattr(self, "_installation_occupe", lambda: False)():
+            return
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         self._sablier_pose = True
         try:
@@ -1836,6 +1838,7 @@ class DialogueParametrage(QDialog):
     def __init__(self, iface, parent=None):
         super().__init__(parent or iface.mainWindow())
         self.iface = iface
+        self._tache_installation = None
         self.setWindowTitle(f"{NOM_PLUGIN} — {EDITEUR}")
         self.setObjectName("calageFenetre")
         self.setWindowIcon(QIcon(os.path.join(DOSSIER, "icon.png")))
@@ -2266,6 +2269,9 @@ class DialogueParametrage(QDialog):
             nombre = sum(bool(ok) for _, ok in etapes)
             fin = (f"<b>Préparation : {nombre}/4.</b> "
                    f"<a href='{indice}'>{action}</a>")
+        # Effets visibles avant l'action, meme sans consulter l'infobulle.
+        fin += ("<br><b>Contrôle paramétrage :</b> écrit dans la géométrie HEC-RAS "
+                "après sauvegarde horodatée, puis crée les shapefiles et le classeur.")
         self.label_fil.setText(fin)
         self.label_fil.setToolTip("\n".join(
             f"{'Fait' if ok else 'À faire'} : {nom}" for nom, ok in etapes))
@@ -4759,6 +4765,14 @@ class DialogueParametrage(QDialog):
         ligne_interp.addWidget(bouton_interp)
         fp.addRow("Interpréteur HEC-RAS :", ligne_interp)
 
+        self.bouton_installer = bouton_installer
+        self._commandes_poste = (bouton_installer, bouton_interp, bouton_chaine, bouton)
+        self.progression_installation = QProgressBar()
+        self.progression_installation.setRange(0, 0)
+        self.progression_installation.setAccessibleName("Installation Python en cours")
+        self.progression_installation.hide()
+        fp.addRow(self.progression_installation)
+        QTimer.singleShot(0, self._reprendre_installation)
         v.addWidget(groupe)
         v.addWidget(texte, 1)
         self._maj_parametres_poste()
@@ -4803,6 +4817,8 @@ class DialogueParametrage(QDialog):
         calcul, apres clonage — plusieurs minutes plus tard, et loin de la
         cause.
         """
+        if self._installation_occupe():
+            return
         chemin, _ = QFileDialog.getOpenFileName(
             self, "Interpréteur Python disposant de ras-commander", "",
             "Exécutable Python (python.exe python3.exe python);;"
@@ -4823,24 +4839,51 @@ class DialogueParametrage(QDialog):
                 f"celle de h5py.")
         self._maj_parametres_poste()
 
-    @avec_sablier
+    def _installation_occupe(self):
+        if installation_en_cours() is None:
+            return False
+        self._signaler(
+            "Installation en cours",
+            "Attendez la vérification de Python avant une opération HEC-RAS. "
+            "Le suivi est dans Aide et configuration ; QGIS reste utilisable.",
+            Qgis.MessageLevel.Warning, 10)
+        return True
+
+    def _reprendre_installation(self):
+        tache = installation_en_cours()
+        if tache is not None:
+            self._suivre_installation(tache)
+
+    def _suivre_installation(self, tache):
+        if self._tache_installation is tache:
+            return
+        self._tache_installation = tache
+        tache.phase.connect(self._phase_installation)
+        tache.resultat.connect(self._fin_installation)
+        for bouton in self._commandes_poste:
+            bouton.setEnabled(False)
+        self.progression_installation.show()
+        self._phase_installation(tache.lignes[-1] if tache.lignes else "Installation en attente…")
+
+    def _phase_installation(self, phase):
+        dire(self.label_diagnostic, phase + "\nQGIS reste utilisable. "
+             "L'installation continue si cette fenêtre est fermée. "
+             "Ne quittez pas QGIS ; l'arrêt pendant pip n'est pas proposé.")
+
+    def _detacher_installation(self):
+        tache = self._tache_installation
+        if tache is not None:
+            try:
+                tache.phase.disconnect(self._phase_installation)
+                tache.resultat.disconnect(self._fin_installation)
+            except (TypeError, RuntimeError):
+                pass
+            self._tache_installation = None
+
     def _installer_interpreteur(self):
-        """
-        Cree l'environnement Python HEC-RAS, apres validation explicite.
-
-        DEUX QUESTIONS, PAS UNE. La premiere dit OU l'on va ecrire et ce que
-        l'on va telecharger — un pip install depuis un poste d'entreprise
-        n'est pas un geste anodin. La seconde demande le python de BASE : il
-        n'est PAS devine, parce que « python » n'existe pas forcement dans le
-        PATH d'un poste Windows et que celui de QGIS ne sait pas toujours
-        creer un venv utilisable. Deviner ici reviendrait a installer plusieurs
-        centaines de mega-octets au mauvais endroit, avec le mauvais Python.
-
-        SUR LE FIL GRAPHIQUE, ET C'EST ASSUME comme les cinq autres methodes
-        longues : pip peut prendre plusieurs minutes, le sablier le dit, et
-        introduire un thread pour cette seule operation coûterait plus que
-        l'attente.
-        """
+        """Confirme cible et paquets, puis confie l'installation à QgsTask."""
+        if self._installation_occupe():
+            return
         # emplacement_venv_hecras() rend TOUJOURS un chemin depuis le
         # 31/08/2026 : a cote d'une chaine externe si elle existe, dans le
         # dossier de donnees du plugin sinon. Elle rendait None dans ce
@@ -4857,7 +4900,8 @@ class DialogueParametrage(QDialog):
                 f"puis {len(paquets)} paquets y seront installés depuis "
                 f"PyPI :\n{', '.join(paquets)}\n\n"
                 f"Téléchargement de plusieurs centaines de Mo, plusieurs "
-                f"minutes. QGIS restera figé pendant l'opération.",
+                f"minutes. QGIS restera utilisable. Ne quittez pas QGIS : "
+                f"l’arrêt pendant pip n’est pas proposé.",
                 oui="Installer", non="Plus tard")
         if not accepte:
             return
@@ -4924,11 +4968,21 @@ class DialogueParametrage(QDialog):
         if not base:
             return
 
-        lignes = []
-        chemin, message = noyau.installer_interpreteur(base, lignes.append)
-        journal = "\n".join(lignes)
+        tache = TacheInstallation(base, cible, PluginCalage.CLE_INTERPRETEUR)
+        self._suivre_installation(tache)
+        QgsApplication.taskManager().addTask(tache)
+
+    def _fin_installation(self, chemin, message, journal):
+        self._detacher_installation()
+        self.progression_installation.hide()
+        for bouton in self._commandes_poste:
+            bouton.setEnabled(True)
+        self._maj_parametres_poste()
         if chemin is None:
+            dire(self.label_diagnostic, f"Installation impossible : {message}")
             journaliser(f"Installation de l'interpréteur HEC-RAS : {message}")
+            if not self.isVisible():
+                return  # le journal QGIS conserve le détail ; ne pas rouvrir le dialogue
             boite = QMessageBox(self)
             boite.setIcon(QMessageBox.Icon.Critical)
             boite.setWindowTitle("Installation impossible")
@@ -4937,10 +4991,13 @@ class DialogueParametrage(QDialog):
             boite.setDetailedText(f"{journal}\n\n{message}")
             rendre_redimensionnable(boite)
             rendre_la_main(self)
-            boite.exec()
+            # finished() du gestionnaire doit rendre la main sans attendre un clic.
+            boite.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+            boite.setModal(False)
+            boite.show()
+            self._erreur_installation = boite
             return
 
-        QSettings().setValue(PluginCalage.CLE_INTERPRETEUR, str(chemin))
         self._maj_parametres_poste()
         rendre_la_main(self)
         dire(self.label_diagnostic,
@@ -4959,6 +5016,8 @@ class DialogueParametrage(QDialog):
         archive : son dossier parent est alors le repertoire des extensions
         du profil QGIS, qui ne contient ni la chaine ni l'interpreteur.
         """
+        if self._installation_occupe():
+            return
         if noyau.trouver_chaine() is None:
             # QUATRIEME QUESTION OUI/NON SANS DEFAUT, que la relecture du 17/09
             # n'avait pas comptee : meme correctif que les trois autres.
@@ -5390,6 +5449,8 @@ class DialogueParametrage(QDialog):
         QGIS : le sous-processus est detache, et le suivi (§ 4.3) est le
         moyen normal de savoir ou en est le calcul pendant qu'il tourne.
         """
+        if self._installation_occupe():
+            return
         if not self.classeur:
             self._signaler("Calage", "Composer d'abord le paquet (bouton "
                            "« Contrôle paramétrage »).", Qgis.MessageLevel.Warning)
@@ -6080,6 +6141,7 @@ class PluginCalage:
         """
         fenetre = getattr(self, "fenetre", None)
         if fenetre is not None:
+            fenetre._detacher_installation()
             try:
                 fenetre.close()
             except RuntimeError:
