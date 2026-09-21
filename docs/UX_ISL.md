@@ -30,6 +30,38 @@ La charte du logo reste applicable : utiliser un actif existant approprié, sans
 recomposer « ISL Ingénierie » avec une police. Le présent lot ne crée pas de nouvel
 actif de marque et n’atteste pas un droit de redistribution des polices.
 
+## Série 0.9.0 à 0.9.3 — 20 et 21 septembre 2026, intégrée dans `main`
+
+Sept demandes utilisateur, traitées à la suite. Banc QGIS **rejoué sur le
+poste** (QGIS 3.44.8-Solothurn, profil ISL) : **329 contrôles, aucun échec** —
+c'était le premier passage depuis la 0.8.4.
+
+| Version | Ce qui change | Preuve |
+|---|---|---|
+| **0.9.0** | L'onglet *Sorties* disparaît, ses groupes rejoignent *Lancer* ; le préfixe de scénario se pose au-dessus du bouton ; un récapitulatif dit d'où la reprise repart ; les paramètres quittent l'Excel pour un JSON voisin | 297 contrôles ; migration vérifiée sur le classeur d'un calage réel en cours (40 paramètres lus par la feuille héritée) |
+| **0.9.1** | L'onglet *Objectifs* suit l'ordre du parcours ; une barre compte la préparation à côté de « Contrôle paramétrage » | 310 contrôles ; **fenêtre ouverte et regardée** dans le QGIS du poste |
+| **0.9.2** | Le classeur n'est plus écrasé (sauvegarde horodatée) ; l'écran nomme les réglages qui ne concordent plus avec le paquet ; le journal en cours dans *Suivi* | 329 contrôles |
+| **0.9.3** | Le plan final est déclaré dans le `.rasmap` : son résultat paraît dans RAS Mapper | `pilote_hecras.py` vert, 9 contrôles neufs ; essai sur copie d'un `.rasmap` réel |
+
+**Trois défauts que seule la fenêtre réelle a montrés** (0.9.1) : QGIS ne
+savait plus lire la version du plugin — une ligne de changelog à la colonne
+zéro rend `metadata.txt` illisible par `configparser`, et
+`pluginMetadata("version")` rendait `__error__` **depuis la 0.8.5** ; le
+récapitulatif de reprise restait vide à l'ouverture ; le compte de
+préparation était affiché deux fois. `faire_zip.py` refuse désormais une
+archive dont QGIS ne lirait pas la version.
+
+**Ce qui reste à faire sur le poste.** Ouvrir **RAS Mapper** sur un calage
+abouti — la 0.9.3 n'a pas pu être vérifiée à l'écran. Regarder la fenêtre en
+**thème clair** et à **13 pt** : seul le sombre à 940 × 780 a été vu. Refaire
+les **six captures**, qui datent de la 0.8.2 et dont l'une montre un onglet
+supprimé. Mesurer l'onglet *Lancer*, désormais à sept groupes, **rempli** sur
+petite fenêtre.
+
+Les retours détaillés — problème, cause, décision, preuve, limite — sont dans
+[`0-Ergonomie/retours/CALAGE_APPORTS.md`](https://github.com/CedricPerrin/ergonomie),
+sections 0.9.0, 0.9.1 et 0.9.2.
+
 ## Critères de recette
 
 - [ ] Parcours principal au clavier ; noms et états annoncés par le lecteur d’écran.
