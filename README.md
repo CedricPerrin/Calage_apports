@@ -10,7 +10,7 @@ Les ZIP déjà publiés précèdent ce lot : utiliser les sources de `main` pour
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 
-Version des sources du plugin : **0.9.2**. La
+Version des sources du plugin : **0.9.3**. La
 [note d’ergonomie du 11 septembre 2026](docs/ergonomie_2026-09-11.md)
 décrit le parcours, les choix d’interface et les points de recette.
 
@@ -82,6 +82,13 @@ lieu de le reecrire en place — le nom canonique ne bouge pas ; l'ecran
 c'est le paquet que le calage lit ; et le Suivi porte le **journal en
 cours**, deroulant, a cote de l'encadre des alertes qui, lui, ne retient
 que les lignes portant un mot d'alerte.
+
+La **0.9.3** fait apparaitre le resultat dans **RAS Mapper**. Un calage
+abouti laissait un plan « <prefixe>_avec_apports » avec son `.pNN.hdf`
+complet, et RAS Mapper ne montrait rien : son arbre *Results* liste ce que
+le `.rasmap` declare, et ras-commander ne l'ecrit jamais. `conclure()`
+inscrit maintenant le plan final dans ce fichier. **L'affichage dans RAS
+Mapper lui-meme n'a pas ete verifie.**
 
 Pour chaque apport, de l'amont vers l'aval : estimer, calculer, comparer à la
 cible, corriger, répéter jusqu'à concordance, puis vérifier la cohérence des

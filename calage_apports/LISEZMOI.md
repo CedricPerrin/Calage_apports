@@ -2,7 +2,9 @@
 
 Préparation et contrôle du paquet de calage pour **HEC-RAS uniquement**.
 Voir `methodologie_calage_amont_aval.docx`, § 2.4.
-Version **0.9.2** : recomposer ne perd plus rien, l'écran dit quand il ne
+Version **0.9.3** : le résultat du calage apparaît enfin dans RAS Mapper
+— le plan final est déclaré dans le `.rasmap`, ce que ras-commander ne fait
+jamais. Avant, la **0.9.2** : recomposer ne perd plus rien, l'écran dit quand il ne
 concorde plus avec le paquet composé, et le Suivi montre le journal en
 cours. Avant, la **0.9.1** : l'onglet Objectifs suit l'ordre du parcours —
 précision, puis le geste qui ouvre la saisie, puis les hydrogrammes — et une
@@ -66,7 +68,7 @@ et figerait l'interface.
 ## Installation
 
 **Depuis l'archive.** `calage_apports_<version>.zip` —
-`calage_apports_0.9.2.zip` pour cette version — est **à la racine du dépôt** : la télécharger
+`calage_apports_0.9.3.zip` pour cette version — est **à la racine du dépôt** : la télécharger
 suffit, il n'y a rien à reconstruire. Le nom porte la version pour qu'on
 sache, sur un poste distant, ce qu'on installe ; il n'y en a jamais qu'une
 dans le dépôt, la plus récente. Puis, dans QGIS :
@@ -458,6 +460,30 @@ non plus ou le calage en etait quand il s'est arrete. Une seule lecture du
 fichier alimente les deux vues, et le journal **ne se deplie jamais tout
 seul** — un journal qui s'ouvre a chaque ligne rendrait la page sautante
 pendant des heures.
+
+**La 0.9.3 fait apparaitre le resultat du calage dans RAS Mapper.**
+
+Un calage abouti laissait un plan « <prefixe>_avec_apports » avec son
+`.pNN.hdf` complet — 300 a 420 Mo de resultats — et **RAS Mapper ne
+montrait rien**. L'arbre *Results* de RAS Mapper ne parcourt pas le
+dossier : il liste ce que le **`.rasmap`** declare, et ras-commander ne
+l'ecrit **jamais** — c'est l'interface HEC-RAS qui inscrit cette ligne
+quand elle calcule elle-meme. Mesure du 21 septembre 2026 sur deux
+modeles : sur le premier, **treize** plans calcules par la chaine,
+**zero** declare ; sur le seconde, seuls les plans faits a la main y
+figuraient.
+
+`conclure()` inscrit desormais le plan final dans le bloc `<Results>`. La
+couche existante se retrouve par son **fichier**, non par son nom — lors
+d'un retitrage, c'est le nom qui change : relancer un calage **renomme** au
+lieu d'empiler. Les titres sont echappes, le fichier est relu et reparse
+apres ecriture, et **rien n'echoue** si le `.rasmap` manque ou n'a pas de
+bloc `<Results>` : le calage est fini, ses resultats sont bons, et la
+phrase du journal le dit.
+
+**Non verifie : l'affichage dans RAS Mapper lui-meme**, qui demande de
+l'ouvrir. Et les plans d'ETAPE, eux, ne sont pas declares — seul le plan
+final l'est, comme demande.
 
 > Ce que les calages livrés n'ont PAS rencontré : un volume plancher, un
 > apport refusé, un modèle incohérent. Les garde-fous qui traitent ces cas

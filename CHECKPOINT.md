@@ -1,6 +1,24 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
-## Reprendre ici — 21 septembre 2026 : 0.9.2, et une demande ouverte
+## Reprendre ici — 21 septembre 2026 : 0.9.3, RAS Mapper voit le résultat
+
+La demande laissée ouverte par la 0.9.2 est traitée. **Cause trouvée sur
+deux modèles réels** : l'arbre *Results* de RAS Mapper ne parcourt pas le
+dossier, il liste ce que le `.rasmap` déclare — et ras-commander ne l'écrit
+jamais. Sur le modèle de l'affaire, **treize plans** calculés par la chaîne
+portaient 300 à 420 Mo de résultats et le `.rasmap` n'en déclarait **aucun**.
+
+`conclure()` inscrit maintenant le plan final dans le bloc `<Results>`.
+Bancs : `pilote_hecras.py` vert (neuf contrôles neufs), banc QGIS 329,
+`calage.py` vert, plus un essai sur une **copie du `.rasmap` réel**.
+
+Par quoi reprendre : (1) **ouvrir RAS Mapper** sur un calage abouti — c'est
+la seule chose que je n'ai pas pu vérifier ; (2) décider d'un **rattrapage**
+pour les treize plans déjà calculés, aujourd'hui invisibles ; (3) refaire
+les six captures, toujours de la 0.8.2 ; (4) regarder la fenêtre en thème
+clair et à 13 pt ; (5) les six échecs du banc `--modele`, antérieurs.
+
+## État précédent — 21 septembre 2026 : 0.9.2, et une demande ouverte
 
 Banc QGIS : **329 contrôles, aucun échec**.
 

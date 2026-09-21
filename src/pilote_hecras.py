@@ -289,6 +289,35 @@ def _lire_lignes(chemin):
     return _lire_texte(chemin).splitlines(keepends=True)
 
 
+def _ecrire_texte(chemin, texte):
+    """
+    Reecrit un fichier texte HEC-RAS, dans l'encodage ou il se relit.
+
+    L'UTF-8 D'ABORD, COMME A LA LECTURE. Un .rasmap sans declaration
+    d'encodage — c'est le cas, il commence par « <RASMapper> » sans prologue
+    XML — est lu en UTF-8 par RAS Mapper. Mais un fichier qui ne s'encode
+    PAS en UTF-8 sans perte n'existe pas ; le repli cp1252 ne sert qu'aux
+    fichiers que HEC-RAS a lui-meme ecrits en cp1252 et qu'on ne veut pas
+    convertir sous pretexte qu'on y a touche une ligne.
+    """
+    chemin = Path(chemin)
+    ancien = chemin.read_bytes() if chemin.is_file() else b""
+    encodage = "utf-8"
+    if ancien:
+        try:
+            ancien.decode("utf-8")
+        except UnicodeDecodeError:
+            encodage = "cp1252"
+    chemin.write_text(texte, encoding=encodage)
+
+
+def _echapper_xml(valeur):
+    """Les cinq caracteres que XML ne laisse pas passer dans un attribut."""
+    return (str(valeur).replace("&", "&amp;").replace("<", "&lt;")
+            .replace(">", "&gt;").replace('"', "&quot;")
+            .replace("'", "&apos;"))
+
+
 def _intervalle_en_heures(texte):
     """Convertit un intervalle HEC-RAS (« 15MIN », « 1HOUR ») en heures."""
     correspondance = re.match(r"\s*(\d+)\s*([A-Za-z]+)", str(texte))
@@ -1657,9 +1686,103 @@ class PiloteHecRas(Modele):
             # hdf_resultats ne bougent — les livrables restent intacts.
             self.etapes[-1] = titre
         remplaces = self._remplacer_homonymes(titre)
+        dit_rasmap = self._declarer_resultats_rasmap(numero, titre)
         return (f"plan p{numero} / unsteady u{flot} retitré"
                 + (f" — {', '.join(remplaces)} de même nom remplacé(s)"
-                   if remplaces else ""))
+                   if remplaces else "")
+                + (f" ; {dit_rasmap}" if dit_rasmap else ""))
+
+    # Le bloc qu'ecrit HEC-RAS pour un plan calcule, reduit a ce qui compte :
+    # la couche de resultats, sa geometrie, son plan et les trois cartes
+    # usuelles. La symbologie, les couches virtuelles et les rasterizers que
+    # l'interface ajoute sont REGENERES par RAS Mapper a l'ouverture — les
+    # recopier ici ferait deviner cent lignes de valeurs par defaut.
+    _GABARIT_RASRESULTS = """    <Layer Name="{titre}" Type="RASResults" Filename="{fichier}">
+      <Layer Name="Event Conditions" Type="RASEventConditions" Filename="{fichier}" />
+      <Layer Type="RASGeometry" Checked="True" Filename="{fichier}" />
+      <Layer Name="Plan" Type="RASPlan" Filename="{fichier}" GeometryHDF="{fichier}" />
+      <Layer Name="Depth" Type="RASResultsMap" Checked="True">
+        <MapParameters MapType="depth" ProfileIndex="2147483647" ProfileName="Max" />
+      </Layer>
+      <Layer Name="WSE" Type="RASResultsMap">
+        <MapParameters MapType="elevation" ProfileIndex="2147483647" ProfileName="Max" />
+      </Layer>
+      <Layer Name="Velocity" Type="RASResultsMap">
+        <MapParameters MapType="velocity" ProfileIndex="2147483647" ProfileName="Max" />
+      </Layer>
+    </Layer>
+"""
+
+    def _declarer_resultats_rasmap(self, numero, titre):
+        """
+        Inscrit le plan final dans le .rasmap, pour que RAS MAPPER LE VOIE.
+
+        LE DEFAUT QUE CECI CORRIGE (constate le 21 septembre 2026 sur deux
+        modeles reels). Un calage abouti laissait un plan « <prefixe>_avec_
+        apports » avec un .pNN.hdf complet — plusieurs centaines de Mo de
+        resultats — et RAS Mapper ne montrait RIEN. Son arbre « Results » ne
+        se construit pas en parcourant le dossier : il liste ce que le
+        .rasmap declare. Sur le premier modele, treize plans ecrits par la
+        chaine portaient leurs resultats et le .rasmap n'en declarait AUCUN ;
+        sur le second, seuls les plans calcules depuis l'interface HEC-RAS y
+        figuraient. C'est le trou connu de ras-commander — il ne met JAMAIS
+        le .rasmap a jour (voir 0-HECRAS,
+        references/11_bibliotheques_tierces.md, et le constat date du
+        21/09/2026 dans 08_constats_mesures.md).
+
+        IDEMPOTENT : relancer un calage sur le meme scenario retrouve la
+        couche par son FICHIER, et n'en met pas une seconde. C'est le
+        fichier qui identifie, non le nom : le nom, lui, vient de changer.
+
+        NE LEVE JAMAIS. Le calage est fini et ses resultats sont bons ; un
+        .rasmap absent, verrouille ou d'une forme inattendue ne doit pas
+        transformer un succes en echec. On rend une phrase, l'appelant la
+        journalise.
+        """
+        chemin = self.dossier / f"{self.nom_projet}.rasmap"
+        if not chemin.is_file():
+            return (f"aucun {chemin.name} : le plan n'a pas pu etre declare "
+                    f"a RAS Mapper")
+        fichier = f".\\{self.nom_projet}.p{numero}.hdf"
+        try:
+            texte = _lire_texte(chemin)
+            if "</Results>" not in texte:
+                return (f"{chemin.name} ne porte pas de bloc <Results> : le "
+                        f"plan n'y a pas ete declare")
+            # LA COUCHE EXISTANTE SE RETROUVE PAR SON FICHIER. On ne
+            # reecrit alors que son attribut Name, sans toucher a la
+            # symbologie que l'utilisateur a pu regler.
+            motif = re.compile(
+                r'(<Layer\s+Name=")([^"]*)("[^>]*?Type="RASResults"[^>]*?'
+                + re.escape(f'Filename="{fichier}"') + r')')
+            neuf, remplacements = motif.subn(
+                lambda m: m.group(1) + _echapper_xml(titre) + m.group(3),
+                texte)
+            if remplacements:
+                action = "couche de resultats renommee"
+            else:
+                bloc = self._GABARIT_RASRESULTS.format(
+                    titre=_echapper_xml(titre), fichier=_echapper_xml(fichier))
+                i = texte.rindex("</Results>")
+                # On se raccroche a l'indentation de la balise fermante :
+                # le .rasmap est relu par des humains autant que par RAS.
+                debut = texte.rfind("\n", 0, i) + 1
+                neuf = texte[:debut] + bloc + texte[debut:]
+                action = "plan declare a RAS Mapper"
+            _ecrire_texte(chemin, neuf)
+            # RELU, PAS SUPPOSE (regle de la maison). Un .rasmap casse
+            # empeche RAS Mapper d'ouvrir le projet : on verifie que le
+            # fichier se reparse et que la couche y est.
+            from xml.etree import ElementTree
+            relu = _lire_texte(chemin)
+            ElementTree.fromstring(relu)
+            if f'Filename="{fichier}"' not in relu:
+                return f"{chemin.name} reecrit mais la couche n'y est pas"
+            return action
+        except Exception as e:                              # noqa: BLE001
+            return (f"{chemin.name} non mis a jour ({type(e).__name__}: {e}) "
+                    f"— les resultats sont bons, RAS Mapper ne les listera "
+                    f"pas tant que le plan n'y est pas declare")
 
     def _remplacer_homonymes(self, titre):
         """
@@ -3287,6 +3410,59 @@ if __name__ == "__main__":
                          for p in _bac.glob(f"{_NOM}.p[0-9][0-9]"))))
     _verifier("plan final : l'etape courante est rebaptisee, pas ajoutee",
               _p.etapes == ["Q100_avec_apports"], str(_p.etapes))
+
+    # --- LE PLAN FINAL EST DECLARE A RAS MAPPER (21/09/2026) --------------
+    # Constate sur deux modeles reels : la chaine laissait des plans avec
+    # des centaines de Mo de resultats que RAS Mapper ne montrait pas. Son
+    # arbre « Results » liste ce que le .rasmap declare ; ras-commander ne
+    # l'ecrit jamais. Sur l'un des deux, treize plans calcules, zero declare.
+    from xml.etree import ElementTree as _ET
+
+    _rasmap = _bac / f"{_NOM}.rasmap"
+    _rasmap.write_text(
+        '<RASMapper>\n  <Results Checked="True">\n'
+        '    <Layer Name="Q100" Type="RASResults" Filename=".\\'
+        + _NOM + '.p01.hdf" />\n  </Results>\n</RASMapper>\n',
+        encoding="utf-8")
+    _avant_rasmap = _rasmap.read_text(encoding="utf-8")
+    _dit = _p._declarer_resultats_rasmap("11", "Q100_avec_apports")
+    _lu = _rasmap.read_text(encoding="utf-8")
+    _verifier("rasmap : le plan final y est declare", "declare" in _dit, _dit)
+    _verifier("rasmap : le fichier reste du XML valide",
+              _ET.fromstring(_lu) is not None)
+    _noms = [c.get("Name") for c in _ET.fromstring(_lu).find("Results")
+             if c.get("Type") == "RASResults"]
+    _verifier("rasmap : la couche s'ajoute sans retirer les existantes",
+              _noms == ["Q100", "Q100_avec_apports"], str(_noms))
+    _verifier("rasmap : elle designe le .hdf du plan final",
+              f'Filename=".\\{_NOM}.p11.hdf"' in _lu)
+    # IDEMPOTENT, ET C'EST LE FICHIER QUI IDENTIFIE : relancer un calage sur
+    # le meme scenario ne doit pas empiler les couches, et un retitrage doit
+    # renommer celle qui existe — son nom vient justement de changer.
+    _p._declarer_resultats_rasmap("11", "Q100_avec_apports")
+    _p._declarer_resultats_rasmap("11", "Q100_final")
+    _noms = [c.get("Name") for c in
+             _ET.fromstring(_rasmap.read_text(encoding="utf-8")).find("Results")
+             if c.get("Type") == "RASResults"]
+    _verifier("rasmap : un second passage renomme au lieu d'empiler",
+              _noms == ["Q100", "Q100_final"], str(_noms))
+    # UN TITRE A CARACTERE XML NE CASSE PAS LE FICHIER DE L'UTILISATEUR.
+    _p._declarer_resultats_rasmap("11", 'Q100 & "bis"')
+    _verifier("rasmap : un titre a esperluette est echappe",
+              _ET.fromstring(_rasmap.read_text(encoding="utf-8")) is not None
+              and "&amp;" in _rasmap.read_text(encoding="utf-8"))
+    # SANS BLOC <Results>, ON NE DEVINE PAS : on le dit et on ne touche rien.
+    _rasmap.write_text("<RASMapper>\n</RASMapper>\n", encoding="utf-8")
+    _dit = _p._declarer_resultats_rasmap("11", "Q100_avec_apports")
+    _verifier("rasmap : sans bloc <Results>, on ne touche a rien et on le dit",
+              "Results" in _dit
+              and _rasmap.read_text(encoding="utf-8")
+              == "<RASMapper>\n</RASMapper>\n", _dit)
+    # ET SANS .rasmap DU TOUT, un calage abouti n'echoue pas pour autant.
+    _rasmap.unlink()
+    _dit = _p._declarer_resultats_rasmap("11", "Q100_avec_apports")
+    _verifier("rasmap : absent, le calage ne rate pas — il le dit",
+              "aucun" in _dit.lower(), _dit)
     _verifier("plan final : conclure() avant preparer() est refuse",
               _leve(RuntimeError,
                     PiloteHecRas(_bac, _NOM, plan_reference="01").conclure,

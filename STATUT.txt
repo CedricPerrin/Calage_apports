@@ -22,6 +22,49 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+VERSION 0.9.3 — 21 SEPTEMBRE 2026. LE RESULTAT PARAIT DANS RAS MAPPER.
+
+  LE DEFAUT. Un calage abouti laissait un plan « <prefixe>_avec_apports »
+  avec un .pNN.hdf COMPLET, et RAS Mapper ne montrait rien. Son arbre
+  « Results » NE PARCOURT PAS LE DOSSIER : il liste ce que le .rasmap
+  declare, et ras-commander ne l'ecrit JAMAIS — c'est l'interface HEC-RAS
+  qui inscrit cette ligne quand elle calcule elle-meme.
+
+  MESURE DU 21/09/2026, DEUX MODELES REELS. Sur SUHI_ARAN (calage Aran-Q100
+  de l'affaire Adour aval), les plans p07 a p19 ecrits par la chaine
+  portent 300 a 420 Mo de resultats chacun et le .rasmap n'en declare
+  AUCUN : sa seule couche RASResults designe p03, un plan fait a la main.
+  Sur 01-cas_test\Ardanavy, les deux plans de l'interface (p01, p02) y sont,
+  les deux plans de la chaine (p03, p04) non.
+
+  LE CORRECTIF. PiloteHecRas.conclure() appelle
+  _declarer_resultats_rasmap() : le plan final est inscrit dans le bloc
+  <Results>. La couche existante se retrouve par son FICHIER, non par son
+  nom — lors d'un retitrage c'est le nom qui change, et identifier par le
+  nom empilerait une couche par relance. Titres echappes (XML), fichier
+  relu et reparse apres ecriture, encodage conserve. RIEN N'ECHOUE si le
+  .rasmap manque ou n'a pas de bloc <Results> : le calage est fini, ses
+  resultats sont bons, la phrase du journal le dit.
+  Le bloc ecrit est MINIMAL : RASEventConditions, RASGeometry, RASPlan et
+  les trois RASResultsMap. La symbologie et les couches virtuelles que
+  l'interface ajoute sont regenerees par RAS Mapper.
+
+  BANCS. pilote_hecras.py vert, neuf controles neufs (dont l'idempotence,
+  le retitrage, l'echappement XML, l'absence de bloc <Results> et l'absence
+  de .rasmap). Banc QGIS 329 controles, aucun echec. calage.py vert.
+  Eprouve aussi sur une COPIE du .rasmap reel d'Ardanavy : XML valide,
+  couche ajoutee sans en retirer, retrait du bloc redonnant l'original
+  caractere pour caractere.
+
+  NON VERIFIE : L'AFFICHAGE DANS RAS MAPPER LUI-MEME, qui demande de
+  l'ouvrir. Et les plans d'ETAPE ne sont pas declares — seul le plan final
+  l'est, comme demande.
+
+  A PROPOSER : les treize plans deja calcules de SUHI_ARAN restent
+  invisibles dans RAS Mapper. Un rattrapage les y inscrirait ; il n'a pas
+  ete ecrit, et il ecrirait dans le .rasmap d'un modele de production.
+
+
 VERSION 0.9.2 — 20-21 SEPTEMBRE 2026. TROIS DEMANDES DE PLUS.
   Banc QGIS : 329 controles, aucun echec.
 

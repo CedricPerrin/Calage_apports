@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.9.2
+version=0.9.3
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,25 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.9.2 — Le classeur n'est plus écrasé, l'écran dit quand il ne
+changelog=0.9.3 — Le résultat du calage apparaît enfin dans RAS Mapper.
+    Un calage abouti laissait un plan « <préfixe>_avec_apports » avec un
+    .pNN.hdf complet — 300 à 420 Mo de résultats — et RAS Mapper ne
+    montrait rien. Son arbre Results ne parcourt pas le dossier : il liste
+    ce que le .rasmap déclare, et ras-commander ne l'écrit jamais. Mesuré
+    le 21 septembre 2026 sur deux modèles : sur l'un, treize plans calculés
+    par la chaîne, zéro déclaré ; sur l'autre, seuls les plans calculés
+    depuis l'interface HEC-RAS y figuraient.
+    conclure() inscrit désormais le plan final dans le bloc <Results> du
+    .rasmap. La couche existante se retrouve par son FICHIER, non par son
+    nom — lors d'un retitrage, c'est le nom qui change : relancer un
+    calage renomme au lieu d'empiler. Les titres sont échappés, le fichier
+    est relu et reparsé après écriture, et rien n'échoue si le .rasmap
+    manque ou n'a pas de bloc <Results> : le calage est fini, ses résultats
+    sont bons, et la phrase le dit.
+    NON VÉRIFIÉ : l'affichage dans RAS Mapper lui-même, qui demande de
+    l'ouvrir.
+
+    0.9.2 — Le classeur n'est plus écrasé, l'écran dit quand il ne
     concorde plus avec le paquet, et le Suivi montre le journal.
     RECOMPOSER NE PERD PLUS RIEN. Depuis la 0.8.4, deux préfixes donnent
     deux classeurs ; avec le MÊME préfixe, recomposer réécrivait le fichier
