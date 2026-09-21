@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.9.4
+version=0.9.5
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,26 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.9.4 — Le préfixe rejoint le fichier qu'il nomme, l'emprise 2D
+changelog=0.9.5 — Le paquet se recompose tout seul ; le bouton ne garde
+    que le geste irréversible.
+    « Contrôle paramétrage » faisait trois choses : écrire les couches dans
+    la géométrie HEC-RAS, composer le paquet, lancer les contrôles. Les deux
+    dernières sont bon marché et réversibles — le classeur garde sa version
+    précédente — et se font désormais SEULES, 1,5 s après le dernier
+    changement. La première ne l'est pas : elle remplace des objets dans le
+    modèle du client. Elle reste un bouton, renommé « Écrire dans la
+    géométrie HEC-RAS », qui dit enfin ce qu'il fait.
+    ON NE RECOMPOSE QUE S'IL Y A UN ÉCART entre l'écran et le paquet — le
+    contrôle de cohérence de la 0.9.2 le sait déjà —, jamais pendant qu'un
+    calage tourne, et jamais avant la première composition, qui reste le
+    geste du bouton. Le bandeau NOMME ce qui a été reporté, et les erreurs
+    du contrôle y passent en avertissement.
+    CONSÉQUENCE ASSUMÉE : la sauvegarde du classeur passe de l'horodatage
+    à UN SEUL NIVEAU (« .precedent.xlsx »). Datée, elle convenait à un
+    geste rare ; automatique, une copie par frappe enterrerait le dossier
+    de sortie. C'est la règle prise en 0.8.3 pour le suivi.
+
+    0.9.4 — Le préfixe rejoint le fichier qu'il nomme, l'emprise 2D
     cesse de masquer la carte, et les étapes disent le bon ordre.
     Le préfixe de scénario entre DANS le groupe du classeur, renommé
     « Hydrogrammes cibles » : c'est la première chose à renseigner pour

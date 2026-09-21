@@ -489,6 +489,7 @@ PENTE_APPORT_DEFAUT = 0.01
 # l'interface : le clonage ne se pilote pas, il n'a lieu que si la geometrie
 # est surchargee a l'onglet 1, et l'utilisateur n'avait rien a decider ici.
 # Le parametre reste ecrit dans le classeur, ou le pont le relit.
+BOUTON_GEOMETRIE = "Écrire dans la géométrie HEC-RAS"
 NOM_CLONE_GEOMETRIE_DEFAUT = "Geometrie_calage"
 
 # Precision attendue, en fraction de la cible. Ce sont les valeurs par defaut
@@ -1451,8 +1452,8 @@ tout : compter 3 à 5 calculs par apport.</li>
 <i>Charger les couches du modèle</i> : sections, injections et maillage
 s'affichent sur la carte. Y dessiner les sections de contrôle qui manquent —
 sans elles, le calage n'a aucun endroit où lire un débit. Elles sont écrites
-dans la géométrie par <i>Contrôle paramétrage</i>, le bouton vert au bas de
-la fenêtre ; un
+dans la géométrie par <i>Écrire dans la géométrie HEC-RAS</i>, le bouton
+vert au bas de la fenêtre ; un
 apport créé reçoit du même coup son hydrogramme dans le fichier
 Unsteady&nbsp;Flow, sinon il n'apporterait rien. La fenêtre de simulation n'est à corriger que si l'Unsteady&nbsp;Flow
 retenu couvre une <b>autre période</b> que le plan de référence.</li>
@@ -1500,7 +1501,8 @@ d'historique — le calage d'avant, pas tous les précédents.</p>
 <p><b>Indispensable tant que les sections de contrôle n'existent pas dans le
 modèle</b> — le calage n'aurait aucun endroit où lire un débit. Les dessiner
 ou les compléter dans les couches chargées depuis <i>Modèle</i> : elles sont écrites
-dans la géométrie HEC-RAS au clic sur <i>Contrôle paramétrage</i>
+dans la géométrie HEC-RAS au clic sur <i>Écrire dans la géométrie
+HEC-RAS</i>
 — le bouton du bas de la fenêtre, vert dès que tout ce qu'il consomme est
 prêt, gris tant qu'il manque quelque chose —,
 en <b>remplaçant tout objet de même nom</b> déjà présent, sections comme
@@ -1871,7 +1873,7 @@ class DialogueParametrage(QDialog):
       Aide et configuration — mode operatoire, pieges connus, et les deux
          emplacements du poste.
 
-    Le bouton « Contrôle paramétrage », au bas de la fenetre a cote de
+    Le bouton « Ecrire dans la geometrie HEC-RAS », au bas de la fenetre
     « Fermer » — vert quand c'est le moment, gris sinon —
     ECRIT D'ABORD les couches de l'onglet 1 dans la geometrie HEC-RAS —
     TOUJOURS EN REMPLACANT l'objet de meme nom deja present, sections comme
@@ -1936,6 +1938,15 @@ class DialogueParametrage(QDialog):
         self._minuteur_style = QTimer(self)
         self._minuteur_style.setSingleShot(True)
         self._minuteur_style.timeout.connect(self._actualiser_style)
+        # LE PAQUET SE RECOMPOSE TOUT SEUL (21/09/2026, demande utilisateur).
+        # Voir _demander_recomposition : un minuteur, parce qu'un champ de
+        # texte emet un signal par caractere et que composer ecrit des
+        # fichiers.
+        self._minuteur_recomposition = QTimer(self)
+        self._minuteur_recomposition.setSingleShot(True)
+        self._minuteur_recomposition.timeout.connect(
+            lambda: self._composer_et_controler(ecrire_geometrie=False,
+                                                silencieux=True))
         self._actualiser_style()
         QApplication.instance().installEventFilter(self)
         agencement = QVBoxLayout(self)
@@ -2355,8 +2366,9 @@ class DialogueParametrage(QDialog):
             fin = (f"<b>Prochaine étape :</b> "
                    f"<a href='{indice}'>{action}</a>")
         # Effets visibles avant l'action, meme sans consulter l'infobulle.
-        fin += ("<br><b>Contrôle paramétrage :</b> écrit dans la géométrie HEC-RAS "
-                "après sauvegarde horodatée, puis crée les shapefiles et le classeur.")
+        fin += (f"<br><b>{BOUTON_GEOMETRIE} :</b> y écrit les sections et "
+                "injections de l'étape 1, après sauvegarde horodatée. Le "
+                "paquet, lui, se recompose tout seul.")
         self.label_fil.setText(fin)
         # LA COHERENCE SUIT LE MEME CHEMIN QUE LE FIL : il est rafraichi par
         # tout ce qui change dans la fenetre, et c'est exactement quand il
@@ -2614,7 +2626,7 @@ class DialogueParametrage(QDialog):
 
         Elle est redescendue au bas de la fenetre, a cote de « Fermer », ou
         elle vivait jusqu'a la 0.7.19 — et son nom se raccourcit en
-        « Contrôle paramétrage ».
+        « Ecrire dans la geometrie HEC-RAS ».
 
         QUATRE DEMENAGEMENTS EN CINQ VERSIONS ONT FINI PAR LE DIRE : bas de
         fenetre, onglet 1 (0.7.19), onglet 4 (0.7.21), onglet 2 (0.7.22), et
@@ -2666,11 +2678,15 @@ class DialogueParametrage(QDialog):
         # infobulle, ce qu'il ecrit dans l'aide, § « Ecrire dans la
         # geometrie ». La phrase avait deja ete ramenee a une ligne le
         # 08/09 parce que sa seconde ligne sortait coupee.
-        bouton_composer = QPushButton("Contrôle paramétrage")
+        # LE BOUTON NE PORTE PLUS QUE L'ECRITURE (21/09/2026, demande
+        # utilisateur) : composer et controler se font tout seuls des qu'un
+        # reglage change. Ce qui reste est le SEUL geste irreversible de la
+        # fenetre, et son nom le dit enfin.
+        bouton_composer = QPushButton(BOUTON_GEOMETRIE)
         # Mise en avant par le STYLE, jamais par la touche Entree : ce bouton
         # ecrit dans la geometrie HEC-RAS. Voir keyPressEvent().
         bouton_composer.setObjectName("boutonControleAttente")
-        bouton_composer.setMinimumWidth(190)
+        bouton_composer.setMinimumWidth(250)
         bouton_composer.setToolTip(self._INFOBULLE_CONTROLE)
         bouton_composer.clicked.connect(self._composer_et_controler)
         # SA HAUTEUR NE SE NEGOCIE PAS. Dans une fenetre trop courte, la zone
@@ -2881,6 +2897,52 @@ class DialogueParametrage(QDialog):
                 f"ne seront pas reprises : un scénario n’a pas les "
                 f"hydrogrammes d’un autre.")
 
+    # Temps d'immobilite avant une recomposition automatique. Assez long
+    # pour qu'une saisie au clavier ne declenche pas une composition par
+    # frappe — elle ecrit des shapefiles et un classeur, souvent sur un
+    # partage reseau —, assez court pour que le paquet suive le geste.
+    DELAI_RECOMPOSITION_MS = 1500
+
+    def _demander_recomposition(self):
+        """
+        Programme une recomposition, et la REPROGRAMME a chaque changement.
+
+        LE BOUTON NE SERT PLUS A COMPOSER (21/09/2026, demande utilisateur).
+        Ce qui le remplace ne peut pas etre « composer a chaque signal » :
+        un champ de dossier emet un signal par caractere, et composer ecrit
+        des fichiers. D'ou le minuteur, relance tant qu'on tape et qui ne
+        part qu'une fois la main levee.
+
+        ON NE RECOMPOSE QUE S'IL Y A UN ECART. La premiere composition
+        reste le geste explicite du bouton — c'est elle qui ecrit dans la
+        geometrie. Ensuite, et seulement si l'ecran ne dit plus la meme
+        chose que le paquet, on remet les deux d'accord.
+        """
+        if not self.classeur or self.pid_lance:
+            return
+        minuteur = getattr(self, "_minuteur_recomposition", None)
+        if minuteur is None:
+            return
+        minuteur.start(self.DELAI_RECOMPOSITION_MS)
+
+    def _dire_recomposition(self, ecarts_avant, anomalies):
+        """
+        Le bandeau dit CE QUI A ETE REPORTE, pas qu'il s'est passe quelque
+        chose. « Paquet recompose » tout seul n'apprend rien : ce qu'on veut
+        savoir est lequel de ses reglages vient de rejoindre le paquet.
+        """
+        erreurs = [m for niveau, m in anomalies if niveau == "ERREUR"]
+        noms = [e.split(" : ", 1)[0] for e in ecarts_avant]
+        detail = (", ".join(noms) if noms else "aucun réglage n’avait changé")
+        if erreurs:
+            self._signaler(
+                "Paquet recomposé — à corriger",
+                f"{detail}. {len(erreurs)} erreur(s) au contrôle : "
+                f"{erreurs[0]}", Qgis.MessageLevel.Warning, duree=12)
+            return
+        self._signaler("Paquet recomposé", f"{detail}. Contrôle sans erreur.",
+                       Qgis.MessageLevel.Success, duree=6)
+
     def _maj_coherence(self):
         """Dit, sous la preparation du lancement, ce qui ne concorde plus."""
         label = getattr(self, "label_prochaine_etape", None)
@@ -2889,17 +2951,23 @@ class DialogueParametrage(QDialog):
         ecarts = self._ecarts_avec_le_paquet()
         if not ecarts:
             dire(label,
-                 "Utilisez « Contrôle paramétrage » en bas de la fenêtre pour "
-                 "composer le paquet et vérifier les données avant le "
-                 "lancement." if not self.classeur else
+                 f"Renseignez le préfixe de scénario, puis « {BOUTON_GEOMETRIE} » "
+                 f"en bas de la fenêtre : le paquet se compose ensuite tout "
+                 f"seul." if not self.classeur else
                  "Le paquet composé dit la même chose que cet écran.")
             return
+        # C'EST ICI QU'ON SAIT QU'IL FAUT RECOMPOSER, et nulle part
+        # ailleurs : cette methode vient de calculer l'ecart entre l'ecran et
+        # le paquet. Un « composer a chaque signal » aurait recompose pour
+        # rien neuf fois sur dix.
+        self._demander_recomposition()
         neuf = self._classeur_neuf_annonce()
         dire(label,
              f"<b>{len(ecarts)} réglage(s) changé(s) depuis la composition —"
              f" le calage lirait le paquet, pas l’écran :</b><br>• "
              + "<br>• ".join(ecarts)
-             + "<br>Relancez « Contrôle paramétrage » pour les reporter."
+             + "<br>Le paquet se recompose tout seul dans un instant ; le "
+               "bandeau dira ce qui a été reporté."
              + (f"<br>{neuf}" if neuf else ""))
 
     def _etapes_preparation(self):
@@ -2923,7 +2991,8 @@ class DialogueParametrage(QDialog):
 
     def _etapes_avant_controle(self):
         """
-        Ce que « Contrôle paramétrage » consomme, et si c'est la. Partage sa
+        Ce que « Ecrire dans la geometrie HEC-RAS » consomme, et si c'est
+        la. Partage sa
         liste avec le fil conducteur — voir _maj_bouton_controle.
 
         LE PAQUET COMPOSE N'EN EST PAS. C'est ce que ce bouton PRODUIT : le
@@ -3314,7 +3383,7 @@ class DialogueParametrage(QDialog):
              + (" Géométrie jamais prétraitée par HEC-RAS : maillage "
                 "indisponible, contour(s) de zone 2D lu(s) directement dans "
                 "le fichier géométrie. Dessiner les sections et injections "
-                "manquantes, puis « Contrôle paramétrage » (bouton du "
+                "manquantes, puis « Écrire dans la géométrie HEC-RAS » (bouton du "
                 "bas) — le maillage apparaîtra au premier calcul."
                 if not pretraitee else
                 f" Maillage natif : {groupes} donnée(s)."
@@ -3570,8 +3639,9 @@ class DialogueParametrage(QDialog):
         # ouvrir, et c'est lui qui le nomme.
         v_classeur.addWidget(self._champ_prefixe_scenario())
         self.consigne_classeur = QLabel(
-            "Dans la feuille <b>Cibles</b>, saisissez un hydrogramme par section. "
-            "Enregistrez l’Excel, puis relancez le contrôle en bas de la fenêtre.")
+            "Dans la feuille <b>Cibles</b>, saisissez un hydrogramme par "
+            "section, puis enregistrez l’Excel. Les contrôles se rejouent "
+            "tout seuls ; le bandeau dit ce qu'ils trouvent.")
         self.consigne_classeur.setWordWrap(True)
         v_classeur.addWidget(self.consigne_classeur)
         # COTE A COTE, LIBELLES COURTS (0.8.4, demande utilisateur). La 0.8.2
@@ -3699,10 +3769,9 @@ class DialogueParametrage(QDialog):
         # degriser. Posee entre les deux, elle est l'etape qu'elle decrit.
         self.label_classeur_attente = texte_aide(
             "Aucun Excel composé : renseignez le <b>préfixe de scénario</b> "
-            "ci-dessous, puis cliquez <b>Contrôle paramétrage</b> en bas de "
-            "la fenêtre pour le composer et pouvoir y saisir les "
-            "hydrogrammes. « Reprendre un Excel… » reste disponible pour "
-            "rouvrir celui d’une autre session.")
+            "ci-dessous — le paquet se compose alors <b>tout seul</b>, et le "
+            "bandeau dit ce qu'il a fait. « Reprendre un Excel… » reste "
+            "disponible pour rouvrir celui d’une autre session.")
         v.addWidget(self.label_classeur_attente)
         v.addWidget(self._groupe_classeur())
         v.addWidget(self._groupe_ce_que_portent_les_cibles())
@@ -4096,8 +4165,8 @@ class DialogueParametrage(QDialog):
         v.addWidget(groupe)
 
         self.label_prochaine_etape = texte_etat(
-            "Utilisez « Contrôle paramétrage » en bas de la fenêtre pour "
-            "composer le paquet et vérifier les données avant le lancement.")
+            f"Renseignez le préfixe de scénario, puis « {BOUTON_GEOMETRIE} » "
+            f"en bas de la fenêtre : le paquet se compose ensuite tout seul.")
         v.addWidget(self.label_prochaine_etape)
 
 
@@ -5636,7 +5705,8 @@ class DialogueParametrage(QDialog):
             return
         if not self.classeur:
             dire(label, "Le récapitulatif s’affichera une fois le paquet "
-                        "composé par « Contrôle paramétrage ».")
+                        "composé automatiquement, ou par "
+                        "« Écrire dans la géométrie HEC-RAS ».")
             return
         try:
             tous = [a for a, _ in noyau.apports_du_classeur(self.classeur)]
@@ -5956,7 +6026,8 @@ class DialogueParametrage(QDialog):
             return
         if not self.classeur:
             self._signaler("Calage", "Composer d'abord le paquet (bouton "
-                           "« Contrôle paramétrage »).", Qgis.MessageLevel.Warning)
+                           "« Écrire dans la géométrie HEC-RAS »).",
+                           Qgis.MessageLevel.Warning)
             return
         if not self._confirmer_malgre_calage(
                 "Lancer maintenant ferait travailler deux calages sur les "
@@ -6183,7 +6254,8 @@ class DialogueParametrage(QDialog):
     def _ouvrir_classeur(self):
         if not self.classeur:
             self._signaler("Classeur", "Composer d'abord le paquet (bouton "
-                           "« Contrôle paramétrage » en bas de la fenêtre).",
+                           "« Écrire dans la géométrie HEC-RAS », en bas "
+                           "de la fenêtre).",
                            Qgis.MessageLevel.Warning)
             return
         try:
@@ -6359,7 +6431,25 @@ class DialogueParametrage(QDialog):
     # --- composition et controle --------------------------------------------
 
     @avec_sablier
-    def _composer_et_controler(self):
+    def _composer_et_controler(self, ecrire_geometrie=True,
+                               silencieux=False):
+        """
+        Ecrire dans la geometrie, composer le paquet, controler — dans cet
+        ordre, et le meme code pour les deux appelants.
+
+        ecrire_geometrie : le SEUL geste irreversible. False pour la
+            recomposition automatique (21/09/2026, demande utilisateur) :
+            « le clic sur Controle parametrage ne sert a rien cote
+            utilisateur ». Composer et controler sont bon marche et
+            reversibles — le classeur garde sa version precedente depuis la
+            0.9.2 —, l'ecriture dans le .gNN ne l'est pas. Elle reste donc
+            un bouton, et lui seul la porte.
+        silencieux : pas de boite, ni pour le compte rendu ni pour l'echec.
+            La recomposition automatique se dit dans le BANDEAU, et un
+            paquet qu'on ne peut pas encore composer ne dit rien du tout :
+            le fil conducteur enonce deja ce qui manque, et une boite qui
+            s'ouvre pendant qu'on tape serait insupportable.
+        """
         # CE DRAPEAU EXISTE POUR LE MESSAGE D'ECHEC, ET RIEN D'AUTRE.
         # L'enchainement est : ecrire dans la geometrie, PUIS composer, PUIS
         # controler. Tout ce qui echoue apres l'ecriture remonte au meme
@@ -6373,11 +6463,21 @@ class DialogueParametrage(QDialog):
         # AVANT TOUT LE RESTE : recomposer pendant qu'un calage tourne
         # reecrit la geometrie et le classeur que ce calage est en train de
         # lire. Une question, pas un verrou — voir _confirmer_malgre_calage.
-        if not self._confirmer_malgre_calage(
+        if silencieux:
+            # AUCUNE QUESTION EN AUTOMATIQUE. Recomposer pendant qu'un calage
+            # tourne reecrit le classeur qu'il lit : on s'abstient plutot que
+            # d'ouvrir une boite que personne n'a demandee.
+            if self.pid_lance:
+                return
+        elif not self._confirmer_malgre_calage(
                 "Composer maintenant réécrirait la géométrie HEC-RAS et le "
                 "classeur que ce calage est en train de lire.",
                 geste="Recomposer"):
             return
+        # CE QUI A CHANGE, RELEVE AVANT DE RECOMPOSER : apres, le paquet dit
+        # la meme chose que l'ecran et l'ecart a disparu. C'est cette liste
+        # que le bandeau enonce — « indiquer ce qui a ete modifie ».
+        ecarts_avant = self._ecarts_avec_le_paquet()
         try:
             if not self.info_projet:
                 raise ValueError(
@@ -6428,10 +6528,15 @@ class DialogueParametrage(QDialog):
             # L'ECHEC REMONTE TEL QUEL au « except » final, qui l'affiche :
             # le doubler dans un label de l'onglet 1 n'ajoutait rien, et
             # c'est ce label qui vient d'etre retire.
-            compte_rendu_ecriture = self._ecrire_dans_geometrie()
-            # Pose APRES le bloc ci-dessus : un echec de l'ecriture elle-meme
-            # ne doit pas heriter du message « deja reecrite ».
-            geometrie_reecrite = True
+            if ecrire_geometrie:
+                compte_rendu_ecriture = self._ecrire_dans_geometrie()
+                # Pose APRES le bloc ci-dessus : un echec de l'ecriture
+                # elle-meme ne doit pas heriter du message « deja reecrite ».
+                geometrie_reecrite = True
+            else:
+                compte_rendu_ecriture = (
+                    "Géométrie HEC-RAS non touchée : la recomposition "
+                    "automatique ne l'écrit pas.")
 
             g_sections = couche_vers_gdf(c_sections)
             g_apports = couche_vers_gdf(c_injections)
@@ -6548,19 +6653,32 @@ class DialogueParametrage(QDialog):
             # controle » puis « Composition » pour un geste que la fenetre
             # appelle « Controle parametrage », c'etait trois noms pour une
             # chose — la regle de la 0.7.14, en sens inverse.
-            self._rendre_compte_du_controle(
-                "Contrôle paramétrage — compte rendu", anomalies, tableau, prolongation,
-                avant=f"{compte_rendu_ecriture}\n\n"
-                      f"Paquet composé dans {dossier_sortie}\n",
-                apres=(f"\nPente des apports : {len(pentes)}/"
-                       f"{len(self.appariement['paires'])} pré-remplie(s)"
-                       + (f" — {motif_pentes}" if motif_pentes else "")))
+            if silencieux:
+                self._dire_recomposition(ecarts_avant, anomalies)
+            else:
+                self._rendre_compte_du_controle(
+                    f"{BOUTON_GEOMETRIE} — compte rendu", anomalies, tableau,
+                    prolongation,
+                    avant=f"{compte_rendu_ecriture}\n\n"
+                          f"Paquet composé dans {dossier_sortie}\n",
+                    apres=(f"\nPente des apports : {len(pentes)}/"
+                           f"{len(self.appariement['paires'])} pré-remplie(s)"
+                           + (f" — {motif_pentes}" if motif_pentes else "")))
             self._maj_resume()
             self._maj_onglet_validation()
         except Exception as e:
             journaliser("Composition et contrôle du paquet", e)
+            if silencieux:
+                # UN PAQUET QU'ON NE PEUT PAS ENCORE COMPOSER N'EST PAS UN
+                # ECHEC : c'est l'etat normal tant que le modele, l'axe ou le
+                # dossier manquent, et le fil conducteur le dit deja. On ne
+                # signale que ce qui surprend.
+                if geometrie_reecrite or not isinstance(e, ValueError):
+                    self._signaler("Recomposition automatique", str(e),
+                                   Qgis.MessageLevel.Warning, duree=10)
+                return
             QMessageBox.critical(
-                self, "Contrôle paramétrage — échec",
+                self, f"{BOUTON_GEOMETRIE} — échec",
                 str(e) + ("\n\nLa géométrie HEC-RAS a DÉJÀ été réécrite : "
                           "les sections et injections de l'onglet 1 y sont, "
                           "et l'échec ci-dessus est survenu après. Une "

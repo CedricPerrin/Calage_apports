@@ -1524,18 +1524,21 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
     # relues juste au-dessus et reportees — mais tout le reste partait sans
     # un mot : une feuille ajoutee a la main, une mise en forme, une colonne
     # de travail, un commentaire.
-    #   HORODATEE, COMME LA GEOMETRIE. Le bouton promet deja « ecrit dans la
-    # geometrie HEC-RAS APRES SAUVEGARDE HORODATEE » ; le classeur suit la
-    # meme regle et le meme nom (voir pont_hecras._sauvegarder). Une seule
-    # phrase decrit les deux gestes.
+    #   UN SEUL NIVEAU, PAS UN HORODATAGE. La 0.9.2 datait chaque
+    # sauvegarde, comme la geometrie : c'etait juste pour un geste RARE, sur
+    # un bouton. Depuis le 21/09/2026 la composition est AUTOMATIQUE — une
+    # copie datee par frappe enterrerait le dossier de sortie, souvent un
+    # partage reseau. On garde donc « ce qui precede », et un seul :
+    # c'est la regle deja prise pour le suivi en 0.8.3 —
+    # « avancement_precedent.json », un seul niveau d'historique, parce que
+    # garder une pile obligerait a choisir laquelle montrer.
     #   LE NOM CANONIQUE NE BOUGE PAS : c'est l'ANCIEN fichier qui change de
     # nom. Renommer le nouveau rendrait imprevisible celui que la chaine
     # lit, et le prefixe existe justement pour que ce nom soit previsible.
     sauvegarde = None
     if chemin.exists():
-        sauvegarde = chemin.with_name(
-            chemin.stem + time.strftime(".sauvegarde_%Y%m%d_%H%M%S")
-            + chemin.suffix)
+        sauvegarde = chemin.with_name(chemin.stem + ".precedent"
+                                      + chemin.suffix)
         try:
             chemin.replace(sauvegarde)
         except OSError:

@@ -10,7 +10,7 @@ Les ZIP déjà publiés précèdent ce lot : utiliser les sources de `main` pour
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 
-Version des sources du plugin : **0.9.4**. La
+Version des sources du plugin : **0.9.5**. La
 [note d’ergonomie du 11 septembre 2026](docs/ergonomie_2026-09-11.md)
 décrit le parcours, les choix d’interface et les points de recette.
 
@@ -96,6 +96,14 @@ rouge sans remplissage, au lieu de masquer le maillage et les sections ; les
 listes d'etapes de l'aide disent le bon ordre — le dossier de sortie **apres**
 les objectifs ; et changer de prefixe avant de recomposer **s'annonce**, avec
 le nom du fichier ou les hydrogrammes deja saisis se trouvent encore.
+
+La **0.9.5** rend la composition **automatique** : composer le paquet et
+lancer les controles se font seuls des qu'un reglage change, et le bandeau
+nomme ce qui a ete reporte. Le bouton du bas ne garde que le **seul geste
+irreversible** — ecrire les couches dans la geometrie HEC-RAS — et porte
+desormais ce nom. La sauvegarde du classeur passe a un seul niveau,
+`…​.precedent.xlsx` : automatique, un horodatage par frappe enterrerait le
+dossier de sortie.
 
 Pour chaque apport, de l'amont vers l'aval : estimer, calculer, comparer à la
 cible, corriger, répéter jusqu'à concordance, puis vérifier la cohérence des
@@ -279,8 +287,8 @@ chaîne de calage et de l’interpréteur HEC-RAS y restent configurables.
 
 ![Onglet Aide et configuration](docs/captures/onglet_6_aide.png)
 
-Le bouton **« Contrôle paramétrage »** est permanent, au bas de la fenêtre à
-côté de *Fermer* : il consomme les trois premiers onglets et prépare le
+Le bouton **« Écrire dans la géométrie HEC-RAS »** est permanent, au bas de
+la fenêtre à côté de *Fermer* : il consomme les trois premiers onglets et prépare le
 quatrième, il n'appartient donc à aucun. Il écrit dans la géométrie HEC-RAS,
 compose le paquet et lance les contrôles, dans cet ordre — et la première de
 ces trois choses est le seul geste irréversible de la fenêtre. **Vert** dès

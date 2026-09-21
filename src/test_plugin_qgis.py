@@ -477,8 +477,11 @@ verifier("avant composition : « Ouvrir dans Excel » est gris",
          f"classeur={dlg.classeur!r}")
 verifier("avant composition : le prefixe de scenario reste saisissable",
          dlg.edit_prefixe_scenario.isEnabled())
+# LE GESTE A POSER N'EST PLUS LE BOUTON : depuis le 21/09/2026 le paquet se
+# compose tout seul des que le prefixe est la.
 verifier("avant composition : l'attente est dite a l'ecran",
-         "Contrôle paramétrage" in dlg.label_classeur_attente.text(),
+         "préfixe de scénario" in dlg.label_classeur_attente.text()
+         and "tout seul" in dlg.label_classeur_attente.text(),
          dlg.label_classeur_attente.text()[:70])
 if MODELE is None or not MODELE.exists():
     print("   ignore : aucun modele declare "
@@ -2194,7 +2197,7 @@ verifier("l'onglet Objectifs enchaine precision, cibles, ce qu'elles portent",
 verifier("le geste a poser est dit hors du groupe qu'il debloque",
          dlg.label_classeur_attente.parent()
          is not dlg.findChild(_QGroupBoxA, "")
-         and "Contrôle paramétrage" in dlg.label_classeur_attente.text()
+         and "préfixe de scénario" in dlg.label_classeur_attente.text()
          and not [g for g in dlg.onglets.widget(
              mod_plugin.ONGLET_OBJECTIFS).findChildren(_QGroupBoxA)
              if dlg.label_classeur_attente in g.findChildren(type(
@@ -2258,10 +2261,12 @@ _wb["Cibles"]["A2"], _wb["Cibles"]["B2"] = 0.0, 12.5
 _wb.create_sheet("Mes notes")["A1"] = "a garder"
 _wb.save(_cl1)
 _cl2 = noyau.preparer_classeur(_bac_cl, _paires_cl, {}, parametres=_par_cl)
-_sauves = sorted(_bac_cl.glob("donnees_calage_Q100.sauvegarde_*.xlsx"))
+_sauves = sorted(_bac_cl.glob("donnees_calage_Q100.precedent.xlsx"))
 verifier("recomposer ne change pas le nom canonique du classeur",
          Path(_cl2) == Path(_cl1), Path(_cl2).name)
-verifier("l'ancien classeur est mis de cote, horodate",
+# UN SEUL NIVEAU : la composition est automatique depuis le 21/09/2026, et
+# une copie datee par recomposition enterrerait le dossier de sortie.
+verifier("l'ancien classeur est mis de cote, un seul niveau",
          len(_sauves) == 1, _sauves[0].name if _sauves else "AUCUNE")
 verifier("la sauvegarde garde ce que la recomposition ne sait pas reporter",
          bool(_sauves) and "Mes notes" in _openpyxl.load_workbook(
@@ -2269,11 +2274,17 @@ verifier("la sauvegarde garde ce que la recomposition ne sait pas reporter",
 verifier("et les cibles saisies restent dans le classeur neuf",
          12.5 in list(_pd.read_excel(_cl2, sheet_name="Cibles").iloc[:, 1]),
          str(list(_pd.read_excel(_cl2, sheet_name="Cibles").iloc[:, 1])[:3]))
+# ET RECOMPOSER UNE TROISIEME FOIS N'EMPILE PAS : « precedent » est
+# remplace, il n'y a jamais qu'une copie par scenario.
+noyau.preparer_classeur(_bac_cl, _paires_cl, {}, parametres=_par_cl)
+verifier("une troisieme composition n'empile pas les copies",
+         len(list(_bac_cl.glob("donnees_calage_Q100.precedent*"))) == 1,
+         str(sorted(p.name for p in _bac_cl.glob("donnees_calage_Q100*"))))
 _cl3 = noyau.preparer_classeur(_bac_cl, _paires_cl, {},
                                parametres={"Prefixe_scenario": "Q10"})
 verifier("un prefixe neuf donne un fichier neuf, sans sauvegarde inutile",
          Path(_cl3).name == "donnees_calage_Q10.xlsx"
-         and not list(_bac_cl.glob("donnees_calage_Q10.sauvegarde_*")),
+         and not list(_bac_cl.glob("donnees_calage_Q10.precedent*")),
          Path(_cl3).name)
 shutil.rmtree(_bac_cl, ignore_errors=True)
 
@@ -2317,11 +2328,14 @@ _coh._maj_resume()
 _ecarts = _coh._ecarts_avec_le_paquet()
 verifier("changer le prefixe apres composition est signale",
          any("préfixe" in e for e in _ecarts), str(_ecarts))
+# LE TEXTE NE RENVOIE PLUS AU BOUTON : depuis le 21/09/2026 le paquet se
+# recompose tout seul, et lui dire de recliquer serait faux.
 verifier("et l'ecran le dit, en nommant les deux valeurs",
          "Q10" in _coh.label_prochaine_etape.text()
          and "Q100" in _coh.label_prochaine_etape.text()
-         and "Contrôle paramétrage" in _coh.label_prochaine_etape.text(),
-         _coh.label_prochaine_etape.text()[:120])
+         and "recompose tout seul" in _coh.label_prochaine_etape.text()
+         and "Contrôle paramétrage" not in _coh.label_prochaine_etape.text(),
+         _coh.label_prochaine_etape.text()[:140])
 _coh.edit_prefixe_scenario.setText("Q100")
 _coh.spin_tol_volume.setValue(3.0)
 _coh._maj_resume()
@@ -2364,6 +2378,46 @@ verifier("changer le dossier de sortie apres composition est signale aussi",
 _coh.classeur = None
 verifier("sans paquet compose, aucun ecart n'est invente",
          not _coh._ecarts_avec_le_paquet())
+# UN ECART PROGRAMME LA RECOMPOSITION, et un paquet conforme ne programme
+# rien : c'est _maj_coherence qui sait, puisqu'elle vient de calculer
+# l'ecart. « Composer a chaque signal » aurait recompose pour rien.
+# Le controle precedent a mis « classeur » a None pour eprouver l'absence
+# de paquet : on le rend, sinon rien ne peut etre recompose.
+_coh.classeur = str(_coh_cl)
+_coh.edit_prefixe_scenario.setText("Q100")
+_coh.spin_tol_volume.setValue(5.0)
+_coh.edit_dossier_sortie.setText(str(_coh_bac))
+_coh._minuteur_recomposition.stop()
+_coh._maj_resume()
+verifier("un paquet conforme ne programme aucune recomposition",
+         not _coh._minuteur_recomposition.isActive())
+_coh.spin_tol_pic.setValue(4.0)
+verifier("changer un reglage programme la recomposition",
+         _coh._minuteur_recomposition.isActive(),
+         f"{_coh.DELAI_RECOMPOSITION_MS} ms d'attente")
+# ET PENDANT QU'UN CALAGE TOURNE, ON NE RECOMPOSE PAS : le calage lit le
+# classeur qu'on reecrirait.
+_coh._minuteur_recomposition.stop()
+_coh.pid_lance = 4242
+_coh.spin_tol_pic.setValue(3.0)
+verifier("un calage en cours interdit la recomposition automatique",
+         not _coh._minuteur_recomposition.isActive(),
+         f"pid={_coh.pid_lance}")
+_coh.pid_lance = None
+# LE BANDEAU DIT CE QUI A ETE REPORTE, pas qu'il s'est passe quelque chose.
+_messages = []
+_coh._signaler = lambda titre, texte, *a, **k: _messages.append((titre, texte))
+_coh._dire_recomposition(
+    ["préfixe de scénario : « Q10 » à l’écran, « Q100 » dans le paquet"], [])
+verifier("le bandeau nomme le reglage reporte",
+         _messages and "préfixe de scénario" in _messages[-1][1],
+         str(_messages[-1] if _messages else "aucun message"))
+_coh._dire_recomposition([], [("ERREUR", "cible C1 vide")])
+verifier("et une erreur du controle passe en avertissement nomme",
+         "cible C1 vide" in _messages[-1][1]
+         and "corriger" in _messages[-1][0],
+         str(_messages[-1]))
+
 _coh.close()
 _coh.deleteLater()
 shutil.rmtree(_coh_bac, ignore_errors=True)
@@ -2396,7 +2450,8 @@ verifier("le recapitulatif est rempli des l'ouverture, sans rien toucher",
          and not _recap_dlg.label_reprise.isHidden(),
          repr(_recap_dlg.label_reprise.text()[:60]))
 verifier("sans paquet compose, le recapitulatif dit quoi faire",
-         "Contrôle paramétrage" in _recap_dlg.label_reprise.text(),
+         "composé" in _recap_dlg.label_reprise.text()
+         and "géométrie HEC-RAS" in _recap_dlg.label_reprise.text(),
          _recap_dlg.label_reprise.text()[:80])
 # AVEC UN CLASSEUR, il nomme le plan de depart AVEC SON PREFIXE, les apports
 # tenus pour cales et ceux qui restent a calculer. C'est le cas signale le
@@ -2444,10 +2499,23 @@ verifier("le bouton de controle a quitte tous les onglets",
          not [b for b in _boutons_partout
               if "ontrôle paramétrage" in b or "composer" in b],
          [b for b in _boutons_partout if "ontrôle" in b or "composer" in b])
-verifier("il vit au bas de la fenetre, et il porte son nom court",
-         dlg.bouton_controle.text() == "Contrôle paramétrage"
+# LE BOUTON NE PORTE PLUS QUE L'ECRITURE (21/09/2026) : composer et
+# controler se font tout seuls. Son nom dit ce qui reste — le seul geste
+# irreversible de la fenetre.
+verifier("il vit au bas de la fenetre, et il nomme le geste irreversible",
+         dlg.bouton_controle.text() == "Écrire dans la géométrie HEC-RAS"
          and dlg.bouton_controle.parent() is dlg,
          dlg.bouton_controle.text())
+# LA RECOMPOSITION EST AUTOMATIQUE, ET DIFFEREE : un champ de texte emet un
+# signal par caractere, et composer ecrit des fichiers.
+verifier("un minuteur porte la recomposition, en un seul coup",
+         dlg._minuteur_recomposition.isSingleShot()
+         and dlg.DELAI_RECOMPOSITION_MS >= 1000,
+         f"{dlg.DELAI_RECOMPOSITION_MS} ms")
+verifier("sans paquet compose, aucune recomposition n'est programmee",
+         (dlg._demander_recomposition() or True)
+         and not dlg._minuteur_recomposition.isActive(),
+         "la premiere composition reste le geste du bouton")
 # LA BARRE DE PREPARATION (20/09/2026, demande utilisateur). Elle compte la
 # SAISIE avant lancement, non le calage — celui-ci dure des heures et se lit a
 # l'onglet Suivi. On eprouve donc son libelle, son compte, et le fait qu'elle

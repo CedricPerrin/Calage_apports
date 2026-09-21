@@ -1,6 +1,31 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
-## Reprendre ici — 21 septembre 2026 : 0.9.4, quatre demandes de plus
+## Reprendre ici — 21 septembre 2026 : 0.9.5, la composition est automatique
+
+Banc QGIS : **345 contrôles, aucun échec**. Plugin **installé et ouvert** dans
+le QGIS du poste ; version lue par QGIS : 0.9.5.
+
+« Contrôle paramétrage » faisait trois choses. Les deux réversibles —
+composer, contrôler — se font **seules**, 1,5 s après le dernier changement,
+et seulement s'il y a un écart entre l'écran et le paquet. La troisième —
+**écrire dans la géométrie HEC-RAS** — reste un bouton, qui porte enfin ce
+nom. Le bandeau nomme ce qui a été reporté.
+
+Conséquence assumée : la sauvegarde du classeur passe de l'horodatage à **un
+seul niveau** (`.precedent.xlsx`). Automatique, un horodatage par frappe
+enterrerait le dossier de sortie.
+
+**Ce qui n'est pas prouvé** : la recomposition automatique n'a **jamais tourné
+contre un vrai modèle** — le banc éprouve sa programmation, son refus pendant
+un calage et son bandeau, pas un cycle complet. C'est le premier point de
+recette.
+
+Par quoi reprendre : (1) **charger un modèle et changer un réglage** — vérifier
+que le paquet se recompose et que le bandeau le dit ; (2) ouvrir **RAS Mapper**
+sur un calage abouti (0.9.3, jamais vu à l'écran) ; (3) thème clair et 13 pt ;
+(4) refaire les six captures ; (5) le rattrapage des plans déjà calculés.
+
+## État précédent — 21 septembre 2026 : 0.9.4, quatre demandes de plus
 
 Banc QGIS : **337 contrôles, aucun échec**.
 

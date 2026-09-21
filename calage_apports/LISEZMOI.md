@@ -2,7 +2,9 @@
 
 Préparation et contrôle du paquet de calage pour **HEC-RAS uniquement**.
 Voir `methodologie_calage_amont_aval.docx`, § 2.4.
-Version **0.9.4** : le préfixe rejoint le groupe « Hydrogrammes cibles »,
+Version **0.9.5** : le paquet se recompose tout seul, et le bouton ne
+garde que le seul geste irréversible — écrire dans la géométrie HEC-RAS.
+Avant, la **0.9.4** : le préfixe rejoint le groupe « Hydrogrammes cibles »,
 l'emprise 2D ne masque plus la carte, les étapes disent le bon ordre, et
 changer de préfixe s'annonce avant le clic. Avant, la **0.9.3** : le
 résultat du calage apparaît enfin dans RAS Mapper
@@ -71,7 +73,7 @@ et figerait l'interface.
 ## Installation
 
 **Depuis l'archive.** `calage_apports_<version>.zip` —
-`calage_apports_0.9.4.zip` pour cette version — est **à la racine du dépôt** : la télécharger
+`calage_apports_0.9.5.zip` pour cette version — est **à la racine du dépôt** : la télécharger
 suffit, il n'y a rien à reconstruire. Le nom porte la version pour qu'on
 sache, sur un poste distant, ce qu'on installe ; il n'y en a jamais qu'une
 dans le dépôt, la plus récente. Puis, dans QGIS :
@@ -518,6 +520,32 @@ fenetre le dit desormais, et nomme le fichier ou le travail se trouve
 encore. **Les cibles ne sont pas recopiees** : un Q10 n'a pas les
 hydrogrammes d'un Q100, et les reporter fabriquerait un calage faux qui
 aurait l'air juste.
+
+**La 0.9.5 rend la composition automatique.**
+
+« Controle parametrage » faisait **trois** choses : ecrire les couches dans
+la geometrie HEC-RAS, composer le paquet, lancer les controles. Les deux
+dernieres sont bon marche et reversibles — le classeur garde sa version
+precedente — et se font desormais **seules**, une seconde et demie apres le
+dernier changement. La premiere ne l'est pas : elle **remplace des objets
+dans le modele du client**. Elle reste un bouton, renomme **« Ecrire dans
+la geometrie HEC-RAS »**, qui dit enfin ce qu'il fait.
+
+**On ne recompose que s'il y a un ecart** entre l'ecran et le paquet — le
+controle de coherence de la 0.9.2 le sait deja, et « composer a chaque
+signal » aurait compose pour rien neuf fois sur dix. Jamais pendant qu'un
+calage tourne : il lit le classeur qu'on reecrirait. Jamais avant la
+premiere composition, qui reste le geste du bouton puisque c'est elle qui
+ecrit dans le modele. Le **bandeau nomme ce qui a ete reporte** — « ecart
+de pointe admis. Controle sans erreur. » — et les erreurs du controle y
+passent en avertissement, sans boite.
+
+**Une consequence assumee** : la sauvegarde du classeur passe de
+l'horodatage a **un seul niveau**, `…​.precedent.xlsx`. Datee, elle
+convenait a un geste rare ; automatique, une copie par frappe enterrerait
+le dossier de sortie — souvent un partage reseau. C'est la regle deja
+prise en 0.8.3 pour le suivi : un seul niveau, parce qu'une pile obligerait
+a choisir laquelle montrer.
 
 > Ce que les calages livrés n'ont PAS rencontré : un volume plancher, un
 > apport refusé, un modèle incohérent. Les garde-fous qui traitent ces cas
