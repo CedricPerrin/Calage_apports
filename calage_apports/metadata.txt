@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.9.1
+version=0.9.2
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,30 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.9.1 — L'onglet Objectifs suit l'ordre du parcours, et la
+changelog=0.9.2 — Le classeur n'est plus écrasé, l'écran dit quand il ne
+    concorde plus avec le paquet, et le Suivi montre le journal.
+    RECOMPOSER NE PERD PLUS RIEN. Depuis la 0.8.4, deux préfixes donnent
+    deux classeurs ; avec le MÊME préfixe, recomposer réécrivait le fichier
+    en place. Les cibles et les pentes y survivaient — elles sont relues et
+    reportées — mais tout le reste partait sans un mot : une feuille
+    ajoutée à la main, une mise en forme, une colonne de travail.
+    L'ancien classeur est désormais mis de côté, HORODATÉ, comme la
+    géométrie l'est déjà ; le nom canonique, lui, ne bouge pas, car c'est
+    lui que la chaîne lit.
+    UN CONTRÔLE DE COHÉRENCE PERMANENT. Le paquet composé est un
+    instantané : changer ensuite le préfixe, un dossier ou une précision
+    laissait l'écran et le paquet dire deux choses, en silence — et le
+    calage lit le paquet. Onze réglages sont maintenant comparés à chaque
+    modification, et l'écart est nommé sous « Préparation du lancement »,
+    avec les deux valeurs. Les quatre réglages de précision, qui
+    n'étaient reliés à aucun signal, le sont.
+    LE JOURNAL EN COURS DANS LE SUIVI, repliable et déroulant. L'encadré
+    des alertes ne retient que les lignes portant un mot d'alerte : ce qui
+    échoue sans l'un de ces mots n'y paraissait pas, et l'on ne voyait pas
+    où le calage en était. Une seule lecture du fichier alimente les deux
+    vues. Il ne se déplie jamais tout seul.
+
+    0.9.1 — L'onglet Objectifs suit l'ordre du parcours, et la
     préparation se compte au bas de la fenêtre.
     La précision du calage d'abord — ce qu'on vise —, puis le geste qui
     ouvre la saisie, puis l'Excel des hydrogrammes et ce qu'ils portent. La

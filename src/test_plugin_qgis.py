@@ -2206,6 +2206,99 @@ verifier("la consigne nomme l'onglet ou vit desormais le prefixe",
          and "Lancer" in dlg.label_classeur_attente.text(),
          dlg.label_classeur_attente.text())
 
+# L'ANCIEN CLASSEUR EST MIS DE COTE, JAMAIS ECRASE (20/09/2026, demande
+# utilisateur). Deux prefixes donnaient deja deux fichiers depuis la 0.8.4 ;
+# avec le MEME prefixe, recomposer reecrivait le fichier en place. Les cibles
+# y survivaient — elles sont relues et reportees — mais pas ce que
+# l'utilisateur avait pu y ajouter.
+import openpyxl as _openpyxl                                 # noqa: E402
+import pandas as _pd                                         # noqa: E402
+_bac_cl = Path(tempfile.mkdtemp(prefix="classeur_sauve_"))
+_paires_cl = [("A1", "S1"), ("A2", "S2")]
+_par_cl = {"Prefixe_scenario": "Q100", "Nom_projet": "Essai"}
+_cl1 = noyau.preparer_classeur(_bac_cl, _paires_cl, {}, parametres=_par_cl)
+_wb = _openpyxl.load_workbook(_cl1)
+_wb["Cibles"]["A2"], _wb["Cibles"]["B2"] = 0.0, 12.5
+_wb.create_sheet("Mes notes")["A1"] = "a garder"
+_wb.save(_cl1)
+_cl2 = noyau.preparer_classeur(_bac_cl, _paires_cl, {}, parametres=_par_cl)
+_sauves = sorted(_bac_cl.glob("donnees_calage_Q100.sauvegarde_*.xlsx"))
+verifier("recomposer ne change pas le nom canonique du classeur",
+         Path(_cl2) == Path(_cl1), Path(_cl2).name)
+verifier("l'ancien classeur est mis de cote, horodate",
+         len(_sauves) == 1, _sauves[0].name if _sauves else "AUCUNE")
+verifier("la sauvegarde garde ce que la recomposition ne sait pas reporter",
+         bool(_sauves) and "Mes notes" in _openpyxl.load_workbook(
+             _sauves[0]).sheetnames)
+verifier("et les cibles saisies restent dans le classeur neuf",
+         12.5 in list(_pd.read_excel(_cl2, sheet_name="Cibles").iloc[:, 1]),
+         str(list(_pd.read_excel(_cl2, sheet_name="Cibles").iloc[:, 1])[:3]))
+_cl3 = noyau.preparer_classeur(_bac_cl, _paires_cl, {},
+                               parametres={"Prefixe_scenario": "Q10"})
+verifier("un prefixe neuf donne un fichier neuf, sans sauvegarde inutile",
+         Path(_cl3).name == "donnees_calage_Q10.xlsx"
+         and not list(_bac_cl.glob("donnees_calage_Q10.sauvegarde_*")),
+         Path(_cl3).name)
+shutil.rmtree(_bac_cl, ignore_errors=True)
+
+# LE CONTROLE DE COHERENCE (20/09/2026, demande utilisateur). Le paquet est
+# un instantane : changer le prefixe, un dossier ou une precision APRES la
+# composition laissait l'ecran et le paquet dire deux choses, en silence.
+_coh = mod_plugin.DialogueParametrage(iface)
+_coh_cl = Path(tempfile.gettempdir()) / "coherence_essai.xlsx"
+_pd.DataFrame({"Ordre": [1], "Nom_Apport (BC line)": ["A1"],
+               "Nom_Section (reference line)": ["S1"]}
+              ).to_excel(_coh_cl, sheet_name="Correspondance", index=False)
+import parametres as _param_mod
+_param_mod.ecrire(_coh_cl, {
+    "Prefixe_scenario": "Q100",
+    "Dossier_sortie": str(_coh_cl.parent),
+    "Sous_dossier_resultats": "resultats_finaux",
+    "Sous_dossier_suivi": "suivi",
+    "Tolerance_volume_pct": 5.0, "Tolerance_pic_pct": 2.0,
+    "Bilan_masse_max_pct": 5.0, "Nb_max_iterations_par_apport": 6})
+_coh.classeur = str(_coh_cl)
+_coh.edit_prefixe_scenario.setText("Q100")
+_coh.edit_dossier_sortie.setText(str(_coh_cl.parent))
+_coh._maj_resume()
+verifier("un paquet conforme a l'ecran ne signale aucun ecart",
+         not _coh._ecarts_avec_le_paquet(),
+         str(_coh._ecarts_avec_le_paquet()))
+# LES NOMBRES SE COMPARENT EN NOMBRES : 5.0 au classeur, 5 au spin.
+verifier("5,0 du classeur et 5 du spin ne sont pas un ecart",
+         _coh._memes_valeurs(5, 5.0) and _coh._memes_valeurs("5", 5.0))
+# ET LES CHEMINS SE COMPARENT SANS ANTISLASH FINAL NI CASSE.
+verifier("deux ecritures du meme chemin ne sont pas un ecart",
+         _coh._memes_valeurs("D:\\sortie\\", "D:/Sortie"))
+_coh.edit_prefixe_scenario.setText("Q10")
+_coh._maj_resume()
+_ecarts = _coh._ecarts_avec_le_paquet()
+verifier("changer le prefixe apres composition est signale",
+         any("préfixe" in e for e in _ecarts), str(_ecarts))
+verifier("et l'ecran le dit, en nommant les deux valeurs",
+         "Q10" in _coh.label_prochaine_etape.text()
+         and "Q100" in _coh.label_prochaine_etape.text()
+         and "Contrôle paramétrage" in _coh.label_prochaine_etape.text(),
+         _coh.label_prochaine_etape.text()[:120])
+_coh.edit_prefixe_scenario.setText("Q100")
+_coh.spin_tol_volume.setValue(3.0)
+_coh._maj_resume()
+verifier("changer la precision apres composition est signale aussi",
+         any("volume" in e for e in _coh._ecarts_avec_le_paquet()),
+         str(_coh._ecarts_avec_le_paquet()))
+_coh.spin_tol_volume.setValue(5.0)
+_coh.edit_dossier_sortie.setText(str(Path(tempfile.gettempdir()) / "ailleurs"))
+_coh._maj_resume()
+verifier("changer le dossier de sortie apres composition est signale aussi",
+         any("dossier de sortie" in e for e in _coh._ecarts_avec_le_paquet()),
+         str(_coh._ecarts_avec_le_paquet()))
+# SANS PAQUET, RIEN N'EST SIGNALE : il n'y a pas d'instantane a contredire.
+_coh.classeur = None
+verifier("sans paquet compose, aucun ecart n'est invente",
+         not _coh._ecarts_avec_le_paquet())
+_coh.close()
+_coh.deleteLater()
+
 verifier("le prefixe de scenario a quitte l'onglet Objectifs",
          "Préfixe de scénario" not in [g.title() for g in dlg.onglets.widget(
              mod_plugin.ONGLET_OBJECTIFS).findChildren(_QGroupBoxA)],
@@ -2337,6 +2430,47 @@ dlg._maj_fil()
 verifier("et l'etat de depart est rendu",
          _barre_prep.value() == _avant_barre,
          f"{_barre_prep.value()} attendu {_avant_barre}")
+
+# LE JOURNAL EN COURS, DANS LE SUIVI (20/09/2026, demande utilisateur).
+# L'encadre des alertes ne montre que les lignes portant un mot d'alerte ;
+# celui-ci montre le fil, et c'est lui qui dit OU le calage en etait.
+verifier("le suivi porte un journal en cours, replie et masque a vide",
+         dlg.groupe_journal.isCollapsed() and not dlg.groupe_journal.isVisible()
+         and dlg.texte_journal.isReadOnly(),
+         f"replie={dlg.groupe_journal.isCollapsed()}")
+_faux_journal = Path(tempfile.gettempdir()) / "journal_essai_suivi.log"
+_faux_journal.write_text(
+    "\n".join([f"2026-09-20 10:00:{i:02d} ligne ordinaire {i}"
+               for i in range(5)]
+              + ["2026-09-20 10:00:05 AVERTISSEMENT : cible recadencee"]),
+    encoding="utf-8")
+dlg.journal_lance = str(_faux_journal)
+dlg._cle_journal_lu = None
+dlg._peindre_journal()
+dlg._peindre_alertes()
+verifier("le journal en cours montre les lignes ORDINAIRES, pas seulement les alertes",
+         "ligne ordinaire 0" in dlg.texte_journal.toPlainText()
+         and "ligne ordinaire 4" in dlg.texte_journal.toPlainText(),
+         dlg.texte_journal.toPlainText()[:60])
+verifier("l'encadre des alertes, lui, ne retient que l'alerte",
+         "ligne ordinaire" not in dlg.texte_alertes.toPlainText()
+         and "AVERTISSEMENT" in dlg.texte_alertes.toPlainText(),
+         dlg.texte_alertes.toPlainText()[:60])
+verifier("le titre du journal nomme le fichier suivi",
+         _faux_journal.name in dlg.groupe_journal.title(),
+         dlg.groupe_journal.title())
+# UNE SEULE LECTURE POUR LES DEUX VUES : la cle de relecture ne bouge pas
+# quand on repeint sans que le fichier ait change.
+_cle = dlg._cle_journal_lu
+dlg._peindre_journal()
+dlg._peindre_alertes()
+verifier("un journal inchange n'est pas relu",
+         dlg._cle_journal_lu == _cle)
+verifier("le journal ne se deplie jamais tout seul",
+         dlg.groupe_journal.isCollapsed(),
+         "un journal qui s'ouvre a chaque ligne rendrait la page sautante")
+dlg.journal_lance = None
+dlg._cle_journal_lu = None
 
 verifier("aucun onglet ne porte plus l'encadre « Contrôle du paramétrage »",
          "Contrôle du paramétrage" not in _groupes_objectifs

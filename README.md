@@ -10,7 +10,7 @@ Les ZIP déjà publiés précèdent ce lot : utiliser les sources de `main` pour
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 
-Version des sources du plugin : **0.9.1**. La
+Version des sources du plugin : **0.9.2**. La
 [note d’ergonomie du 11 septembre 2026](docs/ergonomie_2026-09-11.md)
 décrit le parcours, les choix d’interface et les points de recette.
 
@@ -75,6 +75,13 @@ cales et lesquels seront calcules. Et la feuille **« Parametres » quitte
 l'Excel** : les valeurs vivent dans un JSON qui porte le nom du classeur, a
 cote de lui ; leurs commentaires descendent dans la feuille de garde. Les
 classeurs composes avant cette version sont **encore lus par leur feuille**.
+
+La **0.9.2** : recomposer **met l'ancien classeur de cote, horodate**, au
+lieu de le reecrire en place — le nom canonique ne bouge pas ; l'ecran
+**nomme les reglages qui ne concordent plus** avec le paquet compose, car
+c'est le paquet que le calage lit ; et le Suivi porte le **journal en
+cours**, deroulant, a cote de l'encadre des alertes qui, lui, ne retient
+que les lignes portant un mot d'alerte.
 
 Pour chaque apport, de l'amont vers l'aval : estimer, calculer, comparer à la
 cible, corriger, répéter jusqu'à concordance, puis vérifier la cohérence des

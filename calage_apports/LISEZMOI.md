@@ -2,7 +2,9 @@
 
 Préparation et contrôle du paquet de calage pour **HEC-RAS uniquement**.
 Voir `methodologie_calage_amont_aval.docx`, § 2.4.
-Version **0.9.1** : l'onglet Objectifs suit l'ordre du parcours —
+Version **0.9.2** : recomposer ne perd plus rien, l'écran dit quand il ne
+concorde plus avec le paquet composé, et le Suivi montre le journal en
+cours. Avant, la **0.9.1** : l'onglet Objectifs suit l'ordre du parcours —
 précision, puis le geste qui ouvre la saisie, puis les hydrogrammes — et une
 barre compte la préparation au bas de la fenêtre. Avant, la **0.9.0** :
 **cinq onglets** au lieu de six — les Sorties rejoignent
@@ -64,7 +66,7 @@ et figerait l'interface.
 ## Installation
 
 **Depuis l'archive.** `calage_apports_<version>.zip` —
-`calage_apports_0.9.1.zip` pour cette version — est **à la racine du dépôt** : la télécharger
+`calage_apports_0.9.2.zip` pour cette version — est **à la racine du dépôt** : la télécharger
 suffit, il n'y a rien à reconstruire. Le nom porte la version pour qu'on
 sache, sur un poste distant, ce qu'on installe ; il n'y en a jamais qu'une
 dans le dépôt, la plus récente. Puis, dans QGIS :
@@ -428,6 +430,34 @@ compte — les deux se lisaient a trois centimetres l'un de l'autre.
   l'appelait a la main, et ne pouvait donc pas le voir.
 - **Le compte de preparation etait dit deux fois**, dans le fil et dans la
   barre.
+
+**La 0.9.2 repond a trois demandes du 20 septembre.**
+
+**Recomposer ne perd plus rien.** Depuis la 0.8.4, deux prefixes donnent
+deux classeurs. Avec le MEME prefixe, recomposer reecrivait le fichier en
+place : les cibles et les pentes y survivaient — elles sont relues et
+reportees —, mais pas une feuille ajoutee a la main, une mise en forme, une
+colonne de travail. L'ancien classeur est desormais **mis de cote,
+horodate**, exactement comme la geometrie l'est deja avant d'etre ecrite.
+**Le nom canonique ne bouge pas** : c'est celui que la chaine lit, et le
+prefixe existe pour qu'il soit previsible.
+
+**L'ecran dit quand il ne concorde plus avec le paquet.** Le paquet compose
+est un instantane : il fige le prefixe, les dossiers, les tolerances et le
+modele au moment du clic. Rien n'empechait de changer ensuite le prefixe ou
+la precision et de lancer — **le calage lit le paquet, pas l'ecran**. Onze
+reglages sont compares a chaque modification, et l'ecart est nomme sous
+« Preparation du lancement », avec les deux valeurs. Le controle **ne
+corrige rien** : recomposer est un geste de l'utilisateur, et il ecrit dans
+la geometrie.
+
+**Le Suivi montre le journal en cours**, repliable et deroulant. L'encadre
+des alertes ne retient que les lignes portant un mot d'alerte : ce qui
+echoue **sans** l'un de ces mots n'y paraissait pas, et l'on ne voyait pas
+non plus ou le calage en etait quand il s'est arrete. Une seule lecture du
+fichier alimente les deux vues, et le journal **ne se deplie jamais tout
+seul** — un journal qui s'ouvre a chaque ligne rendrait la page sautante
+pendant des heures.
 
 > Ce que les calages livrés n'ont PAS rencontré : un volume plancher, un
 > apport refusé, un modèle incohérent. Les garde-fous qui traitent ces cas

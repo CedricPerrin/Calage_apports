@@ -41,8 +41,8 @@ from qgis.core import (
 from qgis.gui import (QgsCollapsibleGroupBox, QgsFieldComboBox, QgsGui,
                       QgsMapLayerComboBox, QgsMessageBar)
 from qgis.PyQt.QtCore import QEvent, QMetaType, QSettings, Qt, QTimer
-from qgis.PyQt.QtGui import (QFont, QFontMetrics, QIcon, QKeySequence,
-                             QPalette, QTextCursor)
+from qgis.PyQt.QtGui import (QFont, QFontDatabase, QFontMetrics, QIcon,
+                             QKeySequence, QPalette, QTextCursor)
 from qgis.PyQt.QtWidgets import (
     QAbstractItemView,
     QAction,
@@ -2312,6 +2312,11 @@ class DialogueParametrage(QDialog):
         fin += ("<br><b>Contrôle paramétrage :</b> écrit dans la géométrie HEC-RAS "
                 "après sauvegarde horodatée, puis crée les shapefiles et le classeur.")
         self.label_fil.setText(fin)
+        # LA COHERENCE SUIT LE MEME CHEMIN QUE LE FIL : il est rafraichi par
+        # tout ce qui change dans la fenetre, et c'est exactement quand il
+        # faut reverifier que l'ecran et le paquet disent encore la meme
+        # chose. Voir _maj_coherence.
+        self._maj_coherence()
         self.label_fil.setToolTip("\n".join(
             f"{'Fait' if ok else 'À faire'} : {nom}" for nom, ok in etapes))
         # LE BOUTON SUIT LE FIL, ET PAR LE MEME CHEMIN. Le fil est deja
@@ -2672,6 +2677,139 @@ class DialogueParametrage(QDialog):
         else:
             etat = "Tout ce que ce contrôle consomme est prêt."
         bouton.setToolTip(etat + "\n\n" + self._INFOBULLE_CONTROLE)
+
+    def _parametres_du_paquet(self):
+        """
+        Les parametres du paquet DEJA COMPOSE, ou {} s'il n'y en a pas.
+
+        RELUS SEULEMENT S'ILS ONT CHANGE — meme regle que le journal du
+        suivi : un stat par appel, et cette methode est appelee a chaque
+        frappe dans le dossier de sortie.
+        """
+        if not self.classeur:
+            return {}
+        try:
+            import parametres as mod_parametres
+            fichier = mod_parametres.chemin(self.classeur)
+            st = os.stat(fichier) if fichier.is_file() else os.stat(self.classeur)
+            cle = (str(fichier), st.st_size, st.st_mtime_ns)
+            if cle == getattr(self, "_cle_paquet_lu", None):
+                return self._paquet_lu
+            self._paquet_lu = mod_parametres.lire(self.classeur)
+            self._cle_paquet_lu = cle
+            return self._paquet_lu
+        except Exception as e:                              # noqa: BLE001
+            journaliser("Lecture des parametres du paquet compose", e)
+            return {}
+
+    # Ce que la fenetre tient, et le nom que le paquet lui donne. L'ordre est
+    # celui de la lecture a l'ecran : ce qu'on vient de changer d'abord.
+    _COMPARES = (
+        ("Prefixe_scenario", "préfixe de scénario"),
+        ("Dossier_sortie", "dossier de sortie"),
+        ("Sous_dossier_resultats", "sous-dossier des résultats"),
+        ("Sous_dossier_suivi", "sous-dossier du suivi"),
+        ("Tolerance_volume_pct", "écart de volume admis"),
+        ("Tolerance_pic_pct", "écart de pointe admis"),
+        ("Bilan_masse_max_pct", "erreur de bilan de masse admise"),
+        ("Nb_max_iterations_par_apport", "maximum d’essais par apport"),
+        ("Dossier_projet_HECRAS", "dossier du projet HEC-RAS"),
+        ("Nom_projet", "projet HEC-RAS"),
+        ("Plan_reference", "plan de référence"),
+    )
+
+    def _valeurs_de_la_fenetre(self):
+        """Ce que la fenetre tient MAINTENANT, sous les cles du paquet."""
+        plan = self.combo_plan.currentData() if hasattr(self, "combo_plan") else None
+        return {
+            "Prefixe_scenario": self.edit_prefixe_scenario.text().strip(),
+            "Dossier_sortie": self.edit_dossier_sortie.text().strip(),
+            "Sous_dossier_resultats":
+                self.edit_sous_dossier_resultats.text().strip(),
+            "Sous_dossier_suivi": self.edit_sous_dossier_suivi.text().strip(),
+            "Tolerance_volume_pct": self.spin_tol_volume.value(),
+            "Tolerance_pic_pct": self.spin_tol_pic.value(),
+            "Bilan_masse_max_pct": self.spin_bilan_masse.value(),
+            "Nb_max_iterations_par_apport": self.spin_nb_max_essais.value(),
+            # LE DOSSIER VIENT DU CHAMP, PAS DE info_projet, qui ne porte que
+            # le nom du projet et ses listes — c'est _dossier_projet qui sait.
+            "Dossier_projet_HECRAS": str(self._dossier_projet() or ""),
+            "Nom_projet": (self.info_projet or {}).get("nom_projet", ""),
+            "Plan_reference": f"p{plan['numero']}" if plan else "",
+        }
+
+    @staticmethod
+    def _memes_valeurs(fenetre, paquet):
+        """
+        Deux valeurs disent-elles la meme chose ?
+
+        LES NOMBRES SE COMPARENT EN NOMBRES : le classeur rend 5.0 la ou le
+        spin rend 5, et « 5.0 » != « 5 » aurait signale un ecart a chaque
+        ouverture. Le reste se compare en texte, sans casse ni espaces de
+        bord : un chemin recopie diffère souvent d'un antislash final.
+        """
+        if paquet is None:
+            paquet = ""
+        try:
+            return abs(float(fenetre) - float(paquet)) < 1e-9
+        except (TypeError, ValueError):
+            pass
+        a = str(fenetre).strip().replace("\\", "/").rstrip("/").casefold()
+        b = str(paquet).strip().replace("\\", "/").rstrip("/").casefold()
+        return a == b
+
+    def _ecarts_avec_le_paquet(self):
+        """
+        Ce que la fenetre tient et que le paquet compose ne porte pas.
+
+        POURQUOI CE CONTROLE (20/09/2026, demande utilisateur). Le paquet est
+        un INSTANTANE : il fige le prefixe, les dossiers, les tolerances et
+        le modele au moment ou l'on a clique. Rien n'empechait ensuite de
+        changer le prefixe, le dossier de sortie ou la precision et de
+        lancer : le calage lisait le classeur, donc les valeurs d'AVANT, et
+        l'ecran montrait les autres. Les deux etaient vraies separement, et
+        personne ne disait qu'elles ne parlaient plus du meme calage.
+
+        LE CONTROLE NE CORRIGE RIEN. Recomposer est le geste de
+        l'utilisateur, et recomposer efface des choses — c'est le bouton qui
+        ecrit dans la geometrie. On dit l'ecart ; on ne le resout pas.
+        """
+        paquet = self._parametres_du_paquet()
+        if not paquet:
+            return []
+        try:
+            fenetre = self._valeurs_de_la_fenetre()
+        except (AttributeError, RuntimeError):
+            return []           # fenetre pas encore entierement construite
+        ecarts = []
+        for cle, libelle in self._COMPARES:
+            if cle not in paquet:
+                continue        # paquet d'une version anterieure : on se tait
+            vue, fige = fenetre.get(cle, ""), paquet.get(cle)
+            if not self._memes_valeurs(vue, fige):
+                ecarts.append(
+                    f"{libelle} : « {vue} » à l’écran, "
+                    f"« {'' if fige is None else fige} » dans le paquet")
+        return ecarts
+
+    def _maj_coherence(self):
+        """Dit, sous la preparation du lancement, ce qui ne concorde plus."""
+        label = getattr(self, "label_prochaine_etape", None)
+        if label is None:
+            return
+        ecarts = self._ecarts_avec_le_paquet()
+        if not ecarts:
+            dire(label,
+                 "Utilisez « Contrôle paramétrage » en bas de la fenêtre pour "
+                 "composer le paquet et vérifier les données avant le "
+                 "lancement." if not self.classeur else
+                 "Le paquet composé dit la même chose que cet écran.")
+            return
+        dire(label,
+             f"<b>{len(ecarts)} réglage(s) changé(s) depuis la composition —"
+             f" le calage lirait le paquet, pas l’écran :</b><br>• "
+             + "<br>• ".join(ecarts)
+             + "<br>Relancez « Contrôle paramétrage » pour les reporter.")
 
     def _etapes_preparation(self):
         """
@@ -3248,6 +3386,13 @@ class DialogueParametrage(QDialog):
             "Garde-fou de dernier recours, non le mode d'arrêt normal : la "
             "concordance s'obtient en trois à quatre essais.")
         f2.addRow("Maximum d’&essais par apport :", self.spin_nb_max_essais)
+        # LES QUATRE REGLAGES DE PRECISION N'ETAIENT RELIES A RIEN : les
+        # changer apres une composition laissait l'ecran et le paquet dire
+        # deux choses differentes, en silence. Ils reveillent desormais le
+        # controle de coherence, comme le prefixe et les dossiers.
+        for _spin in (self.spin_tol_volume, self.spin_tol_pic,
+                      self.spin_bilan_masse, self.spin_nb_max_essais):
+            _spin.valueChanged.connect(self._maj_resume)
 
         # L'HYPOTHESE SUR LA PENTE etait dite ici ; elle est desormais dite a
         # l'onglet 4, dans le groupe « Classeur » — c'est la qu'on ouvre le
@@ -3301,6 +3446,7 @@ class DialogueParametrage(QDialog):
         # LE RECAPITULATIF NOMME LES PLANS AVEC CE PREFIXE : il le suit a la
         # frappe, sinon il annoncerait des titres que le calage ne creera pas.
         self.edit_prefixe_scenario.textChanged.connect(self._dire_reprise)
+        self.edit_prefixe_scenario.textChanged.connect(self._maj_resume)
         f.addRow(texte_aide(
             "Nomme les plans du calage <i>et</i> le fichier Excel des "
             "objectifs. Changer de préfixe compose un nouveau classeur au "
@@ -3963,6 +4109,32 @@ class DialogueParametrage(QDialog):
         self.groupe_alertes.setVisible(False)
         v.addWidget(self.groupe_alertes)
 
+        # LE JOURNAL TEL QU'IL S'ECRIT (20/09/2026, demande utilisateur).
+        # L'encadre ci-dessus ne retient que les lignes portant un mot
+        # d'alerte ; celui-ci montre le fil, et c'est lui qui dit OU le
+        # calage en etait. Voir _peindre_journal.
+        self.groupe_journal = QgsCollapsibleGroupBox("Journal en cours")
+        self.groupe_journal.setObjectName("grpJournalSuivi")
+        self.groupe_journal.setToolTip(
+            "Les dernières lignes du journal de lancement, rafraîchies "
+            "pendant le calcul. Le fichier entier est dans le dossier de "
+            "l'Excel des objectifs.")
+        vj = QVBoxLayout(self.groupe_journal)
+        self.texte_journal = QTextEdit()
+        self.texte_journal.setReadOnly(True)
+        self.texte_journal.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
+        self.texte_journal.setMinimumHeight(150)
+        self.texte_journal.setAccessibleName("Journal du calage en cours")
+        # POLICE A CHASSE FIXE : un journal s'aligne. On demande la famille
+        # au systeme plutot que d'en nommer une — « Consolas » n'existe pas
+        # partout, et QGIS suit la police du poste.
+        self.texte_journal.setFont(
+            QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont))
+        vj.addWidget(self.texte_journal)
+        self.groupe_journal.setCollapsed(True)
+        self.groupe_journal.setVisible(False)
+        v.addWidget(self.groupe_journal)
+
         groupe_avancement = QGroupBox("Avancement")
         va = QVBoxLayout(groupe_avancement)
         va.setSpacing(9)
@@ -4321,6 +4493,11 @@ class DialogueParametrage(QDialog):
     # fin, et l'on n'affiche que les dernieres lignes retenues.
     OCTETS_JOURNAL_LUS = 1_000_000
     LIGNES_ALERTE_MAX = 60
+    # LE JOURNAL EN COURS EN MONTRE PLUS QUE LES ALERTES, et pour la meme
+    # lecture : c'est un fil qu'on remonte pour comprendre ou le calage en
+    # etait, non une liste de motifs. Borne quand meme — un QTextEdit de
+    # dix mille lignes se repeint a chaque tour du minuteur.
+    LIGNES_JOURNAL_MAX = 400
 
     def _journal_du_calage(self):
         """
@@ -4341,10 +4518,13 @@ class DialogueParametrage(QDialog):
         except OSError:
             return None
 
-    def _lignes_alerte(self):
+    def _lire_journal(self):
         """
-        Les lignes du journal qui portent un arret, une erreur ou un
-        avertissement. Liste vide si le journal manque ou ne dit rien.
+        La queue du journal de lancement : (toutes les lignes, les alertes).
+
+        UNE SEULE LECTURE POUR DEUX VUES — l'encadre des alertes et le
+        journal en cours. Les separer en ferait deux, toutes les deux
+        secondes, sur un fichier de partage reseau.
 
         NE LEVE JAMAIS : appelee par le minuteur du suivi, toutes les deux
         secondes, sur un fichier qu'un autre processus est en train d'ecrire.
@@ -4357,26 +4537,72 @@ class DialogueParametrage(QDialog):
         """
         chemin = self._journal_du_calage()
         if chemin is None:
-            return []
+            return [], []
         try:
             st = os.stat(chemin)
             cle = (str(chemin), st.st_size, st.st_mtime_ns)
             if cle == getattr(self, "_cle_journal_lu", None):
-                return self._alertes_lues
+                return self._journal_lu, self._alertes_lues
             debut = max(0, st.st_size - self.OCTETS_JOURNAL_LUS)
             with open(chemin, "rb") as f:
                 f.seek(debut)
                 brut = f.read().decode("utf-8", "replace")
         except OSError:
-            return []
-        lignes = brut.splitlines()
+            return [], []
+        lignes = [ligne.rstrip() for ligne in brut.splitlines()]
         if debut:
             del lignes[:1]      # coupee au milieu par la lecture tronquee
-        retenues = [ligne.rstrip() for ligne in lignes
+        retenues = [ligne for ligne in lignes
                     if any(m in ligne for m in self.MARQUEURS_ALERTE)]
         self._cle_journal_lu = cle
+        self._journal_lu = lignes[-self.LIGNES_JOURNAL_MAX:]
         self._alertes_lues = retenues[-self.LIGNES_ALERTE_MAX:]
-        return self._alertes_lues
+        return self._journal_lu, self._alertes_lues
+
+    def _lignes_alerte(self):
+        """Les lignes du journal qui portent un arret, une erreur ou un
+        avertissement. Liste vide si le journal manque ou ne dit rien."""
+        return self._lire_journal()[1]
+
+    def _peindre_journal(self):
+        """
+        Le journal de lancement tel qu'il s'ecrit, deroulant, dans la page.
+
+        POURQUOI, ALORS QUE L'ENCADRE DES ALERTES EXISTE (20/09/2026, demande
+        utilisateur). Celui-ci ne montre que les lignes qui portent un mot
+        d'alerte : ce qui echoue SANS l'un de ces mots n'y parait pas, et
+        l'on ne voit pas non plus ou le calage en etait quand il s'est
+        arrete. La banniere donnait le chemin du .log — un chemin n'est pas
+        un message ; c'est deja ce que la 0.8.4 reprochait au diagnostic.
+
+        REPLIE PAR DEFAUT : on ne lit un journal que lorsqu'on le cherche.
+        Il ne se deplie JAMAIS tout seul, a la difference des alertes — un
+        journal qui s'ouvre a chaque ligne ecrite rendrait la page sautante
+        pendant des heures.
+
+        TOUJOURS DEROULE EN BAS, sauf si l'on a fait defiler soi-meme : la
+        derniere ligne est celle qu'on vient lire, mais reprendre la main a
+        quelqu'un qui remonte dans l'historique serait pire que de ne rien
+        montrer.
+        """
+        lignes, _ = self._lire_journal()
+        self.groupe_journal.setVisible(bool(lignes))
+        if not lignes:
+            self.texte_journal.setPlainText("")
+            return
+        chemin = self._journal_du_calage()
+        self.groupe_journal.setTitle(
+            f"Journal en cours ({len(lignes)} dernières lignes"
+            + (f" — {Path(chemin).name}" if chemin else "") + ")")
+        texte = "\n".join(lignes)
+        if texte == self.texte_journal.toPlainText():
+            return
+        ascenseur = self.texte_journal.verticalScrollBar()
+        colle_en_bas = ascenseur.value() >= ascenseur.maximum() - 2
+        self.texte_journal.setPlainText(texte)
+        if colle_en_bas:
+            self.texte_journal.moveCursor(QTextCursor.MoveOperation.End)
+            ascenseur.setValue(ascenseur.maximum())
 
     def _peindre_alertes(self):
         """Remplit l'encadre des alertes, et l'efface du regard s'il est vide."""
@@ -4408,6 +4634,7 @@ class DialogueParametrage(QDialog):
             # APRES la peinture, et hors de son chemin : un journal illisible
             # ne doit pas emporter l'avancement, qui est ce qu'on vient voir.
             self._peindre_alertes()
+            self._peindre_journal()
         except Exception as e:                              # noqa: BLE001
             # Le filet reste — il est necessaire. Ce qui change, c'est qu'il
             # laisse desormais un temoin : un onglet Suivi devenu muet le

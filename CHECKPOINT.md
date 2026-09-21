@@ -1,6 +1,26 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
-## Reprendre ici — 20 septembre 2026 (suite) : 0.9.1, la fenêtre regardée
+## Reprendre ici — 21 septembre 2026 : 0.9.2, et une demande ouverte
+
+Banc QGIS : **329 contrôles, aucun échec**.
+
+- **Recomposer ne perd plus rien** : l'ancien classeur est mis de côté,
+  horodaté, comme la géométrie. Le nom canonique ne bouge pas.
+- **Contrôle de cohérence permanent** : onze réglages comparés à chaque
+  modification entre l'écran et le paquet composé, l'écart nommé avec les
+  deux valeurs. C'est le paquet que le calage lit.
+- **Le journal en cours dans le Suivi**, repliable et déroulant, à côté de
+  l'encadré des alertes qui ne retient que les mots d'alerte.
+
+**DEMANDE OUVERTE, non traitée dans cette version** — après un calage
+réussi, le plan « <préfixe>_avec_apports » existe mais **RAS Mapper ne
+montre pas ses résultats**. Le plan final n'est pas un clone : c'est la
+dernière étape **retitrée**. RAS Mapper nomme son dossier de résultats
+d'après le `Short Identifier`, et la base `0-HECRAS` note que
+ras-commander **ne met jamais le `.rasmap` à jour**. À instruire sur un
+modèle réel **avec résultats** — c'est par là qu'il faut reprendre.
+
+## État précédent — 20 septembre 2026 (suite) : 0.9.1, la fenêtre regardée
 
 Plugin **installé dans le profil ISL et ouvert** dans QGIS 3.44.8-Solothurn.
 Banc QGIS : **310 contrôles, aucun échec**.

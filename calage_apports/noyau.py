@@ -19,6 +19,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -1515,6 +1516,33 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
                         pentes_existantes[cle] = valeur
         except Exception:
             pentes_existantes = {}
+
+    # ET L'ANCIEN CLASSEUR EST MIS DE COTE, JAMAIS ECRASE (20/09/2026,
+    # demande utilisateur). Depuis la 0.8.4, deux PREFIXES donnent deux
+    # fichiers ; avec le MEME prefixe, recomposer reecrivait le fichier en
+    # place. Ce qui compte y survivait — les cibles et les pentes sont
+    # relues juste au-dessus et reportees — mais tout le reste partait sans
+    # un mot : une feuille ajoutee a la main, une mise en forme, une colonne
+    # de travail, un commentaire.
+    #   HORODATEE, COMME LA GEOMETRIE. Le bouton promet deja « ecrit dans la
+    # geometrie HEC-RAS APRES SAUVEGARDE HORODATEE » ; le classeur suit la
+    # meme regle et le meme nom (voir pont_hecras._sauvegarder). Une seule
+    # phrase decrit les deux gestes.
+    #   LE NOM CANONIQUE NE BOUGE PAS : c'est l'ANCIEN fichier qui change de
+    # nom. Renommer le nouveau rendrait imprevisible celui que la chaine
+    # lit, et le prefixe existe justement pour que ce nom soit previsible.
+    sauvegarde = None
+    if chemin.exists():
+        sauvegarde = chemin.with_name(
+            chemin.stem + time.strftime(".sauvegarde_%Y%m%d_%H%M%S")
+            + chemin.suffix)
+        try:
+            chemin.replace(sauvegarde)
+        except OSError:
+            # Un classeur ouvert dans Excel refuse d'etre renomme sous
+            # Windows. On ne fait pas echouer la composition pour cela : le
+            # geste suivant — l'ecriture — dira lui-meme qu'il ne peut pas.
+            sauvegarde = None
 
     valeurs = {
         "Dossier_projet_HECRAS": "",
