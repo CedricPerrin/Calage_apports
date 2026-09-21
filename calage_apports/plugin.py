@@ -2080,8 +2080,6 @@ class DialogueParametrage(QDialog):
         # cherche sans regarder.
         boutons = QHBoxLayout()
         boutons.setSpacing(8)
-        self.bouton_controle = self._bouton_controle_parametrage()
-        boutons.addWidget(self.bouton_controle)
         # LA PROGRESSION DE LA SAISIE, A COTE DU GESTE QU'ELLE PREPARE
         # (20/09/2026, demande utilisateur). ELLE NE PARLE PAS DU CALAGE :
         # celui-ci dure des heures et se lit a l'onglet Suivi. Le libelle le
@@ -2580,6 +2578,34 @@ class DialogueParametrage(QDialog):
         v.addWidget(self.label_fenetre)
         self.groupe_fenetre.setCollapsed(True)
 
+        # LE GESTE IRREVERSIBLE REVIENT A L'ONGLET 1 (21/09/2026, demande
+        # utilisateur), et cette fois il y reste.
+        #   IL AVAIT DEMENAGE QUATRE FOIS EN CINQ VERSIONS, puis etait
+        # descendu au bas de la fenetre en 0.7.24 avec une raison juste :
+        # « ce geste CONSOMME LES TROIS PREMIERS ONGLETS ET PREPARE LE
+        # QUATRIEME, le loger dans l'un d'eux obligeait a revenir en arriere
+        # depuis les autres ». Cette raison a disparu avec la 0.9.5 : il ne
+        # compose plus rien. Ce qu'il consomme tient TOUT ENTIER dans cet
+        # onglet — le projet, le plan, la zone 2D, les deux couches — et ce
+        # qu'il ecrit est dessine ici meme. Il est enfin a cote de son objet.
+        groupe_ecriture = QGroupBox("Écrire dans le modèle HEC-RAS")
+        ve = QVBoxLayout(groupe_ecriture)
+        ve.setSpacing(8)
+        ve.addWidget(texte_aide(
+            "Écrit les sections de contrôle et les lignes d’injection "
+            "dessinées ci-dessus dans la géométrie HEC-RAS, en remplaçant "
+            "tout objet de même nom. Une sauvegarde horodatée du fichier de "
+            "géométrie est faite avant. <b>C’est le seul geste irréversible "
+            "de cette fenêtre</b> ; tout le reste se recompose tout seul."))
+        ligne_ecriture = QHBoxLayout()
+        self.bouton_controle = self._bouton_controle_parametrage()
+        ligne_ecriture.addWidget(self.bouton_controle)
+        ligne_ecriture.addStretch(1)
+        ve.addLayout(ligne_ecriture)
+        self.label_ecriture = texte_etat()
+        ve.addWidget(self.label_ecriture)
+        v.addWidget(groupe_ecriture)
+
         v.addStretch(1)
         return page
 
@@ -2688,7 +2714,7 @@ class DialogueParametrage(QDialog):
         bouton_composer.setObjectName("boutonControleAttente")
         bouton_composer.setMinimumWidth(250)
         bouton_composer.setToolTip(self._INFOBULLE_CONTROLE)
-        bouton_composer.clicked.connect(self._composer_et_controler)
+        bouton_composer.clicked.connect(self._ecrire_seulement)
         # SA HAUTEUR NE SE NEGOCIE PAS. Dans une fenetre trop courte, la zone
         # defilante COMPRIME le contenu au lieu de faire apparaitre une barre :
         # le dernier encadre de l'onglet passe sous sa taille utile, et ce
@@ -2903,6 +2929,35 @@ class DialogueParametrage(QDialog):
     # partage reseau —, assez court pour que le paquet suive le geste.
     DELAI_RECOMPOSITION_MS = 1500
 
+    def _ecrire_seulement(self):
+        """
+        Le geste du bouton, et le seul irreversible : ECRIRE les couches
+        dessinees dans la geometrie HEC-RAS. Il ne compose plus rien.
+
+        LE COMPTE RENDU VA DANS LA PAGE, sous le bouton qui l'a produit —
+        pas dans une boite : on le relit apres coup pour savoir ce qui a
+        ete ecrit, et une boite ne se relit pas. L'ECHEC, lui, reste une
+        boite : c'est une erreur qu'il faut lire, et elle porte sur le
+        fichier du client.
+
+        PUIS ON RECOMPOSE. La geometrie vient de changer ; le paquet doit
+        suivre, et c'est desormais automatique.
+        """
+        if not self._confirmer_malgre_calage(
+                "Écrire maintenant modifierait la géométrie HEC-RAS que ce "
+                "calage est en train de lire.", geste="Écrire"):
+            return
+        try:
+            rendu = self._ecrire_dans_geometrie()
+        except Exception as e:                              # noqa: BLE001
+            journaliser("Écriture dans la géométrie HEC-RAS", e)
+            dire(self.label_ecriture, "")
+            QMessageBox.critical(self, f"{BOUTON_GEOMETRIE} — échec", str(e))
+            return
+        dire(self.label_ecriture, rendu)
+        self._maj_resume()
+        self._demander_recomposition()
+
     def _demander_recomposition(self):
         """
         Programme une recomposition, et la REPROGRAMME a chaque changement.
@@ -2913,17 +2968,42 @@ class DialogueParametrage(QDialog):
         des fichiers. D'ou le minuteur, relance tant qu'on tape et qui ne
         part qu'une fois la main levee.
 
-        ON NE RECOMPOSE QUE S'IL Y A UN ECART. La premiere composition
-        reste le geste explicite du bouton — c'est elle qui ecrit dans la
-        geometrie. Ensuite, et seulement si l'ecran ne dit plus la meme
-        chose que le paquet, on remet les deux d'accord.
+        LA PREMIERE COMPOSITION AUSSI EST AUTOMATIQUE depuis que le bouton
+        n'ecrit plus que la geometrie (21/09/2026). Mais tant qu'il n'y a pas
+        de classeur, on ne programme QUE SI TOUT EST LA : autrement chaque
+        rafraichissement poserait un rendez-vous qui ne menerait a rien, et
+        un minuteur qui part sans cesse finit par partir au mauvais moment.
         """
-        if not self.classeur or self.pid_lance:
+        if self.pid_lance or getattr(self, "_composition_en_cours", False):
+            return
+        if not self.classeur and not self._prealables_composition_prets():
             return
         minuteur = getattr(self, "_minuteur_recomposition", None)
         if minuteur is None:
             return
         minuteur.start(self.DELAI_RECOMPOSITION_MS)
+
+    def _prealables_composition_prets(self):
+        """
+        Tout ce que composer exige, et rien de plus : le modele, ses deux
+        couches, l'axe, le dossier de sortie et le prefixe.
+
+        SERT A NE PAS PROGRAMMER POUR RIEN. La composition sait deja
+        renoncer — elle leve et le mode silencieux avale —, mais un
+        rendez-vous pose a chaque frappe pour etre annule 1,5 s plus tard
+        est un rendez-vous de trop.
+        """
+        try:
+            return bool(
+                self.info_projet
+                and self.combo_plan.currentData()
+                and couche_vivante(self.couche_sections) is not None
+                and couche_vivante(self.couche_injections) is not None
+                and couche_vivante(self.combo_axe.currentLayer()) is not None
+                and self.edit_dossier_sortie.text().strip()
+                and self.edit_prefixe_scenario.text().strip())
+        except (AttributeError, RuntimeError):
+            return False
 
     def _dire_recomposition(self, ecarts_avant, anomalies):
         """
@@ -2949,6 +3029,11 @@ class DialogueParametrage(QDialog):
         if label is None:
             return
         ecarts = self._ecarts_avec_le_paquet()
+        if not self.classeur:
+            # PAS ENCORE DE PAQUET : rien a comparer, mais tout a composer
+            # des que les prealables sont la. La composition renonce en
+            # silence tant qu'il en manque un.
+            self._demander_recomposition()
         if not ecarts:
             dire(label,
                  f"Renseignez le préfixe de scénario, puis « {BOUTON_GEOMETRIE} » "
@@ -2999,13 +3084,16 @@ class DialogueParametrage(QDialog):
         compter parmi ses prealables l'aurait laisse gris jusqu'au premier
         clic, donc gris exactement quand il faut cliquer.
         """
+        # TOUT TIENT DANS L'ONGLET 1 DEPUIS LA 0.9.5. Le profil en long et
+        # le dossier de sortie servaient a COMPOSER, ce que ce bouton ne
+        # fait plus : les exiger ici l'aurait laisse gris alors qu'il a tout
+        # ce qu'il lui faut pour ecrire.
         return [
-            ("le modèle chargé", self.info_projet is not None
-             and couche_vivante(self.couche_sections) is not None),
-            ("le profil en long",
-             couche_vivante(self.combo_axe.currentLayer()) is not None),
-            ("le dossier de sortie",
-             bool(self.edit_dossier_sortie.text().strip())),
+            ("le modèle chargé", self.info_projet is not None),
+            ("la zone 2D", bool(self.combo_zone_2d.currentText().strip())),
+            ("les couches de sections et d'injections",
+             couche_vivante(self.couche_sections) is not None
+             and couche_vivante(self.couche_injections) is not None),
         ]
 
     def _groupe_copies_de_travail(self):
@@ -3778,9 +3866,11 @@ class DialogueParametrage(QDialog):
         v.addStretch(1)
         return page
 
+    # « COMPOSER LE PAQUET » N'EST PLUS UN GESTE (21/09/2026) : il se fait
+    # tout seul. Ce qui manque ici n'est pas une action, c'est un fichier.
     _ATTENTE_CIBLES = (
-        f"<i style='color:{ISL_ARDOISE}'>Composer le paquet, ou reprendre un "
-        f"Excel, pour les lire.</i>")
+        f"<i style='color:{ISL_ARDOISE}'>Renseignez le préfixe de scénario, "
+        f"ou reprenez un Excel : les cibles se liront dès qu'il existe.</i>")
 
     def _groupe_ce_que_portent_les_cibles(self):
         """
@@ -6450,6 +6540,20 @@ class DialogueParametrage(QDialog):
             le fil conducteur enonce deja ce qui manque, et une boite qui
             s'ouvre pendant qu'on tape serait insupportable.
         """
+        # UNE SEULE COMPOSITION A LA FOIS. Le minuteur peut arriver pendant
+        # qu'une composition tourne — elle ecrit des shapefiles et un
+        # classeur, et traite des evenements Qt en chemin. Re-entrer, c'est
+        # deux ecritures concurrentes sur les memes fichiers : constate le
+        # 21/09/2026, le processus s'arretait sans trace, code 127.
+        if getattr(self, "_composition_en_cours", False):
+            return
+        self._composition_en_cours = True
+        try:
+            self._composer_et_controler_interne(ecrire_geometrie, silencieux)
+        finally:
+            self._composition_en_cours = False
+
+    def _composer_et_controler_interne(self, ecrire_geometrie, silencieux):
         # CE DRAPEAU EXISTE POUR LE MESSAGE D'ECHEC, ET RIEN D'AUTRE.
         # L'enchainement est : ecrire dans la geometrie, PUIS composer, PUIS
         # controler. Tout ce qui echoue apres l'ecriture remonte au meme

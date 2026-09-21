@@ -2,7 +2,9 @@
 
 Préparation et contrôle du paquet de calage pour **HEC-RAS uniquement**.
 Voir `methodologie_calage_amont_aval.docx`, § 2.4.
-Version **0.9.5** : le paquet se recompose tout seul, et le bouton ne
+Version **0.9.6** : le bouton d'écriture rejoint l'étape « Modèle », et
+la recomposition automatique ne se ré-entre plus. Avant, la **0.9.5** : le
+paquet se recompose tout seul, et le bouton ne
 garde que le seul geste irréversible — écrire dans la géométrie HEC-RAS.
 Avant, la **0.9.4** : le préfixe rejoint le groupe « Hydrogrammes cibles »,
 l'emprise 2D ne masque plus la carte, les étapes disent le bon ordre, et
@@ -73,7 +75,7 @@ et figerait l'interface.
 ## Installation
 
 **Depuis l'archive.** `calage_apports_<version>.zip` —
-`calage_apports_0.9.5.zip` pour cette version — est **à la racine du dépôt** : la télécharger
+`calage_apports_0.9.6.zip` pour cette version — est **à la racine du dépôt** : la télécharger
 suffit, il n'y a rien à reconstruire. Le nom porte la version pour qu'on
 sache, sur un poste distant, ce qu'on installe ; il n'y en a jamais qu'une
 dans le dépôt, la plus récente. Puis, dans QGIS :
@@ -546,6 +548,28 @@ convenait a un geste rare ; automatique, une copie par frappe enterrerait
 le dossier de sortie — souvent un partage reseau. C'est la regle deja
 prise en 0.8.3 pour le suivi : un seul niveau, parce qu'une pile obligerait
 a choisir laquelle montrer.
+
+**La 0.9.6 remet le bouton la ou il agit, et corrige un defaut de la 0.9.5.**
+
+**Il rejoint l'etape « Modele ».** Il avait demenage quatre fois en cinq
+versions avant de descendre au bas de la fenetre en 0.7.24, avec une raison
+juste : « ce geste consomme les trois premiers onglets et prepare le
+quatrieme ». Cette raison a disparu avec la 0.9.5 — il ne compose plus rien.
+Ce qu'il consomme tient desormais **tout entier dans cet onglet** : le
+projet, le plan, la zone 2D, les deux couches. Et ce qu'il ecrit s'y
+dessine. Ses prealables retrecissent avec lui : ni axe, ni dossier de
+sortie, qui servaient a composer. Son compte rendu va **dans la page**,
+sous le bouton qui l'a produit ; l'echec reste une boite, parce que c'est
+une erreur qu'il faut lire.
+
+**Et un defaut de la 0.9.5, corrige.** La recomposition automatique pouvait
+se **re-entrer** : le minuteur partait pendant qu'une composition tournait —
+elle ecrit des fichiers et traite des evenements Qt en chemin —, deux
+ecritures concurrentes sur les memes fichiers, et le processus s'arretait
+**sans trace**, code 127. Reproduit au banc. Un verrou empeche maintenant
+deux compositions a la fois, et aucun rendez-vous n'est pose tant que tous
+les prealables ne sont pas la : un minuteur qui part sans cesse finit par
+partir au mauvais moment.
 
 > Ce que les calages livrés n'ont PAS rencontré : un volume plancher, un
 > apport refusé, un modèle incohérent. Les garde-fous qui traitent ces cas

@@ -1,6 +1,25 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
-## Reprendre ici — 21 septembre 2026 : 0.9.5, la composition est automatique
+## Reprendre ici — 21 septembre 2026 : 0.9.6, le bouton rentre à l'étape 1
+
+Banc QGIS : **347 contrôles, aucun échec, sortie 0**. Plugin installé et
+ouvert dans le QGIS du poste ; version lue : 0.9.6.
+
+- **Le bouton rejoint l'étape « Modèle »**, sous les couches qu'il écrit.
+  Puisqu'il ne compose plus rien, ce qu'il consomme tient tout entier dans
+  cet onglet — la raison de sa permanence (0.7.24) a disparu. Compte rendu
+  dans la page ; échec en boîte.
+- **Correctif important de la 0.9.5** : la recomposition automatique pouvait
+  se **ré-entrer** — le minuteur partait pendant une composition, deux
+  écritures concurrentes, et le processus s'arrêtait **sans trace**
+  (code 127, reproduit au banc). Verrou posé, et aucun rendez-vous tant que
+  les préalables ne sont pas tous là.
+
+**Toujours pas prouvé** : la recomposition automatique n'a jamais tourné
+contre un vrai modèle. Le banc éprouve la programmation, les refus et le
+bandeau — pas un cycle complet écran → fichiers. Premier point de recette.
+
+## État précédent — 21 septembre 2026 : 0.9.5, la composition est automatique
 
 Banc QGIS : **345 contrôles, aucun échec**. Plugin **installé et ouvert** dans
 le QGIS du poste ; version lue par QGIS : 0.9.5.

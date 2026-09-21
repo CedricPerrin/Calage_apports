@@ -10,7 +10,7 @@ Les ZIP déjà publiés précèdent ce lot : utiliser les sources de `main` pour
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 
-Version des sources du plugin : **0.9.5**. La
+Version des sources du plugin : **0.9.6**. La
 [note d’ergonomie du 11 septembre 2026](docs/ergonomie_2026-09-11.md)
 décrit le parcours, les choix d’interface et les points de recette.
 
@@ -104,6 +104,12 @@ irreversible** — ecrire les couches dans la geometrie HEC-RAS — et porte
 desormais ce nom. La sauvegarde du classeur passe a un seul niveau,
 `…​.precedent.xlsx` : automatique, un horodatage par frappe enterrerait le
 dossier de sortie.
+
+La **0.9.6** ramène le bouton d'écriture à l'étape **Modèle** : puisqu'il ne
+compose plus rien, ce qu'il consomme tient tout entier dans cet onglet, et ce
+qu'il écrit s'y dessine. Elle corrige aussi un défaut de la 0.9.5 : la
+recomposition automatique pouvait se **ré-entrer** et arrêter le processus
+sans trace.
 
 Pour chaque apport, de l'amont vers l'aval : estimer, calculer, comparer à la
 cible, corriger, répéter jusqu'à concordance, puis vérifier la cohérence des
@@ -287,8 +293,8 @@ chaîne de calage et de l’interpréteur HEC-RAS y restent configurables.
 
 ![Onglet Aide et configuration](docs/captures/onglet_6_aide.png)
 
-Le bouton **« Écrire dans la géométrie HEC-RAS »** est permanent, au bas de
-la fenêtre à côté de *Fermer* : il consomme les trois premiers onglets et prépare le
+Le bouton **« Écrire dans la géométrie HEC-RAS »** vit à l'étape
+**Modèle**, sous les couches qu'il écrit : il consomme les trois premiers onglets et prépare le
 quatrième, il n'appartient donc à aucun. Il écrit dans la géométrie HEC-RAS,
 compose le paquet et lance les contrôles, dans cet ordre — et la première de
 ces trois choses est le seul geste irréversible de la fenêtre. **Vert** dès

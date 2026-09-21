@@ -2502,9 +2502,10 @@ verifier("le bouton de controle a quitte tous les onglets",
 # LE BOUTON NE PORTE PLUS QUE L'ECRITURE (21/09/2026) : composer et
 # controler se font tout seuls. Son nom dit ce qui reste — le seul geste
 # irreversible de la fenetre.
-verifier("il vit au bas de la fenetre, et il nomme le geste irreversible",
+verifier("il nomme le geste irreversible, et vit a l'onglet du modele",
          dlg.bouton_controle.text() == "Écrire dans la géométrie HEC-RAS"
-         and dlg.bouton_controle.parent() is dlg,
+         and dlg.bouton_controle in dlg.onglets.widget(
+             mod_plugin.ONGLET_MODELE).findChildren(_QPushButtonA),
          dlg.bouton_controle.text())
 # LA RECOMPOSITION EST AUTOMATIQUE, ET DIFFEREE : un champ de texte emet un
 # signal par caractere, et composer ecrit des fichiers.
@@ -2512,19 +2513,40 @@ verifier("un minuteur porte la recomposition, en un seul coup",
          dlg._minuteur_recomposition.isSingleShot()
          and dlg.DELAI_RECOMPOSITION_MS >= 1000,
          f"{dlg.DELAI_RECOMPOSITION_MS} ms")
-verifier("sans paquet compose, aucune recomposition n'est programmee",
-         (dlg._demander_recomposition() or True)
-         and not dlg._minuteur_recomposition.isActive(),
-         "la premiere composition reste le geste du bouton")
+# LA PREMIERE COMPOSITION AUSSI EST AUTOMATIQUE depuis que le bouton
+# n'ecrit plus que la geometrie — mais SEULEMENT si tout est la. Un
+# rendez-vous pose a chaque frappe pour etre annule 1,5 s plus tard est un
+# rendez-vous de trop, et un minuteur qui part sans cesse finit par partir
+# au mauvais moment : le 21/09/2026, il est parti PENDANT une composition
+# et le processus s'est arrete sans trace, code 127.
+dlg._minuteur_recomposition.stop()
+dlg._demander_recomposition()
+verifier("sans paquet ni prealables, aucun rendez-vous n'est pose",
+         not dlg._minuteur_recomposition.isActive()
+         and not dlg._prealables_composition_prets(),
+         "il manque au moins le prefixe et le dossier de sortie")
+dlg._minuteur_recomposition.stop()
+dlg.pid_lance = 4242
+dlg.classeur = str(_cl)
+dlg._demander_recomposition()
+verifier("jamais pendant qu'un calage tourne",
+         not dlg._minuteur_recomposition.isActive())
+dlg.pid_lance = None
+# ET JAMAIS PENDANT UNE COMPOSITION : re-entrer, c'est deux ecritures
+# concurrentes sur les memes fichiers.
+dlg._composition_en_cours = True
+dlg._demander_recomposition()
+verifier("jamais pendant qu'une composition tourne deja",
+         not dlg._minuteur_recomposition.isActive())
+dlg._composition_en_cours = False
+dlg.classeur = None
 # LA BARRE DE PREPARATION (20/09/2026, demande utilisateur). Elle compte la
 # SAISIE avant lancement, non le calage — celui-ci dure des heures et se lit a
 # l'onglet Suivi. On eprouve donc son libelle, son compte, et le fait qu'elle
 # vive au bas de la fenetre, a cote du bouton qu'elle prepare.
 _barre_prep = dlg.barre_preparation
-verifier("la barre de preparation est au bas de la fenetre, comme le bouton",
-         _barre_prep.parent() is dlg
-         and _barre_prep.parent() is dlg.bouton_controle.parent(),
-         str(_barre_prep.parent()))
+verifier("la barre de preparation reste au bas de la fenetre",
+         _barre_prep.parent() is dlg, str(_barre_prep.parent()))
 verifier("elle compte les quatre etapes de la saisie",
          _barre_prep.maximum() == len(dlg._etapes_preparation()) == 4,
          f"{_barre_prep.value()}/{_barre_prep.maximum()}")
@@ -2657,9 +2679,12 @@ dlg._maj_bouton_controle()
 verifier("l'onglet 3 porte « Ce que portent les hydrogrammes cibles »",
          "Ce que portent les hydrogrammes cibles" in _groupes_objectifs,
          _groupes_objectifs)
+# « COMPOSER LE PAQUET » N'EST PLUS UN GESTE (21/09/2026) : il se fait tout
+# seul. Ce qui manque n'est pas une action, c'est un fichier.
 verifier("et il attend d'avoir un classeur avant de rien dire",
-         "Composer le paquet" in dlg.label_resume_cibles.text(),
-         dlg.label_resume_cibles.text()[:80])
+         "préfixe de scénario" in dlg.label_resume_cibles.text()
+         and "Composer le paquet" not in dlg.label_resume_cibles.text(),
+         dlg.label_resume_cibles.text()[:90])
 
 # LE CLASSEUR MODIFIE HORS QGIS EST RELU AU RETOUR (0.8.1) : Excel enregistre,
 # la date du fichier change, la fenetre s'en apercoit au changement d'onglet
@@ -2845,10 +2870,13 @@ verifier("et elle est DECOCHEE par defaut : on ne supprime rien sans le dire",
 # (0.7.22) : on choisit le projet, puis le plan, on CHARGE les couches qu'il
 # designe, on trace le profil en long dessus, et l'on ne touche a la fenetre
 # de simulation que si l'Unsteady couvre une autre periode.
+# LE GESTE IRREVERSIBLE FERME LA MARCHE (21/09/2026) : il ne compose plus
+# rien, et ce qu'il consomme tient tout entier dans cet onglet.
 verifier("l'onglet 1 suit l'ordre des gestes",
-         len(_groupes_modele) == 5
+         len(_groupes_modele) == 6
          and all(mot in titre.lower() for mot, titre in zip(
-             ("projet", "plan", "couches", "axe", "simulation"), _groupes_modele)),
+             ("projet", "plan", "couches", "axe", "simulation", "écrire"),
+             _groupes_modele)),
          _groupes_modele)
 # La fenetre doit pouvoir rester ouverte pendant qu'on dessine dans QGIS :
 # modale, elle bloquerait la carte et obligerait a fermer/rouvrir.
@@ -3086,10 +3114,15 @@ def _eprouver_petite_fenetre(points):
                 QApplication.processEvents()
                 verifier(f"{repere} : le clic ouvre la bonne page",
                          fenetre.onglets.currentIndex() == index)
-                bouton = fenetre.bouton_controle
-                verifier(f"{repere} : controle permanent visible dans la fenetre",
-                         bouton.isVisibleTo(fenetre)
-                         and fenetre.rect().contains(_rectangle_dans(bouton, fenetre)))
+                # LE BOUTON N'EST PLUS PERMANENT (21/09/2026) : il vit a
+                # l'onglet 1, avec les couches qu'il ecrit. Ce qui reste au
+                # bas de la fenetre, et doit y etre visible depuis chaque
+                # onglet, c'est la barre de preparation.
+                barre_prep = fenetre.barre_preparation
+                verifier(f"{repere} : la preparation se lit depuis cet onglet",
+                         barre_prep.isVisibleTo(fenetre)
+                         and fenetre.rect().contains(
+                             _rectangle_dans(barre_prep, fenetre)))
 
                 zone = fenetre.onglets.widget(index)
                 verifier(f"{repere} : le contenu dispose d'un defilement",

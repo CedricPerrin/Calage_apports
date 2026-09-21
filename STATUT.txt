@@ -22,6 +22,34 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+VERSION 0.9.6 — 21 SEPTEMBRE 2026. Banc QGIS : 347 controles, aucun echec,
+  sortie 0. Plugin installe et ouvert dans le QGIS du poste.
+
+  LE BOUTON REJOINT L'ONGLET 1. Il avait demenage quatre fois en cinq
+  versions avant de descendre au bas de la fenetre en 0.7.24, avec une
+  raison juste : « ce geste consomme les trois premiers onglets et prepare
+  le quatrieme ». CETTE RAISON A DISPARU AVEC LA 0.9.5 : il ne compose plus
+  rien. Ce qu'il consomme tient tout entier dans « Modele » — projet, plan,
+  zone 2D, deux couches — et ce qu'il ecrit s'y dessine. Groupe « Ecrire
+  dans le modele HEC-RAS », compte rendu DANS LA PAGE (on le relit),
+  echec en BOITE (il faut le lire).
+  Ses prealables retrecissent : _etapes_avant_controle ne demande plus ni
+  l'axe ni le dossier de sortie, qui servaient a COMPOSER.
+
+  CORRECTIF IMPORTANT DE LA 0.9.5 — RE-ENTRANCE. Le minuteur de
+  recomposition pouvait partir PENDANT qu'une composition tournait : elle
+  ecrit des shapefiles et un classeur, et traite des evenements Qt en
+  chemin. Deux ecritures concurrentes sur les memes fichiers, et le
+  processus s'arretait SANS TRACE — code 127, reproduit au banc.
+  Un verrou (_composition_en_cours) interdit deux compositions a la fois,
+  et _prealables_composition_prets() empeche de poser un rendez-vous qui
+  ne menerait a rien : un minuteur qui part sans cesse finit par partir au
+  mauvais moment.
+
+  CE QUI N'EST TOUJOURS PAS PROUVE : la recomposition automatique n'a
+  JAMAIS tourne contre un vrai modele.
+
+
 VERSION 0.9.5 — 21 SEPTEMBRE 2026. LA COMPOSITION EST AUTOMATIQUE.
   Banc QGIS : 345 controles, aucun echec. Plugin installe et ouvert dans le
   QGIS du poste ; QGIS lit bien « 0.9.5 ».
