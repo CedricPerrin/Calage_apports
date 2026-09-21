@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.9.3
+version=0.9.4
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,29 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.9.3 — Le résultat du calage apparaît enfin dans RAS Mapper.
+changelog=0.9.4 — Le préfixe rejoint le fichier qu'il nomme, l'emprise 2D
+    cesse de masquer la carte, et les étapes disent le bon ordre.
+    Le préfixe de scénario entre DANS le groupe du classeur, renommé
+    « Hydrogrammes cibles » : c'est la première chose à renseigner pour
+    qu'il y ait un classeur, et le nom du fichier se lit deux lignes plus
+    bas. La raison de l'avoir tenu dehors depuis la 0.8.4 — « le groupe
+    voisin se grise » — a été vérifiée et n'en est plus une : seuls trois
+    enfants sont désactivés, jamais le groupe.
+    L'emprise 2D arrive désormais en CONTOUR ROUGE SANS REMPLISSAGE. Elle
+    prenait l'aplat aléatoire de QGIS et masquait le maillage, les sections
+    et les injections qu'on vient regarder dessous.
+    Les listes d'étapes de l'aide décrivaient encore six rubriques avec
+    « Sorties » en deuxième position : le dossier de sortie se spécifie
+    après les objectifs, puisqu'il est un réglage du lancement.
+    ENFIN, CHANGER LE PRÉFIXE PUIS RECOMPOSER EST ANNONCÉ AVANT LE CLIC.
+    Mesuré : rien n'est supprimé, l'ancien classeur garde ses cibles et la
+    correspondance du neuf est correcte — mais le nouveau naît VIDE et la
+    fenêtre bascule dessus, ce qui à l'écran ne se distingue pas d'une
+    perte. On le dit, on nomme le fichier où le travail se trouve encore,
+    et on ne recopie PAS les cibles : un scénario n'a pas les hydrogrammes
+    d'un autre.
+
+    0.9.3 — Le résultat du calage apparaît enfin dans RAS Mapper.
     Un calage abouti laissait un plan « <préfixe>_avec_apports » avec un
     .pNN.hdf complet — 300 à 420 Mo de résultats — et RAS Mapper ne
     montrait rien. Son arbre Results ne parcourt pas le dossier : il liste

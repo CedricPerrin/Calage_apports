@@ -29,6 +29,7 @@ from qgis.core import (
     QgsCoordinateReferenceSystem,
     QgsFeature,
     QgsField,
+    QgsFillSymbol,
     QgsFields,
     QgsGeometry,
     QgsMapLayerProxyModel,
@@ -202,9 +203,52 @@ def appliquer_style(couche, nom_style):
     return bool(ok), (message or "").strip()
 
 
-def appliquer_styles(injections, sections, maillage):
-    """Style de chacune des trois couches ; retourne les echecs eventuels."""
+def styler_emprise(couche):
+    """
+    L'emprise 2D : un CONTOUR ROUGE, AUCUN REMPLISSAGE (21/09/2026, demande
+    utilisateur).
+
+    Elle arrivait avec le style par defaut de QGIS — un aplat de couleur
+    tiree au hasard — et masquait tout ce qu'on vient regarder dessous : le
+    maillage, les sections de controle, les lignes d'injection. C'est un
+    CONTOUR qu'on veut voir, pas une surface : l'emprise sert a savoir ou
+    finit la zone de calcul.
+
+    EN CODE, PAS EN .qml. Les trois autres couches ont un style livre parce
+    qu'elles portent des etiquettes, des regles et des largeurs a regler.
+    Ici il y a deux proprietes : un fichier de cent lignes de XML lie a une
+    version de QGIS couterait plus qu'il ne dirait.
+
+    Retourne (applique, message), comme appliquer_style.
+    """
+    couche = couche_vivante(couche)
+    if couche is None:
+        return False, "couche absente"
+    try:
+        symbole = QgsFillSymbol.createSimple({
+            # « no » suffit a Qt, mais une couleur transparente en plus evite
+            # qu'un theme ou un export ne rende un aplat par repli.
+            "style": "no",
+            "color": "0,0,0,0",
+            "outline_color": "227,26,28,255",
+            "outline_width": "0.6",
+            "outline_style": "solid",
+        })
+        couche.renderer().setSymbol(symbole)
+        couche.setOpacity(1.0)
+        couche.triggerRepaint()
+    except Exception as e:                                  # noqa: BLE001
+        return False, f"{type(e).__name__}: {e}"
+    return True, ""
+
+
+def appliquer_styles(injections, sections, maillage, emprise=None):
+    """Style de chacune des couches ; retourne les echecs eventuels."""
     echecs = []
+    if emprise is not None:
+        ok, message = styler_emprise(emprise)
+        if not ok:
+            echecs.append(f"emprise 2D : {message}")
     for couche, nom in ((injections, "injections"), (sections, "sections"),
                         (maillage, "maillage")):
         if couche is None:
@@ -1412,22 +1456,23 @@ la fenêtre ; un
 apport créé reçoit du même coup son hydrogramme dans le fichier
 Unsteady&nbsp;Flow, sinon il n'apporterait rien. La fenêtre de simulation n'est à corriger que si l'Unsteady&nbsp;Flow
 retenu couvre une <b>autre période</b> que le plan de référence.</li>
-<li><b>Sorties.</b> Dossier de résultats et dossier de suivi,
-et la <i>conservation des plans d’étape</i> : une case décide de leur sort à la
-fin du calage — voir <a href="#s11">Ce que le calage laisse dans le
-modèle</a>.</li>
-<li><b>Objectifs.</b> Ouvrir ou reprendre l'Excel des objectifs : c'est dans
-sa feuille <i>Cibles</i> que se saisissent les hydrogrammes visés, une colonne
-par section. Régler les écarts admis sur le volume et sur le débit de pointe.
-Le bouton <i>Contrôle paramétrage</i>, permanent au bas de la fenêtre,
-<b>écrit, compose et contrôle</b> à partir des trois premières rubriques.
-Lire son compte rendu avant d'aller plus loin.</li>
-<li><b>Lancer.</b> Vérifier l'appariement et l'état des cibles,
-choisir le premier apport à caler — le plugin le demande de lui-même si un
-calage précédent existe — et le <b>préfixe de scénario</b>, qui est
-<b>obligatoire</b> : il nomme les plans de ce calage-ci, et c'est lui qui
-empêche un second scénario d'effacer les plans du premier. Puis lancer : le
-calage tourne en arrière-plan, QGIS reste utilisable.</li>
+<li><b>Objectifs.</b> D'abord la <i>précision du calage</i> : les écarts
+admis sur le volume et sur le débit de pointe, et le nombre maximal d'essais.
+Puis le <b>préfixe de scénario</b>, qui est <b>obligatoire</b> — il nomme les
+plans de ce calage-ci comme le fichier Excel, et c'est lui qui empêche un
+second scénario d'effacer les plans du premier. Le bouton <i>Contrôle
+paramétrage</i>, permanent au bas de la fenêtre, <b>écrit, compose et
+contrôle</b> ; il crée alors l'Excel, et c'est dans sa feuille <i>Cibles</i>
+que se saisissent les hydrogrammes visés, une colonne par section. Lire son
+compte rendu avant d'aller plus loin.</li>
+<li><b>Lancer.</b> Tout ce qui décide du lancement, dans l'ordre où il se
+décide. L'appariement et l'état des cibles ; le premier apport à caler — le
+plugin le demande de lui-même si un calage précédent existe ; <b>le dossier de
+sortie</b>, ses sous-dossiers et la <i>conservation des plans d’étape</i>,
+dont une case décide du sort à la fin du calage — voir <a href="#s11">Ce que
+le calage laisse dans le modèle</a>. Au-dessus du bouton, un récapitulatif dit
+d'où le calage repart et ce qu'il va calculer. Puis lancer : le calage tourne
+en arrière-plan, QGIS reste utilisable.</li>
 <li><b>Suivi.</b> Où en est le calcul, apport par apport, rafraîchi
 tout seul. C'est là qu'on revient pendant les heures que dure un calage. La
 courbe y porte la cible et la section de l'apport en cours, et <b>derrière,
@@ -1595,7 +1640,7 @@ RAS&nbsp;Mapper.</p>
 qui a été obtenu apport par apport, et permettent de reprendre une séquence
 interrompue sans repartir du premier. Le prix est le disque — un modèle à
 trente apports garde trente et un jeux de résultats.</p>
-<p>Dans <i>Sorties</i>, la case <i>Supprimer les plans d’étape après un calage
+<p>Dans <i>Lancer</i>, la case <i>Supprimer les plans d’étape après un calage
 réussi</i> décide de leur sort,
 <b>avant</b> le calage : cochée, la chaîne les retire à la fin ; décochée, ils
 restent. L'encadré dit en toutes lettres ce qui va se passer. L'élagage ne
@@ -1812,15 +1857,16 @@ class DialogueParametrage(QDialog):
          hydraulique. Y CHARGE LES COUCHES EXISTANTES de la geometrie en
          couches QGIS EDITABLES, pretes a etre dessinees ou completees
          par-dessus.
-      2. Sorties — ou ecrire le paquet, les resultats finaux et le suivi.
-      3. Objectifs — ce qu'on vise et avec quoi : la precision
-         attendue sur le volume et la pointe, et le classeur ou se saisissent
-         les hydrogrammes cibles.
-      4. Lancer — ce que la derniere composition a produit, l'etat des
-         cibles, les apports a determiner et le lancement.
+      2. Objectifs — ce qu'on vise et avec quoi : la precision attendue sur
+         le volume et la pointe, le prefixe de scenario, et le classeur ou se
+         saisissent les hydrogrammes cibles.
+      3. Lancer — ce que la derniere composition a produit, l'etat des
+         cibles, les apports a determiner, OU ECRIRE le paquet, les resultats
+         finaux et le suivi, et le lancement. Le dossier de sortie est ici,
+         apres les objectifs : c'est un reglage DU LANCEMENT.
          Recomposer au fil de l'ajustement des couches est le cas NORMAL : les
          cibles saisies a la main sont preservees d'une composition a l'autre.
-      5. Suivi — ou en est le calcul, rafraichi tout seul tant que cet onglet
+      4. Suivi — ou en est le calcul, rafraichi tout seul tant que cet onglet
          est affiche.
       Aide et configuration — mode operatoire, pieges connus, et les deux
          emplacements du poste.
@@ -2792,6 +2838,49 @@ class DialogueParametrage(QDialog):
                     f"« {'' if fige is None else fige} » dans le paquet")
         return ecarts
 
+    def _classeur_neuf_annonce(self):
+        """
+        Dit qu'un preFIXE CHANGE fera un classeur NEUF, donc AUX CIBLES VIDES.
+
+        LE CAS SIGNALE LE 21 SEPTEMBRE 2026 : « changer le prefixe et
+        recliquer sur parametrage supprime les apports ». Mesure faite :
+        RIEN N'EST SUPPRIME — l'ancien classeur garde ses cibles, et la
+        correspondance du neuf est correctement reconstruite. Mais le
+        nouveau classeur nait VIDE, la fenetre bascule dessus, et « Ce que
+        portent les hydrogrammes cibles » n'affiche plus rien : a l'ecran,
+        c'est indiscernable d'une perte.
+        ON NE RECOPIE PAS LES CIBLES de l'ancien : un Q10 n'a pas les
+        hydrogrammes d'un Q100, et les reporter fabriquerait un calage faux
+        qui aurait l'air juste. On DIT, et on nomme le fichier ou le travail
+        se trouve encore.
+        """
+        if not self.classeur:
+            return ""
+        actuel = Path(self.classeur)
+        prefixe = self.edit_prefixe_scenario.text().strip()
+        try:
+            futur = actuel.parent / noyau.nom_classeur(prefixe)
+        except Exception:                                   # noqa: BLE001
+            return ""
+        if futur == actuel or futur.exists():
+            return ""
+        try:
+            import pandas as pd
+            cibles = pd.read_excel(actuel, sheet_name="Cibles")
+            remplies = int(cibles.drop(columns=["Temps_h"], errors="ignore")
+                           .notna().to_numpy().sum())
+        except Exception as e:                              # noqa: BLE001
+            journaliser("Lecture des cibles du classeur courant", e)
+            return ""
+        if not remplies:
+            return ""
+        return (f"Composer maintenant créera <b>{futur.name}</b>, un "
+                f"classeur <b>neuf, aux cibles vides</b>. Les "
+                f"{remplies} valeur(s) déjà saisies restent dans "
+                f"<b>{actuel.name}</b> — rien n’est supprimé, mais elles "
+                f"ne seront pas reprises : un scénario n’a pas les "
+                f"hydrogrammes d’un autre.")
+
     def _maj_coherence(self):
         """Dit, sous la preparation du lancement, ce qui ne concorde plus."""
         label = getattr(self, "label_prochaine_etape", None)
@@ -2805,11 +2894,13 @@ class DialogueParametrage(QDialog):
                  "lancement." if not self.classeur else
                  "Le paquet composé dit la même chose que cet écran.")
             return
+        neuf = self._classeur_neuf_annonce()
         dire(label,
              f"<b>{len(ecarts)} réglage(s) changé(s) depuis la composition —"
              f" le calage lirait le paquet, pas l’écran :</b><br>• "
              + "<br>• ".join(ecarts)
-             + "<br>Relancez « Contrôle paramétrage » pour les reporter.")
+             + "<br>Relancez « Contrôle paramétrage » pour les reporter."
+             + (f"<br>{neuf}" if neuf else ""))
 
     def _etapes_preparation(self):
         """
@@ -3184,7 +3275,8 @@ class DialogueParametrage(QDialog):
         # une trace, sans quoi « les sections s'affichent en noir » reste
         # inexplicable.
         echecs_style = appliquer_styles(
-            self.couche_injections, self.couche_sections, self.couche_maillage)
+            self.couche_injections, self.couche_sections, self.couche_maillage,
+            self.couche_perimetre)
         if echecs_style:
             journaliser("Styles non appliqués : " + " ; ".join(echecs_style))
         ordonner_couches(projet, [self.couche_injections, self.couche_sections,
@@ -3400,26 +3492,33 @@ class DialogueParametrage(QDialog):
         # objet ne se suit pas.
         return groupe_param
 
-    def _groupe_prefixe_scenario(self):
+    def _champ_prefixe_scenario(self):
         """
-        LE PREFIXE, SEUL DANS SON GROUPE ET TOUJOURS ACTIF (0.8.4).
+        LE PREFIXE, DANS LE GROUPE DU FICHIER QU'IL NOMME (21/09/2026,
+        demande utilisateur).
 
-        Il vivait a l'onglet 4, a cote de « Premier apport », parce que les
-        deux designent les memes plans. Il remonte ici parce qu'il nomme
-        DESORMAIS LE FICHIER LUI-MEME — « donnees_calage_Q100.xlsx » —, et
-        qu'on le saisit donc avant de composer, pas avant de lancer.
+        Il a beaucoup voyage : onglet 4 a cote de « Premier apport », puis
+        onglet 3 en 0.8.4 quand il s'est mis a nommer le fichier lui-meme,
+        puis au-dessus du bouton de lancement en 0.9.0 parce qu'il nomme
+        aussi les plans. Il se pose ici, DANS le groupe du classeur : c'est
+        la premiere chose a renseigner pour qu'il y ait un classeur, et le
+        nom du fichier se lit deux lignes plus bas.
 
-        HORS DU GROUPE VOISIN, QUI SE GRISE. « Excel des hydrogrammes
-        objectifs » se grise tant que rien n'est compose ; le prefixe, lui,
-        doit etre saisi AVANT la composition. Un champ obligatoire dans un
-        bloc desactive serait une impasse — Qt desactive tous les enfants
-        d'un parent desactive, l'etat propre du champ n'y peut rien.
+        CE N'EST PLUS UN GROUPE, mais un simple formulaire : deux cadres
+        imbriques pour un champ auraient pese plus que le champ.
+
+        LA RAISON DE L'AVOIR TENU DEHORS N'EN EST PLUS UNE. Le commentaire
+        de la 0.8.4 disait « le groupe voisin se grise, un champ
+        obligatoire dans un bloc desactive serait une impasse ». Verifie le
+        21/09/2026 : _maj_groupe_classeur ne desactive QUE trois enfants —
+        le bouton d'ouverture, la consigne et l'aide sur la pente — et
+        JAMAIS le groupe. Le champ reste donc actif ici.
         """
-        groupe = QGroupBox("Préfixe de scénario")
-        groupe.setToolTip(
+        enveloppe = QWidget()
+        enveloppe.setToolTip(
             "Nomme les plans HEC-RAS de ce calage, et le fichier Excel des "
-            "objectifs.")
-        f = formulaire(groupe)
+            "hydrogrammes cibles.")
+        f = formulaire(enveloppe)
         self.edit_prefixe_scenario = QLineEdit()
         self.edit_prefixe_scenario.setPlaceholderText(
             "Q100 — obligatoire")
@@ -3435,11 +3534,12 @@ class DialogueParametrage(QDialog):
             "classeurs, et composer l'un n'écrase pas l'autre.\n\n"
             "Le souligné est ajouté tout seul : « Q100 » et « Q100_ » "
             "donnent le même titre.\n\n"
-            "Titre complet limité à 30 caractères — le champ « Short "
-            "Identifier », dont RAS Mapper fait le nom du dossier de "
-            "résultats. Au-delà, la composition REFUSE plutôt que de "
+            "Titre complet limité à 32 caractères — la borne de "
+            "ras-commander, qui refuse au-delà sur « Plan Title » et "
+            "« Flow Title ». Au-delà, la composition REFUSE plutôt que de "
             "tronquer : deux plans tronqués au même identifiant "
-            "partageraient ce dossier.")
+            "partageraient le dossier de résultats que RAS Mapper nomme "
+            "d'après le « Short Identifier ».")
         # « OBLIGATOIRE » DANS LE LIBELLE, PAS SEULEMENT DANS LE PLACEHOLDER
         # (0.8.5) : un placeholder disparait a la premiere frappe.
         f.addRow("&Préfixe de scénario (obligatoire) :", self.edit_prefixe_scenario)
@@ -3451,7 +3551,7 @@ class DialogueParametrage(QDialog):
             "Nomme les plans du calage <i>et</i> le fichier Excel des "
             "objectifs. Changer de préfixe compose un nouveau classeur au "
             "lieu d’écraser le précédent."))
-        return groupe
+        return enveloppe
 
     def _groupe_classeur(self):
         # « EXCEL DES HYDROGRAMMES OBJECTIFS », ET NON « CLASSEUR ». Le mot
@@ -3459,9 +3559,16 @@ class DialogueParametrage(QDialog):
         # format ; a l'ecran il ne dit ni ce que le fichier contient, ni a
         # quoi il sert. L'utilisateur, lui, y vient pour une chose : saisir
         # les hydrogrammes qu'il vise. Le nom le dit maintenant.
-        groupe_actions = QGroupBox("Excel des hydrogrammes objectifs")
+        # « HYDROGRAMMES CIBLES » (21/09/2026, demande utilisateur). Le nom
+        # disait le CONTENANT — « Excel des hydrogrammes objectifs » — la ou
+        # l'utilisateur vient pour son CONTENU. Le fichier est nomme deux
+        # lignes plus bas, par le champ qui le nomme pour de bon.
+        groupe_actions = QGroupBox("Hydrogrammes cibles")
         v_classeur = QVBoxLayout(groupe_actions)
         v_classeur.setSpacing(8)
+        # LE PREFIXE EN PREMIER : sans lui, il n'y a pas de classeur a
+        # ouvrir, et c'est lui qui le nomme.
+        v_classeur.addWidget(self._champ_prefixe_scenario())
         self.consigne_classeur = QLabel(
             "Dans la feuille <b>Cibles</b>, saisissez un hydrogramme par section. "
             "Enregistrez l’Excel, puis relancez le contrôle en bas de la fenêtre.")
@@ -3591,11 +3698,11 @@ class DialogueParametrage(QDialog):
         # expliquait, depuis l'interieur d'un groupe grise, comment le
         # degriser. Posee entre les deux, elle est l'etape qu'elle decrit.
         self.label_classeur_attente = texte_aide(
-            "Aucun Excel composé : cliquez <b>Contrôle paramétrage</b>, en "
-            "bas de la fenêtre, pour le composer et pouvoir y saisir les "
-            "hydrogrammes. Le <b>préfixe de scénario</b>, qui le nomme, se "
-            "renseigne à l’étape <b>Lancer</b>. « Reprendre un Excel… » "
-            "reste disponible pour rouvrir celui d’une autre session.")
+            "Aucun Excel composé : renseignez le <b>préfixe de scénario</b> "
+            "ci-dessous, puis cliquez <b>Contrôle paramétrage</b> en bas de "
+            "la fenêtre pour le composer et pouvoir y saisir les "
+            "hydrogrammes. « Reprendre un Excel… » reste disponible pour "
+            "rouvrir celui d’une autre session.")
         v.addWidget(self.label_classeur_attente)
         v.addWidget(self._groupe_classeur())
         v.addWidget(self._groupe_ce_que_portent_les_cibles())
@@ -4007,12 +4114,6 @@ class DialogueParametrage(QDialog):
         v.addWidget(self._groupe_dossier_sortie())
         v.addWidget(self._groupe_menage())
         v.addWidget(self._groupe_configuration())
-
-        # LE PREFIXE EST LE DERNIER REGLAGE AVANT LE CLIC. Il vivait a
-        # l'onglet Objectifs depuis la 0.8.4, ou il nommait l'Excel ; il nomme
-        # aussi tous les plans du calage, et c'est cette seconde portee qui
-        # decide de sa place — juste au-dessus du bouton qui les cree.
-        v.addWidget(self._groupe_prefixe_scenario())
 
         groupe_lancer = QGroupBox("Lancer le calage")
         vl = QVBoxLayout(groupe_lancer)

@@ -2,7 +2,10 @@
 
 Préparation et contrôle du paquet de calage pour **HEC-RAS uniquement**.
 Voir `methodologie_calage_amont_aval.docx`, § 2.4.
-Version **0.9.3** : le résultat du calage apparaît enfin dans RAS Mapper
+Version **0.9.4** : le préfixe rejoint le groupe « Hydrogrammes cibles »,
+l'emprise 2D ne masque plus la carte, les étapes disent le bon ordre, et
+changer de préfixe s'annonce avant le clic. Avant, la **0.9.3** : le
+résultat du calage apparaît enfin dans RAS Mapper
 — le plan final est déclaré dans le `.rasmap`, ce que ras-commander ne fait
 jamais. Avant, la **0.9.2** : recomposer ne perd plus rien, l'écran dit quand il ne
 concorde plus avec le paquet composé, et le Suivi montre le journal en
@@ -68,7 +71,7 @@ et figerait l'interface.
 ## Installation
 
 **Depuis l'archive.** `calage_apports_<version>.zip` —
-`calage_apports_0.9.3.zip` pour cette version — est **à la racine du dépôt** : la télécharger
+`calage_apports_0.9.4.zip` pour cette version — est **à la racine du dépôt** : la télécharger
 suffit, il n'y a rien à reconstruire. Le nom porte la version pour qu'on
 sache, sur un poste distant, ce qu'on installe ; il n'y en a jamais qu'une
 dans le dépôt, la plus récente. Puis, dans QGIS :
@@ -484,6 +487,37 @@ phrase du journal le dit.
 **Non verifie : l'affichage dans RAS Mapper lui-meme**, qui demande de
 l'ouvrir. Et les plans d'ETAPE, eux, ne sont pas declares — seul le plan
 final l'est, comme demande.
+
+**La 0.9.4 repond a quatre demandes du 21 septembre.**
+
+**Le prefixe rejoint le fichier qu'il nomme.** Il entre DANS le groupe du
+classeur, renomme **« Hydrogrammes cibles »** : c'est la premiere chose a
+renseigner pour qu'il y ait un classeur, et le nom du fichier se lit deux
+lignes plus bas. La raison de l'avoir tenu dehors depuis la 0.8.4 — « le
+groupe voisin se grise » — a ete **verifiee** et n'en est plus une :
+`_maj_groupe_classeur` ne desactive que trois enfants, jamais le groupe.
+Le banc l'eprouve maintenant, au lieu de s'y fier.
+
+**L'emprise 2D arrive en contour rouge, sans remplissage.** Elle prenait
+l'aplat de couleur aleatoire de QGIS et masquait le maillage, les sections
+de controle et les lignes d'injection — tout ce qu'on vient regarder
+dessous. C'est un contour qu'on veut voir : l'emprise sert a savoir ou
+finit la zone de calcul.
+
+**Les etapes disent le bon ordre.** Les listes de l'aide decrivaient encore
+six rubriques avec « Sorties » en deuxieme position. Le dossier de sortie
+se specifie **apres** les objectifs : c'est un reglage du lancement, et il
+vit dans « Lancer » depuis la 0.9.0.
+
+**Changer le prefixe puis recomposer est annonce AVANT le clic.** Le geste
+etait signale comme « supprime les apports ». Mesure faite : **rien n'est
+supprime** — l'ancien classeur garde ses cibles, et la correspondance du
+neuf est correctement reconstruite. Mais le nouveau nait **vide** et la
+fenetre bascule dessus : a l'ecran, c'est indiscernable d'une perte. La
+fenetre le dit desormais, et nomme le fichier ou le travail se trouve
+encore. **Les cibles ne sont pas recopiees** : un Q10 n'a pas les
+hydrogrammes d'un Q100, et les reporter fabriquerait un calage faux qui
+aurait l'air juste.
 
 > Ce que les calages livrés n'ont PAS rencontré : un volume plancher, un
 > apport refusé, un modèle incohérent. Les garde-fous qui traitent ces cas

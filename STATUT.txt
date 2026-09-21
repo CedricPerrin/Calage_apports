@@ -22,6 +22,50 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+VERSION 0.9.4 — 21 SEPTEMBRE 2026. Banc QGIS : 337 controles, aucun echec.
+
+  1. LE PREFIXE ENTRE DANS LE GROUPE DU CLASSEUR, renomme « Hydrogrammes
+     cibles ». La raison invoquee en 0.8.4 pour l'en tenir dehors — « le
+     groupe voisin se grise, un champ obligatoire dans un bloc desactive
+     serait une impasse » — a ete VERIFIEE et n'en est plus une :
+     _maj_groupe_classeur ne desactive que trois enfants (bouton d'ouverture,
+     consigne, aide sur la pente), jamais le groupe. Le banc l'eprouve.
+
+  2. L'EMPRISE 2D : CONTOUR ROUGE, AUCUN REMPLISSAGE. Elle prenait l'aplat
+     aleatoire de QGIS et masquait maillage, sections et injections. Stylee
+     EN CODE (QgsFillSymbol) et non par un .qml : deux proprietes ne valent
+     pas cent lignes de XML liees a une version de QGIS.
+
+  3. LES LISTES D'ETAPES DE L'AIDE decrivaient encore six rubriques avec
+     « Sorties » en deuxieme position. Le dossier de sortie se specifie
+     APRES les objectifs — c'est un reglage du lancement, et il vit dans
+     « Lancer » depuis la 0.9.0.
+
+  4. « CHANGER LE PREFIXE ET RECLIQUER SUPPRIME LES APPORTS » — MESURE.
+     RIEN N'EST SUPPRIME : l'ancien classeur garde ses cibles (3 lignes
+     relues apres coup), et la correspondance du neuf est correctement
+     reconstruite. MAIS le nouveau classeur nait VIDE et la fenetre bascule
+     dessus : a l'ecran, indiscernable d'une perte. La fenetre l'annonce
+     desormais AVANT le clic et nomme le fichier ou le travail se trouve
+     encore. ON NE RECOPIE PAS LES CIBLES : un Q10 n'a pas les hydrogrammes
+     d'un Q100, et les reporter ferait un calage faux qui aurait l'air juste.
+
+  DEMANDE OUVERTE — SUPPRIMER « CONTROLE PARAMETRAGE » ET LE FAIRE
+  AUTOMATIQUEMENT. Non traitee, et pas par oubli : ce bouton porte LE SEUL
+  GESTE IRREVERSIBLE DE LA FENETRE — il ECRIT DANS LA GEOMETRIE HEC-RAS,
+  en remplacant tout objet de meme nom, apres sauvegarde horodatee. Le
+  rendre automatique reecrirait le modele du client a chaque frappe, sur un
+  partage reseau, et le refus « HEC-RAS est ouvert » se declencherait sans
+  qu'on ait rien demande.
+  CE QU'IL FAUT TRANCHER : le bouton fait TROIS choses — (a) ecrire les
+  couches dans la geometrie, (b) composer le paquet (shapefiles, classeur,
+  JSON), (c) lancer les controles. (b) et (c) sont bon marche et
+  reversibles depuis la 0.9.2 — le classeur est sauvegarde horodate — et
+  peuvent devenir automatiques. (a) ne le peut pas. Reste a decider si
+  l'automatisme couvre (b)+(c) seulement, l'ecriture restant un geste
+  explicite, ou les trois.
+
+
 VERSION 0.9.3 — 21 SEPTEMBRE 2026. LE RESULTAT PARAIT DANS RAS MAPPER.
 
   LE DEFAUT. Un calage abouti laissait un plan « <prefixe>_avec_apports »

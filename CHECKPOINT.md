@@ -1,6 +1,29 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
-## Reprendre ici — 21 septembre 2026 : 0.9.3, RAS Mapper voit le résultat
+## Reprendre ici — 21 septembre 2026 : 0.9.4, quatre demandes de plus
+
+Banc QGIS : **337 contrôles, aucun échec**.
+
+- **Le préfixe rejoint le groupe du fichier qu'il nomme**, renommé
+  « Hydrogrammes cibles ». La raison de l'avoir tenu dehors depuis la 0.8.4
+  — « le groupe voisin se grise » — a été **vérifiée** et n'en est plus une.
+- **L'emprise 2D** : contour rouge, aucun remplissage. Elle masquait le
+  maillage et les sections sous un aplat aléatoire.
+- **Les listes d'étapes de l'aide** décrivaient encore six rubriques avec
+  « Sorties » en deuxième : le dossier de sortie vient **après** les
+  objectifs.
+- **Changer le préfixe puis recomposer** est annoncé **avant** le clic.
+  Mesuré : rien n'est supprimé, l'ancien classeur garde ses cibles — mais
+  le neuf naît vide, ce qui à l'écran ne se distingue pas d'une perte.
+
+**DEMANDE OUVERTE, non traitée** — supprimer le bouton « Contrôle
+paramétrage » et faire le contrôle automatiquement, en annonçant ce qui a
+changé. Non fait à dessein : ce bouton porte **le seul geste irréversible
+de la fenêtre**, l'écriture dans la géométrie HEC-RAS. Le rendre
+automatique réécrirait le modèle du client à chaque frappe. La découpe à
+trancher est dans STATUT.txt § 1.
+
+## État précédent — 21 septembre 2026 : 0.9.3, RAS Mapper voit le résultat
 
 La demande laissée ouverte par la 0.9.2 est traitée. **Cause trouvée sur
 deux modèles réels** : l'arbre *Results* de RAS Mapper ne parcourt pas le

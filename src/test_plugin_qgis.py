@@ -2166,11 +2166,12 @@ verifier("plus aucun onglet « Sorties »",
 # reglage lu apres le bouton qu'il regle ne sert a rien.
 _ordre_lancer = [g.title() for g in dlg.onglets.widget(
     mod_plugin.ONGLET_LANCER).findChildren(_QGroupBoxA)]
+# LE PREFIXE A QUITTE « Lancer » (21/09/2026) : il a rejoint le groupe du
+# fichier qu'il nomme, a l'onglet Objectifs.
 _attendu_lancer = ["Préparation du lancement", "Apports à déterminer",
                    "Dossier de sortie", "Conservation des plans d’étape",
-                   "Configuration complète", "Préfixe de scénario",
-                   "Lancer le calage"]
-verifier("l'onglet Lancer enchaine apports, sorties, prefixe, lancement",
+                   "Configuration complète", "Lancer le calage"]
+verifier("l'onglet Lancer enchaine apports, sorties, lancement",
          [g for g in _ordre_lancer if g in _attendu_lancer] == _attendu_lancer,
          str(_ordre_lancer))
 # ET LE PREFIXE A QUITTE « Objectifs ». Laisse aux deux endroits, il aurait
@@ -2181,9 +2182,9 @@ verifier("l'onglet Lancer enchaine apports, sorties, prefixe, lancement",
 # grise.
 _ordre_objectifs = [g.title() for g in dlg.onglets.widget(
     mod_plugin.ONGLET_OBJECTIFS).findChildren(_QGroupBoxA)]
-_attendu_objectifs = ["Précision du calage", "Excel des hydrogrammes objectifs",
+_attendu_objectifs = ["Précision du calage", "Hydrogrammes cibles",
                       "Ce que portent les hydrogrammes cibles"]
-verifier("l'onglet Objectifs enchaine precision, Excel, cibles",
+verifier("l'onglet Objectifs enchaine precision, cibles, ce qu'elles portent",
          [g for g in _ordre_objectifs
           if g in _attendu_objectifs] == _attendu_objectifs,
          str(_ordre_objectifs))
@@ -2199,12 +2200,47 @@ verifier("le geste a poser est dit hors du groupe qu'il debloque",
              if dlg.label_classeur_attente in g.findChildren(type(
                  dlg.label_classeur_attente))],
          dlg.label_classeur_attente.text()[:70])
-# ET IL NE RENVOIE PLUS AU PREFIXE « CI-DESSUS » : le prefixe a change
-# d'onglet en 0.9.0, la consigne le suivait sans le dire.
-verifier("la consigne nomme l'onglet ou vit desormais le prefixe",
-         "ci-dessus" not in dlg.label_classeur_attente.text()
-         and "Lancer" in dlg.label_classeur_attente.text(),
-         dlg.label_classeur_attente.text())
+# LE PREFIXE EST DANS LE GROUPE DU FICHIER QU'IL NOMME (21/09/2026, demande
+# utilisateur), et la consigne y renvoie « ci-dessous ».
+verifier("la consigne renvoie au prefixe, juste dessous",
+         "ci-dessous" in dlg.label_classeur_attente.text()
+         and "préfixe de scénario" in dlg.label_classeur_attente.text(),
+         dlg.label_classeur_attente.text()[:90])
+_groupe_cibles = next(g for g in dlg.onglets.widget(
+    mod_plugin.ONGLET_OBJECTIFS).findChildren(_QGroupBoxA)
+    if g.title() == "Hydrogrammes cibles")
+verifier("le prefixe vit DANS le groupe « Hydrogrammes cibles »",
+         dlg.edit_prefixe_scenario in _groupe_cibles.findChildren(
+             type(dlg.edit_prefixe_scenario)),
+         _groupe_cibles.title())
+# LE PIEGE QUE LA 0.8.4 CRAIGNAIT : un champ obligatoire dans un bloc grise
+# serait une impasse. _maj_groupe_classeur ne desactive QUE trois enfants,
+# jamais le groupe — on le verifie, plutot que de s'y fier.
+dlg._maj_groupe_classeur()
+verifier("et il reste saisissable tant que rien n'est compose",
+         dlg.edit_prefixe_scenario.isEnabled() and _groupe_cibles.isEnabled(),
+         f"champ={dlg.edit_prefixe_scenario.isEnabled()} "
+         f"groupe={_groupe_cibles.isEnabled()}")
+
+# L'EMPRISE 2D : CONTOUR ROUGE, AUCUN REMPLISSAGE (21/09/2026, demande
+# utilisateur). Elle arrivait avec l'aplat aleatoire de QGIS et masquait le
+# maillage et les sections qu'on vient regarder dessous.
+_emprise = QgsVectorLayer("Polygon?crs=EPSG:2154", "Emprise 2D (HEC-RAS)",
+                            "memory")
+_ok_emprise, _msg_emprise = mod_plugin.styler_emprise(_emprise)
+verifier("l'emprise 2D se style sans erreur", _ok_emprise, _msg_emprise)
+_symbole = _emprise.renderer().symbol()
+# int(brushStyle()) == 0, c'est Qt.NoBrush. Le chemin « Qt.BrushStyle.NoBrush »
+# n'existe pas dans le binding de ce QGIS : on compare la valeur, relevee.
+verifier("l'emprise 2D n'a aucun remplissage",
+         int(_symbole.symbolLayer(0).brushStyle()) == 0,
+         str(int(_symbole.symbolLayer(0).brushStyle())))
+_contour = _symbole.symbolLayer(0).strokeColor()
+verifier("son contour est rouge et opaque",
+         _contour.red() > 200 and _contour.green() < 80
+         and _contour.blue() < 80 and _contour.alpha() == 255,
+         f"rgba({_contour.red()},{_contour.green()},{_contour.blue()},"
+         f"{_contour.alpha()})")
 
 # L'ANCIEN CLASSEUR EST MIS DE COTE, JAMAIS ECRASE (20/09/2026, demande
 # utilisateur). Deux prefixes donnaient deja deux fichiers depuis la 0.8.4 ;
@@ -2245,21 +2281,27 @@ shutil.rmtree(_bac_cl, ignore_errors=True)
 # un instantane : changer le prefixe, un dossier ou une precision APRES la
 # composition laissait l'ecran et le paquet dire deux choses, en silence.
 _coh = mod_plugin.DialogueParametrage(iface)
-_coh_cl = Path(tempfile.gettempdir()) / "coherence_essai.xlsx"
+# LE CLASSEUR PORTE LE NOM QUE LA CHAINE LUI DONNERAIT — « donnees_calage_
+# <prefixe>.xlsx » —, sans quoi l'annonce de classeur neuf se declencherait
+# a juste titre : composer ne reecrit pas un fichier hors convention, il en
+# cree un au nom canonique. Le dossier est a lui : deux essais voisins se
+# marcheraient dessus.
+_coh_bac = Path(tempfile.mkdtemp(prefix="coherence_"))
+_coh_cl = _coh_bac / "donnees_calage_Q100.xlsx"
 _pd.DataFrame({"Ordre": [1], "Nom_Apport (BC line)": ["A1"],
                "Nom_Section (reference line)": ["S1"]}
               ).to_excel(_coh_cl, sheet_name="Correspondance", index=False)
 import parametres as _param_mod
 _param_mod.ecrire(_coh_cl, {
     "Prefixe_scenario": "Q100",
-    "Dossier_sortie": str(_coh_cl.parent),
+    "Dossier_sortie": str(_coh_bac),
     "Sous_dossier_resultats": "resultats_finaux",
     "Sous_dossier_suivi": "suivi",
     "Tolerance_volume_pct": 5.0, "Tolerance_pic_pct": 2.0,
     "Bilan_masse_max_pct": 5.0, "Nb_max_iterations_par_apport": 6})
 _coh.classeur = str(_coh_cl)
 _coh.edit_prefixe_scenario.setText("Q100")
-_coh.edit_dossier_sortie.setText(str(_coh_cl.parent))
+_coh.edit_dossier_sortie.setText(str(_coh_bac))
 _coh._maj_resume()
 verifier("un paquet conforme a l'ecran ne signale aucun ecart",
          not _coh._ecarts_avec_le_paquet(),
@@ -2287,6 +2329,32 @@ verifier("changer la precision apres composition est signale aussi",
          any("volume" in e for e in _coh._ecarts_avec_le_paquet()),
          str(_coh._ecarts_avec_le_paquet()))
 _coh.spin_tol_volume.setValue(5.0)
+# CHANGER LE PREFIXE FERA UN CLASSEUR NEUF, DONC VIDE (21/09/2026, signale
+# comme « supprime les apports »). Mesure : rien n'est supprime, l'ancien
+# garde ses cibles — mais le neuf nait vide et la fenetre bascule dessus.
+# On l'annonce AVANT le clic, et on nomme le fichier ou le travail se
+# trouve encore. On ne recopie pas les cibles : un scenario n'a pas les
+# hydrogrammes d'un autre.
+_openpyxl_c = _openpyxl.load_workbook(_coh_cl)
+_openpyxl_c["Cibles"] if "Cibles" in _openpyxl_c.sheetnames else     _openpyxl_c.create_sheet("Cibles")
+_f_cib = _openpyxl_c["Cibles"]
+_f_cib["A1"], _f_cib["B1"] = "Temps_h", "Cible_S1"
+_f_cib["A2"], _f_cib["B2"] = 0.0, 12.5
+_openpyxl_c.save(_coh_cl)
+_coh.edit_prefixe_scenario.setText("Q100")
+verifier("sans changement de prefixe, aucune annonce de classeur neuf",
+         not _coh._classeur_neuf_annonce(), _coh._classeur_neuf_annonce())
+_coh.edit_prefixe_scenario.setText("Q10")
+_annonce = _coh._classeur_neuf_annonce()
+verifier("un prefixe neuf annonce un classeur vide, avant le clic",
+         "cibles vides" in _annonce
+         and "donnees_calage_Q10.xlsx" in _annonce
+         and "donnees_calage_Q100.xlsx" in _annonce,
+         _annonce[:110])
+verifier("et il dit que rien n'est supprime",
+         "rien n’est supprimé" in _annonce, _annonce[-90:])
+_coh.edit_prefixe_scenario.setText("Q100")
+
 _coh.edit_dossier_sortie.setText(str(Path(tempfile.gettempdir()) / "ailleurs"))
 _coh._maj_resume()
 verifier("changer le dossier de sortie apres composition est signale aussi",
@@ -2298,6 +2366,7 @@ verifier("sans paquet compose, aucun ecart n'est invente",
          not _coh._ecarts_avec_le_paquet())
 _coh.close()
 _coh.deleteLater()
+shutil.rmtree(_coh_bac, ignore_errors=True)
 
 verifier("le prefixe de scenario a quitte l'onglet Objectifs",
          "Préfixe de scénario" not in [g.title() for g in dlg.onglets.widget(
