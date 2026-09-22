@@ -3192,6 +3192,9 @@ class DialogueParametrage(QDialog):
         for u in self.info_projet["unsteady"]:
             self.combo_unsteady.addItem(f"u{u['numero']} — {u['titre']}", u)
         self._remplir_fenetre_depuis_plan()
+        # Le modele est connu : si le prefixe l'est aussi, le dossier de
+        # sortie se propose, et la composition peut partir.
+        self._proposer_dossier_sortie()
         self._maj_resume()
 
     def _maj_mode_override(self, _coche):
@@ -3703,6 +3706,10 @@ class DialogueParametrage(QDialog):
         f.addRow("&Préfixe de scénario (obligatoire) :", self.edit_prefixe_scenario)
         # LE RECAPITULATIF NOMME LES PLANS AVEC CE PREFIXE : il le suit a la
         # frappe, sinon il annoncerait des titres que le calage ne creera pas.
+        # LE DOSSIER PROPOSE D'ABORD : les slots partent dans l'ordre de leur
+        # connexion, et _maj_resume juge les prealables de la composition.
+        self.edit_prefixe_scenario.textChanged.connect(
+            self._proposer_dossier_sortie)
         self.edit_prefixe_scenario.textChanged.connect(self._dire_reprise)
         self.edit_prefixe_scenario.textChanged.connect(self._maj_resume)
         f.addRow(texte_aide(
@@ -3858,9 +3865,12 @@ class DialogueParametrage(QDialog):
         # degriser. Posee entre les deux, elle est l'etape qu'elle decrit.
         self.label_classeur_attente = texte_aide(
             "Aucun Excel composé : renseignez le <b>préfixe de scénario</b> "
-            "ci-dessous — le paquet se compose alors <b>tout seul</b>, et le "
-            "bandeau dit ce qu'il a fait. « Reprendre un Excel… » reste "
-            "disponible pour rouvrir celui d’une autre session.")
+            "ci-dessous — le dossier de sortie se propose tout seul "
+            "(« _calage\\&lt;préfixe&gt; » à côté du modèle, modifiable à "
+            "l’étape Lancer), le paquet se compose alors <b>tout seul</b>, et "
+            "le bandeau dit ce qu'il a fait. Il faut pour cela le modèle, ses "
+            "couches et l’axe de l’étape Modèle. « Reprendre un Excel… » "
+            "reste disponible pour rouvrir celui d’une autre session.")
         v.addWidget(self.label_classeur_attente)
         v.addWidget(self._groupe_classeur())
         v.addWidget(self._groupe_ce_que_portent_les_cibles())
@@ -4015,6 +4025,11 @@ class DialogueParametrage(QDialog):
         self.edit_dossier_sortie = QLineEdit()
         self.edit_dossier_sortie.setPlaceholderText(
             "Dossier du paquet : shapefiles et Excel des objectifs")
+        self.edit_dossier_sortie.setToolTip(
+            "Proposé tout seul dès que le modèle et le préfixe sont connus : "
+            "« _calage\\<préfixe> » à côté du modèle, un dossier par "
+            "scénario. Une valeur saisie ou choisie ici n'est jamais "
+            "remplacée.")
         self.edit_dossier_sortie.textChanged.connect(self._maj_resume)
         bouton = QPushButton("Choisir le dossier…")
         bouton.clicked.connect(self._parcourir_dossier_sortie)
@@ -4272,6 +4287,42 @@ class DialogueParametrage(QDialog):
                      "les montre dès maintenant, en lisant le fichier "
                      "texte, qui fait foi.")
         return message
+
+    def _proposer_dossier_sortie(self, *_):
+        """
+        Un dossier de sortie PAR DEFAUT des que le modele et le prefixe sont
+        connus : « <dossier du modele>\\_calage\\<prefixe> ».
+
+        C'EST CE QUI MANQUAIT POUR QUE L'EXCEL EXISTE DES LA SAISIE DU
+        PREFIXE (22/09/2026, demande utilisateur). Le dossier de sortie est
+        un prealable de la composition (_prealables_composition_prets), mais
+        son champ vit a l'etape Lancer, APRES les Objectifs ou l'on saisit
+        le prefixe : vide, il retenait toute composition, et l'utilisateur
+        qui venait coller ses hydrogrammes ne trouvait pas de classeur.
+
+        UN DOSSIER PAR SCENARIO, comme sur le calage reel Aran-Q100 : deux
+        scenarios dans un meme dossier partageraient « resultats_finaux » et
+        « suivi », que rien ne prefixe.
+
+        NE REMPLACE JAMAIS UNE SAISIE : le champ n'est touche que s'il est
+        vide ou s'il porte encore la valeur proposee precedente. Une valeur
+        tapee ou choisie a la main est celle de l'utilisateur.
+        """
+        champ = getattr(self, "edit_dossier_sortie", None)
+        prefixe_champ = getattr(self, "edit_prefixe_scenario", None)
+        if champ is None or prefixe_champ is None:
+            return
+        dossier = self._dossier_projet()
+        prefixe = prefixe_champ.text().strip().rstrip("-_")
+        if not dossier or not prefixe:
+            return
+        propose = str(Path(dossier) / "_calage" / prefixe)
+        actuel = champ.text().strip()
+        if actuel and actuel != getattr(self, "_dossier_sortie_propose", None):
+            return
+        self._dossier_sortie_propose = propose
+        if actuel != propose:
+            champ.setText(propose)
 
     def _parcourir_dossier_sortie(self):
         dossier = QFileDialog.getExistingDirectory(self, "Dossier de sortie")

@@ -10,7 +10,7 @@ Les ZIP déjà publiés précèdent ce lot : utiliser les sources de `main` pour
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 
-Version des sources du plugin : **0.9.7**. La
+Version des sources du plugin : **0.9.8**. La
 [note d’ergonomie du 11 septembre 2026](docs/ergonomie_2026-09-11.md)
 décrit le parcours, les choix d’interface et les points de recette.
 
@@ -126,6 +126,15 @@ ras-commander, non mesurée ici). La même version corrige la **couverture**
 de `criteres.diagnostiquer`, qui comptait le décalage deux fois quand le
 modèle répond avant la cible : sur un calage réel de onze apports à 100 % de
 volume, neuf « ne couvre que 45 à 90 % » à tort — voir `CHECKPOINT.md`.
+
+La **0.9.8** (22 septembre 2026) fait exister l'Excel des objectifs **dès la
+saisie du préfixe**. Le dossier de sortie était un préalable de la
+composition automatique, mais son champ vit à l'étape Lancer, après les
+Objectifs : vide, il retenait tout. Il se propose désormais tout seul dès que
+le modèle et le préfixe sont connus — `_calage\<préfixe>` à côté du modèle,
+un dossier par scénario — et une valeur saisie à la main n'est jamais
+remplacée. L'Excel est ensuite mis à jour à chaque recomposition, ses
+cibles préservées.
 
 Pour chaque apport, de l'amont vers l'aval : estimer, calculer, comparer à la
 cible, corriger, répéter jusqu'à concordance, puis vérifier la cohérence des

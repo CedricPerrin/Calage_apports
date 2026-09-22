@@ -69,6 +69,28 @@ Banc QGIS : **354 contrôles, aucun échec, sortie 0** (cinq neufs). Ce poste
 la case cochée ; fenêtre non regardée ; plafond 8 = recommandation citée.
 Retour écrit dans `0-Ergonomie/retours/CALAGE_APPORTS.md`.
 
+**0.9.8 — l'Excel dès le préfixe (demande utilisateur, même jour).** La
+composition automatique exigeait le dossier de sortie, champ de l'étape
+Lancer, vide par défaut : à la saisie du préfixe (étape Objectifs), rien ne
+se composait. `_proposer_dossier_sortie()` remplit le champ avec
+`<modèle>\_calage\<préfixe>` dès que modèle et préfixe sont connus (au
+chargement du projet et à chaque frappe du préfixe, connecté avant
+`_maj_resume`), et ne remplace jamais une valeur saisie à la main (mémoire
+de la dernière proposition). Infobulle du champ et texte d'attente du
+classeur mis à jour. Banc QGIS : **357 contrôles, aucun échec, sortie 0**
+(trois neufs). Non fait : aucun modèle réel chargé au banc — la chaîne
+préfixe → dossier → composition → Excel est éprouvée jusqu'au dossier.
+
+**Erreur vue chez lsso le 22/09** : `_composer_et_controler() got an
+unexpected keyword argument 'ecrire_geometrie'` à la ligne 1948 (le minuteur
+de recomposition). Le code source et le zip 0.9.7 sont cohérents ; la
+signature sans ce paramètre est celle de la **0.9.4**. Une classe
+`DialogueParametrage` antérieure à la 0.9.5 tournait donc encore dans la
+session QGIS : redémarrer QGIS après « Installer depuis un ZIP », vérifier
+la version dans le gestionnaire, supprimer `__pycache__` du dossier du
+plugin si le message persiste, et vérifier que le dossier n'est pas un lien
+symbolique vers un dépôt en retard.
+
 ## État précédent — 21 septembre 2026 : 0.9.6, le bouton rentre à l'étape 1
 
 Banc QGIS : **347 contrôles, aucun échec, sortie 0**. Plugin installé et

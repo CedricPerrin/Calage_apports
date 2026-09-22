@@ -2,7 +2,10 @@
 
 Préparation et contrôle du paquet de calage pour **HEC-RAS uniquement**.
 Voir `methodologie_calage_amont_aval.docx`, § 2.4.
-Version **0.9.7** : le plugin lit le poste et propose le nombre de cœurs à
+Version **0.9.8** : l'Excel des objectifs existe **dès la saisie du
+préfixe** — le dossier de sortie se propose tout seul, « _calage\<préfixe> »
+à côté du modèle, modifiable à l'étape Lancer. Avant, la **0.9.7** : le
+plugin lit le poste et propose le nombre de cœurs à
 demander à HEC-RAS (groupe « Calcul HEC-RAS » de l'étape Lancer, case à
 cocher), et la couverture du calage ne compte plus le décalage deux fois.
 Avant, la **0.9.6** : le bouton d'écriture rejoint l'étape « Modèle », et
@@ -78,7 +81,7 @@ et figerait l'interface.
 ## Installation
 
 **Depuis l'archive.** `calage_apports_<version>.zip` —
-`calage_apports_0.9.7.zip` pour cette version — est **à la racine du dépôt** : la télécharger
+`calage_apports_0.9.8.zip` pour cette version — est **à la racine du dépôt** : la télécharger
 suffit, il n'y a rien à reconstruire. Le nom porte la version pour qu'on
 sache, sur un poste distant, ce qu'on installe ; il n'y en a jamais qu'une
 dans le dépôt, la plus récente. Puis, dans QGIS :

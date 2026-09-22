@@ -2203,6 +2203,35 @@ if _case_coeurs is not None:
              and "Suggestion pour ce poste" in dlg.label_coeurs.text(),
              dlg.label_coeurs.text()[:140])
     _case_coeurs.setChecked(False)
+
+# LE DOSSIER DE SORTIE SE PROPOSE TOUT SEUL (0.9.8, 22/09/2026, demande
+# utilisateur) : l'Excel doit exister des la saisie du prefixe, et le dossier,
+# a l'etape Lancer, etait le prealable qui manquait. Une saisie manuelle n'est
+# jamais remplacee.
+_dossier_avant_prop = dlg.edit_dossier_sortie.text()
+_prefixe_avant_prop = dlg.edit_prefixe_scenario.text()
+_projet_avant_prop = dlg.edit_projet_hecras.text()
+dlg.edit_projet_hecras.setText(str(ESSAI / "Modele" / "Modele.prj"))
+dlg.edit_dossier_sortie.setText("")
+dlg.edit_prefixe_scenario.setText("Q100")
+verifier("le prefixe saisi propose « _calage\\Q100 » a cote du modele",
+         dlg.edit_dossier_sortie.text()
+         == str(ESSAI / "Modele" / "_calage" / "Q100"),
+         dlg.edit_dossier_sortie.text())
+dlg.edit_prefixe_scenario.setText("Q10_")
+verifier("changer le prefixe suit, sans le souligne final, tant que le "
+         "dossier n'a pas ete saisi a la main",
+         dlg.edit_dossier_sortie.text()
+         == str(ESSAI / "Modele" / "_calage" / "Q10"),
+         dlg.edit_dossier_sortie.text())
+dlg.edit_dossier_sortie.setText(str(ESSAI / "ailleurs"))
+dlg.edit_prefixe_scenario.setText("Q1000")
+verifier("un dossier saisi a la main n'est jamais remplace",
+         dlg.edit_dossier_sortie.text() == str(ESSAI / "ailleurs"),
+         dlg.edit_dossier_sortie.text())
+dlg.edit_projet_hecras.setText(_projet_avant_prop)
+dlg.edit_prefixe_scenario.setText(_prefixe_avant_prop)
+dlg.edit_dossier_sortie.setText(_dossier_avant_prop)
 # ET LE PREFIXE A QUITTE « Objectifs ». Laisse aux deux endroits, il aurait
 # donne deux champs a lire pour un seul reglage.
 # L'ORDRE DE L'ONGLET OBJECTIFS (20/09/2026, demande utilisateur) : ce qu'on
