@@ -2,7 +2,12 @@
 
 Préparation et contrôle du paquet de calage pour **HEC-RAS uniquement**.
 Voir `methodologie_calage_amont_aval.docx`, § 2.4.
-Version **0.9.9** : la **recomposition automatique** ne plante plus — le
+Version **0.9.10** : un seul bouton, **« Valider la géométrie et générer le
+fichier des hydrogrammes »**, sous le préfixe — il écrit la géométrie,
+compose l'Excel et contrôle, et dit ce qui manque ; le **dossier de sortie**
+remonte juste au-dessus des hydrogrammes cibles ; l'onglet « Objectifs »
+s'appelle **« Paramètres »**. Avant, la **0.9.9** : la **recomposition
+automatique** ne plante plus — le
 décorateur du curseur d'attente n'acceptait aucun argument, et le minuteur
 l'appelait avec deux ; défaut latent depuis la 0.9.5, vu sur le poste de
 calcul. Le texte d'attente de l'étape Lancer ne renvoie plus à un bouton
@@ -39,23 +44,21 @@ onglets — l'ordre des onglets est celui des décisions.
 
 | Onglet | Rôle |
 |---|---|
-| 1. Modèle | **Fichier `.prj`** du projet HEC-RAS, plan de référence, géométrie, zone 2D, **profil en long** (axe, sens, PK d’origine) et fenêtre de simulation. Charge les sections, injections et emprises existantes en couches éditables ; le bouton permanent **Contrôle paramétrage** écrit les dessins dans le `.gXX`, après sauvegarde horodatée |
-| 2. Sorties | Dossier de sortie, sous-dossiers et résumé de configuration dépliables. Plans d’étape **conservés par défaut** ; suppression facultative uniquement après un calage réussi |
-| 3. Objectifs | **Excel des hydrogrammes objectifs**, résumé des cibles validées, puis précision du calage : écarts admis sur le volume et la pointe, qualité du bilan de masse HEC-RAS et nombre maximal d’essais. Le résultat se lit en pourcentage d’atteinte de la cible |
-| 4. Lancer | appariement apport → section, état des cibles, premier apport à caler, **préfixe de scénario** — **obligatoire** : sans lui, caler le Q10 après le Q100 sur le même modèle effacerait les plans du Q100 —, puis **lancement du calage** en arrière-plan |
-| 5. Suivi | Apport en cours, essai, atteinte du volume, de la pointe et de la forme, courbes cible et section, **sections déjà calées en vert pointillé**, temps restant. Actualisation automatique quand la rubrique est affichée. Le dossier surveillé est celui du **classeur lancé**, nommé en permanence ; les champs de **Sorties** préparent la prochaine composition |
+| 1. Modèle | **Fichier `.prj`** du projet HEC-RAS, plan de référence, géométrie, zone 2D, **profil en long** (axe, sens, PK d’origine) et fenêtre de simulation. Charge les sections, injections et emprises existantes en couches éditables |
+| 2. Paramètres | Précision du calage (écarts admis sur le volume et la pointe, bilan de masse, essais), **dossier de sortie** (proposé tout seul : `_calage\<préfixe>` à côté du modèle), puis **Hydrogrammes cibles** : le **préfixe de scénario** — **obligatoire** : sans lui, caler le Q10 après le Q100 effacerait les plans du Q100 — et, sous lui, le bouton **« Valider la géométrie et générer le fichier des hydrogrammes »**, qui écrit les dessins dans le `.gXX` après sauvegarde horodatée, compose l’Excel et contrôle ; gris tant qu’il manque quelque chose, son infobulle le nomme |
+| 3. Lancer | appariement apport → section, état des cibles, premier apport à caler, sort des plans d’étape (**conservés par défaut**), cœurs demandés à HEC-RAS, configuration complète, puis **lancement du calage** en arrière-plan |
+| 4. Suivi | Apport en cours, essai, atteinte du volume, de la pointe et de la forme, courbes cible et section, **sections déjà calées en vert pointillé**, temps restant. Actualisation automatique quand la rubrique est affichée. Le dossier surveillé est celui du **classeur lancé**, nommé en permanence |
 | Aide et configuration | **Diagnostic et paramètres du poste** en tête de page : chaîne de calage et interpréteur HEC-RAS. Mode opératoire avec sommaire et pièges connus en dessous |
 
 **Les six onglets sont en images** dans le README du dépôt, section « La
 fenêtre du plugin » — une capture par onglet.
 
-Le bouton **Contrôle paramétrage** vit au bas de la fenêtre, à côté de
-*Fermer*, et il y est visible depuis tous les onglets : il consomme les trois
-premiers et prépare le quatrième, il n'appartient donc à aucun. **Vert** dès
-que tout ce qu'il consomme est prêt, **gris** tant qu'il manque quelque chose
-— l’état de préparation et l’infobulle précisent le manquant. Les commandes
-**Précédent** et **Suivant** facilitent le parcours sans remplacer ce
-contrôle. Il fait trois choses, dans cet ordre :
+Le bouton **Valider la géométrie et générer le fichier des hydrogrammes**
+vit sous le préfixe de scénario, à l'étape Paramètres. **Vert** dès que tout
+ce qu'il consomme est prêt, **gris** tant qu'il manque quelque chose — son
+infobulle nomme le manquant, et un clic en gris le dit en clair. Les
+commandes **Précédent** et **Suivant** facilitent le parcours. Il fait trois
+choses, dans cet ordre :
 
 1. il **écrit dans la géométrie HEC-RAS** les sections et injections dessinées
    dans **Modèle**, en remplaçant tout objet de même nom — **c'est le seul geste
@@ -85,7 +88,7 @@ et figerait l'interface.
 ## Installation
 
 **Depuis l'archive.** `calage_apports_<version>.zip` —
-`calage_apports_0.9.9.zip` pour cette version — est **à la racine du dépôt** : la télécharger
+`calage_apports_0.9.10.zip` pour cette version — est **à la racine du dépôt** : la télécharger
 suffit, il n'y a rien à reconstruire. Le nom porte la version pour qu'on
 sache, sur un poste distant, ce qu'on installe ; il n'y en a jamais qu'une
 dans le dépôt, la plus récente. Puis, dans QGIS :

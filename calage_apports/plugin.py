@@ -490,7 +490,13 @@ PENTE_APPORT_DEFAUT = 0.01
 # l'interface : le clonage ne se pilote pas, il n'a lieu que si la geometrie
 # est surchargee a l'onglet 1, et l'utilisateur n'avait rien a decider ici.
 # Le parametre reste ecrit dans le classeur, ou le pont le relit.
-BOUTON_GEOMETRIE = "Écrire dans la géométrie HEC-RAS"
+# UN SEUL BOUTON, SOUS LE PREFIXE (22/09/2026, demande utilisateur) : ecrire
+# la geometrie, composer le classeur des hydrogrammes, controler — et le dire.
+# Il s'appelait « Ecrire dans la geometrie HEC-RAS » depuis la 0.9.5, quand la
+# composition est devenue automatique ; mais l'automatique renonce EN SILENCE
+# des qu'un prealable manque, et « Ouvrir dans Excel » restait gris apres le
+# prefixe sans que rien ne dise pourquoi.
+BOUTON_GEOMETRIE = "Valider la géométrie et générer le fichier des hydrogrammes"
 # CE QUI SE PASSE TANT QU'IL N'Y A PAS DE PAQUET — une seule phrase, dite
 # aux deux endroits qui l'attendent (etape Lancer, coherence). Elle
 # renvoyait a « Ecrire dans la geometrie HEC-RAS » « en bas de la fenetre » :
@@ -500,8 +506,9 @@ BOUTON_GEOMETRIE = "Écrire dans la géométrie HEC-RAS"
 ATTENTE_PAQUET = (
     "Aucun paquet composé pour l’instant : il se compose <b>tout seul</b> dès "
     "que le modèle, ses couches et l’axe (étape Modèle) et le préfixe de "
-    "scénario (étape Objectifs) sont renseignés — le dossier de sortie se "
-    "propose alors de lui-même.")
+    "scénario (étape Paramètres) sont renseignés — le dossier de sortie se "
+    "propose alors de lui-même. Pour l’obtenir tout de suite, ou savoir ce "
+    f"qui manque : « {BOUTON_GEOMETRIE} », sous le préfixe.")
 NOM_CLONE_GEOMETRIE_DEFAUT = "Geometrie_calage"
 
 # Precision attendue, en fraction de la cible. Ce sont les valeurs par defaut
@@ -1499,7 +1506,7 @@ vert au bas de la fenêtre ; un
 apport créé reçoit du même coup son hydrogramme dans le fichier
 Unsteady&nbsp;Flow, sinon il n'apporterait rien. La fenêtre de simulation n'est à corriger que si l'Unsteady&nbsp;Flow
 retenu couvre une <b>autre période</b> que le plan de référence.</li>
-<li><b>Objectifs.</b> D'abord la <i>précision du calage</i> : les écarts
+<li><b>Paramètres.</b> D'abord la <i>précision du calage</i> : les écarts
 admis sur le volume et sur le débit de pointe, et le nombre maximal d'essais.
 Puis le <b>préfixe de scénario</b>, qui est <b>obligatoire</b> — il nomme les
 plans de ce calage-ci comme le fichier Excel, et c'est lui qui empêche un
@@ -1556,7 +1563,7 @@ par-dessus. Il n'y a pas de bouton à part, parce que les sections doivent
 être <i>dans</i> le modèle avant que le paquet soit composé, sans quoi le
 calage n'aurait rien à relire.</p>
 <p>Un apport créé reçoit du même coup son hydrogramme dans l'Unsteady&nbsp;Flow,
-et sa pente vient du classeur (<i>Objectifs</i>) ou, à défaut, du profil en long.</p>
+et sa pente vient du classeur (<i>Paramètres</i>) ou, à défaut, du profil en long.</p>
 <p>Le fichier prétraité (<tt>.hdf</tt>) ne porte les nouveaux objets qu'au
 <b>prochain calcul</b> ; <i>Charger les couches du modèle</i> les montre dès
 maintenant, en lisant le fichier texte, qui fait foi.</p>
@@ -1594,7 +1601,7 @@ exigences, satisfaites <b>en même temps</b> :</p>
 <li><b>Forme</b> — concordance d'au moins 97&nbsp;%, <i>après</i> recalage
 temporel.</li>
 </ul>
-<p>Les deux premières tolérances se règlent dans <b>Objectifs</b> ; à défaut
+<p>Les deux premières tolérances se règlent dans <b>Paramètres</b> ; à défaut
 elles valent 5&nbsp;% sur le volume et 2&nbsp;% sur la pointe. Une bande large
 n'est pas neutre : un essai peut s'y arrêter alors que la méthode irait plus
 loin. Mesuré sur un cas de recette — à ±5&nbsp;% sur la pointe, deux sections
@@ -1901,7 +1908,7 @@ class DialogueParametrage(QDialog):
          hydraulique. Y CHARGE LES COUCHES EXISTANTES de la geometrie en
          couches QGIS EDITABLES, pretes a etre dessinees ou completees
          par-dessus.
-      2. Objectifs — ce qu'on vise et avec quoi : la precision attendue sur
+      2. Paramètres — ce qu'on vise et avec quoi : la precision attendue sur
          le volume et la pointe, le prefixe de scenario, et le classeur ou se
          saisissent les hydrogrammes cibles.
       3. Lancer — ce que la derniere composition a produit, l'etat des
@@ -2025,7 +2032,7 @@ class DialogueParametrage(QDialog):
             (self._onglet_modele(), "1. Modèle",
              "Projet HEC-RAS, plan de référence, zone 2D, profil en long, "
              "et chargement des couches existantes du modèle."),
-            (self._onglet_objectifs(), "2. Objectifs",
+            (self._onglet_objectifs(), "2. Paramètres",
              "Précision attendue sur le volume et la pointe, nombre maximal "
              "d'essais, le classeur où se saisissent les hydrogrammes "
              "cibles, et ce que ces hydrogrammes portent une fois validés."),
@@ -2620,33 +2627,10 @@ class DialogueParametrage(QDialog):
         v.addWidget(self.label_fenetre)
         self.groupe_fenetre.setCollapsed(True)
 
-        # LE GESTE IRREVERSIBLE REVIENT A L'ONGLET 1 (21/09/2026, demande
-        # utilisateur), et cette fois il y reste.
-        #   IL AVAIT DEMENAGE QUATRE FOIS EN CINQ VERSIONS, puis etait
-        # descendu au bas de la fenetre en 0.7.24 avec une raison juste :
-        # « ce geste CONSOMME LES TROIS PREMIERS ONGLETS ET PREPARE LE
-        # QUATRIEME, le loger dans l'un d'eux obligeait a revenir en arriere
-        # depuis les autres ». Cette raison a disparu avec la 0.9.5 : il ne
-        # compose plus rien. Ce qu'il consomme tient TOUT ENTIER dans cet
-        # onglet — le projet, le plan, la zone 2D, les deux couches — et ce
-        # qu'il ecrit est dessine ici meme. Il est enfin a cote de son objet.
-        groupe_ecriture = QGroupBox("Écrire dans le modèle HEC-RAS")
-        ve = QVBoxLayout(groupe_ecriture)
-        ve.setSpacing(8)
-        ve.addWidget(texte_aide(
-            "Écrit les sections de contrôle et les lignes d’injection "
-            "dessinées ci-dessus dans la géométrie HEC-RAS, en remplaçant "
-            "tout objet de même nom. Une sauvegarde horodatée du fichier de "
-            "géométrie est faite avant. <b>C’est le seul geste irréversible "
-            "de cette fenêtre</b> ; tout le reste se recompose tout seul."))
-        ligne_ecriture = QHBoxLayout()
-        self.bouton_controle = self._bouton_controle_parametrage()
-        ligne_ecriture.addWidget(self.bouton_controle)
-        ligne_ecriture.addStretch(1)
-        ve.addLayout(ligne_ecriture)
-        self.label_ecriture = texte_etat()
-        ve.addWidget(self.label_ecriture)
-        v.addWidget(groupe_ecriture)
+        # LE BOUTON D'ECRITURE A QUITTE CET ONGLET (22/09/2026, demande
+        # utilisateur) : il vit sous le prefixe de scenario, a l'etape
+        # Objectifs, et fait de nouveau les trois gestes — ecrire la
+        # geometrie, composer le classeur, controler. Voir _groupe_classeur.
 
         v.addStretch(1)
         return page
@@ -2756,7 +2740,10 @@ class DialogueParametrage(QDialog):
         bouton_composer.setObjectName("boutonControleAttente")
         bouton_composer.setMinimumWidth(250)
         bouton_composer.setToolTip(self._INFOBULLE_CONTROLE)
-        bouton_composer.clicked.connect(self._ecrire_seulement)
+        # LE GESTE COMPLET, DE NOUVEAU (22/09/2026) : ecrire, composer,
+        # controler, compte rendu. « clicked » emet un booleen ; le sablier
+        # ne le transmet pas (voir avec_sablier).
+        bouton_composer.clicked.connect(self._composer_et_controler)
         # SA HAUTEUR NE SE NEGOCIE PAS. Dans une fenetre trop courte, la zone
         # defilante COMPRIME le contenu au lieu de faire apparaitre une barre :
         # le dernier encadre de l'onglet passe sous sa taille utile, et ce
@@ -2971,35 +2958,6 @@ class DialogueParametrage(QDialog):
     # partage reseau —, assez court pour que le paquet suive le geste.
     DELAI_RECOMPOSITION_MS = 1500
 
-    def _ecrire_seulement(self):
-        """
-        Le geste du bouton, et le seul irreversible : ECRIRE les couches
-        dessinees dans la geometrie HEC-RAS. Il ne compose plus rien.
-
-        LE COMPTE RENDU VA DANS LA PAGE, sous le bouton qui l'a produit —
-        pas dans une boite : on le relit apres coup pour savoir ce qui a
-        ete ecrit, et une boite ne se relit pas. L'ECHEC, lui, reste une
-        boite : c'est une erreur qu'il faut lire, et elle porte sur le
-        fichier du client.
-
-        PUIS ON RECOMPOSE. La geometrie vient de changer ; le paquet doit
-        suivre, et c'est desormais automatique.
-        """
-        if not self._confirmer_malgre_calage(
-                "Écrire maintenant modifierait la géométrie HEC-RAS que ce "
-                "calage est en train de lire.", geste="Écrire"):
-            return
-        try:
-            rendu = self._ecrire_dans_geometrie()
-        except Exception as e:                              # noqa: BLE001
-            journaliser("Écriture dans la géométrie HEC-RAS", e)
-            dire(self.label_ecriture, "")
-            QMessageBox.critical(self, f"{BOUTON_GEOMETRIE} — échec", str(e))
-            return
-        dire(self.label_ecriture, rendu)
-        self._maj_resume()
-        self._demander_recomposition()
-
     def _demander_recomposition(self):
         """
         Programme une recomposition, et la REPROGRAMME a chaque changement.
@@ -3123,16 +3081,24 @@ class DialogueParametrage(QDialog):
         compter parmi ses prealables l'aurait laisse gris jusqu'au premier
         clic, donc gris exactement quand il faut cliquer.
         """
-        # TOUT TIENT DANS L'ONGLET 1 DEPUIS LA 0.9.5. Le profil en long et
-        # le dossier de sortie servaient a COMPOSER, ce que ce bouton ne
-        # fait plus : les exiger ici l'aurait laisse gris alors qu'il a tout
-        # ce qu'il lui faut pour ecrire.
+        # LE BOUTON COMPOSE DE NOUVEAU (22/09/2026) : il consomme donc aussi
+        # l'axe, le dossier de sortie — propose tout seul des que le prefixe
+        # est la — et le prefixe. Un manquant se lit dans son infobulle avant
+        # le clic, et dans le refus apres.
         return [
             ("le modèle chargé", self.info_projet is not None),
             ("la zone 2D", bool(self.combo_zone_2d.currentText().strip())),
             ("les couches de sections et d'injections",
              couche_vivante(self.couche_sections) is not None
              and couche_vivante(self.couche_injections) is not None),
+            ("l'axe hydraulique",
+             couche_vivante(self.combo_axe.currentLayer()) is not None),
+            ("le préfixe de scénario",
+             bool(self.edit_prefixe_scenario.text().strip())
+             if hasattr(self, "edit_prefixe_scenario") else False),
+            ("le dossier de sortie",
+             bool(self.edit_dossier_sortie.text().strip())
+             if hasattr(self, "edit_dossier_sortie") else False),
         ]
 
     def _groupe_copies_de_travail(self):
@@ -3773,6 +3739,19 @@ class DialogueParametrage(QDialog):
         # LE PREFIXE EN PREMIER : sans lui, il n'y a pas de classeur a
         # ouvrir, et c'est lui qui le nomme.
         v_classeur.addWidget(self._champ_prefixe_scenario())
+        # LE BOUTON SOUS LE PREFIXE (22/09/2026, demande utilisateur) : UN
+        # SEUL geste — ecrire la geometrie, composer le classeur, controler —
+        # avec son compte rendu. La composition automatique (0.9.5) renonce
+        # EN SILENCE quand un prealable manque : « Ouvrir dans Excel »
+        # restait gris apres le prefixe, et rien ne disait pourquoi. Le
+        # bouton, lui, nomme ce qui manque — gris tant que c'est le cas, vert
+        # sinon (_maj_bouton_controle) — et son compte rendu dit ce qui a ete
+        # ecrit, compose et controle.
+        ligne_valider = QHBoxLayout()
+        self.bouton_controle = self._bouton_controle_parametrage()
+        ligne_valider.addWidget(self.bouton_controle)
+        ligne_valider.addStretch(1)
+        v_classeur.addLayout(ligne_valider)
         self.consigne_classeur = QLabel(
             "Dans la feuille <b>Cibles</b>, saisissez un hydrogramme par "
             "section, puis enregistrez l’Excel. Les contrôles se rejouent "
@@ -3904,12 +3883,17 @@ class DialogueParametrage(QDialog):
         # degriser. Posee entre les deux, elle est l'etape qu'elle decrit.
         self.label_classeur_attente = texte_aide(
             "Aucun Excel composé : renseignez le <b>préfixe de scénario</b> "
-            "ci-dessous — le dossier de sortie se propose tout seul "
-            "(« _calage\\&lt;préfixe&gt; » à côté du modèle, modifiable à "
-            "l’étape Lancer), le paquet se compose alors <b>tout seul</b>, et "
-            "le bandeau dit ce qu'il a fait. Il faut pour cela le modèle, ses "
-            "couches et l’axe de l’étape Modèle. « Reprendre un Excel… » "
-            "reste disponible pour rouvrir celui d’une autre session.")
+            f"ci-dessous, puis « {BOUTON_GEOMETRIE} » — le bouton est gris "
+            "tant qu’il manque quelque chose, et son infobulle le nomme. Le "
+            "dossier de sortie se propose tout seul (« _calage\\&lt;préfixe&gt; » "
+            "à côté du modèle, modifiable juste au-dessus). « Reprendre un "
+            "Excel… » reste disponible pour rouvrir celui d’une autre session.")
+        # LE DOSSIER DE SORTIE JUSTE AU-DESSUS DU CLASSEUR (22/09/2026,
+        # demande utilisateur) : « comme ca on sait ou mettre l'Excel ». Il
+        # vivait a l'etape Lancer depuis la 0.9.0 — « une decision du
+        # lancement » —, mais c'est ici que le fichier qu'il abrite se nomme
+        # et se cree.
+        v.addWidget(self._groupe_dossier_sortie())
         v.addWidget(self.label_classeur_attente)
         v.addWidget(self._groupe_classeur())
         v.addWidget(self._groupe_ce_que_portent_les_cibles())
@@ -4334,10 +4318,13 @@ class DialogueParametrage(QDialog):
 
         C'EST CE QUI MANQUAIT POUR QUE L'EXCEL EXISTE DES LA SAISIE DU
         PREFIXE (22/09/2026, demande utilisateur). Le dossier de sortie est
-        un prealable de la composition (_prealables_composition_prets), mais
-        son champ vit a l'etape Lancer, APRES les Objectifs ou l'on saisit
-        le prefixe : vide, il retenait toute composition, et l'utilisateur
-        qui venait coller ses hydrogrammes ne trouvait pas de classeur.
+        un prealable de la composition (_prealables_composition_prets), et
+        son champ, vide par defaut, vivait alors a l'etape Lancer, APRES
+        l'etape ou l'on saisit le prefixe : vide, il retenait toute
+        composition, et l'utilisateur qui venait coller ses hydrogrammes ne
+        trouvait pas de classeur. Il est depuis remonte juste au-dessus du
+        classeur (etape Parametres) ; la proposition reste utile : un champ
+        vide arrete toujours la composition.
 
         UN DOSSIER PAR SCENARIO, comme sur le calage reel Aran-Q100 : deux
         scenarios dans un meme dossier partageraient « resultats_finaux » et
@@ -4404,11 +4391,9 @@ class DialogueParametrage(QDialog):
         # apres.
         v.addWidget(self._groupe_copies_de_travail())
 
-        # LES SORTIES ONT REJOINT CETTE PAGE (demande utilisateur, 20/09/2026).
-        # Elles occupaient un onglet a elles seules, traverse une fois et plus
-        # jamais rouvert : le dossier de sortie et le sort des plans d'etape
-        # sont des reglages DU LANCEMENT, et se lisent la ou l'on lance.
-        v.addWidget(self._groupe_dossier_sortie())
+        # LE SORT DES PLANS D'ETAPE SE DECIDE ICI, la ou l'on lance
+        # (20/09/2026). Le dossier de sortie, lui, est remonte a l'etape
+        # Parametres le 22/09/2026, juste au-dessus du classeur qu'il abrite.
         v.addWidget(self._groupe_menage())
         # LES CŒURS SE DECIDENT AU LANCEMENT (22/09/2026, demande utilisateur) :
         # c'est ce clic qui les ecrit dans les plans d'etape.
@@ -6760,7 +6745,7 @@ class DialogueParametrage(QDialog):
             # sache provoquer.
             if not self.edit_prefixe_scenario.text().strip():
                 raise ValueError(
-                    "Onglet 3 : renseigner le préfixe de scénario. Il nomme "
+                    "Étape Paramètres : renseigner le préfixe de scénario. Il nomme "
                     "les plans de CE calage — « Q100 » donne "
                     "« Q100_sans_apport », « Q100_avec_apports » —, il nomme "
                     "aussi son Excel — « donnees_calage_Q100.xlsx » —, et "
@@ -6782,7 +6767,8 @@ class DialogueParametrage(QDialog):
                     "Onglet 1 : choisir la couche de l'axe hydraulique.")
             dossier_sortie = self.edit_dossier_sortie.text().strip()
             if not dossier_sortie:
-                raise ValueError("Onglet 2 : choisir le dossier de sortie.")
+                raise ValueError("Étape Paramètres : choisir le dossier de "
+                                 "sortie, juste au-dessus du préfixe.")
 
             # Ecrit les couches QGIS dans la geometrie HEC-RAS AVANT de
             # composer le paquet : les sections doivent etre DANS le modele

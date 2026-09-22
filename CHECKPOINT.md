@@ -117,6 +117,27 @@ Le texte d'attente de l'étape Lancer ne renvoie plus à « Écrire dans la
 géométrie HEC-RAS en bas de la fenêtre » (bouton à l'étape Modèle depuis
 la 0.9.6) : une seule phrase, `ATTENTE_PAQUET`, dite aux deux endroits.
 
+**0.9.10 — un bouton, un dossier, un nom (trois demandes du poste de
+calcul, même jour).** « Ouvrir dans Excel » restait gris après le préfixe :
+la composition automatique renonce en silence dès qu'un préalable manque.
+Décisions de l'utilisateur, qui défont celles du 20-21/09 : **un seul
+bouton** « Valider la géométrie et générer le fichier des hydrogrammes »,
+**sous le préfixe** (groupe Hydrogrammes cibles), branché sur
+`_composer_et_controler` — écrire, composer, contrôler, compte rendu ; gris
+tant qu'un préalable manque (`_etapes_avant_controle` compte désormais
+l'axe, le préfixe et le dossier), refus explicite au clic. Le bouton
+« Écrire dans la géométrie HEC-RAS » de l'étape Modèle et `_ecrire_seulement`
+disparaissent. Le **dossier de sortie** remonte juste au-dessus de
+« Hydrogrammes cibles » (étape Paramètres) ; l'étape Lancer garde la
+conservation des plans, les cœurs, la configuration, le lancement.
+L'onglet **« 2. Objectifs » devient « 2. Paramètres »** ; les refus disent
+« Étape Paramètres : … » au lieu d'un « Onglet 3 » périmé. Banc : ordre des
+groupes des deux onglets, bouton sous le préfixe, clic sans modèle → refus,
+navigation Alt depuis l'étape Paramètres. Banc QGIS : **363 contrôles, aucun
+échec, sortie 0** ; la page Paramètres tient dans la vue la plus étroite
+(400 px pour 675) malgré le libellé de 60 caractères. Non fait : fenêtre non
+regardée, aucun vrai modèle au banc.
+
 ## État précédent — 21 septembre 2026 : 0.9.6, le bouton rentre à l'étape 1
 
 Banc QGIS : **347 contrôles, aucun échec, sortie 0**. Plugin installé et

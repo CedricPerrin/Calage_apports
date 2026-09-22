@@ -10,7 +10,7 @@ Les ZIP déjà publiés précèdent ce lot : utiliser les sources de `main` pour
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 
-Version des sources du plugin : **0.9.9**. La
+Version des sources du plugin : **0.9.10**. La
 [note d’ergonomie du 11 septembre 2026](docs/ergonomie_2026-09-11.md)
 décrit le parcours, les choix d’interface et les points de recette.
 
@@ -147,6 +147,19 @@ tel quel, faisait mourir le processus sans trace (une exception dans un slot
 PyQt est fatale). Le banc appelle la méthode comme le minuteur et comme un
 clic. Le texte d'attente de l'étape Lancer ne renvoie plus à un bouton « en
 bas de la fenêtre » qui vit à l'étape Modèle depuis la 0.9.6.
+
+La **0.9.10** (22 septembre 2026) répond à trois demandes du poste de calcul.
+**Un seul bouton**, « Valider la géométrie et générer le fichier des
+hydrogrammes », **sous le préfixe de scénario** : il écrit la géométrie,
+compose le classeur et contrôle, avec compte rendu — la composition
+automatique (0.9.5) renonce en silence dès qu'un préalable manque, et
+« Ouvrir dans Excel » restait gris après le préfixe sans que rien ne dise
+pourquoi ; le bouton, gris tant qu'il manque quelque chose, le nomme dans
+son infobulle et dans son refus. Le bouton « Écrire dans la géométrie
+HEC-RAS » de l'étape Modèle disparaît, absorbé. Le **dossier de sortie**
+remonte juste au-dessus de « Hydrogrammes cibles » : on sait où va l'Excel
+avant de le nommer. Et l'onglet **« 2. Objectifs » devient « 2.
+Paramètres »**.
 
 Pour chaque apport, de l'amont vers l'aval : estimer, calculer, comparer à la
 cible, corriger, répéter jusqu'à concordance, puis vérifier la cohérence des

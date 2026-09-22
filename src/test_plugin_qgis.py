@@ -649,7 +649,7 @@ else:
     _refus_prefixe = BoiteMessage.critiques[0] if BoiteMessage.critiques else ""
     verifier("sans prefixe de scenario, la composition refuse et dit pourquoi",
              "préfixe de scénario" in _refus_prefixe
-             and "onglet 3" in _refus_prefixe.lower(),
+             and "paramètres" in _refus_prefixe.lower(),
              _refus_prefixe[:100] or "aucun refus — la branche est morte")
     BoiteMessage.critiques.clear()
     dlg.edit_prefixe_scenario.setText("ESSAI")
@@ -2173,7 +2173,7 @@ verifier("l'onglet 1 ne porte plus ni l'écriture ni la mise à jour",
 # groupes ont rejoint « Lancer », ou se prennent les decisions du lancement.
 verifier("l'ordre des onglets est celui des constantes",
          dlg.onglets.tabText(mod_plugin.ONGLET_OBJECTIFS).startswith("2.")
-         and "Objectifs" in dlg.onglets.tabText(mod_plugin.ONGLET_OBJECTIFS)
+         and "Paramètres" in dlg.onglets.tabText(mod_plugin.ONGLET_OBJECTIFS)
          and dlg.onglets.tabText(mod_plugin.ONGLET_LANCER).startswith("3.")
          and "Lancer" in dlg.onglets.tabText(mod_plugin.ONGLET_LANCER),
          [dlg.onglets.tabText(i) for i in range(dlg.onglets.count())])
@@ -2190,11 +2190,13 @@ _ordre_lancer = [g.title() for g in dlg.onglets.widget(
     mod_plugin.ONGLET_LANCER).findChildren(_QGroupBoxA)]
 # LE PREFIXE A QUITTE « Lancer » (21/09/2026) : il a rejoint le groupe du
 # fichier qu'il nomme, a l'onglet Objectifs.
+# LE DOSSIER DE SORTIE EST REMONTE A L'ETAPE PARAMETRES (22/09/2026, demande
+# utilisateur), juste au-dessus du classeur qu'il abrite.
 _attendu_lancer = ["Préparation du lancement", "Apports à déterminer",
-                   "Dossier de sortie", "Conservation des plans d’étape",
+                   "Conservation des plans d’étape",
                    "Calcul HEC-RAS", "Configuration complète",
                    "Lancer le calage"]
-verifier("l'onglet Lancer enchaine apports, sorties, lancement",
+verifier("l'onglet Lancer enchaine apports, conservation, calcul, lancement",
          [g for g in _ordre_lancer if g in _attendu_lancer] == _attendu_lancer,
          str(_ordre_lancer))
 
@@ -2256,7 +2258,7 @@ verifier("puis rend le curseur", not QgsApplication.overrideCursor(),
 verifier("sans paquet, l'étape Lancer dit ce qui compose, et où, sans bouton fantôme",
          "en bas de la fen" not in dlg.label_prochaine_etape.text()
          and "Écrire dans la géométrie" not in dlg.label_prochaine_etape.text()
-         and "Objectifs" in dlg.label_prochaine_etape.text(),
+         and "Paramètres" in dlg.label_prochaine_etape.text(),
          dlg.label_prochaine_etape.text()[:120])
 
 # LE DOSSIER DE SORTIE SE PROPOSE TOUT SEUL (0.9.8, 22/09/2026, demande
@@ -2295,9 +2297,10 @@ dlg.edit_dossier_sortie.setText(_dossier_avant_prop)
 # grise.
 _ordre_objectifs = [g.title() for g in dlg.onglets.widget(
     mod_plugin.ONGLET_OBJECTIFS).findChildren(_QGroupBoxA)]
-_attendu_objectifs = ["Précision du calage", "Hydrogrammes cibles",
+_attendu_objectifs = ["Précision du calage", "Dossier de sortie",
+                      "Hydrogrammes cibles",
                       "Ce que portent les hydrogrammes cibles"]
-verifier("l'onglet Objectifs enchaine precision, cibles, ce qu'elles portent",
+verifier("l'onglet Paramètres enchaine precision, dossier, cibles, ce qu'elles portent",
          [g for g in _ordre_objectifs
           if g in _attendu_objectifs] == _attendu_objectifs,
          str(_ordre_objectifs))
@@ -2609,14 +2612,33 @@ verifier("le bouton de controle a quitte tous les onglets",
          not [b for b in _boutons_partout
               if "ontrôle paramétrage" in b or "composer" in b],
          [b for b in _boutons_partout if "ontrôle" in b or "composer" in b])
-# LE BOUTON NE PORTE PLUS QUE L'ECRITURE (21/09/2026) : composer et
-# controler se font tout seuls. Son nom dit ce qui reste — le seul geste
-# irreversible de la fenetre.
-verifier("il nomme le geste irreversible, et vit a l'onglet du modele",
-         dlg.bouton_controle.text() == "Écrire dans la géométrie HEC-RAS"
+# UN SEUL BOUTON, SOUS LE PREFIXE (22/09/2026, demande utilisateur) : il
+# ecrit la geometrie, compose le classeur et controle — la composition
+# automatique renoncait en silence, et « Ouvrir dans Excel » restait gris
+# sans que rien ne dise pourquoi.
+verifier("il nomme les trois gestes et vit sous le prefixe, a l'etape Parametres",
+         dlg.bouton_controle.text()
+         == "Valider la géométrie et générer le fichier des hydrogrammes"
          and dlg.bouton_controle in dlg.onglets.widget(
-             mod_plugin.ONGLET_MODELE).findChildren(_QPushButtonA),
-         dlg.bouton_controle.text())
+             mod_plugin.ONGLET_OBJECTIFS).findChildren(_QPushButtonA)
+         and dlg.bouton_controle.parentWidget().title() == "Hydrogrammes cibles",
+         f"{dlg.bouton_controle.text()} | {dlg.bouton_controle.parentWidget().title()}")
+_pid_clic = dlg.pid_lance
+dlg.pid_lance = None
+BoiteMessage.critiques.clear()
+dlg.bouton_controle.click()
+_refus_clic = BoiteMessage.critiques[0] if BoiteMessage.critiques else ""
+verifier("cliqué sans modèle, il refuse et nomme l'étape où l'on va",
+         "onglet 1" in _refus_clic.lower() or "étape" in _refus_clic.lower(),
+         _refus_clic[:90] or "aucun refus")
+BoiteMessage.critiques.clear()
+dlg.pid_lance = _pid_clic
+_manquants_bouton = [nom for nom, ok in dlg._etapes_avant_controle() if not ok]
+verifier("son infobulle nomme exactement ce qui manque, axe, préfixe et dossier compris",
+         all(nom in dlg.bouton_controle.toolTip() for nom in _manquants_bouton)
+         and {"l'axe hydraulique", "le préfixe de scénario", "le dossier de sortie"}
+         <= {nom for nom, _ in dlg._etapes_avant_controle()},
+         dlg.bouton_controle.toolTip()[:160])
 # LA RECOMPOSITION EST AUTOMATIQUE, ET DIFFEREE : un champ de texte emet un
 # signal par caractere, et composer ecrit des fichiers.
 verifier("un minuteur porte la recomposition, en un seul coup",
@@ -2980,12 +3002,13 @@ verifier("et elle est DECOCHEE par defaut : on ne supprime rien sans le dire",
 # (0.7.22) : on choisit le projet, puis le plan, on CHARGE les couches qu'il
 # designe, on trace le profil en long dessus, et l'on ne touche a la fenetre
 # de simulation que si l'Unsteady couvre une autre periode.
-# LE GESTE IRREVERSIBLE FERME LA MARCHE (21/09/2026) : il ne compose plus
-# rien, et ce qu'il consomme tient tout entier dans cet onglet.
+# LE GESTE IRREVERSIBLE A QUITTE CET ONGLET (22/09/2026, demande
+# utilisateur) : il vit sous le prefixe, a l'etape Parametres, et compose de
+# nouveau. L'onglet 1 s'arrete a la fenetre de simulation.
 verifier("l'onglet 1 suit l'ordre des gestes",
-         len(_groupes_modele) == 6
+         len(_groupes_modele) == 5
          and all(mot in titre.lower() for mot, titre in zip(
-             ("projet", "plan", "couches", "axe", "simulation", "écrire"),
+             ("projet", "plan", "couches", "axe", "simulation"),
              _groupes_modele)),
          _groupes_modele)
 # La fenetre doit pouvoir rester ouverte pendant qu'on dessine dans QGIS :
@@ -3202,7 +3225,7 @@ def _eprouver_petite_fenetre(points):
                      == police.family(),
                      f"demandee={police.family()}, "
                      f"resolue={QFontInfo(fenetre.edit_projet_hecras.font()).family()}")
-            attendus = ("1. Modèle", "2. Objectifs", "3. Lancer",
+            attendus = ("1. Modèle", "2. Paramètres", "3. Lancer",
                         "4. Suivi", "Aide et configuration")
             verifier(f"police {points} pt : les cinq etapes sont identifiables",
                      tuple(fenetre.onglets.tabText(i)
@@ -3308,18 +3331,19 @@ def _eprouver_petite_fenetre(points):
             QApplication.processEvents()
             verifier(f"police {points} pt : la fenetre est active pour les raccourcis",
                      QApplication.activeWindow() is fenetre)
-            fenetre.onglets.setCurrentIndex(0)
+            # LE BOUTON VIT A L'ETAPE PARAMETRES (22/09/2026) : on part de la.
+            fenetre.onglets.setCurrentIndex(mod_plugin.ONGLET_OBJECTIFS)
             fenetre.bouton_controle.setFocus()
             QTest.keyClick(fenetre.bouton_controle, Qt.Key.Key_Right,
                            Qt.KeyboardModifier.AltModifier)
             QApplication.processEvents()
             verifier(f"police {points} pt : Alt-droite navigue depuis un bouton",
-                     fenetre.onglets.currentIndex() == 1)
+                     fenetre.onglets.currentIndex() == mod_plugin.ONGLET_LANCER)
             QTest.keyClick(fenetre.bouton_controle, Qt.Key.Key_Left,
                            Qt.KeyboardModifier.AltModifier)
             QApplication.processEvents()
             verifier(f"police {points} pt : Alt-gauche revient depuis un bouton",
-                     fenetre.onglets.currentIndex() == 0)
+                     fenetre.onglets.currentIndex() == mod_plugin.ONGLET_OBJECTIFS)
             # LE RANG NOMME, PAS LE NOMBRE. Ecrit « 5 », il a suivi l'aide
             # d'un onglet a l'autre jusqu'au jour ou « Sorties » est sorti.
             fenetre.onglets.setCurrentIndex(mod_plugin.ONGLET_AIDE)
