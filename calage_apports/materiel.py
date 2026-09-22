@@ -24,6 +24,13 @@ MESURE SUR UN CALAGE REEL (22/09/2026, SUHI_ARAN, 127 341 cellules, poste a
 tel poste la suggestion ne change rien a la duree — et l'etiquette le dit,
 plutot que de promettre.
 
+DEUXIEME MESURE, LE MEME JOUR, SUR UNE STATION (« Performance Cores
+0,2,…,62 », 32 cœurs de meme classe) : la case cochee a demande 8 ; HEC-RAS a
+employe 8 (« Maximum number of cores = 8 ») et simule 48 h en 1 h 48, 26,4 fois
+le temps reel — contre 7,4 fois sur le portable (autre crue, Q20 contre Q100 :
+la comparaison est indicative). Un nombre demande explicitement est donc
+honore ; ce que « tous » aurait donne sur cette station n'a pas ete mesure.
+
 POURQUOI SUGGERER PLUTOT QUE DECIDER : meme regle que Sensi. On detecte, on
 suggere, on dit pourquoi, et l'utilisateur coche — une valeur qui change sans le
 dire est pire qu'une valeur absente. ctypes suffit : aucune dependance.
@@ -169,8 +176,10 @@ def conseil(poste, coeurs_2d=None, plan=None):
                 "fixe le nombre dans chaque plan d'étape.")
         elif demande_tout:
             phrases.append(
-                f"« Tous » laisse HEC-RAS prendre tous les processeurs "
-                f"logiques ; {n} est le nombre de cœurs utiles de ce poste"
+                f"« Tous » laisse HEC-RAS choisir sans dire combien ; un "
+                f"nombre demandé est honoré (22 sept. 2026 : 8 demandés, "
+                f"8 employés sur une station à 32 cœurs, 48 h simulées en "
+                f"1 h 48). {n} est le nombre de cœurs utiles de ce poste"
                 + (f", plafonné à {PLAFOND_SUGGERE} (ras-commander : rendements "
                    "décroissants au-delà)." if poste.coeurs_utiles > n else "."))
         elif maxi < n:

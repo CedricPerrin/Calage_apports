@@ -2,7 +2,9 @@
 
 Préparation et contrôle du paquet de calage pour **HEC-RAS uniquement**.
 Voir `methodologie_calage_amont_aval.docx`, § 2.4.
-Version **0.9.10** : un seul bouton, **« Valider la géométrie et générer le
+Version **0.9.11** : l'étiquette des cœurs suit une mesure du jour — 8
+demandés, 8 employés par HEC-RAS sur une station à 32 cœurs, 48 h simulées en
+1 h 48. Avant, la **0.9.10** : un seul bouton, **« Valider la géométrie et générer le
 fichier des hydrogrammes »**, sous le préfixe — il écrit la géométrie,
 compose l'Excel et contrôle, et dit ce qui manque ; le **dossier de sortie**
 remonte juste au-dessus des hydrogrammes cibles ; l'onglet « Objectifs »
@@ -88,7 +90,7 @@ et figerait l'interface.
 ## Installation
 
 **Depuis l'archive.** `calage_apports_<version>.zip` —
-`calage_apports_0.9.10.zip` pour cette version — est **à la racine du dépôt** : la télécharger
+`calage_apports_0.9.11.zip` pour cette version — est **à la racine du dépôt** : la télécharger
 suffit, il n'y a rien à reconstruire. Le nom porte la version pour qu'on
 sache, sur un poste distant, ce qu'on installe ; il n'y en a jamais qu'une
 dans le dépôt, la plus récente. Puis, dans QGIS :

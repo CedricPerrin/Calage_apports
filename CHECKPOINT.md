@@ -138,6 +138,20 @@ navigation Alt depuis l'étape Paramètres. Banc QGIS : **363 contrôles, aucun
 (400 px pour 675) malgré le libellé de 60 caractères. Non fait : fenêtre non
 regardée, aucun vrai modèle au banc.
 
+**Mesure du 22/09 après-midi — calage réel Aran-Q20 avec la 0.9.10.** Lancé
+11:21 depuis le plugin, plan de référence **p04** (48 h, fenêtre pleine),
+16 apports, case des cœurs **cochée : 8 demandés**. Le poste n'est pas le
+portable du Q100 : `p27.hdf` dit « Performance Cores 0,2,…,62 » (32 cœurs
+de même classe) et **« Maximum number of cores = 8 »** — un nombre demandé
+est honoré ; sur le Q100, « tous » n'avait donné que 4 sur 4 P. Référence :
+48 h simulées en **1 h 48** (26,4 × le temps réel ; Q100 : 7,4 ×, autre crue).
+Calendrier 17,2 → 48,4 h, sans plafond. ARA02 : essai 1, 100,0/100,0/100,0 %,
+60 min. ARA03 en cours (Dt −3,0 h, fenêtre 0–13,8 h, 18,2 h simulées).
+Suivi estimé par la chaîne : fin vers 05:07 le 23/09. `materiel.conseil`
+(0.9.11) ne prétend plus que « tous » prend tous les processeurs logiques.
+Le plafond 8 reste non mesuré : sur cette station, 16 pourrait aller plus
+vite — à essayer sur un plan seul, jamais pendant un calage.
+
 ## État précédent — 21 septembre 2026 : 0.9.6, le bouton rentre à l'étape 1
 
 Banc QGIS : **347 contrôles, aucun échec, sortie 0**. Plugin installé et
