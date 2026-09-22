@@ -10,7 +10,7 @@ Les ZIP déjà publiés précèdent ce lot : utiliser les sources de `main` pour
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 
-Version des sources du plugin : **0.9.8**. La
+Version des sources du plugin : **0.9.9**. La
 [note d’ergonomie du 11 septembre 2026](docs/ergonomie_2026-09-11.md)
 décrit le parcours, les choix d’interface et les points de recette.
 
@@ -135,6 +135,18 @@ le modèle et le préfixe sont connus — `_calage\<préfixe>` à côté du mod�
 un dossier par scénario — et une valeur saisie à la main n'est jamais
 remplacée. L'Excel est ensuite mis à jour à chaque recomposition, ses
 cibles préservées.
+
+La **0.9.9** (22 septembre 2026) corrige un plantage de la **recomposition
+automatique**, présent depuis la 0.9.5 et jamais vu au banc : le décorateur
+`avec_sablier` n'acceptait aucun argument, et le minuteur de recomposition
+appelle `_composer_et_controler` avec deux mots-clés — `TypeError` à la
+première recomposition sur le poste de calcul. L'enveloppe transmet
+désormais les arguments — mais seulement ceux que la méthode déclare : deux
+méthodes au sablier sont branchées sur `clicked`, dont le booléen, transmis
+tel quel, faisait mourir le processus sans trace (une exception dans un slot
+PyQt est fatale). Le banc appelle la méthode comme le minuteur et comme un
+clic. Le texte d'attente de l'étape Lancer ne renvoie plus à un bouton « en
+bas de la fenêtre » qui vit à l'étape Modèle depuis la 0.9.6.
 
 Pour chaque apport, de l'amont vers l'aval : estimer, calculer, comparer à la
 cible, corriger, répéter jusqu'à concordance, puis vérifier la cohérence des

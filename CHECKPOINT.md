@@ -81,15 +81,41 @@ classeur mis à jour. Banc QGIS : **357 contrôles, aucun échec, sortie 0**
 (trois neufs). Non fait : aucun modèle réel chargé au banc — la chaîne
 préfixe → dossier → composition → Excel est éprouvée jusqu'au dossier.
 
-**Erreur vue chez lsso le 22/09** : `_composer_et_controler() got an
-unexpected keyword argument 'ecrire_geometrie'` à la ligne 1948 (le minuteur
-de recomposition). Le code source et le zip 0.9.7 sont cohérents ; la
-signature sans ce paramètre est celle de la **0.9.4**. Une classe
-`DialogueParametrage` antérieure à la 0.9.5 tournait donc encore dans la
-session QGIS : redémarrer QGIS après « Installer depuis un ZIP », vérifier
-la version dans le gestionnaire, supprimer `__pycache__` du dossier du
-plugin si le message persiste, et vérifier que le dossier n'est pas un lien
-symbolique vers un dépôt en retard.
+**0.9.9 — la recomposition automatique plantait sur tout poste.** Erreur
+vue chez lsso le 22/09, deux fois, après réinstallation :
+`_composer_et_controler() got an unexpected keyword argument
+'ecrire_geometrie'` à la ligne 1948 (le minuteur de recomposition).
+**Première explication, fausse** : une classe d'avant la 0.9.5 encore
+chargée dans QGIS — réfutée par la récidive après redémarrage. **Cause
+réelle** : le décorateur `avec_sablier` enveloppait la méthode avec
+`def enveloppe(self)`, sans `*args, **kwargs` ; la méthode a reçu deux
+mots-clés en 0.9.5 et le minuteur l'appelle avec — `functools.wraps`
+donnait à l'enveloppe le nom de la méthode, d'où un message qui accusait
+celle-ci. Latent depuis la 0.9.5, jamais exercé : le banc n'appelait la
+méthode que sans argument, et la recomposition automatique « n'a jamais
+tourné contre un vrai modèle » (CHECKPOINT 0.9.6). Correctif : l'enveloppe
+transmet les arguments. Le banc appelle désormais la méthode exactement
+comme le minuteur, à travers le sablier, puis vérifie que ni le verrou de
+composition ni le sablier ne restent posés.
+
+**Et le premier correctif tuait le banc** — code 9, sans trace, deux fois,
+`faulthandler` muet. Deux méthodes au sablier sont branchées sur
+`clicked`, qui émet un booléen : avec `self` seul, PyQt retombait tout seul
+sur l'appel sans argument ; avec `*args`, l'enveloppe passait le booléen à
+`_charger_couches_modele` / `_recontroler_classeur`, qui le refusaient — et
+une exception dans un slot PyQt ne fait pas une boîte, elle tue le
+processus (qFatal). L'enveloppe **tronque désormais les positionnels au
+nombre que la méthode déclare** (`inspect.signature`), le repli que PyQt
+faisait pour nous. Éprouvé hors QGIS sur un mannequin (clic avalé,
+mots-clés transmis, `*args` intact, curseur rendu) et au banc. Banc QGIS :
+**361 contrôles, aucun échec, sortie 0** — dont « le sablier survit à un
+vrai clic », le contrôle existant qui mourait avec `*args`. La sortie
+tamponnée du banc masque la ligne exacte de la mort : lancer le banc avec
+`python -u` quand un processus s'arrête sans trace. Le « code 127 sans
+trace » du 21/09 (ré-entrance) relève sans doute du même mécanisme.
+Le texte d'attente de l'étape Lancer ne renvoie plus à « Écrire dans la
+géométrie HEC-RAS en bas de la fenêtre » (bouton à l'étape Modèle depuis
+la 0.9.6) : une seule phrase, `ATTENTE_PAQUET`, dite aux deux endroits.
 
 ## État précédent — 21 septembre 2026 : 0.9.6, le bouton rentre à l'étape 1
 

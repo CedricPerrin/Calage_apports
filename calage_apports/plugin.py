@@ -18,6 +18,7 @@ et figerait l'interface.
 """
 
 import functools
+import inspect
 import os
 import traceback
 from datetime import datetime, timedelta
@@ -490,6 +491,17 @@ PENTE_APPORT_DEFAUT = 0.01
 # est surchargee a l'onglet 1, et l'utilisateur n'avait rien a decider ici.
 # Le parametre reste ecrit dans le classeur, ou le pont le relit.
 BOUTON_GEOMETRIE = "Écrire dans la géométrie HEC-RAS"
+# CE QUI SE PASSE TANT QU'IL N'Y A PAS DE PAQUET — une seule phrase, dite
+# aux deux endroits qui l'attendent (etape Lancer, coherence). Elle
+# renvoyait a « Ecrire dans la geometrie HEC-RAS » « en bas de la fenetre » :
+# le bouton est a l'etape Modele depuis la 0.9.6 et n'a plus rien a voir
+# avec la composition, automatique depuis la 0.9.5 (constate le 22/09/2026
+# sur le poste de calcul).
+ATTENTE_PAQUET = (
+    "Aucun paquet composé pour l’instant : il se compose <b>tout seul</b> dès "
+    "que le modèle, ses couches et l’axe (étape Modèle) et le préfixe de "
+    "scénario (étape Objectifs) sont renseignés — le dossier de sortie se "
+    "propose alors de lui-même.")
 NOM_CLONE_GEOMETRIE_DEFAUT = "Geometrie_calage"
 
 # Precision attendue, en fraction de la cible. Ce sont les valeurs par defaut
@@ -1249,15 +1261,45 @@ def journaliser(contexte, exception=None):
 # ---------------------------------------------------------------------------
 
 def avec_sablier(methode):
-    """Curseur d'attente pendant toute la methode, rendu quoi qu'il arrive."""
+    """
+    Curseur d'attente pendant toute la methode, rendu quoi qu'il arrive.
+
+    L'ENVELOPPE TRANSMET LES ARGUMENTS. Elle ne prenait que « self », et
+    _composer_et_controler a recu deux mots-cles en 0.9.5 : le minuteur de
+    recomposition l'appelle avec « ecrire_geometrie=False, silencieux=True »,
+    ce qui rendait « TypeError: _composer_et_controler() got an unexpected
+    keyword argument » — sur le poste de calcul, a la premiere recomposition
+    automatique, le 22/09/2026. Jamais au banc : il n'appelait la methode que
+    sans argument, et functools.wraps donnait a l'enveloppe le nom de la
+    methode, si bien que le message accusait celle-ci. Le banc appelle
+    desormais la methode comme le minuteur.
+
+    ET ELLE NE TRANSMET QUE CE QUE LA METHODE ACCEPTE. Deux methodes au
+    sablier sont branchees sur « clicked », qui emet un booleen : PyQt le
+    passe a l'enveloppe. Avec « self » seul, PyQt retombait tout seul sur
+    l'appel sans argument ; avec « *args », l'enveloppe le passait a la
+    methode, qui le refusait — et une exception dans un slot PyQt ne fait pas
+    une boite : elle tue le processus (qFatal), sans trace. Le banc mourait
+    ainsi, code 9, deux fois de suite, le 22/09/2026. On tronque donc les
+    positionnels au nombre que la methode declare — c'est exactement le
+    repli que PyQt faisait pour nous.
+    """
+    parametres = list(inspect.signature(methode).parameters.values())[1:]
+    n_positionnels = sum(
+        1 for p in parametres
+        if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD))
+    varargs = any(p.kind == p.VAR_POSITIONAL for p in parametres)
+
     @functools.wraps(methode)
-    def enveloppe(self):
+    def enveloppe(self, *args, **kwargs):
+        if not varargs:
+            args = args[:n_positionnels]
         if getattr(self, "_installation_occupe", lambda: False)():
             return
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         self._sablier_pose = True
         try:
-            return methode(self)
+            return methode(self, *args, **kwargs)
         finally:
             if getattr(self, "_sablier_pose", False):
                 QApplication.restoreOverrideCursor()
@@ -3035,10 +3077,7 @@ class DialogueParametrage(QDialog):
             # silence tant qu'il en manque un.
             self._demander_recomposition()
         if not ecarts:
-            dire(label,
-                 f"Renseignez le préfixe de scénario, puis « {BOUTON_GEOMETRIE} » "
-                 f"en bas de la fenêtre : le paquet se compose ensuite tout "
-                 f"seul." if not self.classeur else
+            dire(label, ATTENTE_PAQUET if not self.classeur else
                  "Le paquet composé dit la même chose que cet écran.")
             return
         # C'EST ICI QU'ON SAIT QU'IL FAUT RECOMPOSER, et nulle part
@@ -4355,9 +4394,7 @@ class DialogueParametrage(QDialog):
         f.addRow("Hydrogrammes cibles :", self.label_validation_cibles)
         v.addWidget(groupe)
 
-        self.label_prochaine_etape = texte_etat(
-            f"Renseignez le préfixe de scénario, puis « {BOUTON_GEOMETRIE} » "
-            f"en bas de la fenêtre : le paquet se compose ensuite tout seul.")
+        self.label_prochaine_etape = texte_etat(ATTENTE_PAQUET)
         v.addWidget(self.label_prochaine_etape)
 
 

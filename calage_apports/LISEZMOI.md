@@ -2,7 +2,11 @@
 
 Préparation et contrôle du paquet de calage pour **HEC-RAS uniquement**.
 Voir `methodologie_calage_amont_aval.docx`, § 2.4.
-Version **0.9.8** : l'Excel des objectifs existe **dès la saisie du
+Version **0.9.9** : la **recomposition automatique** ne plante plus — le
+décorateur du curseur d'attente n'acceptait aucun argument, et le minuteur
+l'appelait avec deux ; défaut latent depuis la 0.9.5, vu sur le poste de
+calcul. Le texte d'attente de l'étape Lancer ne renvoie plus à un bouton
+« en bas de la fenêtre » qui n'y est plus. Avant, la **0.9.8** : l'Excel des objectifs existe **dès la saisie du
 préfixe** — le dossier de sortie se propose tout seul, « _calage\<préfixe> »
 à côté du modèle, modifiable à l'étape Lancer. Avant, la **0.9.7** : le
 plugin lit le poste et propose le nombre de cœurs à
@@ -81,7 +85,7 @@ et figerait l'interface.
 ## Installation
 
 **Depuis l'archive.** `calage_apports_<version>.zip` —
-`calage_apports_0.9.8.zip` pour cette version — est **à la racine du dépôt** : la télécharger
+`calage_apports_0.9.9.zip` pour cette version — est **à la racine du dépôt** : la télécharger
 suffit, il n'y a rien à reconstruire. Le nom porte la version pour qu'on
 sache, sur un poste distant, ce qu'on installe ; il n'y en a jamais qu'une
 dans le dépôt, la plus récente. Puis, dans QGIS :

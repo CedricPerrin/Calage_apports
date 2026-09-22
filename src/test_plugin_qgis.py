@@ -656,6 +656,25 @@ else:
 
     dlg._composer_et_controler()
 
+    # LE MINUTEUR DE RECOMPOSITION APPELLE LA METHODE AVEC DEUX MOTS-CLES, ET
+    # LE DECORATEUR avec_sablier N'EN ACCEPTAIT AUCUN (0.9.5 -> 0.9.8) :
+    # TypeError sur le poste de calcul a la premiere recomposition
+    # automatique, jamais ici — le banc n'appelait la methode que sans
+    # argument. On l'appelle donc EXACTEMENT comme le minuteur, a travers le
+    # sablier : c'est le chemin qui a casse.
+    try:
+        dlg._composer_et_controler(ecrire_geometrie=False, silencieux=True)
+        _mots_cles_ok, _mots_cles_detail = True, "appel accepté, recomposition silencieuse jouée"
+    except TypeError as e:
+        _mots_cles_ok, _mots_cles_detail = False, str(e)
+    verifier("la recomposition silencieuse passe le sablier avec ses deux mots-clés",
+             _mots_cles_ok, _mots_cles_detail)
+    verifier("et elle ne laisse pas la fenêtre verrouillée",
+             not getattr(dlg, "_composition_en_cours", False)
+             and not getattr(dlg, "_sablier_pose", False),
+             f"en cours={getattr(dlg, '_composition_en_cours', None)}, "
+             f"sablier={getattr(dlg, '_sablier_pose', None)}")
+
     # UN APPARIEMENT IMPOSSIBLE EST UN DIAGNOSTIC SUR LE MODELE, PAS UN ECHEC
     # DU PLUGIN — et c'est le banc qui le provoque.
     #
@@ -2203,6 +2222,42 @@ if _case_coeurs is not None:
              and "Suggestion pour ce poste" in dlg.label_coeurs.text(),
              dlg.label_coeurs.text()[:140])
     _case_coeurs.setChecked(False)
+
+# LE SABLIER (avec_sablier) TRANSMET LES MOTS-CLES ET AVALE LE BOOLEEN D'UN
+# CLIC (0.9.9). Avec « self » seul, le minuteur de recomposition — deux
+# mots-cles — cassait ; avec « *args », le booleen de « clicked » passait a
+# une methode qui le refusait, et une exception dans un slot PyQt tue le
+# processus sans trace (banc mort deux fois, code 9). Eprouve sur un
+# mannequin : aucun geste reel, aucune boite.
+class _AuSablier:
+    @mod_plugin.avec_sablier
+    def sans_argument(self):
+        return "ok"
+
+    @mod_plugin.avec_sablier
+    def avec_mots_cles(self, a=1, b=2):
+        return (a, b)
+
+_sab = _AuSablier()
+try:
+    _clic = _sab.sans_argument(False)          # ce que « clicked(bool) » envoie
+    _mots = _sab.avec_mots_cles(a=5, b=6)      # ce que le minuteur envoie
+    _sab_detail = f"clic -> {_clic!r}, mots-clés -> {_mots!r}"
+except TypeError as e:
+    _clic, _mots, _sab_detail = None, None, str(e)
+verifier("le sablier avale le booléen d'un clic Qt", _clic == "ok", _sab_detail)
+verifier("et transmet les mots-clés du minuteur", _mots == (5, 6), _sab_detail)
+verifier("puis rend le curseur", not QgsApplication.overrideCursor(),
+         str(QgsApplication.overrideCursor()))
+
+# L'ATTENTE DU PAQUET NE RENVOIE PLUS A UN BOUTON « EN BAS DE LA FENETRE »
+# (0.9.9, 22/09/2026, constate par l'utilisateur) : ce bouton vit a l'etape
+# Modele depuis la 0.9.6 et n'a plus rien a voir avec la composition.
+verifier("sans paquet, l'étape Lancer dit ce qui compose, et où, sans bouton fantôme",
+         "en bas de la fen" not in dlg.label_prochaine_etape.text()
+         and "Écrire dans la géométrie" not in dlg.label_prochaine_etape.text()
+         and "Objectifs" in dlg.label_prochaine_etape.text(),
+         dlg.label_prochaine_etape.text()[:120])
 
 # LE DOSSIER DE SORTIE SE PROPOSE TOUT SEUL (0.9.8, 22/09/2026, demande
 # utilisateur) : l'Excel doit exister des la saisie du prefixe, et le dossier,
