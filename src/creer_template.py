@@ -45,6 +45,7 @@ PARAMETRES = [
     ("Mode_selection_modele", "plan"),
     ("Premier_apport", ""),
     ("Prefixe_scenario", ""),
+    ("Coeurs_par_calcul", 0),
 
     ("--- FENETRE DE SIMULATION ---", ""),
     ("Simulation_debut", ""),

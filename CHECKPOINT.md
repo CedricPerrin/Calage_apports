@@ -1,6 +1,75 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
-## Reprendre ici — 21 septembre 2026 : 0.9.6, le bouton rentre à l'étape 1
+## Reprendre ici — 22 septembre 2026 : la couverture comptait Dt deux fois
+
+Calage réel **Aran-Q100** (SUHI_ARAN, 11 apports ARA07→ARA17, 13 calculs,
+31 h 49 de machine, journal `calage_20260920_193228.log`) rendu **2/11
+conformes** à 99,3–100,5 % de volume : neuf « la fenetre de calcul ne couvre
+que 45 à 90 % », plus « le decalage (-11 h) excede la fenetre jugee (9,5 h) »
+sur ARA17. **Faux positifs.** Le modèle répond 4,6 à 11 h *avant* les cibles
+(Dt négatif) ; `criteres.diagnostiquer` rognait la fenêtre jugée sur
+l'étendue brute des deux axes puis retirait encore |Dt| d'un côté — Dt compté
+deux fois. Le calcul couvrait la fenêtre `[f0, f1]` en entier.
+
+- **`src/criteres.py`** : avec une fenêtre, la cible est lue sur `[f0c, f1c]`
+  et le calcul sur `[f0c + Dt, f1c + Dt]`, bornés par ce que chaque série
+  porte ; la garde « décalage plus long que la fenêtre » devient
+  `|Dt| >= fin - debut` explicitement (même valeur qu'avant sans fenêtre).
+  Auto-test § 7 ter bis. Sans fenêtre : rien ne change.
+- **`src/calage.py`** : le plafond du plan de référence se compare à la
+  durée *en vigueur* (None de `limiter_duree` = plan inchangé), et **alerte**
+  quand la perte dépasse `marge_duree_h` — le journal se taisait dès la
+  deuxième étape (neuf étapes bornées à 20,5 h pour 21,2–23,3 h voulues).
+- **`src/reference_calage_fictif.json`** refigé : seuls `rapport_volume`
+  (≤ 0,02 %) et `part_cible_jugee` bougent — le volume est intégré sur toute
+  la fenêtre au lieu de la fenêtre amputée de |Dt|.
+
+**Preuve sur les séries du suivi** (`avancement.json` + cibles du classeur,
+mêmes fenêtres et Dt que le journal) : ancien critère 9 bloquantes, nouveau
+**0 bloquante, 11/11 convergent, volumes 99,9–100,1 %**. Restent deux
+réserves non bloquantes vraies : 0,3 h (ARA15) et 0,5 h (ARA17) de fenêtre
+non simulées — le plan de référence désigné était **p12**, plan d'étape du
+calage précédent déjà raccourci à 20 h 30 (la reprise cherchait
+« Ara-Q100-V1_Apport_ARA06 », le préfixe ayant perdu un « n »). Pour un
+rejeu : repartir de p07 ou p14 (48 h), ou rallonger `Simulation Date` de p12.
+Les CL amont (BC_SUH_01, 200 × 10 min = 33 h) le permettent sans retouche.
+
+**Non fait** : les livrables réels ne sont pas régénérés (h5py absent de ce
+poste ; `reconstruire_livrables.py --plan 26` sur le poste de calcul le fait
+sans recalcul). La dérive de Dt le long de l'axe (6,4 h) reste une vraie
+question de base de temps des cibles.
+
+**0.9.7 — les cœurs se proposent (demande utilisateur, même jour).** Lu dans
+le `.p26.hdf` : « CPU Affinity ON (Performance Cores 0,2,4,6) »,
+`Maximum number of cores = 4` — HEC-RAS employait déjà les quatre cœurs P du
+poste de calcul, quoi que le plan demande (`UNET D2 Cores = 0, 0, 8`).
+Vérifié sur GitHub (v0.99.1 → v0.102.0) : `compute_plan(num_cores=)` appelle
+`RasPlan.set_num_cores`, qui réécrit **toutes** les lignes `UNET D1 Cores=`,
+`UNET D2 Cores=`, `PS Cores=` du plan calculé avant le calcul ; 0 = tous ;
+docstring « 2 à 8 » ; limite : relecture/réécriture UTF-8 `errors="replace"`.
+
+- **`calage_apports/materiel.py`** (neuf, repris de Sensi, ctypes seul) :
+  inventaire du poste, `suggestion` = cœurs utiles (P si hybride) plafonnés
+  à 8, `conseil()` qui dit ce que le plan demande et si cocher changera
+  quelque chose. Auto-test `__main__`.
+- **Lancer** : groupe « Calcul HEC-RAS » entre la conservation des plans
+  d'étape et la configuration complète. Case décochée « Demander N cœurs à
+  HEC-RAS pour chaque calcul », étiquette sous elle, suit le plan choisi.
+  Le récapitulatif annonce les cœurs quand la case est cochée.
+- **Paramètre `Coeurs_par_calcul`** (0 = plan inchangé) : écrit au
+  lancement avec les autres réglages, relu à la reprise d'un classeur,
+  contrôlé (entier 0–64), défaut dans `preparer_classeur`, template,
+  commentaire `style_classeur`. `lister_projet_hecras` rend `coeurs_2d`.
+- **Chaîne** : `PiloteHecRas(coeurs=)`, `calculer()` passe `num_cores` ;
+  `preparer()` journalise « coeurs demandes … (plan de reference demande
+  « UNET D2 Cores = tous, 8 ») ». Le plan de référence n'est jamais touché.
+
+Banc QGIS : **354 contrôles, aucun échec, sortie 0** (cinq neufs). Ce poste
+(Core Ultra 5, 2 P) propose 2. **Non fait** : aucun calage réel relancé avec
+la case cochée ; fenêtre non regardée ; plafond 8 = recommandation citée.
+Retour écrit dans `0-Ergonomie/retours/CALAGE_APPORTS.md`.
+
+## État précédent — 21 septembre 2026 : 0.9.6, le bouton rentre à l'étape 1
 
 Banc QGIS : **347 contrôles, aucun échec, sortie 0**. Plugin installé et
 ouvert dans le QGIS du poste ; version lue : 0.9.6.

@@ -180,6 +180,15 @@ def controler_template(chemin):
         erreur(f"Nb_max_iterations_par_apport = {nb_max} : au moins 3 essais "
                f"sont necessaires pour que la correction converge")
 
+    # Cœurs demandes a HEC-RAS : facultatif ; 0 = plan inchange ; 64 est le
+    # plafond que Windows accorde a un Ras.exe (ras-commander, set_num_cores).
+    coeurs = valeurs.get("Coeurs_par_calcul")
+    if coeurs not in (None, "") and not (
+            isinstance(coeurs, (int, float)) and not pd.isna(coeurs)
+            and float(coeurs).is_integer() and 0 <= coeurs <= 64):
+        erreur(f"Coeurs_par_calcul = {coeurs!r} : entier entre 0 (plan "
+               f"inchange) et 64 attendu")
+
     # Fenetre de simulation : facultative, mais si elle est saisie elle doit
     # etre juste. Une date mal formee n'est pas refusee par HEC-RAS — elle est
     # lue autrement, et le calcul tourne sur une periode qui n'est pas celle

@@ -2,7 +2,7 @@
  "_a_propos": "Test de caracterisation de caler() sur ModeleFictif. NE PAS MODIFIER A LA MAIN : « python calage.py --figer-reference » le reecrit quand le changement de comportement est VOULU.",
  "_produit_par": {
   "python": "3.13.11",
-  "numpy": "2.4.1",
+  "numpy": "2.5.1",
   "systeme": "Windows"
  },
  "nb_calculs": 5,
@@ -420,7 +420,7 @@
     0.016759554489773468
    ],
    "diagnostic": {
-    "rapport_volume": 0.9998687207797721,
+    "rapport_volume": 0.9998827064859562,
     "rapport_pic": 1.0,
     "r": 0.9997965893439199,
     "decalage_h": 0.30000000000000004,
@@ -429,7 +429,7 @@
      23.560125313283212
     ],
     "rapport_volume_serie": 0.9999267619650398,
-    "part_cible_jugee": 0.9955277571454165,
+    "part_cible_jugee": 0.9962620391735764,
     "converge": true,
     "alertes": []
    }
@@ -844,7 +844,7 @@
     0.0
    ],
    "diagnostic": {
-    "rapport_volume": 0.9995531215119092,
+    "rapport_volume": 0.9995801451839585,
     "rapport_pic": 0.9943460608459476,
     "r": 0.9999420043524272,
     "decalage_h": 0.7000000000000001,
@@ -853,7 +853,7 @@
      23.28952380952381
     ],
     "rapport_volume_serie": 0.9999506501747233,
-    "part_cible_jugee": 0.9913601973306827,
+    "part_cible_jugee": 0.9939122174196087,
     "converge": true,
     "alertes": []
    }
@@ -1268,7 +1268,7 @@
     0.0
    ],
    "diagnostic": {
-    "rapport_volume": 0.997343017501655,
+    "rapport_volume": 0.9974153974953129,
     "rapport_pic": 0.9849316026226204,
     "r": 0.9995280689427568,
     "decalage_h": 1.2000000000000002,
@@ -1277,7 +1277,7 @@
      24.011127819548875
     ],
     "rapport_volume_serie": 1.0008877941827934,
-    "part_cible_jugee": 0.9888865326748438,
+    "part_cible_jugee": 0.9936774642293836,
     "converge": true,
     "alertes": []
    }
@@ -1692,7 +1692,7 @@
     0.0
    ],
    "diagnostic": {
-    "rapport_volume": 0.9933641202275614,
+    "rapport_volume": 0.9932273556878864,
     "rapport_pic": 0.9807827977422107,
     "r": 0.9980185122684693,
     "decalage_h": 1.8,
@@ -1701,7 +1701,7 @@
      24.732731829573936
     ],
     "rapport_volume_serie": 1.0048936369531876,
-    "part_cible_jugee": 0.9848945992157362,
+    "part_cible_jugee": 0.9933792060741691,
     "converge": true,
     "alertes": []
    }
@@ -1709,7 +1709,7 @@
  ],
  "diagnostics_finaux": [
   {
-   "rapport_volume": 0.9998687207797721,
+   "rapport_volume": 0.9998827064859562,
    "rapport_pic": 1.0,
    "r": 0.9997965893439199,
    "decalage_h": 0.30000000000000004,
@@ -1718,12 +1718,12 @@
     23.560125313283212
    ],
    "rapport_volume_serie": 0.9999428893541032,
-   "part_cible_jugee": 0.994698540343897,
+   "part_cible_jugee": 0.9954322107577744,
    "converge": true,
    "alertes": []
   },
   {
-   "rapport_volume": 0.9995531215119092,
+   "rapport_volume": 0.9995801451839585,
    "rapport_pic": 0.9943460608459476,
    "r": 0.9999420043524272,
    "decalage_h": 0.7000000000000001,
@@ -1732,12 +1732,12 @@
     23.28952380952381
    ],
    "rapport_volume_serie": 0.9999581258585747,
-   "part_cible_jugee": 0.9907156056744084,
+   "part_cible_jugee": 0.9932659664160453,
    "converge": true,
    "alertes": []
   },
   {
-   "rapport_volume": 0.997343017501655,
+   "rapport_volume": 0.9974153974953129,
    "rapport_pic": 0.9849316026226204,
    "r": 0.9995280689427568,
    "decalage_h": 1.2000000000000002,
@@ -1746,12 +1746,12 @@
     24.011127819548875
    ],
    "rapport_volume_serie": 1.0008877941827934,
-   "part_cible_jugee": 0.9888865326748438,
+   "part_cible_jugee": 0.9936774642293836,
    "converge": true,
    "alertes": []
   },
   {
-   "rapport_volume": 0.9933641202275614,
+   "rapport_volume": 0.9932273556878864,
    "rapport_pic": 0.9807827977422107,
    "r": 0.9980185122684693,
    "decalage_h": 1.8,
@@ -1760,7 +1760,7 @@
     24.732731829573936
    ],
    "rapport_volume_serie": 1.0048936369531876,
-   "part_cible_jugee": 0.9848945992157362,
+   "part_cible_jugee": 0.9933792060741691,
    "converge": true,
    "alertes": []
   }

@@ -10,7 +10,7 @@ Les ZIP déjà publiés précèdent ce lot : utiliser les sources de `main` pour
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 
-Version des sources du plugin : **0.9.6**. La
+Version des sources du plugin : **0.9.7**. La
 [note d’ergonomie du 11 septembre 2026](docs/ergonomie_2026-09-11.md)
 décrit le parcours, les choix d’interface et les points de recette.
 
@@ -110,6 +110,22 @@ compose plus rien, ce qu'il consomme tient tout entier dans cet onglet, et ce
 qu'il écrit s'y dessine. Elle corrige aussi un défaut de la 0.9.5 : la
 recomposition automatique pouvait se **ré-entrer** et arrêter le processus
 sans trace.
+
+La **0.9.7** (22 septembre 2026) lit le **poste** et propose le nombre de
+cœurs à demander à HEC-RAS. L'étape Lancer gagne un groupe « Calcul
+HEC-RAS » : une case « Demander N cœurs à HEC-RAS pour chaque calcul »,
+décochée par défaut, et sous elle ce qui a été détecté, ce que le plan de
+référence demande (`UNET D2 Cores`) et ce que cocher changera — ou pas : sur
+un processeur hybride, HEC-RAS 7.0.1 n'emploie que les cœurs de performance
+quoi qu'on lui demande. Cochée, la chaîne passe `num_cores` à
+`compute_plan`, et ras-commander (`RasPlan.set_num_cores`, relu sur GitHub)
+réécrit `UNET D1 Cores`, `UNET D2 Cores` et `PS Cores` dans chaque **plan
+d'étape** avant son calcul ; le plan de référence n'est pas touché. La
+suggestion est le nombre de cœurs utiles, plafonné à 8 (recommandation
+ras-commander, non mesurée ici). La même version corrige la **couverture**
+de `criteres.diagnostiquer`, qui comptait le décalage deux fois quand le
+modèle répond avant la cible : sur un calage réel de onze apports à 100 % de
+volume, neuf « ne couvre que 45 à 90 % » à tort — voir `CHECKPOINT.md`.
 
 Pour chaque apport, de l'amont vers l'aval : estimer, calculer, comparer à la
 cible, corriger, répéter jusqu'à concordance, puis vérifier la cohérence des

@@ -2173,10 +2173,36 @@ _ordre_lancer = [g.title() for g in dlg.onglets.widget(
 # fichier qu'il nomme, a l'onglet Objectifs.
 _attendu_lancer = ["Préparation du lancement", "Apports à déterminer",
                    "Dossier de sortie", "Conservation des plans d’étape",
-                   "Configuration complète", "Lancer le calage"]
+                   "Calcul HEC-RAS", "Configuration complète",
+                   "Lancer le calage"]
 verifier("l'onglet Lancer enchaine apports, sorties, lancement",
          [g for g in _ordre_lancer if g in _attendu_lancer] == _attendu_lancer,
          str(_ordre_lancer))
+
+# LES CŒURS (0.9.7, 22/09/2026, demande utilisateur) : le poste est lu, un
+# nombre est propose, et RIEN n'est ecrit tant que la case n'est pas cochee.
+_case_coeurs = getattr(dlg, "case_coeurs", None)
+verifier("Lancer porte la case des cœurs, décochée, libellée par un verbe",
+         _case_coeurs is not None and not _case_coeurs.isChecked()
+         and _case_coeurs.text().startswith("Demander"),
+         _case_coeurs.text() if _case_coeurs else "absente")
+verifier("décochée, le lancement laisse le plan inchangé (0)",
+         dlg._coeurs_demandes() == 0, str(dlg._coeurs_demandes()))
+if _case_coeurs is not None:
+    _case_coeurs.setChecked(True)
+    verifier("cochée, il demande la suggestion du poste, entre 1 et 8",
+             1 <= dlg._coeurs_demandes() <= 8
+             and dlg._coeurs_demandes() == dlg.poste.suggestion,
+             f"{dlg._coeurs_demandes()} ; {dlg.poste.detail}")
+    verifier("le récapitulatif du lancement annonce les cœurs cochés",
+             "Cœurs" in dlg.label_reprise.text()
+             or not dlg.classeur,     # sans paquet, le recap dit d'en composer
+             dlg.label_reprise.text()[:100])
+    verifier("l'étiquette dit sur quoi la suggestion se fonde",
+             "processeur" in dlg.label_coeurs.text()
+             and "Suggestion pour ce poste" in dlg.label_coeurs.text(),
+             dlg.label_coeurs.text()[:140])
+    _case_coeurs.setChecked(False)
 # ET LE PREFIXE A QUITTE « Objectifs ». Laisse aux deux endroits, il aurait
 # donne deux champs a lire pour un seul reglage.
 # L'ORDRE DE L'ONGLET OBJECTIFS (20/09/2026, demande utilisateur) : ce qu'on

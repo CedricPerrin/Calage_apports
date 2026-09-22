@@ -102,6 +102,12 @@ COMMENTAIRES = {
     "Nb_max_iterations_par_apport":
         "Garde-fou de dernier recours, non le mode d'arret normal : la "
         "concordance s'obtient en trois a quatre essais. Minimum 3.",
+    "Coeurs_par_calcul":
+        "Cœurs demandes a HEC-RAS pour chaque calcul, ecrits par ras-commander "
+        "dans le plan d'etape avant son calcul (UNET D1/D2 Cores, PS Cores). "
+        "0 = le plan garde ce qu'il demande. Le plugin propose le nombre de "
+        "cœurs utiles du poste, plafonne a 8 ; sur un processeur hybride, "
+        "HEC-RAS 7.0.1 n'emploie que les cœurs de performance.",
     "Fenetre_active":
         "oui / non / vide. Restreint le JUGEMENT (volume, pointe, forme) et "
         "les figures a la fenetre de la crue calee, detectee sur l'ecart a "

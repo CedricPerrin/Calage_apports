@@ -2,7 +2,10 @@
 
 Préparation et contrôle du paquet de calage pour **HEC-RAS uniquement**.
 Voir `methodologie_calage_amont_aval.docx`, § 2.4.
-Version **0.9.6** : le bouton d'écriture rejoint l'étape « Modèle », et
+Version **0.9.7** : le plugin lit le poste et propose le nombre de cœurs à
+demander à HEC-RAS (groupe « Calcul HEC-RAS » de l'étape Lancer, case à
+cocher), et la couverture du calage ne compte plus le décalage deux fois.
+Avant, la **0.9.6** : le bouton d'écriture rejoint l'étape « Modèle », et
 la recomposition automatique ne se ré-entre plus. Avant, la **0.9.5** : le
 paquet se recompose tout seul, et le bouton ne
 garde que le seul geste irréversible — écrire dans la géométrie HEC-RAS.
@@ -75,7 +78,7 @@ et figerait l'interface.
 ## Installation
 
 **Depuis l'archive.** `calage_apports_<version>.zip` —
-`calage_apports_0.9.6.zip` pour cette version — est **à la racine du dépôt** : la télécharger
+`calage_apports_0.9.7.zip` pour cette version — est **à la racine du dépôt** : la télécharger
 suffit, il n'y a rien à reconstruire. Le nom porte la version pour qu'on
 sache, sur un poste distant, ce qu'on installe ; il n'y en a jamais qu'une
 dans le dépôt, la plus récente. Puis, dans QGIS :
@@ -377,7 +380,13 @@ contrôle et faisait refuser le calage une fois lancé.
 
 **Cinq onglets.** « Sorties » n'existe plus : le dossier de sortie, ses
 sous-dossiers, le sort des plans d'étape et la configuration complète sont
-dans « Lancer », après « Apports à déterminer ». Le **préfixe de scénario**
+dans « Lancer », après « Apports à déterminer ». Depuis la 0.9.7, « Lancer »
+porte aussi le groupe **Calcul HEC-RAS** : le plugin lit le poste (cœurs de
+performance sur un processeur hybride), propose un nombre de cœurs et, si la
+case « Demander N cœurs à HEC-RAS pour chaque calcul » est cochée, la chaîne
+l'écrit dans chaque plan d'étape juste avant son calcul — le plan de référence
+n'est pas modifié. L'étiquette dit ce que le plan demande déjà et si cocher
+changera quelque chose. Le **préfixe de scénario**
 quitte « Objectifs » et se pose juste au-dessus du bouton — il nomme les
 plans que ce bouton crée, et c'est cette portée-là qui décide de sa place.
 L'ordre de la page est celui de la décision : apports, sorties, préfixe,

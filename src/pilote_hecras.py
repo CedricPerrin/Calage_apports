@@ -1133,7 +1133,7 @@ class PiloteHecRas(Modele):
                  nom_clone_geometrie=None, activer_courant=True,
                  fenetre_simulation=None, fermer_orphelins=True,
                  pas_travail_h=None, apports_a_caler=None,
-                 plan_fenetre_pleine=None):
+                 plan_fenetre_pleine=None, coeurs=None):
         """
         geometrie_override / unsteady_override : numero ("01", "g01"... les
             deux formes sont acceptees) d'une geometrie ou d'un unsteady
@@ -1165,6 +1165,10 @@ class PiloteHecRas(Modele):
             plan de travail, ce qui est exact en calage ordinaire. EN REPRISE
             il faut le dire, car on part du plan de l'etape precedente, deja
             raccourci : voir preparer().
+        coeurs : nombre de cœurs a demander a HEC-RAS pour chaque calcul.
+            None ou 0 = le plan garde ce qu'il demande. Sinon, ras-commander
+            l'ecrit dans le plan d'etape juste avant son calcul — voir
+            calculer(). Le plan de reference n'est jamais touche.
         """
         self.pas_travail_h = float(pas_travail_h) if pas_travail_h else None
         self.apports_a_caler = (set(apports_a_caler)
@@ -1175,6 +1179,7 @@ class PiloteHecRas(Modele):
         self.plan_fenetre_pleine = (
             str(plan_fenetre_pleine).lstrip("pP").zfill(2)
             if plan_fenetre_pleine else None)
+        self.coeurs = int(coeurs) if coeurs else None
         self.version = version
         self.nom_zone_2d = nom_zone_2d
         self.geometrie_override = (str(geometrie_override).lstrip("gG").zfill(2)
@@ -1306,6 +1311,17 @@ class PiloteHecRas(Modele):
         # retirer un plafond ; limiter_duree() la raccourcit ensuite au besoin
         # de l'apport.
         self.duree_reference_h = self._duree_borne_h()
+
+        # CŒURS DEMANDES A HEC-RAS — voir calculer(). Dit ici, une fois, avec
+        # ce que le plan de reference demandait : la reecriture par
+        # ras-commander se fait ensuite plan d'etape par plan d'etape, sans
+        # un mot dans le journal.
+        if self.coeurs:
+            print(f"   coeurs demandes a HEC-RAS : {self.coeurs} par calcul "
+                  f"(le plan de reference p{self.plan_reference} demande "
+                  f"« UNET D2 Cores = "
+                  f"{self._coeurs_du_plan(self.plan_reference)} »)",
+                  flush=True)
 
         if self.activer_courant:
             try:
@@ -1892,6 +1908,21 @@ class PiloteHecRas(Modele):
                 f"y etre imposee sans risque.")
         fichier_plan.write_text("".join(lignes), encoding="utf-8")
 
+    def _coeurs_du_plan(self, numero):
+        """Valeurs « UNET D2 Cores= » d'un plan, « tous » pour 0 ; « ? » si illisible."""
+        try:
+            lignes = _lire_lignes(self.dossier / f"{self.nom_projet}.p{numero}")
+        except OSError:
+            return "?"
+        vus = []
+        for ligne in lignes:
+            if ligne.startswith("UNET D2 Cores="):
+                valeur = ligne.split("=", 1)[1].strip()
+                texte = "tous" if valeur == "0" else valeur
+                if texte not in vus:
+                    vus.append(texte)
+        return ", ".join(vus) or "?"
+
     def _duree_borne_h(self):
         """
         Duree, en heures, de la fenetre qui borne limiter_duree() — None si le
@@ -2409,8 +2440,17 @@ class PiloteHecRas(Modele):
         # NOTRE calcul, et de personne d'autre.
         processus_avant = pids_hecras() if self.fermer_orphelins else None
         try:
+            # num_cores : ras-commander (RasPlan.set_num_cores, relu sur
+            # GitHub le 22/09/2026, v0.99 a v0.102) reecrit AVANT le calcul
+            # chaque ligne « UNET D1 Cores= », « UNET D2 Cores= » et
+            # « PS Cores= » du plan calcule — ici le plan d'etape, jamais le
+            # plan de reference. 0 vaudrait « tous » ; None laisse le plan tel
+            # quel. LIMITE CONNUE : il relit et reecrit le plan en utf-8 avec
+            # errors="replace" ; un titre accentue ecrit en cp1252 y perdrait
+            # ses accents. Les titres d'etape sont en ASCII.
+            options = {"num_cores": self.coeurs} if self.coeurs else {}
             reussi = RasCmdr.compute_plan(self.plan_travail,
-                                          overwrite_dest=True)
+                                          overwrite_dest=True, **options)
         except Exception as e:
             self._fermer_orphelins(processus_avant)
             return ResultatCalcul(reussi=False, duree_s=time.time() - debut,

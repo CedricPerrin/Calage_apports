@@ -641,17 +641,34 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
     # part : c'est la meme regle que pour la forme, ou r est evalue apres
     # recalage. La dynamique est exclue partout, ou nulle part.
     debut, fin = fenetre_commune(temps_cible, temps_calcule)
+    avance, retard = max(decalage_h, 0.0), min(decalage_h, 0.0)
+    # OU CHAQUE SERIE EST LUE, par rapport a [debut, fin] : le calcul sur
+    # [debut + ds0, fin + ds1], la cible sur [debut + dc0, fin + dc1]. Sans
+    # fenetre, [debut, fin] est l'etendue brute commune aux deux axes, et
+    # chaque serie cede |Dt| d'un cote pour que cible(t) et calcule(t + Dt)
+    # y tiennent toutes deux, sur la meme duree.
+    ds0, ds1, dc0, dc1 = avance, retard, -retard, -avance
     if fenetre is not None and np.isfinite(debut):
         # La fenetre du hydrogramme principal ne peut que RETRECIR la
         # comparaison, jamais l'elargir au-dela de ce que les deux series
         # couvrent reellement.
         #
-        # SUR LA BASE DE TEMPS DE LA CIBLE : « avance / retard » reportent
-        # ensuite cet intervalle sur le calcul, decale de Dt. Le borner en
-        # temps de simulation revenait a juger la cible sur un intervalle
-        # decale de Dt par rapport a l'evenement qu'elle porte.
-        debut, fin = max(debut, f0c), min(fin, f1c)
-    avance, retard = max(decalage_h, 0.0), min(decalage_h, 0.0)
+        # SUR LA BASE DE TEMPS DE LA CIBLE, ET DECALEE DE Dt POUR LE CALCUL.
+        # La cible doit exister sur [f0c, f1c], le calcul sur
+        # [f0c + Dt, f1c + Dt] = [f0, f1] : c'est cela qui borne la fenetre
+        # jugee, pas l'etendue brute des deux axes.
+        #   RETRECIR SUR L'ETENDUE BRUTE PUIS RETIRER ENCORE |Dt| D'UN COTE
+        # (le schema sans fenetre) comptait Dt DEUX FOIS. Mesure du
+        # 22/09/2026 sur onze apports reels : calcul en avance de 4,6 a 11 h
+        # sur des cibles de 80 h, simulation de 20,5 h qui couvrait toute la
+        # fenetre jugee — « ne couvre que 45 a 90 % », onze sections NON
+        # CONFORMES a 100 % de volume, et un « decalage qui excede la fenetre
+        # jugee » de 9,5 h pour une fenetre de 21 h.
+        debut = max(f0c, float(tc[0]), float(ts[0]) - decalage_h)
+        fin = min(f1c, float(tc[-1]), float(ts[-1]) - decalage_h)
+        if not fin > debut:
+            debut = fin = float("nan")
+        ds0, ds1, dc0, dc1 = decalage_h, decalage_h, 0.0, 0.0
 
     # BORNES PROPRES AU VOLUME. « debut/fin » servent aussi a juger la
     # COUVERTURE plus bas, ou ils doivent rester ceux de la fenetre : les
@@ -659,7 +676,7 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
     # pas. Le repli ci-dessous ne touche donc que la mesure des volumes.
     debut_v, fin_v = debut, fin
     decalage_hors_fenetre = None
-    if np.isfinite(debut) and (fin_v + retard) - (debut_v + avance) <= 0:
+    if np.isfinite(debut) and abs(decalage_h) >= fin - debut:
         # LE DECALAGE EXCEDE LA FENETRE JUGEE — il ne reste, apres recalage,
         # aucun intervalle commun aux deux series. Rendre « nan » ici etait
         # exact mais muet : caler() n'y lisait qu'un volume non calculable et
@@ -704,15 +721,17 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
             f"plus long que l'evenement qu'il decale n'est pas un temps de "
             f"transfert - relire les cibles et leur base de temps")
         debut_v, fin_v = fenetre_commune(temps_cible, temps_calcule)
+        # Etendue brute : chaque serie cede de nouveau |Dt| d'un cote.
+        ds0, ds1, dc0, dc1 = avance, retard, -retard, -avance
 
-    if np.isfinite(debut_v) and (fin_v + retard) - (debut_v + avance) <= 0:
+    if np.isfinite(debut_v) and (fin_v + ds1) - (debut_v + ds0) <= 0:
         # Meme apres elargissement, rien de comparable : la, c'est franc.
         vol_cible = vol_calcule = float("nan")
     else:
         vol_calcule = volume(temps_calcule, debit_calcule,
-                             debut_v + avance, fin_v + retard, pas_h)
+                             debut_v + ds0, fin_v + ds1, pas_h)
         vol_cible = volume(temps_cible, debit_cible,
-                           debut_v - retard, fin_v - avance, pas_h)
+                           debut_v + dc0, fin_v + dc1, pas_h)
     rapport_vol = (vol_calcule / vol_cible if vol_cible else float("nan"))
 
     # CE QUE LA FENETRE LAISSE DEHORS — MESURE, PAS VERDICT.
@@ -1261,6 +1280,37 @@ if __name__ == "__main__":
               not any("PERIMETRE" in a for a in diagnostiquer(
                   _t7t, _cible7t, _t7t, 1.30 * _calc7t,
                   tolerance_volume=0.05, fenetre=_fen7t).alertes))
+
+    print("\n--- 7 ter bis. Calcul EN AVANCE sur la cible : la couverture se "
+          "juge sur le calcul decale, pas sur l'etendue brute des axes ---")
+    # Le cas du 22/09/2026 : cible de 80 h culminant a 9,5 h ; le modele
+    # repond 4,6 h plus tot et n'est simule que 20,5 h. La fenetre jugee
+    # (0-18 h, base de SIMULATION) est calculee en entier : rien ne manque,
+    # et l'ancien schema annoncait pourtant « ne couvre que 88 % ».
+    _tc7q = np.linspace(0.0, 80.0, 1601)
+    _ts7q = np.linspace(0.0, 20.5, 411)
+    _cible7q = hydrogramme(_tc7q, pic=120.0, t_pic=9.5, forme=2.0)
+    _calc7q = hydrogramme(_ts7q + 4.6, pic=120.0, t_pic=9.5, forme=2.0)
+    _d7q = diagnostiquer(_tc7q, _cible7q, _ts7q, _calc7q,
+                         fenetre=(0.0, 18.0), decalage_fenetre_h=-4.6)
+    _verifier("le decalage mesure est bien -4,6 h",
+              abs(_d7q.decalage_h + 4.6) < 0.1, f"{_d7q.decalage_h:+.2f} h")
+    _verifier("aucune bloquante : la fenetre jugee est simulee en entier",
+              not _d7q.alertes_bloquantes
+              and not any("excede la fenetre" in a for a in _d7q.alertes),
+              str(_d7q.alertes))
+    _verifier("le volume est juge sur toute la fenetre, a 100 %, et converge",
+              abs(_d7q.rapport_volume - 1.0) < 0.01 and _d7q.converge,
+              f"{100 * _d7q.rapport_volume:.1f} % ; {_d7q.alertes_bloquantes}")
+    # ET LA BLOQUANTE RESTE VIVE quand le calcul manque vraiment : simule
+    # 15 h seulement, il ne porte que 15/18 de la fenetre.
+    _court7q = _ts7q[_ts7q <= 15.0]
+    _dcourt = diagnostiquer(_tc7q, _cible7q, _court7q,
+                            _calc7q[: _court7q.size],
+                            fenetre=(0.0, 18.0), decalage_fenetre_h=-4.6)
+    _verifier("simule 15 h sur une fenetre de 18 h, la couverture bloque",
+              any("couvre que 83 %" in a for a in _dcourt.alertes_bloquantes),
+              str(_dcourt.alertes_bloquantes))
 
     print("\n--- 7 quater. L'apport peu identifiable est DIT par le Diagnostic, "
           "sans etre juge ---")

@@ -1618,6 +1618,8 @@ def commande_caler(args):
         pas_travail_h=pas_travail_h,
         apports_a_caler=apports_a_caler,
         plan_fenetre_pleine=plan_fenetre_pleine,
+        # 0 ou vide = le plan garde ce qu'il demande (voir PiloteHecRas).
+        coeurs=int(nombre("Coeurs_par_calcul", 0)) or None,
     )
 
     # La precision est saisie en POURCENTAGE, la chaine raisonne en rapports.

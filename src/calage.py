@@ -1093,6 +1093,7 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
     # mesure apport par apport, l'amont deja cale, puis fige. On le recueille
     # ici, on juge a la fin — voir _coherence_points.
     points_axe = []
+    duree_en_vigueur = None    # derniere duree ecrite par limiter_duree()
 
     for i, (apport, section) in enumerate(zip(apports, sections)):
         temps_cible, debit_cible = cibles[i]
@@ -1246,26 +1247,40 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
             applique = _sans_interrompre(modele.limiter_duree,
                                          durees_simulees[i])
             if applique:
+                duree_en_vigueur = applique
                 dire(f"    duree simulee ramenee a {applique:.1f} h — "
                      f"au-dela, plus rien n'est juge ni presente")
-                # LE PLAFOND A-T-IL ROGNE ? La duree voulue peut depasser la
-                # fenetre du plan de reference (PiloteHecRas.duree_reference_h),
-                # qui la borne. Ce qui se perd alors est la MARGE, pas la
-                # fenetre jugee : sur les douze cibles reelles du 31/08/2026,
-                # la plus haute borne jugee tombe a 35,5 h sous un plafond de
-                # 36 h, et seul le dernier apport perd 1,5 h de marge_duree_h.
-                #
-                # JOURNAL SEULEMENT, PAS D'ALERTE, decision du 31/08/2026 : une
-                # marge existe pour etre rognee, et rien de ce qui est juge ne
-                # manque. Si la FENETRE elle-meme finissait par ne plus rentrer,
-                # ce n'est pas ici que ca se verrait mais dans la couverture,
-                # que criteres.diagnostiquer chiffre desormais des le premier
-                # dixieme d'heure manquant.
-                if applique < durees_simulees[i] - 1e-9:
+            # LE PLAFOND A-T-IL ROGNE ? La duree voulue peut depasser la
+            # fenetre du plan de reference (PiloteHecRas.duree_reference_h),
+            # qui la borne. None de limiter_duree() = rien reecrit : le plan,
+            # clone de l'etape precedente, garde la duree EN VIGUEUR, et
+            # c'est elle qu'on compare — sinon un plafond atteint des la
+            # deuxieme etape se tait pour toutes les suivantes (22/09/2026 :
+            # neuf etapes bornees a 20,5 h pour 21,2 a 23,3 h voulues, et un
+            # journal muet).
+            #
+            # CE QUI SE PERD D'ABORD EST LA MARGE (marge_duree_h), et une
+            # marge existe pour etre rognee : journal seulement, decision du
+            # 31/08/2026. AU-DELA, C'EST LA FENETRE JUGEE QUI N'EST PLUS
+            # SIMULEE ; la couverture le chiffrera a la fin, mais le dire ici,
+            # avant le premier calcul de l'etape, c'est le dire des heures
+            # plus tot — et nommer le remede.
+            en_vigueur = applique or duree_en_vigueur
+            if en_vigueur and en_vigueur < durees_simulees[i] - 1e-9:
+                perte = durees_simulees[i] - en_vigueur
+                if perte <= config.marge_duree_h + 1e-9:
                     dire(f"      ({durees_simulees[i]:.1f} h voulues : plafond "
-                         f"du plan de reference — "
-                         f"{durees_simulees[i] - applique:.1f} h de marge en "
+                         f"du plan de reference — {perte:.1f} h de marge en "
                          f"moins, la fenetre jugee reste couverte)")
+                else:
+                    dire(f"    ATTENTION — PLAFOND DU PLAN DE REFERENCE : "
+                         f"{durees_simulees[i]:.1f} h voulues, "
+                         f"{en_vigueur:.1f} h simulees. Au-dela de la marge "
+                         f"de {config.marge_duree_h:.1f} h, "
+                         f"{perte - config.marge_duree_h:.1f} h de la fenetre "
+                         f"jugee ne seront pas simulees. Allonger la fin de "
+                         f"« Simulation Date » du plan de reference, ou "
+                         f"designer comme reference un plan a fenetre pleine.")
 
         historique_rapport, essais = [], 0
         debut_apport = time.time()

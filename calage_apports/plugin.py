@@ -80,7 +80,7 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
-from . import noyau
+from . import materiel, noyau
 from .installation import TacheInstallation, installation_en_cours
 from .interface import Etiquette as QLabel, Manuel as QTextBrowser
 from .interface import couleur as couleur_theme, sombre as fond_sombre
@@ -3288,6 +3288,7 @@ class DialogueParametrage(QDialog):
     def _changer_plan(self, _index):
         self._remplir_fenetre_depuis_plan()
         self._maj_resume()
+        self._dire_coeurs()
 
     def _remplir_fenetre_depuis_plan(self):
         """
@@ -4109,6 +4110,55 @@ class DialogueParametrage(QDialog):
         groupe_resume.setCollapsed(True)
         return groupe_resume
 
+    def _groupe_calcul(self):
+        """Le nombre de cœurs que HEC-RAS recevra, propose d'apres le poste."""
+        # LE POSTE DECIDE DE LA SUGGESTION, PAS UN DEFAUT FIGE — meme regle
+        # que Sensi (core/materiel) : le plugin part sur des dizaines de
+        # postes, et « 4 » est faux sur un portable a 2 cœurs P comme sur une
+        # station a 16. UNE CASE, PAS UN NOMBRE A SAISIR : la demande est
+        # « propose, et si j'accepte, ecris-le ». Decochee, rien n'est ecrit.
+        self.poste = materiel.inventaire()
+        groupe = QGroupBox("Calcul HEC-RAS")
+        fc = formulaire(groupe)
+        self.case_coeurs = QCheckBox()
+        self.case_coeurs.setToolTip(
+            "Cochée, la chaîne demande ce nombre de cœurs à HEC-RAS pour "
+            "chaque calcul : ras-commander l'écrit dans les lignes « UNET D1 "
+            "Cores », « UNET D2 Cores » et « PS Cores » du plan d'étape, "
+            "juste avant de le calculer. Le plan de référence n'est pas "
+            "modifié.\n\nDécochée, les plans gardent ce qu'ils demandent "
+            "déjà.")
+        self.case_coeurs.toggled.connect(self._dire_reprise)
+        fc.addRow(self.case_coeurs)
+        # UNE SUGGESTION MUETTE PASSERAIT POUR UNE LIMITATION DU PLUGIN. Dire
+        # ce qui a ete detecte, ce que le plan demande et ce que cocher
+        # changera en fait un renseignement, que l'utilisateur peut contredire.
+        self.label_coeurs = texte_aide("")
+        fc.addRow(self.label_coeurs)
+        self._dire_coeurs()
+        return groupe
+
+    def _coeurs_demandes(self):
+        """Ce que le lancement ecrira : la suggestion du poste, ou 0 = inchange."""
+        case = getattr(self, "case_coeurs", None)
+        if case is None or not case.isChecked():
+            return 0
+        return self.poste.suggestion
+
+    def _dire_coeurs(self):
+        """La case et son etiquette suivent le plan choisi a l'etape Modele."""
+        if getattr(self, "case_coeurs", None) is None:
+            return
+        plan = (self.combo_plan.currentData()
+                if hasattr(self, "combo_plan") else None)
+        n = self.poste.suggestion
+        self.case_coeurs.setText(
+            f"Demander {n} cœur{'s' if n > 1 else ''} à HEC-RAS pour chaque "
+            f"calcul")
+        self.label_coeurs.setText(materiel.conseil(
+            self.poste, (plan or {}).get("coeurs_2d"),
+            f"p{plan['numero']}" if plan else None))
+
     def _dire_elagage(self):
         """La conservation est un choix normal ; seule la suppression alerte."""
         supprime = self.case_elaguer.isChecked()
@@ -4272,6 +4322,9 @@ class DialogueParametrage(QDialog):
         # sont des reglages DU LANCEMENT, et se lisent la ou l'on lance.
         v.addWidget(self._groupe_dossier_sortie())
         v.addWidget(self._groupe_menage())
+        # LES CŒURS SE DECIDENT AU LANCEMENT (22/09/2026, demande utilisateur) :
+        # c'est ce clic qui les ecrit dans les plans d'etape.
+        v.addWidget(self._groupe_calcul())
         v.addWidget(self._groupe_configuration())
 
         groupe_lancer = QGroupBox("Lancer le calage")
@@ -5844,6 +5897,12 @@ class DialogueParametrage(QDialog):
             phrases.append(
                 f"Le calage précédent avait validé {len(conserves)} "
                 f"apport(s) ; aucun n’est refait.")
+        # LES CŒURS, S'ILS CHANGENT : c'est ce clic qui les ecrit.
+        coeurs = self._coeurs_demandes()
+        if coeurs:
+            phrases.append(
+                f"<b>Cœurs</b> : HEC-RAS recevra {coeurs} cœur(s) par calcul, "
+                f"écrits dans chaque plan d’étape juste avant son calcul.")
         dire(label, "<br>".join(phrases))
 
     def _appliquer_reglages_du_classeur(self, classeur):
@@ -5896,6 +5955,17 @@ class DialogueParametrage(QDialog):
         prefixe = parametres.get("Prefixe_scenario")
         if prefixe is not None and hasattr(self, "edit_prefixe_scenario"):
             self.edit_prefixe_scenario.setText(str(prefixe).strip())
+
+        # LES CŒURS. La case dit « appliquer la suggestion de CE poste » : un
+        # classeur qui portait un nombre (> 0) la recoche, et la valeur
+        # reecrite au lancement sera celle d'ici — l'etiquette la dit.
+        coeurs = parametres.get("Coeurs_par_calcul")
+        case = getattr(self, "case_coeurs", None)
+        if coeurs not in (None, "") and case is not None:
+            try:
+                case.setChecked(int(float(coeurs)) > 0)
+            except (TypeError, ValueError):
+                pass
 
         # LE PREMIER APPORT, ICI ET PAS DANS _remplir_premier_apport. La regle
         # de preservation de celui-la sert la RECOMPOSITION, ou le choix
@@ -6168,7 +6238,9 @@ class DialogueParametrage(QDialog):
                     ("Tolerance_pic_pct", self.spin_tol_pic.value()),
                     ("Bilan_masse_max_pct", self.spin_bilan_masse.value()),
                     ("Nb_max_iterations_par_apport",
-                     self.spin_nb_max_essais.value())):
+                     self.spin_nb_max_essais.value()),
+                    # 0 = plan inchange ; sinon la suggestion du poste, cochee.
+                    ("Coeurs_par_calcul", self._coeurs_demandes())):
                 noyau.ecrire_parametre(self.classeur, cle, valeur)
         except Exception as e:
             journaliser("Écriture des paramètres de lancement", e)

@@ -1588,6 +1588,11 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
         # du plan d'etape de l'apport precedent et tient l'amont pour cale.
         "Premier_apport": "",
         "Prefixe_scenario": "",
+        # Cœurs demandes a HEC-RAS pour chaque calcul, ecrits par
+        # ras-commander dans le plan d'etape avant son calcul. 0 = le plan
+        # garde ce qu'il demande. Reglage DU LANCEMENT : la case de l'etape
+        # Lancer l'ecrit au depart, avec la suggestion faite d'apres le poste.
+        "Coeurs_par_calcul": 0,
         "Nb_max_iterations_par_apport": 6,
         "Bilan_masse_max_pct": BILAN_MASSE_DEFAUT,
         "Source_geometrie": "SHP",
@@ -2389,6 +2394,11 @@ def lister_projet_hecras(dossier):
             "geometrie": geom.group(1) if geom else None,
             "unsteady": flot.group(1) if flot else None,
             "fenetre": fenetre,
+            # Cœurs demandes au solveur 2D, une ligne par bloc (plan a trois
+            # sur SUHI_ARAN : 0, 0, 8). 0 = « tous ». Lus ici pour que l'etape
+            # Lancer dise ce que le plan demande avant de proposer autre chose.
+            "coeurs_2d": [int(v) for v in re.findall(
+                r"^UNET D2 Cores=\s*(\d+)", texte_plan, re.M)],
         })
 
     return {"nom_projet": nom_projet, "geometries": geometries,
