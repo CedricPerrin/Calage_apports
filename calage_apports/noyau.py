@@ -1517,36 +1517,6 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
         except Exception:
             pentes_existantes = {}
 
-    # ET L'ANCIEN CLASSEUR EST MIS DE COTE, JAMAIS ECRASE (20/09/2026,
-    # demande utilisateur). Depuis la 0.8.4, deux PREFIXES donnent deux
-    # fichiers ; avec le MEME prefixe, recomposer reecrivait le fichier en
-    # place. Ce qui compte y survivait — les cibles et les pentes sont
-    # relues juste au-dessus et reportees — mais tout le reste partait sans
-    # un mot : une feuille ajoutee a la main, une mise en forme, une colonne
-    # de travail, un commentaire.
-    #   UN SEUL NIVEAU, PAS UN HORODATAGE. La 0.9.2 datait chaque
-    # sauvegarde, comme la geometrie : c'etait juste pour un geste RARE, sur
-    # un bouton. Depuis le 21/09/2026 la composition est AUTOMATIQUE — une
-    # copie datee par frappe enterrerait le dossier de sortie, souvent un
-    # partage reseau. On garde donc « ce qui precede », et un seul :
-    # c'est la regle deja prise pour le suivi en 0.8.3 —
-    # « avancement_precedent.json », un seul niveau d'historique, parce que
-    # garder une pile obligerait a choisir laquelle montrer.
-    #   LE NOM CANONIQUE NE BOUGE PAS : c'est l'ANCIEN fichier qui change de
-    # nom. Renommer le nouveau rendrait imprevisible celui que la chaine
-    # lit, et le prefixe existe justement pour que ce nom soit previsible.
-    sauvegarde = None
-    if chemin.exists():
-        sauvegarde = chemin.with_name(chemin.stem + ".precedent"
-                                      + chemin.suffix)
-        try:
-            chemin.replace(sauvegarde)
-        except OSError:
-            # Un classeur ouvert dans Excel refuse d'etre renomme sous
-            # Windows. On ne fait pas echouer la composition pour cela : le
-            # geste suivant — l'ecriture — dira lui-meme qu'il ne peut pas.
-            sauvegarde = None
-
     valeurs = {
         "Dossier_projet_HECRAS": "",
         "Nom_projet": "",
@@ -1665,6 +1635,40 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
         cibles = pd.DataFrame({"Temps_h": []})
         for nom_cible in noms_cibles:
             cibles[nom_cible] = []
+
+    # APRES LE GARDE-FOU Temps_h, PAS AVANT (23/09/2026) : la 0.9.2 mettait
+    # l'ancien classeur de cote en tete de fonction ; sur un refus, le
+    # fichier canonique avait donc disparu alors que le message promettait
+    # « le classeur n'est pas touche ». Le banc ci-dessous le verifie.
+    # ET L'ANCIEN CLASSEUR EST MIS DE COTE, JAMAIS ECRASE (20/09/2026,
+    # demande utilisateur). Depuis la 0.8.4, deux PREFIXES donnent deux
+    # fichiers ; avec le MEME prefixe, recomposer reecrivait le fichier en
+    # place. Ce qui compte y survivait — les cibles et les pentes sont
+    # relues juste au-dessus et reportees — mais tout le reste partait sans
+    # un mot : une feuille ajoutee a la main, une mise en forme, une colonne
+    # de travail, un commentaire.
+    #   UN SEUL NIVEAU, PAS UN HORODATAGE. La 0.9.2 datait chaque
+    # sauvegarde, comme la geometrie : c'etait juste pour un geste RARE, sur
+    # un bouton. Depuis le 21/09/2026 la composition est AUTOMATIQUE — une
+    # copie datee par frappe enterrerait le dossier de sortie, souvent un
+    # partage reseau. On garde donc « ce qui precede », et un seul :
+    # c'est la regle deja prise pour le suivi en 0.8.3 —
+    # « avancement_precedent.json », un seul niveau d'historique, parce que
+    # garder une pile obligerait a choisir laquelle montrer.
+    #   LE NOM CANONIQUE NE BOUGE PAS : c'est l'ANCIEN fichier qui change de
+    # nom. Renommer le nouveau rendrait imprevisible celui que la chaine
+    # lit, et le prefixe existe justement pour que ce nom soit previsible.
+    sauvegarde = None
+    if chemin.exists():
+        sauvegarde = chemin.with_name(chemin.stem + ".precedent"
+                                      + chemin.suffix)
+        try:
+            chemin.replace(sauvegarde)
+        except OSError:
+            # Un classeur ouvert dans Excel refuse d'etre renomme sous
+            # Windows. On ne fait pas echouer la composition pour cela : le
+            # geste suivant — l'ecriture — dira lui-meme qu'il ne peut pas.
+            sauvegarde = None
 
     # LE CLASSEUR NE PORTE PLUS QUE CE QU'ON Y ECRIT (20 septembre 2026,
     # demande utilisateur) : la correspondance et les cibles. Les parametres
@@ -2849,9 +2853,14 @@ if __name__ == "__main__":
     # court-circuitait et la ligne d'ECHEC ne disait que « aucune erreur »,
     # sans jamais montrer la saisie detruite qui justifie le garde-fou.
     _garde = int(_reste[["Cible_S1", "Cible_S2"]].notna().sum().sum())
-    _ok = (_garde == 12 and "Temps_h" in _dit and "\u00b6" in _dit)
+    # ET PAS DE COPIE « .precedent » : un refus ne met rien de cote (la 0.9.2
+    # le faisait, et le classeur canonique disparaissait).
+    _precedent = _cl2.with_name(_cl2.stem + ".precedent" + _cl2.suffix)
+    _ok = (_garde == 12 and "Temps_h" in _dit and "¶" in _dit
+           and not _precedent.exists())
     print(f"   [{'OK' if _ok else 'ECHEC'}] {_libelle}  ->  "
-          f"{_garde} valeurs restantes sur 12 ; {_dit[:60]}")
+          f"{_garde} valeurs restantes sur 12 ; precedent={_precedent.exists()} ; "
+          f"{_dit[:60]}")
     assert _ok, _libelle
     _cl2.unlink(missing_ok=True)
 
