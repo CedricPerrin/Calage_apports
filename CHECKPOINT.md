@@ -178,8 +178,9 @@ pytest hors QGIS 2 tests, CI verte (les trois scénarios QGIS natifs tournent
 dans le conteneur). Fusion en rebase, branches distantes fusionnées
 supprimées : il ne reste que `main`. `STATUT.txt` et le changelog de
 `metadata.txt` rattrapent 0.9.7 à 0.9.13 ; la règle 2.5 dit 32, plus 30.
-Reste : le stash du 18/09 (« Reprendre les hydrogrammes d'un autre Excel »,
-absent de main) attend une décision.
+Le stash du 18/09 (« Reprendre les hydrogrammes d'un autre Excel », absent
+de main) a été abandonné le 23/09 à la demande de l'utilisateur ; commit
+`defe62ee`, récupérable par `git stash apply` tant que git ne l'a pas purgé.
 
 ## État précédent — 21 septembre 2026 : 0.9.6, le bouton rentre à l'étape 1
 

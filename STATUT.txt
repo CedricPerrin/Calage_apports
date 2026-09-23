@@ -42,7 +42,9 @@ VERSION 0.9.13 — 23 SEPTEMBRE 2026. LA RECHERCHE DES INTERPRETEURS QUITTE LE
   Tests : src/test_recherche_python.py (sondes, priorite, arret) et trois
   scenarios QGIS natifs dans src/test_installation_qgis.py, joues par la CI.
   Le stash local du 18/09 (« Reprendre les hydrogrammes d'un autre Excel »,
-  absent de main) attend toujours une decision.
+  absent de main) a ete abandonne le 23/09 a la demande de l'utilisateur
+  (commit defe62ee, recuperable par git stash apply tant que git ne l'a pas
+  purge).
 
 VERSION 0.9.12 — 23 SEPTEMBRE 2026. UN REFUS DE COMPOSER NE MET PLUS LE
   CLASSEUR DE COTE.
