@@ -161,9 +161,25 @@ renommait l'ancien classeur en `.precedent.xlsx` **avant** le garde-fou
 alors que le message promettait « le classeur n'est pas touché ». Mise de
 côté déplacée juste avant l'écriture ; le banc vérifie qu'aucune copie
 `.precedent` n'apparaît sur un refus (46 contrôles OK en local avec
-venv-hecras ; PR #6 fusionnée, CI verte). Non fait : `STATUT.txt` et le
-changelog de `metadata.txt` s'arrêtent à la 0.9.6 ; la PR #4 reste en
-conflit.
+venv-hecras ; PR #6 fusionnée, CI verte). Suite en 0.9.13 : `STATUT.txt` et
+le changelog de `metadata.txt` remis à niveau (0.9.7 à 0.9.13), PR #4
+rebasée et fusionnée.
+
+**Intégration du 23/09 — 0.9.13, la recherche des interpréteurs Python quitte
+le fil graphique.** PR #4 (Codex, 20/09, brouillon en conflit) rebasée sur la
+0.9.12 : un seul conflit, la ligne d'import de `plugin.py` (`materiel` ajouté
+en 0.9.7) ; ses retouches documentaires, déjà dans main, abandonnées.
+`installation.TacheRecherchePython` porte la recherche des candidats
+(`noyau.pythons_candidats(journal, annule)`), le choix reste sur le fil
+graphique, le résultat attend la réouverture de la fenêtre, aucune
+installation implicite après annulation ou erreur. Vérifié : banc `noyau.py`
+46 OK, banc QGIS local **363 contrôles, aucun échec** (python-qgis-ltr),
+pytest hors QGIS 2 tests, CI verte (les trois scénarios QGIS natifs tournent
+dans le conteneur). Fusion en rebase, branches distantes fusionnées
+supprimées : il ne reste que `main`. `STATUT.txt` et le changelog de
+`metadata.txt` rattrapent 0.9.7 à 0.9.13 ; la règle 2.5 dit 32, plus 30.
+Reste : le stash du 18/09 (« Reprendre les hydrogrammes d'un autre Excel »,
+absent de main) attend une décision.
 
 ## État précédent — 21 septembre 2026 : 0.9.6, le bouton rentre à l'étape 1
 

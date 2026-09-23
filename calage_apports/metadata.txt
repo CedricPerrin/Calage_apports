@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.9.12
+version=0.9.13
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,61 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.9.6 — Le bouton rejoint l'onglet 1, et la recomposition ne se
+changelog=0.9.13 — La recherche des interpréteurs Python quitte le fil
+    graphique.
+    Au clic « Installer l'interpréteur », la recherche des Python candidats
+    — chacun est exécuté pour être validé — tournait sur le fil graphique
+    et pouvait figer la fenêtre. Elle passe dans une tâche QGIS :
+    progression dans le diagnostic, annulation possible entre deux sondes
+    depuis le gestionnaire de tâches, cible confirmée figée, résultat
+    conservé si la fenêtre est fermée et proposé à sa réouverture. Le choix
+    reste sur le fil graphique ; aucune installation implicite après une
+    annulation ou une erreur. (Reprise de la PR #4 du 20 septembre.)
+
+    0.9.12 — Un refus de composer ne met plus le classeur de côté.
+    Depuis la 0.9.2, l'ancien classeur était renommé « .precedent.xlsx »
+    avant le garde-fou « Temps_h » : sur un refus, le fichier canonique
+    disparaissait alors que le message promettait « le classeur n'est pas
+    touché ». La mise de côté se fait juste avant l'écriture ; le banc
+    vérifie qu'un refus ne crée aucune copie.
+
+    0.9.11 — L'étiquette des cœurs suit la mesure : un nombre demandé est
+    honoré.
+    Sur une station à 32 cœurs, 8 demandés, 8 employés par HEC-RAS 7.0.1
+    (« Maximum number of cores = 8 »), 48 h simulées en 1 h 48. L'étiquette
+    sous la case ne prétend plus savoir ce que « tous » donne.
+
+    0.9.10 — Un seul bouton sous le préfixe, le dossier de sortie au-dessus
+    du classeur, l'onglet Paramètres.
+    « Valider la géométrie et générer le fichier des hydrogrammes », sous le
+    préfixe de scénario : il écrit la géométrie, compose le classeur,
+    contrôle et rend compte ; gris tant qu'un préalable manque, l'infobulle
+    le nomme. Le bouton de l'étape Modèle disparaît, absorbé ; la
+    composition automatique reste. Le dossier de sortie remonte au-dessus
+    des hydrogrammes cibles. « 2. Objectifs » devient « 2. Paramètres ».
+
+    0.9.9 — La recomposition automatique ne plante plus ; le sablier ne
+    passe que ce qu'on accepte.
+    Le décorateur du curseur d'attente ne transmettait aucun argument alors
+    que le minuteur appelle la méthode avec deux mots-clés depuis la 0.9.5.
+    Il tronque désormais les positionnels au nombre déclaré et transmet les
+    mots-clés. Un seul texte d'attente aux deux endroits.
+
+    0.9.8 — L'Excel des objectifs existe dès la saisie du préfixe.
+    Le dossier de sortie se propose seul, <modèle>\_calage\<préfixe>, dès
+    que le modèle et le préfixe sont connus ; une valeur saisie à la main
+    n'est jamais remplacée.
+
+    0.9.7 — Les cœurs se proposent au lancement ; la couverture ne compte
+    plus Dt deux fois.
+    Avec une fenêtre jugée, le calcul est lu sur [f0 + Dt, f1 + Dt] : neuf
+    faux « ne couvre que 45 à 90 % » disparaissent sur Aran-Q100. Le plafond
+    du plan de référence se compare à la durée en vigueur et alerte quand la
+    perte dépasse la marge. Case « Demander N cœurs à HEC-RAS pour chaque
+    calcul » à l'étape Lancer, proposition lue sur le poste, plafond 8 ;
+    paramètre Coeurs_par_calcul (0 = plan inchangé).
+
+    0.9.6 — Le bouton rejoint l'onglet 1, et la recomposition ne se
     ré-entre plus.
     Puisqu'il ne compose plus rien, « Écrire dans la géométrie HEC-RAS »
     n'a plus de raison d'être permanent : ce qu'il consomme — le projet, le

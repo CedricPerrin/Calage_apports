@@ -22,6 +22,98 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+VERSION 0.9.13 — 23 SEPTEMBRE 2026. LA RECHERCHE DES INTERPRETEURS QUITTE LE
+  FIL GRAPHIQUE. Banc QGIS : 363 controles, aucun echec, sortie 0 (poste,
+  python-qgis-ltr) ; banc noyau 46 OK ; CI verte ; il ne reste que main.
+
+  Reprise de la PR #4 (Codex, 20/09, brouillon en conflit), rebasee sur la
+  0.9.12 : un seul conflit, la ligne d'import de plugin.py (materiel ajoute
+  en 0.9.7) ; ses retouches documentaires, deja dans main, abandonnees.
+  Au clic « Installer l'interpreteur », la recherche des Python candidats —
+  chacun est EXECUTE pour etre valide — tournait sur le fil graphique et
+  pouvait figer le dialogue. Elle passe dans une QgsTask
+  (installation.TacheRecherchePython) : progression dans le diagnostic,
+  annulation possible entre deux sondes depuis le gestionnaire de taches,
+  cible confirmee FIGEE avant la recherche, resultat garde si la fenetre
+  est fermee et propose a sa reouverture (showEvent). Le CHOIX reste sur le
+  fil graphique (_proposer_python) ; aucune installation implicite apres
+  une annulation ou une erreur. noyau.pythons_candidats(journal, annule)
+  accepte deux crochets, sans changement pour ses autres appelants.
+  Tests : src/test_recherche_python.py (sondes, priorite, arret) et trois
+  scenarios QGIS natifs dans src/test_installation_qgis.py, joues par la CI.
+  Le stash local du 18/09 (« Reprendre les hydrogrammes d'un autre Excel »,
+  absent de main) attend toujours une decision.
+
+VERSION 0.9.12 — 23 SEPTEMBRE 2026. UN REFUS DE COMPOSER NE MET PLUS LE
+  CLASSEUR DE COTE.
+  Depuis la 0.9.2, preparer_classeur renommait l'ancien classeur en
+  « .precedent.xlsx » EN TETE de fonction, avant le garde-fou « Temps_h ».
+  Sur un refus (feuille Cibles saisie sans en-tete Temps_h), le fichier
+  canonique avait disparu alors que le message promettait « le classeur
+  n'est pas touche ». La mise de cote se fait desormais juste avant
+  l'ecriture ; le banc de noyau.py verifie qu'un refus ne cree aucune
+  copie (46 controles OK). Le banc etait ROUGE EN CI DEPUIS LA 0.9.2 sans
+  qu'on le voie : GitHub Actions bloque du 20 au 23/09, quota gratuit de
+  2 000 min/mois epuise le 19 (matrices Windows et macOS des autres
+  depots), budget releve le 23. PR #6, fusionnee.
+
+VERSION 0.9.11 — 22 SEPTEMBRE 2026. L'ETIQUETTE DES COEURS SUIT LA MESURE.
+  Calage reel Aran-Q20 lance depuis le plugin, case des coeurs cochee,
+  8 demandes : le .p27.hdf dit « Performance Cores 0,2,...,62 » (32 coeurs
+  de meme classe) et « Maximum number of cores = 8 ». Un nombre demande
+  est honore ; sur le portable a 4 coeurs P, « tous » n'en avait donne que
+  4. Reference : 48 h simulees en 1 h 48 (26,4 x le temps reel).
+  materiel.conseil ne pretend plus que « tous » prend tous les processeurs
+  logiques. Le plafond 8 reste NON MESURE : 16 pourrait aller plus vite sur
+  cette station, a essayer sur un plan seul, jamais pendant un calage.
+
+VERSION 0.9.10 — 22 SEPTEMBRE 2026. UN SEUL BOUTON SOUS LE PREFIXE.
+  Trois demandes du poste de calcul. Un seul bouton, « Valider la
+  geometrie et generer le fichier des hydrogrammes », sous le prefixe de
+  scenario : il ecrit la geometrie, compose le classeur, controle et rend
+  compte ; gris tant qu'un prealable manque, l'infobulle le nomme, un clic
+  en gris le dit en clair. Le bouton « Ecrire dans la geometrie HEC-RAS »
+  de l'etape Modele disparait, absorbe ; la composition automatique reste.
+  Le dossier de sortie remonte juste au-dessus de « Hydrogrammes cibles ».
+  « 2. Objectifs » devient « 2. Parametres », et les refus le nomment.
+  Banc QGIS : 363 controles, aucun echec.
+
+VERSION 0.9.9 — 22 SEPTEMBRE 2026. LA RECOMPOSITION AUTOMATIQUE NE PLANTE
+  PLUS.
+  « _composer_et_controler() got an unexpected keyword argument
+  'ecrire_geometrie' » sur le poste de calcul : le decorateur avec_sablier
+  enveloppait la methode SANS transmettre d'argument, alors que le minuteur
+  l'appelle avec deux mots-cles depuis la 0.9.5. L'enveloppe tronque les
+  positionnels au nombre declare (inspect.signature) et transmet les
+  mots-cles — un *args nu faisait mourir le banc (code 9) par les slots
+  clicked(bool). Un seul texte d'attente, ATTENTE_PAQUET. Banc QGIS :
+  361 controles, aucun echec.
+
+VERSION 0.9.8 — 22 SEPTEMBRE 2026. L'EXCEL DES OBJECTIFS EXISTE DES LA
+  SAISIE DU PREFIXE.
+  Le dossier de sortie, prealable de la composition automatique, vivait a
+  l'etape Lancer et restait vide : rien ne se composait a la saisie du
+  prefixe. _proposer_dossier_sortie() remplit le champ avec
+  <modele>\_calage\<prefixe> des que modele et prefixe sont connus, sans
+  jamais remplacer une valeur saisie a la main. Un dossier par scenario.
+  Banc QGIS : 357 controles, aucun echec.
+
+VERSION 0.9.7 — 22 SEPTEMBRE 2026. LES COEURS SE PROPOSENT AU LANCEMENT ;
+  LA COUVERTURE NE COMPTE PLUS Dt DEUX FOIS.
+  src/criteres.py : avec une fenetre jugee, la cible est lue sur
+  [f0c, f1c] et le calcul sur [f0c + Dt, f1c + Dt] ; l'ancien schema
+  retirait |Dt| une seconde fois et rendait neuf faux « ne couvre que 45 a
+  90 % » sur Aran-Q100 (2/11 conformes, a tort). Rejeu : 11/11 convergent.
+  Auto-test § 7 ter bis ; sans fenetre, rien ne change.
+  src/calage.py : le plafond du plan de reference se compare a la duree EN
+  VIGUEUR et alerte quand la perte depasse marge_duree_h.
+  Coeurs (demande utilisateur) : calage_apports/materiel.py lit le poste et
+  propose les coeurs utiles (plafond 8, recommandation ras-commander) ;
+  case « Demander N coeurs a HEC-RAS pour chaque calcul » a l'etape
+  Lancer ; parametre Coeurs_par_calcul (0 = plan inchange) passe a
+  compute_plan, ras-commander reecrit UNET D1/D2 Cores et PS Cores dans
+  chaque plan d'etape. Le plan de reference n'est jamais touche.
+
 VERSION 0.9.6 — 21 SEPTEMBRE 2026. Banc QGIS : 347 controles, aucun echec,
   sortie 0. Plugin installe et ouvert dans le QGIS du poste.
 
@@ -1839,7 +1931,11 @@ fichiers, sous le nom qui le decrit. Aucune reprise ne le cherche.
   apport », qui ne peut pas changer sans rendre etrangers les plans deja
   faits. Choix par defaut, faute d'arbitrage : une constante a changer.
 
-LONGUEUR_MAX_TITRE_PLAN = 30, ET ON REFUSE AU-DELA — jamais on ne tronque.
+LONGUEUR_MAX_TITRE_PLAN = 32, ET ON REFUSE AU-DELA — jamais on ne tronque.
+  LE 32 EST LA BORNE DE ras-commander 0.99.1, qui leve ValueError au-dela
+  sur Plan Title et Flow Title (mesure du 20/09/2026, 0.8.8) ; HEC-RAS 7.0.1
+  accepte au moins 40 caracteres dans Short Identifier. Le 30 d'avant etait
+  le plus long contenu releve, pas une limite.
   LE 24 D'AVANT N'ETAIT PAS UNE LIMITE DE HEC-RAS. C'etait une convention de
   ras-commander, reprise par _renommer_plan sous un commentaire faux —
   « a largeur fixe dans HEC-RAS ». MESURE sur les 103 plans de 01-cas_test :
@@ -3430,10 +3526,10 @@ A FOURNIR PAR L'UTILISATEUR
   bloquantes », README.)
 
 A FAIRE, PAR ORDRE DE PRIORITE
-  - RELEVER LONGUEUR_MAX_TITRE_PLAN SI L'ESSAI LE PERMET. Le 30 est le plus
-    long contenu MESURE dans des plans qu'HEC-RAS a ecrits et calcules ; le
-    champ est probablement a 64. L'essai tient en trois gestes (§ 2.5) et
-    demande HEC-RAS ouvert — donc l'utilisateur.
+  (RELEVER LONGUEUR_MAX_TITRE_PLAN : FAIT le 20/09/2026 en 0.8.8. Le champ
+  Short Identifier accepte au moins 40 caracteres sous HEC-RAS 7.0.1 ; la
+  borne utile est 32, celle de ras-commander 0.99.1, qui leve ValueError
+  au-dela. Constante a 32 dans src/calage.py, regle 2.5 mise a jour.)
   (L'ONGLET 4 QUI SE TAISAIT SUR UN ETAT DE CIBLES ILLISIBLE EST FAIT
   depuis la 0.6.6, constate dans le code le 05/09 : le except de
   _maj_onglet_validation_depuis_classeur journalise, affiche le classeur

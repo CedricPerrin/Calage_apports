@@ -10,7 +10,7 @@ Les ZIP déjà publiés précèdent ce lot : utiliser les sources de `main` pour
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 
-Version des sources du plugin : **0.9.12**. La
+Version des sources du plugin : **0.9.13**. La
 [note d’ergonomie du 11 septembre 2026](docs/ergonomie_2026-09-11.md)
 décrit le parcours, les choix d’interface et les points de recette.
 
@@ -177,6 +177,16 @@ classeur n'est pas touché ». La mise de côté se fait désormais juste avant
 l'écriture, après le garde-fou ; le banc de `noyau.py` vérifie qu'un refus ne
 crée aucune copie. Défaut invisible deux jours : la CI, bloquée par le quota
 GitHub Actions du 20 au 23 septembre, ne l'a montré qu'à sa reprise.
+
+La **0.9.13** (23 septembre 2026) reprend la PR #4 de Codex (20 septembre),
+rebasée : au clic « Installer l'interpréteur », la **recherche des Python
+candidats** — chacun exécuté pour être validé — tournait sur le fil graphique
+et pouvait figer la fenêtre. Elle passe dans une tâche QGIS : progression dans
+le diagnostic, annulation entre deux sondes depuis le gestionnaire de tâches,
+cible confirmée figée, résultat conservé si la fenêtre est fermée et proposé à
+sa réouverture. Le choix reste sur le fil graphique ; aucune installation
+implicite après annulation ou erreur. Un test de sondes hors QGIS et trois
+scénarios QGIS natifs l'éprouvent en CI.
 
 Pour chaque apport, de l'amont vers l'aval : estimer, calculer, comparer à la
 cible, corriger, répéter jusqu'à concordance, puis vérifier la cohérence des
