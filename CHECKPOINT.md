@@ -152,6 +152,19 @@ Suivi estimé par la chaîne : fin vers 05:07 le 23/09. `materiel.conseil`
 Le plafond 8 reste non mesuré : sur cette station, 16 pourrait aller plus
 vite — à essayer sur un plan seul, jamais pendant un calage.
 
+**Correctif du 23/09 matin — 0.9.12, un refus de composer ne met plus le
+classeur de côté.** La CI, bloquée du 20 au 23 septembre par le quota GitHub
+Actions (2 000 min/mois, épuisées le 19), repart après relèvement du budget
+et révèle un banc `noyau.py` rouge depuis la 0.9.2 : `preparer_classeur`
+renommait l'ancien classeur en `.precedent.xlsx` **avant** le garde-fou
+« Temps_h », si bien qu'un refus faisait disparaître le fichier canonique
+alors que le message promettait « le classeur n'est pas touché ». Mise de
+côté déplacée juste avant l'écriture ; le banc vérifie qu'aucune copie
+`.precedent` n'apparaît sur un refus (46 contrôles OK en local avec
+venv-hecras ; PR #6 fusionnée, CI verte). Non fait : `STATUT.txt` et le
+changelog de `metadata.txt` s'arrêtent à la 0.9.6 ; la PR #4 reste en
+conflit.
+
 ## État précédent — 21 septembre 2026 : 0.9.6, le bouton rentre à l'étape 1
 
 Banc QGIS : **347 contrôles, aucun échec, sortie 0**. Plugin installé et

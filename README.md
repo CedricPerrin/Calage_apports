@@ -10,7 +10,7 @@ Les ZIP déjà publiés précèdent ce lot : utiliser les sources de `main` pour
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 
-Version des sources du plugin : **0.9.11**. La
+Version des sources du plugin : **0.9.12**. La
 [note d’ergonomie du 11 septembre 2026](docs/ergonomie_2026-09-11.md)
 décrit le parcours, les choix d’interface et les points de recette.
 
@@ -168,6 +168,15 @@ case des cœurs cochée sur une **station à 32 cœurs** a demandé 8, et HEC-RA
 le plan disait « tous » (autre crue : comparaison indicative). L'étiquette
 sous la case ne prétend plus savoir ce que « tous » donne ; elle dit qu'un
 nombre demandé est honoré.
+
+La **0.9.12** (23 septembre 2026) corrige un défaut de la 0.9.2 : quand la
+composition refusait d'écrire — feuille Cibles saisie sans en-tête
+« Temps_h » — l'ancien classeur avait déjà été renommé en `.precedent.xlsx`,
+et le fichier canonique disparaissait alors que le message promettait « le
+classeur n'est pas touché ». La mise de côté se fait désormais juste avant
+l'écriture, après le garde-fou ; le banc de `noyau.py` vérifie qu'un refus ne
+crée aucune copie. Défaut invisible deux jours : la CI, bloquée par le quota
+GitHub Actions du 20 au 23 septembre, ne l'a montré qu'à sa reprise.
 
 Pour chaque apport, de l'amont vers l'aval : estimer, calculer, comparer à la
 cible, corriger, répéter jusqu'à concordance, puis vérifier la cohérence des
