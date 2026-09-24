@@ -22,6 +22,50 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+VERSION 0.9.15 — 24 SEPTEMBRE 2026. LA COMPOSITION REDEVIENT UN CLIC ; UN
+  « ! » ROUGE DIT CE QUI A CHANGE DEPUIS. Demandes utilisateur du jour.
+  DEPOT DEPLACE LE MEME JOUR : D:\1-Python\1-Utilitaires\1.1-Plugins_QGIS\
+  01-Calage_apports ; depot d'extensions 00-depot_QGIS a cote,
+  file:///D:/1-Python/1-Utilitaires/1.1-Plugins_QGIS/00-depot_QGIS/plugins.xml.
+  Les chemins cites plus bas sont ceux de leur date.
+  1. RECOMPOSITION AUTOMATIQUE RETIREE (0.9.5 -> 0.9.14). Le minuteur partait
+     1,5 s apres la derniere frappe : taper « Q100 » en marquant une pause
+     composait « Q1 » — mkdir de _calage\Q1\, classeur, JSON, shapefiles —
+     et la fenetre basculait sur ce classeur. Retires : le minuteur,
+     DELAI_RECOMPOSITION_MS, _demander_recomposition,
+     _prealables_composition_prets, _dire_recomposition, les chemins
+     silencieux / ecrire_geometrie=False. Seul le bouton compose.
+  2. UN « ! » ROUGE SUR CHAQUE CHAMP PERIME, et sur le titre de son onglet
+     (QTabBar.setTabButton) ; infobulle et description accessible disent les
+     deux valeurs ; QLabel = interface.Etiquette, donc le rouge suit le theme
+     sombre. _COMPARES passe de 11 a 22 cles : geometrie, flux, zone 2D,
+     sens de l'axe, PK d'origine et les six champs de la fenetre de
+     simulation (absents du paquet = ceux du plan). « Paquet compose » ne
+     compte plus tant qu'un « ! » est allume, et le LANCEMENT EST REFUSE.
+     REGLE : UN ECART EST UN CHAMP QUI A BOUGE DEPUIS L'ARRIVEE DU PAQUET
+     (instantane _valeurs_au_paquet, pris par le setter de « classeur » :
+     composition ou reprise). Sans elle, un Excel repris sans son modele
+     aurait allume « dossier du projet », « plan », « sens » — champs muets —
+     et le refus aurait rendu la reprise impossible. LIMITE : une reprise sur
+     une fenetre qui decrit deja un AUTRE modele ne s'annonce pas ; seule une
+     modification posterieure s'annonce.
+  3. COUCHES DE PK REMPLACEES, PLUS EMPILEES. Retrouvees par la propriete
+     MARQUE_PK (pas par nom), stylees par sections.qml / injections.qml,
+     etiquette « nom — PK n m », posees sous leur couche de base. PIEGE
+     MESURE : loadNamedStyle remplace les proprietes personnalisees de la
+     couche — la marque se pose APRES le style, sinon elle disparait.
+  4. LA CASE D'ELAGAGE, cochee apres la composition, etait IGNOREE : elle
+     n'etait ecrite qu'a la composition. Ecrite au lancement, relue a la
+     reprise (_appliquer_reglages_du_classeur).
+  Aide integree, README, LISEZMOI : l'ancien bouton « Controle
+  parametrage » / « en bas de la fenetre » est remplace par le bouton reel.
+  Banc QGIS : 376 controles, aucun echec (363 avant ; 9 controles du
+  minuteur retires, 22 ajoutes). faire_zip conforme, garde-fou d'archive
+  vert, banc noyau vert. PUBLIEE dans 00-depot_QGIS (publier.py
+  STATUT=OK) ; verifier_dans_qgis.py STATUT=OK dans un profil jetable.
+  Commit sur main, sans branche (demande utilisateur). NON FAIT : fenetre
+  regardee a l'ecran ; banc --modele ; recette sur un calage reel.
+
 VERSION 0.9.14 — 24 SEPTEMBRE 2026. LE CHANGELOG REDEVIENT LISIBLE PAR QGIS.
   Les quinze « % » du changelog de metadata.txt, presents depuis la 0.5.0,
   n'etaient pas doubles. QGIS lit metadata.txt avec configparser ET

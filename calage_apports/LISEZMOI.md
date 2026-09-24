@@ -2,8 +2,14 @@
 
 Préparation et contrôle du paquet de calage pour **HEC-RAS uniquement**.
 Voir `methodologie_calage_amont_aval.docx`, § 2.4.
-Version **0.9.14** : le changelog redevient lisible par QGIS — ses signes
-pour cent sont doublés. Avant, la **0.9.13** : la recherche des interpréteurs Python quitte le fil
+Version **0.9.15** : **plus de recomposition automatique** — elle composait
+les préfixes à demi tapés, dossier et classeur compris. Seul le bouton
+« Valider la géométrie et générer le fichier des hydrogrammes » compose ; un
+réglage changé ensuite porte un **« ! » rouge** sur son champ et sur le titre
+de son étape, et le lancement est refusé tant qu'il en reste un. Les couches
+« Sections — PK » et « Injections — PK » sont remplacées au lieu de
+s'empiler, au style des couches de base. Avant, la **0.9.14** : le changelog
+redevient lisible par QGIS — ses signes pour cent sont doublés. Avant, la **0.9.13** : la recherche des interpréteurs Python quitte le fil
 graphique — une tâche QGIS annulable, dont le résultat attend la réouverture
 de la fenêtre. Avant, la **0.9.12** : un refus de composer — feuille Cibles
 saisie sans en-tête « Temps_h » — ne met plus le classeur de côté ; le fichier
@@ -102,7 +108,7 @@ propose ensuite les mises à jour. Le `LISEZMOI.md` du dépôt détaille la marc
 
 **Depuis l'archive**, pour un poste sans accès au dépôt.
 `calage_apports_<version>.zip` —
-`calage_apports_0.9.14.zip` pour cette version — est **à la racine du dépôt** : la télécharger
+`calage_apports_0.9.15.zip` pour cette version — est **à la racine du dépôt** : la télécharger
 suffit, il n'y a rien à reconstruire. Le nom porte la version pour qu'on
 sache, sur un poste distant, ce qu'on installe ; il n'y en a jamais qu'une
 dans le dépôt, la plus récente. Puis, dans QGIS :

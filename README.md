@@ -1,6 +1,6 @@
 # Calage_apports
 
-**24 septembre 2026 — version 0.9.14, diffusée par le dépôt d'extensions PIO**
+**24 septembre 2026 — version 0.9.15, diffusée par le dépôt d'extensions PIO**
 (`file:///D:/1-Python/1-Utilitaires/1.1-Plugins_QGIS/00-depot_QGIS/plugins.xml`). Le lot UX B/C
 ([PR #3](https://github.com/CedricPerrin/Calage_apports/pull/3), fusionnée le
 20 septembre) est dans l'archive depuis la 0.9.13 : effets du contrôle explicités ;
@@ -13,7 +13,7 @@ extension installée depuis le dépôt.
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 
-Version des sources du plugin : **0.9.14**. La
+Version des sources du plugin : **0.9.15**. La
 [note d’ergonomie du 11 septembre 2026](docs/ergonomie_2026-09-11.md)
 décrit le parcours, les choix d’interface et les points de recette.
 
@@ -199,6 +199,20 @@ relit désormais chaque champ comme QGIS et refuse l'archive sinon ;
 `essai_garde_fou_archive.py` l'éprouve. Aucun changement de comportement du
 plugin.
 
+La **0.9.15** (24 septembre 2026) retire la **recomposition automatique** de
+la 0.9.5 : partie 1,5 s après la dernière frappe, elle composait les préfixes
+à demi tapés — taper « Q100 » en marquant une pause créait `_calage\Q1\`, son
+classeur et ses shapefiles. Seul le bouton compose désormais. Un réglage changé
+ensuite porte un **« ! » rouge** sur son champ et sur le titre de son étape ;
+le sens de l'axe, le PK d'origine, la zone 2D, la géométrie, le flux et la
+fenêtre de simulation sont comparés à leur tour, et le lancement est refusé
+tant qu'un « ! » reste allumé. Un champ que l'écran n'a jamais renseigné —
+un Excel repris sans son modèle — n'allume rien : seul ce qui a bougé depuis
+l'arrivée du paquet compte. Les couches de PK sont **remplacées** au lieu de
+s'empiler, au style des couches de base, avec l'étiquette du PK. Et la case
+de suppression des plans d'étape, cochée après la composition, était ignorée :
+elle s'écrit au lancement. Banc QGIS : **376 contrôles, aucun échec**.
+
 Pour chaque apport, de l'amont vers l'aval : estimer, calculer, comparer à la
 cible, corriger, répéter jusqu'à concordance, puis vérifier la cohérence des
 sections amont avant de passer au suivant.
@@ -324,8 +338,8 @@ Le `LISEZMOI.md` de ce dossier détaille la marche à suivre.
 
 ## La fenêtre du plugin
 
-Cinq rubriques : **Modèle → Objectifs → Lancer → Suivi**, puis
-**Aide et configuration**. Les commandes de navigation et **Contrôle paramétrage** restent
+Cinq rubriques : **Modèle → Paramètres → Lancer → Suivi**, puis
+**Aide et configuration**. Les commandes de navigation restent
 accessibles en bas de la fenêtre. Les pages longues défilent ; les détails
 secondaires se déplient à la demande. Au bas de la fenêtre, **une barre
 compte les quatre étapes de la saisie avant lancement** — modèle, profil en
@@ -347,16 +361,18 @@ projet de démonstration par [src/captures_plugin.py](src/captures_plugin.py).
 dossier**), le plan de référence, la géométrie, la zone 2D, le **profil en
 long** — l'axe, son sens, le PK d'origine — et la fenêtre de simulation. C'est
 d'ici que les couches du modèle arrivent sur la carte, éditables. Ce qu'on
-y dessine est écrit dans la géométrie par le bouton du bas.
+y dessine est écrit dans la géométrie par le bouton de l'étape Paramètres.
 
 ![Onglet 1 — Modèle](docs/captures/onglet_1_modele.png)
 
-**2. Objectifs** — dans l'ordre du parcours. D'abord la **précision du
+**2. Paramètres** — dans l'ordre du parcours. D'abord la **précision du
 calage** : elle distingue l’**écart admis à la cible** de l’erreur de bilan de
-masse HEC-RAS, et le nombre maximal d’essais y reste réglable. Ensuite le
-geste qui ouvre la saisie — **Contrôle paramétrage**, en bas de la fenêtre,
-compose l'Excel — dit **hors** du groupe qu'il débloque. Puis l’**Excel des
-hydrogrammes objectifs**, à ouvrir ou à reprendre. Enfin **ce que ces
+masse HEC-RAS, et le nombre maximal d’essais y reste réglable. Puis le
+**dossier de sortie**, proposé tout seul, et les **hydrogrammes cibles** : le
+**préfixe de scénario** — **obligatoire** : sans lui, caler le Q10 après le
+Q100 sur le même modèle effacerait les plans du Q100 — et, sous lui, le bouton
+qui compose l'Excel, décrit plus bas. L’**Excel des hydrogrammes objectifs**
+s'ouvre ou se reprend là. Enfin **ce que ces
 hydrogrammes portent** une fois l’Excel validé : débit de pointe, heure du pic
 et volume de chaque apport. Une cible collée dans la mauvaise colonne, un
 facteur d'unité ou une colonne restée vide s'y voient avant les heures de
@@ -366,11 +382,10 @@ calcul ; le résultat se lit en pourcentage d’atteinte de la cible.
 
 **3. Lancer** — tout ce qui décide du lancement, dans l'ordre où il se
 décide : l'appariement apport → section et l'état des cibles ; le **premier
-apport à caler** ; le **dossier de sortie**, ses sous-dossiers et le sort des
-**plans d'étape** — conservés par défaut, la case de suppression ne
-s'appliquant qu'après un calage réussi ; la configuration complète, repliée ;
-le **préfixe de scénario** — **obligatoire** : sans lui, caler le Q10 après le
-Q100 sur le même modèle effacerait les plans du Q100 ; puis le lancement.
+apport à caler** ; le sort des **plans d'étape** — conservés par défaut, la
+case de suppression ne s'appliquant qu'après un calage réussi ; les cœurs
+demandés à HEC-RAS ; la configuration complète, repliée ; puis le lancement,
+**refusé tant qu'un réglage porte un « ! » rouge**.
 **Au-dessus du bouton, un récapitulatif dit ce que ce clic va faire** : d'où le
 calage repart, de quel plan d'étape — nommé avec son préfixe, tel qu'il figure
 dans le gestionnaire de plans —, quels apports sont tenus pour calés et
@@ -394,14 +409,18 @@ chaîne de calage et de l’interpréteur HEC-RAS y restent configurables.
 
 ![Onglet Aide et configuration](docs/captures/onglet_6_aide.png)
 
-Le bouton **« Écrire dans la géométrie HEC-RAS »** vit à l'étape
-**Modèle**, sous les couches qu'il écrit : il consomme les trois premiers onglets et prépare le
-quatrième, il n'appartient donc à aucun. Il écrit dans la géométrie HEC-RAS,
-compose le paquet et lance les contrôles, dans cet ordre — et la première de
-ces trois choses est le seul geste irréversible de la fenêtre. **Vert** dès
-que tout ce qu'il consomme est prêt, **gris** tant qu'il manque quelque
-chose. L’état de préparation indique ce qu’il reste à renseigner ; le
-contrôle conserve ses garde-fous métier.
+Le bouton **« Valider la géométrie et générer le fichier des hydrogrammes »**
+vit sous le préfixe de scénario, à l'étape **Paramètres**. Il écrit dans la
+géométrie HEC-RAS, compose le paquet et lance les contrôles, dans cet ordre —
+et la première de ces trois choses est le seul geste irréversible de la
+fenêtre. **Vert** dès que tout ce qu'il consomme est prêt, **gris** tant qu'il
+manque quelque chose, que son infobulle nomme. **Rien ne se compose sans ce
+clic** : un réglage changé ensuite — préfixe, dossier, précision, modèle,
+plan, axe, fenêtre de simulation — porte un **« ! » rouge** sur son champ et
+sur le titre de son étape, les deux valeurs en infobulle, jusqu'au clic
+suivant ; le lancement est refusé d'ici là. Chaque clic remplace les couches
+« Sections — PK » et « Injections — PK », posées sous les couches de base,
+à leur style, avec l'étiquette du PK.
 
 La recette et la construction du ZIP sont distinctes de cette description
 de l’interface. Le bilan courant est consigné dans [STATUT.txt](STATUT.txt).

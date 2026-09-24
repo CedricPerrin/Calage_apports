@@ -656,20 +656,10 @@ else:
 
     dlg._composer_et_controler()
 
-    # LE MINUTEUR DE RECOMPOSITION APPELLE LA METHODE AVEC DEUX MOTS-CLES, ET
-    # LE DECORATEUR avec_sablier N'EN ACCEPTAIT AUCUN (0.9.5 -> 0.9.8) :
-    # TypeError sur le poste de calcul a la premiere recomposition
-    # automatique, jamais ici — le banc n'appelait la methode que sans
-    # argument. On l'appelle donc EXACTEMENT comme le minuteur, a travers le
-    # sablier : c'est le chemin qui a casse.
-    try:
-        dlg._composer_et_controler(ecrire_geometrie=False, silencieux=True)
-        _mots_cles_ok, _mots_cles_detail = True, "appel accepté, recomposition silencieuse jouée"
-    except TypeError as e:
-        _mots_cles_ok, _mots_cles_detail = False, str(e)
-    verifier("la recomposition silencieuse passe le sablier avec ses deux mots-clés",
-             _mots_cles_ok, _mots_cles_detail)
-    verifier("et elle ne laisse pas la fenêtre verrouillée",
+    # LA RECOMPOSITION AUTOMATIQUE EST RETIREE (24/09/2026) : le bouton est le
+    # seul appelant, et la composition ne doit pas laisser la fenetre
+    # verrouillee derriere elle.
+    verifier("la composition ne laisse pas la fenêtre verrouillée",
              not getattr(dlg, "_composition_en_cours", False)
              and not getattr(dlg, "_sablier_pose", False),
              f"en cours={getattr(dlg, '_composition_en_cours', None)}, "
@@ -2358,6 +2348,67 @@ verifier("son contour est rouge et opaque",
          f"rgba({_contour.red()},{_contour.green()},{_contour.blue()},"
          f"{_contour.alpha()})")
 
+# LES COUCHES DE PK SONT REMPLACEES, PLUS EMPILEES (24/09/2026, demande
+# utilisateur). Chaque composition en ajoutait deux au style par defaut de
+# QGIS : elles prennent maintenant celui de leur couche de base, portent
+# l'etiquette du PK, et se posent sous elle dans la legende.
+import geopandas as _gpd                                      # noqa: E402
+_bac_pk = Path(tempfile.mkdtemp(prefix="couches_pk_"))
+_chemins_pk = {cle: str(_bac_pk / f"{cle}.shp")
+               for cle in ("axe", "sections", "apports")}
+
+
+def _en_travers(x):
+    """Une ligne qui coupe l'axe du banc a l'abscisse x."""
+    return LineString([(500000 + x, 6199500), (500000 + x, 6200800)])
+
+
+for _cle, _noms, _xs in (("axe", ["Axe"], None),
+                         ("sections", ["S1", "S2"], (2000, 6000)),
+                         ("apports", ["A1", "A2"], (1500, 5500))):
+    _gpd.GeoDataFrame(
+        {"nom": _noms},
+        geometry=[axe_geom] if _xs is None else [_en_travers(x) for x in _xs],
+        crs="EPSG:2154").to_file(_chemins_pk[_cle])
+_base_s = couche("Sections de contrôle (HEC-RAS)", [_en_travers(2000)], ["S1"])
+_base_a = couche("Lignes d'injection (HEC-RAS)", [_en_travers(1500)], ["A1"])
+mod_plugin.appliquer_style(_base_s, "sections")
+mod_plugin.appliquer_style(_base_a, "injections")
+_homonyme = couche("Sections — PK", [_en_travers(100)], ["X"])
+_bases_pk = {"sections": _base_s, "apports": _base_a}
+mod_plugin.afficher_pk_sur_carte(_chemins_pk, "amont_aval", bases=_bases_pk)
+mod_plugin.afficher_pk_sur_carte(_chemins_pk, "amont_aval", bases=_bases_pk)
+_marquees = {c.customProperty(mod_plugin.MARQUE_PK): c
+             for c in QgsProject.instance().mapLayers().values()
+             if c.customProperty(mod_plugin.MARQUE_PK)}
+_toutes_pk = [c for c in QgsProject.instance().mapLayers().values()
+              if c.customProperty(mod_plugin.MARQUE_PK)]
+verifier("deux compositions laissent une seule couche de PK de chaque sorte",
+         len(_toutes_pk) == 2 and set(_marquees) == {"sections", "apports"},
+         str(sorted(c.name() for c in _toutes_pk)))
+verifier("une couche de l'utilisateur au meme nom n'est pas retiree",
+         QgsProject.instance().mapLayer(_homonyme.id()) is not None,
+         _homonyme.name())
+for _cle, _base in _bases_pk.items():
+    _pk = _marquees[_cle]
+    _sb, _sp = _base.renderer().symbol(), _pk.renderer().symbol()
+    verifier(f"la couche de PK des {_cle} prend le symbole de sa couche de base",
+             _sp.color() == _sb.color() and abs(_sp.width() - _sb.width()) < 1e-9,
+             f"{_sp.color().name()} {_sp.width()} / {_sb.color().name()} "
+             f"{_sb.width()}")
+    verifier(f"et porte l'etiquette du PK ({_cle})",
+             _pk.labelsEnabled()
+             and "pk_m" in _pk.labeling().settings().fieldName,
+             _pk.labeling().settings().fieldName if _pk.labeling() else "aucune")
+    _ids = [getattr(n, "layerId", lambda: None)()
+            for n in QgsProject.instance().layerTreeRoot().children()]
+    verifier(f"elle se pose juste sous sa couche de base ({_cle})",
+             _ids.index(_pk.id()) == _ids.index(_base.id()) + 1,
+             f"rang {_ids.index(_pk.id())}, base au rang {_ids.index(_base.id())}")
+for _c in _toutes_pk + [_base_s, _base_a, _homonyme]:
+    QgsProject.instance().removeMapLayer(_c.id())
+shutil.rmtree(_bac_pk, ignore_errors=True)
+
 # L'ANCIEN CLASSEUR EST MIS DE COTE, JAMAIS ECRASE (20/09/2026, demande
 # utilisateur). Deux prefixes donnaient deja deux fichiers depuis la 0.8.4 ;
 # avec le MEME prefixe, recomposer reecrivait le fichier en place. Les cibles
@@ -2416,13 +2467,18 @@ _pd.DataFrame({"Ordre": [1], "Nom_Apport (BC line)": ["A1"],
                "Nom_Section (reference line)": ["S1"]}
               ).to_excel(_coh_cl, sheet_name="Correspondance", index=False)
 import parametres as _param_mod
+# LE PAQUET PORTE AUSSI UN MODELE ET UN AXE QUE L'ECRAN N'A PAS : c'est la
+# reprise d'un Excel sans son modele, que le refus de lancer ne doit pas
+# bloquer (voir plus bas).
 _param_mod.ecrire(_coh_cl, {
     "Prefixe_scenario": "Q100",
     "Dossier_sortie": str(_coh_bac),
     "Sous_dossier_resultats": "resultats_finaux",
     "Sous_dossier_suivi": "suivi",
     "Tolerance_volume_pct": 5.0, "Tolerance_pic_pct": 2.0,
-    "Bilan_masse_max_pct": 5.0, "Nb_max_iterations_par_apport": 6})
+    "Bilan_masse_max_pct": 5.0, "Nb_max_iterations_par_apport": 6,
+    "Dossier_projet_HECRAS": "D:/modele_absent", "Nom_projet": "Riviere",
+    "Plan_reference": "p03", "Sens_axe": "aval_amont", "PK_origine_m": 0.0})
 _coh.classeur = str(_coh_cl)
 _coh.edit_prefixe_scenario.setText("Q100")
 _coh.edit_dossier_sortie.setText(str(_coh_bac))
@@ -2430,6 +2486,27 @@ _coh._maj_resume()
 verifier("un paquet conforme a l'ecran ne signale aucun ecart",
          not _coh._ecarts_avec_le_paquet(),
          str(_coh._ecarts_avec_le_paquet()))
+
+
+def _temoin_de(fenetre, cle):
+    """Le « ! » du champ qui porte cette cle du paquet."""
+    return next(t for cles, t in fenetre._temoins if cle in cles)
+
+
+def _marque_onglet(fenetre, rang):
+    """Le « ! » pose sur le titre de cet onglet, ou None."""
+    return fenetre.onglets.tabBar().tabButton(
+        rang, mod_plugin.QTabBar.ButtonPosition.RightSide)
+
+
+# UN CLASSEUR REPRIS SANS SON MODELE N'ALLUME RIEN (24/09/2026). Le paquet
+# nomme un modele, un plan et un sens que l'ecran n'a pas : ces champs muets
+# n'ont pas bouge depuis l'arrivee du paquet, ce ne sont pas des ecarts. Sans
+# cette regle, le refus de lancer aurait rendu impossible un calage repris.
+verifier("un classeur repris sans son modele n'allume aucun « ! »",
+         not [c for c, t in _coh._temoins if not t.isHidden()]
+         and _marque_onglet(_coh, mod_plugin.ONGLET_MODELE) is None,
+         str([c for c, t in _coh._temoins if not t.isHidden()]))
 # LES NOMBRES SE COMPARENT EN NOMBRES : 5.0 au classeur, 5 au spin.
 verifier("5,0 du classeur et 5 du spin ne sont pas un ecart",
          _coh._memes_valeurs(5, 5.0) and _coh._memes_valeurs("5", 5.0))
@@ -2440,22 +2517,82 @@ _coh.edit_prefixe_scenario.setText("Q10")
 _coh._maj_resume()
 _ecarts = _coh._ecarts_avec_le_paquet()
 verifier("changer le prefixe apres composition est signale",
-         any("préfixe" in e for e in _ecarts), str(_ecarts))
-# LE TEXTE NE RENVOIE PLUS AU BOUTON : depuis le 21/09/2026 le paquet se
-# recompose tout seul, et lui dire de recliquer serait faux.
-verifier("et l'ecran le dit, en nommant les deux valeurs",
+         any("préfixe" in e for e in _ecarts.values()), str(_ecarts))
+# LE PAQUET NE SE RECOMPOSE PLUS TOUT SEUL (24/09/2026) : le texte renvoie
+# au bouton, et dit que le lancement attend.
+verifier("et l'ecran le dit, en nommant les deux valeurs et le bouton",
          "Q10" in _coh.label_prochaine_etape.text()
          and "Q100" in _coh.label_prochaine_etape.text()
-         and "recompose tout seul" in _coh.label_prochaine_etape.text()
-         and "Contrôle paramétrage" not in _coh.label_prochaine_etape.text(),
-         _coh.label_prochaine_etape.text()[:140])
+         and mod_plugin.BOUTON_GEOMETRIE in _coh.label_prochaine_etape.text()
+         and "refusé" in _coh.label_prochaine_etape.text(),
+         _coh.label_prochaine_etape.text()[:160])
+# LE « ! » ROUGE SUR LE CHAMP PERIME, ET SUR LE TITRE DE SON ETAPE.
+_t_prefixe = _temoin_de(_coh, "Prefixe_scenario")
+verifier("un « ! » s'allume sur le prefixe perime, lui seul",
+         not _t_prefixe.isHidden()
+         and [c for c, t in _coh._temoins if not t.isHidden()]
+         == [("Prefixe_scenario",)],
+         str([c for c, t in _coh._temoins if not t.isHidden()]))
+verifier("son infobulle dit les deux valeurs et le bouton qui actualise",
+         "Q10" in _t_prefixe.toolTip() and "Q100" in _t_prefixe.toolTip()
+         and mod_plugin.BOUTON_GEOMETRIE in _t_prefixe.toolTip()
+         and _t_prefixe.accessibleDescription() == _t_prefixe.toolTip()
+         and _t_prefixe.accessibleName() == "Réglage à actualiser",
+         _t_prefixe.toolTip()[:120])
+from calage_apports import interface as _mod_interface_t     # noqa: E402
+verifier("il est rouge ISL, et suit le theme sombre comme les autres textes",
+         isinstance(_t_prefixe, _mod_interface_t.Etiquette)
+         and mod_plugin.ISL_ROUGE in _t_prefixe._texte_original,
+         _t_prefixe._texte_original)
+verifier("l'etape Parametres porte un « ! » sur son titre, pas les autres",
+         _marque_onglet(_coh, mod_plugin.ONGLET_OBJECTIFS) is not None
+         and _marque_onglet(_coh, mod_plugin.ONGLET_MODELE) is None
+         and _marque_onglet(_coh, mod_plugin.ONGLET_LANCER) is None,
+         str([_marque_onglet(_coh, i) is not None
+              for i in range(_coh.onglets.count())]))
+verifier("et le titre garde son texte",
+         _coh.onglets.tabText(mod_plugin.ONGLET_OBJECTIFS) == "2. Paramètres",
+         _coh.onglets.tabText(mod_plugin.ONGLET_OBJECTIFS))
+verifier("un paquet perime ne compte pas comme compose",
+         dict(_coh._etapes_preparation())["Paquet composé"] is False,
+         str(_coh._etapes_preparation()))
+# LE LANCEMENT EST REFUSE TANT QU'UN « ! » EST ALLUME, et le dit.
+_messages = []
+_coh._signaler = lambda titre, texte, *a, **k: _messages.append((titre, texte))
+_coh._lancer_calage()
+verifier("lancer avec un « ! » allume est refuse, en nommant le reglage",
+         bool(_messages) and _messages[-1][0] == "Calage non lancé"
+         and "préfixe de scénario" in _messages[-1][1]
+         and mod_plugin.BOUTON_GEOMETRIE in _messages[-1][1],
+         str(_messages[-1] if _messages else "aucun message"))
 _coh.edit_prefixe_scenario.setText("Q100")
+_coh._maj_resume()
+verifier("revenir a la valeur du paquet eteint le « ! » et celui de l'onglet",
+         _t_prefixe.isHidden()
+         and _marque_onglet(_coh, mod_plugin.ONGLET_OBJECTIFS) is None,
+         f"champ caché={_t_prefixe.isHidden()}")
 _coh.spin_tol_volume.setValue(3.0)
 _coh._maj_resume()
 verifier("changer la precision apres composition est signale aussi",
-         any("volume" in e for e in _coh._ecarts_avec_le_paquet()),
+         any("volume" in e for e in _coh._ecarts_avec_le_paquet().values())
+         and not _temoin_de(_coh, "Tolerance_volume_pct").isHidden(),
          str(_coh._ecarts_avec_le_paquet()))
 _coh.spin_tol_volume.setValue(5.0)
+# UN CHAMP DE L'ETAPE MODELE, TOUCHE APRES LA REPRISE, S'ANNONCE : le PK
+# d'origine part au paquet a la composition, et n'etait compare a rien.
+_coh.spin_pk_origine.setValue(250.0)
+verifier("changer le PK d'origine allume son « ! » et celui de l'etape Modele",
+         not _temoin_de(_coh, "PK_origine_m").isHidden()
+         and _marque_onglet(_coh, mod_plugin.ONGLET_MODELE) is not None,
+         str(_coh._ecarts_avec_le_paquet()))
+_coh.spin_pk_origine.setValue(0.0)
+# ET UN CHAMP REMIS A LA VALEUR DU PAQUET N'EST PAS UN ECART, meme s'il a
+# bouge depuis la reprise : c'est le paquet qui fait foi.
+_coh.combo_sens_axe.setCurrentText("aval_amont")
+verifier("un sens remis a celui du paquet n'est pas un ecart",
+         "Sens_axe" not in _coh._ecarts_avec_le_paquet()
+         and _marque_onglet(_coh, mod_plugin.ONGLET_MODELE) is None,
+         str(_coh._ecarts_avec_le_paquet()))
 # CHANGER LE PREFIXE FERA UN CLASSEUR NEUF, DONC VIDE (21/09/2026, signale
 # comme « supprime les apports »). Mesure : rien n'est supprime, l'ancien
 # garde ses cibles — mais le neuf nait vide et la fenetre bascule dessus.
@@ -2485,51 +2622,13 @@ _coh.edit_prefixe_scenario.setText("Q100")
 _coh.edit_dossier_sortie.setText(str(Path(tempfile.gettempdir()) / "ailleurs"))
 _coh._maj_resume()
 verifier("changer le dossier de sortie apres composition est signale aussi",
-         any("dossier de sortie" in e for e in _coh._ecarts_avec_le_paquet()),
+         any("dossier de sortie" in e
+             for e in _coh._ecarts_avec_le_paquet().values()),
          str(_coh._ecarts_avec_le_paquet()))
 # SANS PAQUET, RIEN N'EST SIGNALE : il n'y a pas d'instantane a contredire.
 _coh.classeur = None
 verifier("sans paquet compose, aucun ecart n'est invente",
          not _coh._ecarts_avec_le_paquet())
-# UN ECART PROGRAMME LA RECOMPOSITION, et un paquet conforme ne programme
-# rien : c'est _maj_coherence qui sait, puisqu'elle vient de calculer
-# l'ecart. « Composer a chaque signal » aurait recompose pour rien.
-# Le controle precedent a mis « classeur » a None pour eprouver l'absence
-# de paquet : on le rend, sinon rien ne peut etre recompose.
-_coh.classeur = str(_coh_cl)
-_coh.edit_prefixe_scenario.setText("Q100")
-_coh.spin_tol_volume.setValue(5.0)
-_coh.edit_dossier_sortie.setText(str(_coh_bac))
-_coh._minuteur_recomposition.stop()
-_coh._maj_resume()
-verifier("un paquet conforme ne programme aucune recomposition",
-         not _coh._minuteur_recomposition.isActive())
-_coh.spin_tol_pic.setValue(4.0)
-verifier("changer un reglage programme la recomposition",
-         _coh._minuteur_recomposition.isActive(),
-         f"{_coh.DELAI_RECOMPOSITION_MS} ms d'attente")
-# ET PENDANT QU'UN CALAGE TOURNE, ON NE RECOMPOSE PAS : le calage lit le
-# classeur qu'on reecrirait.
-_coh._minuteur_recomposition.stop()
-_coh.pid_lance = 4242
-_coh.spin_tol_pic.setValue(3.0)
-verifier("un calage en cours interdit la recomposition automatique",
-         not _coh._minuteur_recomposition.isActive(),
-         f"pid={_coh.pid_lance}")
-_coh.pid_lance = None
-# LE BANDEAU DIT CE QUI A ETE REPORTE, pas qu'il s'est passe quelque chose.
-_messages = []
-_coh._signaler = lambda titre, texte, *a, **k: _messages.append((titre, texte))
-_coh._dire_recomposition(
-    ["préfixe de scénario : « Q10 » à l’écran, « Q100 » dans le paquet"], [])
-verifier("le bandeau nomme le reglage reporte",
-         _messages and "préfixe de scénario" in _messages[-1][1],
-         str(_messages[-1] if _messages else "aucun message"))
-_coh._dire_recomposition([], [("ERREUR", "cible C1 vide")])
-verifier("et une erreur du controle passe en avertissement nomme",
-         "cible C1 vide" in _messages[-1][1]
-         and "corriger" in _messages[-1][0],
-         str(_messages[-1]))
 
 _coh.close()
 _coh.deleteLater()
@@ -2564,7 +2663,7 @@ verifier("le recapitulatif est rempli des l'ouverture, sans rien toucher",
          repr(_recap_dlg.label_reprise.text()[:60]))
 verifier("sans paquet compose, le recapitulatif dit quoi faire",
          "composé" in _recap_dlg.label_reprise.text()
-         and "géométrie HEC-RAS" in _recap_dlg.label_reprise.text(),
+         and mod_plugin.BOUTON_GEOMETRIE in _recap_dlg.label_reprise.text(),
          _recap_dlg.label_reprise.text()[:80])
 # AVEC UN CLASSEUR, il nomme le plan de depart AVEC SON PREFIXE, les apports
 # tenus pour cales et ceux qui restent a calculer. C'est le cas signale le
@@ -2639,38 +2738,36 @@ verifier("son infobulle nomme exactement ce qui manque, axe, préfixe et dossier
          and {"l'axe hydraulique", "le préfixe de scénario", "le dossier de sortie"}
          <= {nom for nom, _ in dlg._etapes_avant_controle()},
          dlg.bouton_controle.toolTip()[:160])
-# LA RECOMPOSITION EST AUTOMATIQUE, ET DIFFEREE : un champ de texte emet un
-# signal par caractere, et composer ecrit des fichiers.
-verifier("un minuteur porte la recomposition, en un seul coup",
-         dlg._minuteur_recomposition.isSingleShot()
-         and dlg.DELAI_RECOMPOSITION_MS >= 1000,
-         f"{dlg.DELAI_RECOMPOSITION_MS} ms")
-# LA PREMIERE COMPOSITION AUSSI EST AUTOMATIQUE depuis que le bouton
-# n'ecrit plus que la geometrie — mais SEULEMENT si tout est la. Un
-# rendez-vous pose a chaque frappe pour etre annule 1,5 s plus tard est un
-# rendez-vous de trop, et un minuteur qui part sans cesse finit par partir
-# au mauvais moment : le 21/09/2026, il est parti PENDANT une composition
-# et le processus s'est arrete sans trace, code 127.
-dlg._minuteur_recomposition.stop()
-dlg._demander_recomposition()
-verifier("sans paquet ni prealables, aucun rendez-vous n'est pose",
-         not dlg._minuteur_recomposition.isActive()
-         and not dlg._prealables_composition_prets(),
-         "il manque au moins le prefixe et le dossier de sortie")
-dlg._minuteur_recomposition.stop()
-dlg.pid_lance = 4242
-dlg.classeur = str(_cl)
-dlg._demander_recomposition()
-verifier("jamais pendant qu'un calage tourne",
-         not dlg._minuteur_recomposition.isActive())
-dlg.pid_lance = None
-# ET JAMAIS PENDANT UNE COMPOSITION : re-entrer, c'est deux ecritures
-# concurrentes sur les memes fichiers.
+# PLUS AUCUNE RECOMPOSITION AUTOMATIQUE (24/09/2026, demande utilisateur) :
+# taper « Q100 » en marquant une pause composait « Q1 » — un dossier
+# « _calage\Q1 » avec son classeur, et la fenetre basculait dessus. Rien ne
+# doit partir d'une frappe, meme apres plus que les 1,5 s de l'ancien
+# minuteur ; le clic, lui, compose — c'est le temoin que l'espion marche.
+from qgis.PyQt.QtTest import QTest as _QTestR                  # noqa: E402
+_appels_compo = []
+_saisie_avant = (dlg.edit_prefixe_scenario.text(),
+                 dlg.edit_dossier_sortie.text())
+dlg._composer_et_controler_interne = lambda: _appels_compo.append("clic")
+for _frappe in ("Q1", "Q100"):
+    dlg.edit_prefixe_scenario.setText(_frappe)
+    _QTestR.qWait(1800)
+verifier("taper un prefixe ne compose rien, meme apres une pause",
+         not _appels_compo and not hasattr(dlg, "_minuteur_recomposition"),
+         f"{len(_appels_compo)} composition(s) partie(s) de la frappe")
+dlg.bouton_controle.click()
+verifier("le clic sur le bouton, lui, compose",
+         _appels_compo == ["clic"], str(_appels_compo))
+# ET JAMAIS DEUX A LA FOIS : un second clic pendant une composition, qui
+# traite des evenements Qt en chemin, ferait deux ecritures concurrentes.
 dlg._composition_en_cours = True
-dlg._demander_recomposition()
+dlg.bouton_controle.click()
 verifier("jamais pendant qu'une composition tourne deja",
-         not dlg._minuteur_recomposition.isActive())
+         _appels_compo == ["clic"], str(_appels_compo))
 dlg._composition_en_cours = False
+del dlg._composer_et_controler_interne
+dlg.edit_prefixe_scenario.setText(_saisie_avant[0])
+dlg.edit_dossier_sortie.setText(_saisie_avant[1])
+# LA SUITE DU BANC PART SANS PAQUET, comme avant ce bloc depuis la 0.9.5.
 dlg.classeur = None
 # LA BARRE DE PREPARATION (20/09/2026, demande utilisateur). Elle compte la
 # SAISIE avant lancement, non le calage — celui-ci dure des heures et se lit a

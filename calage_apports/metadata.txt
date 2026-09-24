@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.9.14
+version=0.9.15
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,23 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.9.14 — Le changelog redevient lisible par QGIS.
+changelog=0.9.15 — La composition redevient un clic ; un « ! » rouge
+    signale ce qui a changé depuis.
+    La recomposition automatique (0.9.5) partait 1,5 s après la dernière
+    frappe : taper « Q100 » en marquant une pause composait « Q1 », avec son
+    dossier, son classeur et ses shapefiles. Seul le bouton « Valider la
+    géométrie et générer le fichier des hydrogrammes » compose désormais.
+    Un réglage changé ensuite porte un « ! » rouge, sur son champ et sur le
+    titre de son étape, avec les deux valeurs en infobulle ; le sens de
+    l'axe, le PK d'origine, la zone 2D, la géométrie, le flux et la fenêtre
+    de simulation sont comparés à leur tour. Tant qu'un « ! » reste allumé,
+    le lancement est refusé. Les couches « Sections — PK » et « Injections
+    — PK » sont remplacées au lieu de s'empiler, prennent le style des
+    couches de base avec l'étiquette du PK, et se posent sous elles. La case
+    de suppression des plans d'étape, cochée après la composition, était
+    ignorée : elle s'écrit au lancement.
+
+    0.9.14 — Le changelog redevient lisible par QGIS.
     Depuis la 0.5.0, ses signes pour cent n'étaient pas doublés : QGIS, qui
     lit metadata.txt avec interpolation, rendait une erreur pour ce champ,
     et le gestionnaire d'extensions affichait un historique vide. Ils sont

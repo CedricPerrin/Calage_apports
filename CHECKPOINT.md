@@ -1,5 +1,44 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## Reprendre ici — 24 septembre 2026 : 0.9.15, la composition redevient un clic
+
+Le dépôt a déménagé le même jour :
+`D:\1-Python\1-Utilitaires\1.1-Plugins_QGIS\01-Calage_apports`, dépôt
+d'extensions `..\00-depot_QGIS` (table ancien → nouveau dans
+`D:\1-Python\CLAUDE.md`). Trois demandes utilisateur, plan validé avant
+d'écrire.
+
+- **Plus de recomposition automatique.** Taper « Q100 » en marquant une pause
+  composait « Q1 » : `_calage\Q1\`, classeur, JSON, SHP, et la fenêtre
+  basculait dessus. Minuteur et ses cinq méthodes retirés ; seul le bouton
+  « Valider la géométrie et générer le fichier des hydrogrammes » compose.
+- **Un « ! » rouge** sur chaque champ périmé et sur le titre de son onglet
+  (`_temoin`, `_avec_temoin`, `_maj_temoins`), infobulle avec les deux
+  valeurs ; `_COMPARES` passe de 11 à 22 clés ; « Paquet composé » ne compte
+  plus et **le lancement est refusé** tant qu'un « ! » reste allumé. Règle :
+  un écart est un champ qui a **bougé depuis l'arrivée du paquet**
+  (`_valeurs_au_paquet`, pris par le setter de `classeur`) — sinon un Excel
+  repris sans son modèle n'aurait jamais pu se lancer.
+- **Couches PK remplacées**, marquées par `MARQUE_PK`, au style des couches
+  de base, étiquette « nom — PK », posées sous elles. Piège mesuré :
+  `loadNamedStyle` efface les propriétés personnalisées — marque posée après
+  le style.
+- Au passage : la case d'élagage cochée après composition était ignorée —
+  écrite au lancement, relue à la reprise. Aide, README, LISEZMOI : l'ancien
+  bouton « Contrôle paramétrage / en bas de la fenêtre » remplacé.
+
+Bancs : QGIS **376 contrôles, aucun échec** (363 avant) ; noyau vert ;
+`faire_zip.py` conforme, `calage_apports_0.9.15.zip` construit ; garde-fou
+d'archive vert. **Publiée** dans `00-depot_QGIS` (`publier.py` STATUT=OK) et
+vérifiée par `verifier_dans_qgis.py` dans un profil jetable : installée par
+la boîte de QGIS, version lue, mise à jour proposée, `plugin.py` importé.
+Commit sur `main`, sans branche (demande utilisateur). **Non fait** : fenêtre
+regardée à l'écran (« ! » dans les onglets, thème sombre, 13 pt) ; banc
+`--modele`. Par quoi reprendre : (1) mettre à jour l'extension dans le
+profil ISL depuis le gestionnaire et regarder la fenêtre ; (2) la limite de
+la règle : une reprise sur une fenêtre qui décrit déjà un autre modèle ne
+s'annonce pas.
+
 ## Reprendre ici — 22 septembre 2026 : la couverture comptait Dt deux fois
 
 Calage réel **Aran-Q100** (SUHI_ARAN, 11 apports ARA07→ARA17, 13 calculs,
