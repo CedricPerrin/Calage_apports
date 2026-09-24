@@ -111,7 +111,7 @@ et figerait l'interface.
 ## Installation
 
 **Depuis le dépôt d'extensions PIO**, la voie normale : déclarer une fois
-`file:///D:/1-Python/1-Utilitaires/1.1-Plugins_QGIS/00-depot_QGIS/plugins.xml` dans *Extensions →
+`file://sudouest/users/perrin/16-Dev/1-Utilitaires/1.1-Plugins_QGIS/00-depot_QGIS/plugins.xml` dans *Extensions →
 Installer/Gérer les extensions → Paramètres*, cocher **Afficher aussi les
 extensions expérimentales**, puis installer **Calage des apports**. QGIS
 propose ensuite les mises à jour. Le `LISEZMOI.md` du dépôt détaille la marche.
@@ -127,7 +127,7 @@ la choisir, et cocher **Calage des apports** dans *Extensions installées*.
 
 Pour la reconstruire après une modification des sources :
 `python src/faire_zip.py` ; pour la publier ensuite dans le dépôt PIO,
-double-cliquer `D:\1-Python\1-Utilitaires\1.1-Plugins_QGIS\00-depot_QGIS\outils\publier.bat`.
+double-cliquer `D:\1-Dev\1-Utilitaires\1.1-Plugins_QGIS\00-depot_QGIS\outils\publier.bat`.
 
 Si l'extension n'apparaît pas dans la liste après installation, cocher
 *Extensions → Paramètres → **Afficher aussi les extensions expérimentales***  :
