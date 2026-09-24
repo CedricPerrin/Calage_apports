@@ -1,7 +1,7 @@
 # Calage_apports
 
 **24 septembre 2026 — version 0.9.14, diffusée par le dépôt d'extensions PIO**
-(`file:///D:/1-Python/REPOs/02-depot_QGIS/plugins.xml`). Le lot UX B/C
+(`file:///D:/1-Python/1-Utilitaires/1.1-Plugins_QGIS/00-depot_QGIS/plugins.xml`). Le lot UX B/C
 ([PR #3](https://github.com/CedricPerrin/Calage_apports/pull/3), fusionnée le
 20 septembre) est dans l'archive depuis la 0.9.13 : effets du contrôle explicités ;
 installation Python dans une tâche QGIS avec journal et protection contre les doubles lancements.
@@ -312,13 +312,13 @@ référence, la seconde en **aval** de la première.
 ### Publier une version
 
 Le plugin est diffusé par le dépôt d'extensions PIO,
-`file:///D:/1-Python/REPOs/02-depot_QGIS/plugins.xml`, à déclarer une fois dans
+`file:///D:/1-Python/1-Utilitaires/1.1-Plugins_QGIS/00-depot_QGIS/plugins.xml`, à déclarer une fois dans
 QGIS. Pour une nouvelle version :
 
 1. Monter `version=` dans `calage_apports/metadata.txt`, avec son entrée de
    changelog — un « % » s'y écrit « %% ».
 2. Construire l'archive avec l'outil du projet : `python src\faire_zip.py`.
-3. Double-cliquer `D:\1-Python\REPOs\02-depot_QGIS\outils\publier.bat`.
+3. Double-cliquer `D:\1-Python\1-Utilitaires\1.1-Plugins_QGIS\00-depot_QGIS\outils\publier.bat`.
 
 Le `LISEZMOI.md` de ce dossier détaille la marche à suivre.
 
