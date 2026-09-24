@@ -22,6 +22,24 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+VERSION 0.9.14 — 24 SEPTEMBRE 2026. LE CHANGELOG REDEVIENT LISIBLE PAR QGIS.
+  Les quinze « % » du changelog de metadata.txt, presents depuis la 0.5.0,
+  n'etaient pas doubles. QGIS lit metadata.txt avec configparser ET
+  interpolation : il rendait « __error__ » pour ce champ, et le
+  gestionnaire d'extensions affichait un historique vide. Signale par
+  publier.py du depot PIO. Ils sont ecrits « %% ». faire_zip.py relit
+  desormais CHAQUE champ avec interpolation et refuse l'archive sinon ;
+  essai_garde_fou_archive.py injecte la faute, quatrieme de sa liste.
+  Aucun changement de comportement du plugin.
+  DIFFUSION : depot d'extensions PIO,
+  file:///D:/1-Python/REPOs/02-depot_QGIS/plugins.xml. Pour une version :
+  monter version= dans metadata.txt, python src\faire_zip.py, puis
+  double-cliquer 02-depot_QGIS\outils\publier.bat.
+  PHASE OPERATIONNELLE depuis le 24/09 : le profil QGIS TEST est supprime ;
+  la recette se fait dans ISL, extension installee depuis le depot. Plus
+  d'installation par lien symbolique ni jonction vers les sources : une
+  mise a jour par le gestionnaire viderait les sources au travers du lien.
+
 VERSION 0.9.13 — 23 SEPTEMBRE 2026. LA RECHERCHE DES INTERPRETEURS QUITTE LE
   FIL GRAPHIQUE. Banc QGIS : 363 controles, aucun echec, sortie 0 (poste,
   python-qgis-ltr) ; banc noyau 46 OK ; CI verte ; il ne reste que main.
