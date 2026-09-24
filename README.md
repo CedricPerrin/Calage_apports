@@ -1,6 +1,6 @@
 # Calage_apports
 
-**24 septembre 2026 — version 0.9.15, diffusée par le dépôt d'extensions PIO**
+**24 septembre 2026 — version 0.9.16, diffusée par le dépôt d'extensions PIO**
 (`file:///D:/1-Python/1-Utilitaires/1.1-Plugins_QGIS/00-depot_QGIS/plugins.xml`). Le lot UX B/C
 ([PR #3](https://github.com/CedricPerrin/Calage_apports/pull/3), fusionnée le
 20 septembre) est dans l'archive depuis la 0.9.13 : effets du contrôle explicités ;
@@ -13,7 +13,7 @@ extension installée depuis le dépôt.
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 
-Version des sources du plugin : **0.9.15**. La
+Version des sources du plugin : **0.9.16**. La
 [note d’ergonomie du 11 septembre 2026](docs/ergonomie_2026-09-11.md)
 décrit le parcours, les choix d’interface et les points de recette.
 
@@ -212,6 +212,17 @@ l'arrivée du paquet compte. Les couches de PK sont **remplacées** au lieu de
 s'empiler, au style des couches de base, avec l'étiquette du PK. Et la case
 de suppression des plans d'étape, cochée après la composition, était ignorée :
 elle s'écrit au lancement. Banc QGIS : **376 contrôles, aucun échec**.
+
+La **0.9.16** (24 septembre 2026) remplace « Reprendre un Excel… » par
+**« Importer des hydrogrammes d'un calcul précédent »** : il recopie, dans
+l'Excel de ce calcul, les hydrogrammes des sections de même nom et les pentes
+des apports de même nom — rien d'autre : la fenêtre garde son classeur et ses
+réglages. Sans cible commune, il le dit et n'écrit rien ; sinon il nomme les
+hydrogrammes importés et les colonnes restées vides. Les couches « Sections —
+PK » et « Injections — PK », qui doublaient les couches de base,
+disparaissent : le PK s'affiche en étiquette « nom — PK » sur celles-ci. Et la
+fenêtre ne change plus d'onglet d'elle-même après une composition ou un
+lancement.
 
 Pour chaque apport, de l'amont vers l'aval : estimer, calculer, comparer à la
 cible, corriger, répéter jusqu'à concordance, puis vérifier la cohérence des
@@ -418,9 +429,11 @@ manque quelque chose, que son infobulle nomme. **Rien ne se compose sans ce
 clic** : un réglage changé ensuite — préfixe, dossier, précision, modèle,
 plan, axe, fenêtre de simulation — porte un **« ! » rouge** sur son champ et
 sur le titre de son étape, les deux valeurs en infobulle, jusqu'au clic
-suivant ; le lancement est refusé d'ici là. Chaque clic remplace les couches
-« Sections — PK » et « Injections — PK », posées sous les couches de base,
-à leur style, avec l'étiquette du PK.
+suivant ; le lancement est refusé d'ici là. Chaque clic étiquette les
+couches de base de leur PK (« nom — PK n m »). Sous lui, **« Importer des
+hydrogrammes d'un calcul précédent »** recopie dans l'Excel de ce calcul les
+hydrogrammes et les pentes d'un autre, et dit ce qui a été importé et ce qui
+reste vide.
 
 La recette et la construction du ZIP sont distinctes de cette description
 de l’interface. Le bilan courant est consigné dans [STATUT.txt](STATUT.txt).

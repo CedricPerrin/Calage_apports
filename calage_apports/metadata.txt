@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.9.15
+version=0.9.16
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,19 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.9.15 — La composition redevient un clic ; un « ! » rouge
+changelog=0.9.16 — Importer des hydrogrammes d'un calcul précédent ; plus
+    de couche en double, plus de changement d'onglet automatique.
+    « Reprendre un Excel… » devient « Importer des hydrogrammes d'un calcul
+    précédent » : il recopie, dans l'Excel de ce calcul, les hydrogrammes
+    des sections de même nom et les pentes des apports de même nom — rien
+    d'autre, la fenêtre garde son classeur et ses réglages. Aucune cible en
+    commun : il le dit et n'écrit rien. Sinon, le compte rendu nomme les
+    hydrogrammes importés et les colonnes restées vides. Les couches
+    « Sections — PK » et « Injections — PK » disparaissent : le PK s'affiche
+    en étiquette « nom — PK » sur les couches de base. La fenêtre ne change
+    plus d'onglet d'elle-même après une composition ou un lancement.
+
+    0.9.15 — La composition redevient un clic ; un « ! » rouge
     signale ce qui a changé depuis.
     La recomposition automatique (0.9.5) partait 1,5 s après la dernière
     frappe : taper « Q100 » en marquant une pause composait « Q1 », avec son

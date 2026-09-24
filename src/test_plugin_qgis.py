@@ -806,56 +806,83 @@ else:
         verifier("et l'alerte disparait quand elles se raccordent",
                  not dlg.label_geom_couches.text())
 
-        # --- L'APPARIEMENT AFFICHE NE PARLE PAS DU CLASSEUR REPRIS ---------
-        # La ligne du haut decrit le paquet COMPOSE. Reprendre le classeur
-        # d'un autre calcul ne la recalcule pas : elle annonçait les paires du
-        # precedent, avec ses noms, sous le chemin du nouveau.
-        _apparie = dlg.classeur_apparie
-        verifier("apres composition, l'appariement parle du classeur compose",
-                 dlg.classeur_apparie == str(dlg.classeur),
-                 f"{dlg.classeur_apparie}")
-        dlg.classeur_apparie = str(dlg.classeur) + ".un_autre.xlsx"
-        dlg._maj_onglet_validation_depuis_classeur()
-        verifier("repris d'un AUTRE calcul, l'ecran cesse de l'affirmer",
-                 "autre calcul" in dlg.label_validation_comptes.text(),
-                 dlg.label_validation_comptes.text()[:80])
-        dlg.classeur_apparie = _apparie
-        dlg._maj_onglet_validation_depuis_classeur()
-
         # Reproduit exactement ce que fait PluginCalage.composer() une fois la
         # fenetre fermee : recuperer classeur/paquet sur l'objet plugin, pour
         # que les actions 2, 3 et 4 continuent d'y acceder ensuite.
         p.classeur, p.paquet = dlg.classeur, dlg.paquet
 
 # ---------------------------------------------------------------------------
-# Ces trois fonctions ont quitte le menu pour rejoindre la fenetre : le
-# recontrole en onglet 4, la relecture d'hydrogramme en onglet 3, l'aide et
-# le diagnostic dans un onglet dedie. Le test les exerce donc la ou elles
-# sont desormais, et non plus sur l'objet plugin.
-print("\n3. ONGLET 4 — RECONTROLER UN CLASSEUR DEJA COMPOSE")
-if dlg is None or not dlg.classeur:
-    print("   ignore : aucun classeur compose")
-else:
-    BoiteMessage.critiques.clear()
-    avant = len(QgsProject.instance().mapLayers())
-    fichiers.fichiers = [str(dlg.classeur)]
-    dlg._recontroler_classeur()
-    verifier("aucune erreur remontee", not BoiteMessage.critiques,
-             BoiteMessage.critiques[0][:70] if BoiteMessage.critiques else "")
-    apres = len(QgsProject.instance().mapLayers())
-    verifier("couches de PK ajoutees a la carte", apres > avant,
-             f"{avant} -> {apres} couches")
-    rapport = getattr(BoiteMessage, "dernier", None)
-    verifier("rapport detaille produit",
-             rapport is not None and "PK" in rapport.detail,
-             (rapport.detail[:70] + "...") if rapport else "aucun")
-    # MEME BOITE QUE LA COMPOSITION, DONC MEME POIGNEE. Les deux sites la
-    # construisaient chacun de leur cote et celui-ci avait perdu la sienne :
-    # le tableau des PK s'y lisait par une lucarne. Ce controle aurait echoue
-    # avant que les deux appelants ne partagent _rendre_compte_du_controle().
-    verifier("« Contrôle de l'implantation » est redimensionnable",
-             rapport is not None and rapport.redimensionnable,
-             "poignée posée" if rapport else "aucune boîte affichée")
+# IMPORTER DES HYDROGRAMMES D'UN CALCUL PRECEDENT (24/09/2026, demande
+# utilisateur) — il remplace « Reprendre un Excel… ». Il n'ecrit que dans
+# l'Excel de CE calcul, et seulement les cibles et les pentes : la fenetre
+# garde son classeur. La regle d'appariement est eprouvee dans noyau.py ;
+# ici, le geste de la fenetre et ce qu'elle en dit.
+print("\n3. IMPORTER DES HYDROGRAMMES D'UN CALCUL PRECEDENT")
+import openpyxl as _openpyxl_i                               # noqa: E402
+_imp = mod_plugin.DialogueParametrage(iface)
+verifier("le bouton porte le libelle demande, et reste gris sans Excel",
+         _imp.bouton_importer.text()
+         == "&Importer des hydrogrammes d'un calcul précédent…"
+         and not _imp.bouton_importer.isEnabled(),
+         f"{_imp.bouton_importer.text()} | actif={_imp.bouton_importer.isEnabled()}")
+_bac_imp = Path(tempfile.mkdtemp(prefix="import_hydrogrammes_"))
+_ce_calcul = noyau.preparer_classeur(
+    _bac_imp / "ce_calcul", [("A1", "S1"), ("A2", "S2"), ("A3", "S3")], {},
+    parametres={"Prefixe_scenario": "Q100"})
+_precedent = noyau.preparer_classeur(
+    _bac_imp / "precedent", [("A1", "S1"), ("A2", "S2"), ("A9", "S9")], {},
+    parametres={"Prefixe_scenario": "Q100"})
+_wb_p = _openpyxl_i.load_workbook(_precedent)
+_f_p = _wb_p["Cibles"]
+_rang = {c.value: c.column for c in _f_p[1] if c.value}
+for _ligne, _t in enumerate((0.0, 1.0, 2.0), start=2):
+    _f_p.cell(row=_ligne, column=_rang["Temps_h"], value=_t)
+    _f_p.cell(row=_ligne, column=_rang["Cible_S1"], value=10.0 + _t)
+    _f_p.cell(row=_ligne, column=_rang["Cible_S9"], value=90.0 + _t)
+_wb_p.save(_precedent)
+_imp.classeur = str(_ce_calcul)
+verifier("il s'active des qu'un Excel existe", _imp.bouton_importer.isEnabled())
+_json_avant = (_ce_calcul.with_suffix(".json").stat().st_mtime_ns
+               if _ce_calcul.with_suffix(".json").exists() else None)
+_messages_imp = []
+_imp._signaler = lambda titre, texte, *a, **k: _messages_imp.append((titre, texte))
+fichiers.fichiers = [str(_precedent)]
+_imp._importer_hydrogrammes()
+_compte_rendu = _imp.label_import.text()
+verifier("le compte rendu nomme les hydrogrammes importes",
+         "Cible_S1" in _compte_rendu and "1 hydrogramme(s) importé(s)"
+         in _compte_rendu, re.sub("<[^>]+>", "", _compte_rendu)[:120])
+verifier("et les colonnes restees vides faute de correspondance",
+         "Restent vides" in _compte_rendu and "Cible_S2" in _compte_rendu
+         and "Cible_S3" in _compte_rendu, re.sub("<[^>]+>", "", _compte_rendu)[:200])
+verifier("rien d'autre : la fenetre garde son classeur, le JSON n'est pas touche",
+         _imp.classeur == str(_ce_calcul)
+         and (_json_avant is None
+              or _ce_calcul.with_suffix(".json").stat().st_mtime_ns == _json_avant),
+         str(_imp.classeur))
+verifier("les valeurs sont dans l'Excel de ce calcul",
+         [c.value for c in _openpyxl_i.load_workbook(_ce_calcul)["Cibles"]["B"][1:4]]
+         == [10.0, 11.0, 12.0],
+         str([c.value for c in
+              _openpyxl_i.load_workbook(_ce_calcul)["Cibles"]["B"][1:4]]))
+# LES CIBLES NE CORRESPONDENT PAS : on le dit, dans la page, et rien ne bouge.
+_autre = noyau.preparer_classeur(_bac_imp / "autre", [("B1", "T1")], {},
+                                 parametres={"Prefixe_scenario": "Q10"})
+_wb_a = _openpyxl_i.load_workbook(_autre)
+_wb_a["Cibles"]["A2"], _wb_a["Cibles"]["B2"] = 0.0, 5.0
+_wb_a.save(_autre)
+_avant_refus = _ce_calcul.stat().st_mtime_ns
+fichiers.fichiers = [str(_autre)]
+_imp._importer_hydrogrammes()
+verifier("sans cible commune, l'import le dit et n'ecrit rien",
+         "Rien n’a été importé" in _imp.label_import.text()
+         and "Cible_T1" in _imp.label_import.text()
+         and _ce_calcul.stat().st_mtime_ns == _avant_refus
+         and _messages_imp[-1][0] == "Hydrogrammes non importés",
+         re.sub("<[^>]+>", "", _imp.label_import.text())[:140])
+_imp.close()
+_imp.deleteLater()
+shutil.rmtree(_bac_imp, ignore_errors=True)
 
 # ---------------------------------------------------------------------------
 print("\n4. ONGLET 3 — RELIRE UN HYDROGRAMME")
@@ -2348,11 +2375,13 @@ verifier("son contour est rouge et opaque",
          f"rgba({_contour.red()},{_contour.green()},{_contour.blue()},"
          f"{_contour.alpha()})")
 
-# LES COUCHES DE PK SONT REMPLACEES, PLUS EMPILEES (24/09/2026, demande
-# utilisateur). Chaque composition en ajoutait deux au style par defaut de
-# QGIS : elles prennent maintenant celui de leur couche de base, portent
-# l'etiquette du PK, et se posent sous elle dans la legende.
+# PLUS DE COUCHE DE PK : LE PK S'ETIQUETTE SUR LES COUCHES DE BASE
+# (24/09/2026, demande utilisateur). « Sections — PK » et « Injections — PK »
+# doublaient les couches de base et se lisaient comme des doublons.
 import geopandas as _gpd                                      # noqa: E402
+from qgis.core import (QgsExpression as _QgsExpression,       # noqa: E402
+                       QgsExpressionContext as _QgsExpressionContext,
+                       QgsExpressionContextUtils as _QgsExpressionContextUtils)
 _bac_pk = Path(tempfile.mkdtemp(prefix="couches_pk_"))
 _chemins_pk = {cle: str(_bac_pk / f"{cle}.shp")
                for cle in ("axe", "sections", "apports")}
@@ -2363,6 +2392,18 @@ def _en_travers(x):
     return LineString([(500000 + x, 6199500), (500000 + x, 6200800)])
 
 
+def _etiquettes(couche):
+    """Le texte que l'etiquette de chaque entite affiche, par nom."""
+    expression = _QgsExpression(couche.labeling().settings().fieldName)
+    contexte = _QgsExpressionContext(
+        _QgsExpressionContextUtils.globalProjectLayerScopes(couche))
+    rendu = {}
+    for entite in couche.getFeatures():
+        contexte.setFeature(entite)
+        rendu[entite["nom"]] = expression.evaluate(contexte)
+    return rendu
+
+
 for _cle, _noms, _xs in (("axe", ["Axe"], None),
                          ("sections", ["S1", "S2"], (2000, 6000)),
                          ("apports", ["A1", "A2"], (1500, 5500))):
@@ -2370,42 +2411,46 @@ for _cle, _noms, _xs in (("axe", ["Axe"], None),
         {"nom": _noms},
         geometry=[axe_geom] if _xs is None else [_en_travers(x) for x in _xs],
         crs="EPSG:2154").to_file(_chemins_pk[_cle])
-_base_s = couche("Sections de contrôle (HEC-RAS)", [_en_travers(2000)], ["S1"])
+# « S9 » est tracee apres la composition : elle n'a pas encore de PK.
+_base_s = couche("Sections de contrôle (HEC-RAS)",
+                 [_en_travers(2000), _en_travers(7000)], ["S1", "S9"])
 _base_a = couche("Lignes d'injection (HEC-RAS)", [_en_travers(1500)], ["A1"])
 mod_plugin.appliquer_style(_base_s, "sections")
 mod_plugin.appliquer_style(_base_a, "injections")
 _homonyme = couche("Sections — PK", [_en_travers(100)], ["X"])
+# UNE COUCHE DE PK LAISSEE PAR LA 0.9.15 dans le projet : elle doit partir.
+_reliquat = couche("Injections — PK", [_en_travers(1500)], ["A1"])
+_reliquat.setCustomProperty(mod_plugin.MARQUE_PK, "apports")
+# L'IDENTIFIANT AVANT L'APPEL : retiree du projet, la couche est detruite, et
+# l'objet Python qui la portait ne repond plus.
+_id_reliquat = _reliquat.id()
+_nb_avant = len(QgsProject.instance().mapLayers())
 _bases_pk = {"sections": _base_s, "apports": _base_a}
-mod_plugin.afficher_pk_sur_carte(_chemins_pk, "amont_aval", bases=_bases_pk)
-mod_plugin.afficher_pk_sur_carte(_chemins_pk, "amont_aval", bases=_bases_pk)
-_marquees = {c.customProperty(mod_plugin.MARQUE_PK): c
-             for c in QgsProject.instance().mapLayers().values()
-             if c.customProperty(mod_plugin.MARQUE_PK)}
-_toutes_pk = [c for c in QgsProject.instance().mapLayers().values()
-              if c.customProperty(mod_plugin.MARQUE_PK)]
-verifier("deux compositions laissent une seule couche de PK de chaque sorte",
-         len(_toutes_pk) == 2 and set(_marquees) == {"sections", "apports"},
-         str(sorted(c.name() for c in _toutes_pk)))
+mod_plugin.etiqueter_pk_sur_carte(_chemins_pk, "amont_aval", _bases_pk)
+mod_plugin.etiqueter_pk_sur_carte(_chemins_pk, "amont_aval", _bases_pk)
+verifier("aucune couche de PK n'est creee, et celle de la 0.9.15 est retiree",
+         len(QgsProject.instance().mapLayers()) == _nb_avant - 1
+         and QgsProject.instance().mapLayer(_id_reliquat) is None,
+         f"{_nb_avant} -> {len(QgsProject.instance().mapLayers())} couches")
 verifier("une couche de l'utilisateur au meme nom n'est pas retiree",
          QgsProject.instance().mapLayer(_homonyme.id()) is not None,
          _homonyme.name())
-for _cle, _base in _bases_pk.items():
-    _pk = _marquees[_cle]
-    _sb, _sp = _base.renderer().symbol(), _pk.renderer().symbol()
-    verifier(f"la couche de PK des {_cle} prend le symbole de sa couche de base",
-             _sp.color() == _sb.color() and abs(_sp.width() - _sb.width()) < 1e-9,
-             f"{_sp.color().name()} {_sp.width()} / {_sb.color().name()} "
-             f"{_sb.width()}")
-    verifier(f"et porte l'etiquette du PK ({_cle})",
-             _pk.labelsEnabled()
-             and "pk_m" in _pk.labeling().settings().fieldName,
-             _pk.labeling().settings().fieldName if _pk.labeling() else "aucune")
-    _ids = [getattr(n, "layerId", lambda: None)()
-            for n in QgsProject.instance().layerTreeRoot().children()]
-    verifier(f"elle se pose juste sous sa couche de base ({_cle})",
-             _ids.index(_pk.id()) == _ids.index(_base.id()) + 1,
-             f"rang {_ids.index(_pk.id())}, base au rang {_ids.index(_base.id())}")
-for _c in _toutes_pk + [_base_s, _base_a, _homonyme]:
+_rendu_s = _etiquettes(_base_s)
+verifier("la couche de base des sections etiquette « nom — PK n m »",
+         _base_s.labelsEnabled()
+         and str(_rendu_s["S1"]).startswith("S1 — PK ")
+         and str(_rendu_s["S1"]).endswith(" m"),
+         str(_rendu_s))
+verifier("un objet trace apres la composition n'affiche que son nom",
+         _rendu_s["S9"] == "S9", str(_rendu_s["S9"]))
+_rendu_a = _etiquettes(_base_a)
+verifier("et celle des injections aussi",
+         _base_a.labelsEnabled() and str(_rendu_a["A1"]).startswith("A1 — PK "),
+         str(_rendu_a))
+verifier("le symbole de la couche de base ne bouge pas",
+         _base_s.renderer().symbol().color().name() == "#e31a1c",
+         _base_s.renderer().symbol().color().name())
+for _c in (_base_s, _base_a, _homonyme):
     QgsProject.instance().removeMapLayer(_c.id())
 shutil.rmtree(_bac_pk, ignore_errors=True)
 

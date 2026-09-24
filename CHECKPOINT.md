@@ -1,5 +1,27 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## Reprendre ici — 24 septembre 2026 (après-midi) : 0.9.16
+
+Trois demandes utilisateur après la publication de la 0.9.15 :
+
+- **« Importer des hydrogrammes d'un calcul précédent »** remplace
+  « Reprendre un Excel… » (`noyau.importer_hydrogrammes`) : cibles par
+  en-tête `Cible_<section>` avec `Temps_h`, pentes par nom d'apport, dans
+  l'Excel de ce calcul, rien d'autre. Aucune cible commune → rien d'écrit,
+  les deux listes nommées ; sinon le compte rendu (dans la page) nomme
+  importés, restés vides, ignorés, pentes. La reprise de classeur disparaît
+  avec lui : reprendre un calcul = recomposer, puis importer.
+- **Plus de couches PK** : le PK s'étiquette sur les couches de base ; celles
+  de la 0.9.15 partent à la composition suivante.
+- **Plus de changement d'onglet automatique** après composition et lancement.
+
+Bancs : QGIS **381 contrôles, aucun échec** ; noyau vert (9 contrôles
+d'import) ; `calage_apports_0.9.16.zip` conforme, garde-fou vert.
+**Publiée** dans `00-depot_QGIS` et vérifiée par `verifier_dans_qgis.py`
+(profil jetable) ; commit sur `main`. **Non fait** : fenêtre regardée à
+l'écran. Juste après, `D:\1-Python` est renommé `D:\1-Dev` par la session
+« 1-python-ee » : relire `D:\1-Dev\CLAUDE.md` avant de reprendre.
+
 ## Reprendre ici — 24 septembre 2026 : 0.9.15, la composition redevient un clic
 
 Le dépôt a déménagé le même jour :

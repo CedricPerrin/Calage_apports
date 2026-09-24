@@ -2073,6 +2073,125 @@ def prolonger_cibles(chemin_classeur, duree_h):
             "colonnes": [entetes[c - 1] for c in colonnes]}
 
 
+def importer_hydrogrammes(source, cible):
+    """
+    Recopie dans l'Excel de CE calcul (`cible`) les hydrogrammes cibles et les
+    pentes des apports d'un Excel d'un calcul precedent (`source`). Rien
+    d'autre : ni les parametres (le JSON voisin), ni la correspondance, ni le
+    classeur que la fenetre suit (24/09/2026, demande utilisateur — ce geste
+    remplace « Reprendre un Excel… », qui faisait de la source le classeur de
+    la fenetre, rejouait les controles et reprenait ses reglages).
+
+    PAR EN-TETE : chaque colonne « Cible_<section> » de la cible prend celle
+    de meme en-tete dans la source, avec la colonne Temps_h. PAR NOM
+    D'APPORT : la pente « Pente_m_par_m » d'un apport de la source rejoint
+    l'apport de meme nom. Une colonne sans correspondance n'est pas touchee.
+
+    SUR PLACE, comme prolonger_cibles : styles, graphique et tableau des pics
+    de la feuille Cibles sont conserves. L'Excel d'avant est garde sous
+    « <nom>.precedent.xlsx », le niveau unique de la composition.
+
+    REFUSE SANS RIEN ECRIRE (ValueError) : un fichier qui n'est pas un Excel
+    des objectifs, l'Excel de ce calcul lui-meme, aucune cible en commun, ou
+    des colonnes deja saisies sur une AUTRE base de temps — l'import
+    changerait Temps_h sous elles.
+
+    Rend {"importees", "vides", "gardees", "ignorees", "pentes",
+    "sauvegarde"}.
+    """
+    import openpyxl
+
+    source, cible = Path(source), Path(cible)
+    if source.resolve() == cible.resolve():
+        raise ValueError(f"{source.name} est déjà l’Excel de ce calcul.")
+    lu = openpyxl.load_workbook(source, data_only=True)
+    ecrit = openpyxl.load_workbook(cible)
+    for fichier, classeur in ((source, lu), (cible, ecrit)):
+        absentes = [f for f in ("Correspondance", "Cibles")
+                    if f not in classeur.sheetnames]
+        if absentes:
+            raise ValueError(
+                f"{fichier.name} n’a pas de feuille « "
+                f"{' » ni « '.join(absentes)} » : ce n’est pas un Excel des "
+                f"hydrogrammes objectifs.")
+
+    def colonnes(feuille):
+        # JUSQU'AU PREMIER EN-TETE VIDE : au-dela vivent le tableau des pics
+        # et le graphique (style_classeur._ajouter_apercu_cibles).
+        rangs = {}
+        for cellule in feuille[1]:
+            if cellule.value is None or str(cellule.value).strip() == "":
+                break
+            rangs[str(cellule.value).strip()] = cellule.column
+        return rangs
+
+    def valeurs(feuille, colonne):
+        serie = [feuille.cell(row=ligne, column=colonne).value
+                 for ligne in range(2, feuille.max_row + 1)]
+        while serie and serie[-1] in (None, ""):
+            serie.pop()
+        return serie
+
+    src, dst = lu["Cibles"], ecrit["Cibles"]
+    cols_src, cols_dst = colonnes(src), colonnes(dst)
+    for fichier, cols in ((source, cols_src), (cible, cols_dst)):
+        if "Temps_h" not in cols:
+            raise ValueError(f"la feuille Cibles de {fichier.name} n’a pas de "
+                             f"colonne « Temps_h ».")
+    attendues = [e for e in cols_dst if e.startswith("Cible_")]
+    portees = [e for e in cols_src
+               if e.startswith("Cible_") and valeurs(src, cols_src[e])]
+    importees = [e for e in attendues if e in portees]
+    if not importees:
+        raise ValueError(
+            f"aucun hydrogramme de {source.name} ne correspond aux cibles de "
+            f"ce calcul. Attendues : {_entetes_dits(attendues)}. Dans l’Excel "
+            f"importé : " + (_entetes_dits(portees) if portees else
+                             "aucune colonne « Cible_… » renseignée") + ".")
+    restantes = [e for e in attendues if e not in importees]
+    gardees = [e for e in restantes if valeurs(dst, cols_dst[e])]
+    temps = valeurs(src, cols_src["Temps_h"])
+    if gardees and valeurs(dst, cols_dst["Temps_h"]) != temps:
+        raise ValueError(
+            f"{', '.join(gardees)} porte(nt) déjà des valeurs, sur une autre "
+            f"base de temps que {source.name} : l’import changerait la colonne "
+            f"Temps_h sous elles. Les vider dans l’Excel de ce calcul, ou les "
+            f"ajouter à l’Excel importé, puis recommencer.")
+
+    sauvegarde = cible.with_name(cible.stem + ".precedent" + cible.suffix)
+    shutil.copy2(cible, sauvegarde)
+    hauteur = max(len(temps), dst.max_row - 1)
+    for entete in ["Temps_h"] + importees:
+        serie = temps if entete == "Temps_h" else valeurs(src, cols_src[entete])
+        for i in range(hauteur):
+            dst.cell(row=i + 2, column=cols_dst[entete],
+                     value=serie[i] if i < len(serie) else None)
+
+    pentes = []
+    apport, pente = "Nom_Apport (BC line)", "Pente_m_par_m"
+    f_src, f_dst = lu["Correspondance"], ecrit["Correspondance"]
+    c_src, c_dst = colonnes(f_src), colonnes(f_dst)
+    if {apport, pente} <= set(c_src) and {apport, pente} <= set(c_dst):
+        lues = {}
+        for ligne in range(2, f_src.max_row + 1):
+            nom = f_src.cell(row=ligne, column=c_src[apport]).value
+            valeur = f_src.cell(row=ligne, column=c_src[pente]).value
+            if nom not in (None, "") and valeur not in (None, ""):
+                lues[str(nom).strip()] = valeur
+        for ligne in range(2, f_dst.max_row + 1):
+            nom = str(f_dst.cell(row=ligne, column=c_dst[apport]).value
+                      or "").strip()
+            if nom in lues:
+                f_dst.cell(row=ligne, column=c_dst[pente], value=lues[nom])
+                pentes.append(nom)
+    ecrit.save(cible)
+    return {"importees": importees,
+            "vides": [e for e in restantes if e not in gardees],
+            "gardees": gardees,
+            "ignorees": [e for e in portees if e not in attendues],
+            "pentes": pentes, "sauvegarde": str(sauvegarde)}
+
+
 def controler_paquet(chemin_classeur):
     """
     Controle complet du paquet : saisie, chaine geographique, PK et ordre,
@@ -2730,6 +2849,106 @@ if __name__ == "__main__":
               + (f"  ->  {_detail[0]}" if _detail else ""))
         assert _ok, _libelle
     _cl.unlink(missing_ok=True)
+
+    print("\n4 bis bis. IMPORT DES HYDROGRAMMES D'UN CALCUL PRECEDENT")
+    # (24/09/2026, demande utilisateur.) Les cibles vont par EN-TETE, les
+    # pentes par NOM D'APPORT ; une colonne sans correspondance n'est pas
+    # touchee ; et tout refus laisse l'Excel de ce calcul intact.
+
+    def _excel_objectifs(chemin, paires, cibles, pentes=None):
+        """Correspondance et Cibles, aux en-tetes de preparer_classeur."""
+        _wb = openpyxl.Workbook()
+        _fe = _wb.active
+        _fe.title = "Correspondance"
+        _fe.append(["Ordre", "Nom_Apport (BC line)",
+                    "Nom_Section (reference line)", "Nom_Cible",
+                    "Pente_m_par_m"])
+        for _rang, (_a, _s) in enumerate(paires, 1):
+            _fe.append([_rang, _a, _s, f"Cible_{_s}", (pentes or {}).get(_a)])
+        _fc = _wb.create_sheet("Cibles")
+        _fc.append(list(cibles))
+        for _ligne in zip(*cibles.values()):
+            _fc.append(list(_ligne))
+        _wb.save(chemin)
+
+    _ce = dossier / "essai_import_ce_calcul.xlsx"
+    _prec = dossier / "essai_import_precedent.xlsx"
+    _paires_ce = [("A1", "S1"), ("A2", "S2"), ("A3", "S3")]
+    _excel_objectifs(_ce, _paires_ce, {"Temps_h": [], "Cible_S1": [],
+                                       "Cible_S2": [], "Cible_S3": []})
+    _excel_objectifs(_prec, [("A1", "S1"), ("A2", "S2"), ("A9", "S9")],
+                     {"Temps_h": [0.0, 1.0, 2.0], "Cible_S1": [1.0, 2.0, 3.0],
+                      "Cible_S2": [4.0, 5.0, 6.0], "Cible_S9": [7.0, 8.0, 9.0]},
+                     pentes={"A1": 0.02})
+    _imp = importer_hydrogrammes(_prec, _ce)
+    _cib = pd.read_excel(_ce, sheet_name="Cibles")
+    _cor = pd.read_excel(_ce, sheet_name="Correspondance")
+    _pente = dict(zip(_cor["Nom_Apport (BC line)"], _cor["Pente_m_par_m"]))
+
+    def _intact(chemin):
+        return (chemin.stat().st_size, chemin.stat().st_mtime_ns)
+
+    _controles = [
+        ("les cibles de meme en-tete sont importees, et elles seules",
+         _imp["importees"] == ["Cible_S1", "Cible_S2"], str(_imp["importees"])),
+        ("leurs valeurs et le temps arrivent",
+         list(_cib["Cible_S1"]) == [1.0, 2.0, 3.0]
+         and list(_cib["Temps_h"]) == [0.0, 1.0, 2.0],
+         str(list(_cib["Cible_S1"]))),
+        ("une cible sans correspondance reste vide, et est nommee",
+         _imp["vides"] == ["Cible_S3"] and _cib["Cible_S3"].isna().all(),
+         str(_imp["vides"])),
+        ("une cible absente de ce calcul est ignoree, et nommee",
+         _imp["ignorees"] == ["Cible_S9"], str(_imp["ignorees"])),
+        ("la pente d'un apport de meme nom est reprise, les autres non",
+         _imp["pentes"] == ["A1"] and _pente["A1"] == 0.02
+         and pd.isna(_pente["A3"]), str(_pente)),
+        ("l'Excel d'avant est garde en .precedent",
+         Path(_imp["sauvegarde"]).exists(), Path(_imp["sauvegarde"]).name),
+    ]
+    # AUCUNE CIBLE EN COMMUN : refus, rien d'ecrit.
+    _excel_objectifs(_prec, [("A9", "S9")],
+                     {"Temps_h": [0.0, 1.0], "Cible_S9": [7.0, 8.0]})
+    _avant = _intact(_ce)
+    try:
+        importer_hydrogrammes(_prec, _ce)
+        _dit = "aucun refus"
+    except ValueError as e:
+        _dit = str(e)
+    _controles.append(("sans cible commune, l'import refuse et nomme les deux "
+                       "listes, sans rien ecrire",
+                       "Cible_S1" in _dit and "Cible_S9" in _dit
+                       and _intact(_ce) == _avant, _dit))
+    # UNE COLONNE DEJA SAISIE SUR UNE AUTRE BASE DE TEMPS : refus.
+    _excel_objectifs(_ce, _paires_ce, {"Temps_h": [0.0, 0.5],
+                                       "Cible_S1": [None, None],
+                                       "Cible_S2": [None, None],
+                                       "Cible_S3": [3.0, 4.0]})
+    _excel_objectifs(_prec, [("A1", "S1")],
+                     {"Temps_h": [0.0, 1.0, 2.0], "Cible_S1": [1.0, 2.0, 3.0]})
+    _avant = _intact(_ce)
+    try:
+        importer_hydrogrammes(_prec, _ce)
+        _dit = "aucun refus"
+    except ValueError as e:
+        _dit = str(e)
+    _controles.append(("une colonne saisie sur une autre base de temps fait "
+                       "refuser l'import, sans rien ecrire",
+                       "Cible_S3" in _dit and "Temps_h" in _dit
+                       and _intact(_ce) == _avant, _dit))
+    try:
+        importer_hydrogrammes(_ce, _ce)
+        _dit = "aucun refus"
+    except ValueError as e:
+        _dit = str(e)
+    _controles.append(("importer l'Excel de ce calcul dans lui-meme est refuse",
+                       "déjà" in _dit, _dit))
+    for _libelle, _ok, *_detail in _controles:
+        print(f"   [{'OK' if _ok else 'ECHEC'}] {_libelle}"
+              + (f"  ->  {_detail[0][:100]}" if _detail else ""))
+        assert _ok, _libelle
+    for _f in (_ce, _prec, Path(_imp["sauvegarde"])):
+        _f.unlink(missing_ok=True)
 
     # ET LE LANCEMENT REFUSE UN CLASSEUR SANS COLONNE Temps_h (04/09/2026).
     # etat_cibles() est ce que le plugin consulte juste avant de partir. Il

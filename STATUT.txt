@@ -22,6 +22,40 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+VERSION 0.9.16 — 24 SEPTEMBRE 2026 (APRES-MIDI). IMPORTER DES HYDROGRAMMES ;
+  PLUS DE COUCHE EN DOUBLE ; PLUS DE CHANGEMENT D'ONGLET AUTOMATIQUE.
+  Demandes utilisateur, apres la publication de la 0.9.15.
+  1. « REPRENDRE UN EXCEL… » DEVIENT « IMPORTER DES HYDROGRAMMES D'UN CALCUL
+     PRECEDENT » (noyau.importer_hydrogrammes). Il recopie dans l'Excel de CE
+     calcul les colonnes Cible_<section> de meme en-tete (avec Temps_h) et
+     les Pente_m_par_m des apports de meme nom — RIEN D'AUTRE : la fenetre
+     garde son classeur, le JSON n'est pas touche, aucun controle ni reglage
+     repris. Sur place (openpyxl), l'Excel d'avant garde en .precedent.xlsx.
+     REFUS SANS ECRITURE : pas un Excel des objectifs, le meme fichier, aucune
+     cible commune (les deux listes nommees), ou des colonnes deja saisies
+     sur une autre base de temps. Compte rendu dans la page, sous le bouton :
+     importees, restees vides, gardees, ignorees, pentes reprises. Bouton
+     grise tant qu'aucun Excel n'existe. La reprise de classeur disparait
+     avec lui : _recontroler_classeur, _appliquer_reglages_du_classeur,
+     classeur_apparie retires. On reprend donc un calcul en recomposant,
+     puis en important ses hydrogrammes.
+  2. PLUS DE COUCHES « Sections — PK » / « Injections — PK » : elles
+     doublaient les couches de base (memes objets, meme trace depuis la
+     0.9.15) et se lisaient comme des doublons. Le PK s'etiquette sur les
+     couches de base (etiqueter_pk_sur_carte) : « nom — PK n m », par une
+     table nom -> PK figee dans l'expression — aucun champ ajoute a une
+     couche editee ; un objet trace apres la composition n'affiche que son
+     nom. Les couches marquees de la 0.9.15 sont retirees a la composition.
+  3. PLUS AUCUN CHANGEMENT D'ONGLET AUTOMATIQUE : ni vers Lancer apres la
+     composition, ni vers Suivi apres le lancement. Les gestes restent
+     (liens du fil, Precedent/Suivant, Alt+fleches, F1, « Consulter le
+     suivi »).
+  Banc QGIS : 381 controles, aucun echec ; banc noyau vert (9 controles
+  d'import) ; faire_zip conforme, garde-fou d'archive vert. PUBLIEE dans
+  00-depot_QGIS (publier.py STATUT=OK) ; verifier_dans_qgis.py STATUT=OK
+  dans un profil jetable. Commit sur main. NON FAIT : fenetre regardee a
+  l'ecran.
+
 VERSION 0.9.15 — 24 SEPTEMBRE 2026. LA COMPOSITION REDEVIENT UN CLIC ; UN
   « ! » ROUGE DIT CE QUI A CHANGE DEPUIS. Demandes utilisateur du jour.
   DEPOT DEPLACE LE MEME JOUR : D:\1-Python\1-Utilitaires\1.1-Plugins_QGIS\

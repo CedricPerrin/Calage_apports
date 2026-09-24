@@ -2,13 +2,17 @@
 
 Préparation et contrôle du paquet de calage pour **HEC-RAS uniquement**.
 Voir `methodologie_calage_amont_aval.docx`, § 2.4.
-Version **0.9.15** : **plus de recomposition automatique** — elle composait
+Version **0.9.16** : **« Importer des hydrogrammes d'un calcul précédent »**
+remplace « Reprendre un Excel… » — il recopie dans l'Excel de ce calcul les
+hydrogrammes des sections de même nom et les pentes des apports de même nom,
+rien d'autre, et dit ce qui a été importé et ce qui reste vide. Les couches
+« Sections — PK » et « Injections — PK » disparaissent : le PK s'étiquette
+sur les couches de base. Plus de changement d'onglet automatique. Avant, la
+**0.9.15** : **plus de recomposition automatique** — elle composait
 les préfixes à demi tapés, dossier et classeur compris. Seul le bouton
 « Valider la géométrie et générer le fichier des hydrogrammes » compose ; un
 réglage changé ensuite porte un **« ! » rouge** sur son champ et sur le titre
-de son étape, et le lancement est refusé tant qu'il en reste un. Les couches
-« Sections — PK » et « Injections — PK » sont remplacées au lieu de
-s'empiler, au style des couches de base. Avant, la **0.9.14** : le changelog
+de son étape, et le lancement est refusé tant qu'il en reste un. Avant, la **0.9.14** : le changelog
 redevient lisible par QGIS — ses signes pour cent sont doublés. Avant, la **0.9.13** : la recherche des interpréteurs Python quitte le fil
 graphique — une tâche QGIS annulable, dont le résultat attend la réouverture
 de la fenêtre. Avant, la **0.9.12** : un refus de composer — feuille Cibles
@@ -78,8 +82,14 @@ choses, dans cet ordre :
    irréversible de la fenêtre**, et une sauvegarde horodatée du `.gXX` le
    précède ;
 2. il **compose** les shapefiles normalisés et l'Excel **pré-rempli** ;
-3. il **contrôle** — PK, ordre déclaré, position des apports — et ajoute une
-   **couche des PK à la carte**.
+3. il **contrôle** — PK, ordre déclaré, position des apports — et **étiquette
+   les couches de base** de leur PK (« nom — PK n m »).
+
+Sous lui, **Importer des hydrogrammes d'un calcul précédent** recopie dans
+l'Excel de ce calcul, depuis l'Excel d'un autre, les hydrogrammes des
+sections de même nom et les pentes des apports de même nom — et rien d'autre.
+Le compte rendu, dans la page, nomme ce qui a été importé et ce qui reste
+vide ; sans aucune cible commune, rien n'est écrit.
 
 Si la composition échoue après l'étape 1, le message le dit : le modèle a déjà
 été modifié. Sinon, le compte rendu de composition **ouvre par ce qui a été
@@ -108,7 +118,7 @@ propose ensuite les mises à jour. Le `LISEZMOI.md` du dépôt détaille la marc
 
 **Depuis l'archive**, pour un poste sans accès au dépôt.
 `calage_apports_<version>.zip` —
-`calage_apports_0.9.15.zip` pour cette version — est **à la racine du dépôt** : la télécharger
+`calage_apports_0.9.16.zip` pour cette version — est **à la racine du dépôt** : la télécharger
 suffit, il n'y a rien à reconstruire. Le nom porte la version pour qu'on
 sache, sur un poste distant, ce qu'on installe ; il n'y en a jamais qu'une
 dans le dépôt, la plus récente. Puis, dans QGIS :

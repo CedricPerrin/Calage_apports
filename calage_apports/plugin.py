@@ -380,40 +380,6 @@ def couche_vers_gdf(couche, champ_nom=None, selection_seule=False,
                             crs=couche.crs().authid() or None)
 
 
-def gdf_vers_couche(gdf, nom_couche, crs_authid):
-    """Cree une couche memoire QGIS a partir d'un GeoDataFrame."""
-    couche = QgsVectorLayer(f"LineString?crs={crs_authid}", nom_couche, "memory")
-    fournisseur = couche.dataProvider()
-
-    champs = QgsFields()
-    champs.append(QgsField("nom", TYPE_CHAMP_TEXTE))
-    for colonne in gdf.columns:
-        if colonne in ("nom", "geometry"):
-            continue
-        type_qt = (TYPE_CHAMP_REEL
-                   if gdf[colonne].dtype.kind in "fi" else TYPE_CHAMP_TEXTE)
-        champs.append(QgsField(str(colonne)[:10], type_qt))
-    fournisseur.addAttributes(champs)
-    couche.updateFields()
-
-    entites = []
-    for _, ligne in gdf.iterrows():
-        entite = QgsFeature(couche.fields())
-        entite.setGeometry(QgsGeometry.fromWkt(ligne["geometry"].wkt))
-        entite["nom"] = str(ligne["nom"])
-        for colonne in gdf.columns:
-            if colonne in ("nom", "geometry"):
-                continue
-            valeur = ligne[colonne]
-            entite[str(colonne)[:10]] = (float(valeur)
-                                         if isinstance(valeur, (int, float))
-                                         else str(valeur))
-        entites.append(entite)
-    fournisseur.addFeatures(entites)
-    couche.updateExtents()
-    return couche
-
-
 def _couche_memoire_depuis_wkt(nom_couche, entites, crs_authid, type_geometrie,
                                champ):
     """
@@ -1823,88 +1789,67 @@ def rendre_redimensionnable(boite, largeur=900, hauteur=420):
     return boite
 
 
-# LES COUCHES DE PK SE RECONNAISSENT A CETTE PROPRIETE, PAS A LEUR NOM : une
-# couche renommee reste retrouvee, une couche de l'utilisateur au meme nom
-# n'est jamais retiree, et la marque, enregistree dans le projet, survit a
-# la fermeture de QGIS.
+# LES COUCHES DE PK DE LA 0.9.15 portaient cette marque. Il n'en est plus
+# cree ; celles qu'un projet garde encore sont retirees a la composition.
 MARQUE_PK = "calage_apports/pk"
 
 
-def etiqueter_pk(couche):
-    """Etiquette « nom — PK 1 250 m » : ce que la couche de PK ajoute a la carte."""
-    reglages = QgsPalLayerSettings()
-    reglages.fieldName = ("concat(\"nom\", ' — PK ', "
-                          "format_number(\"pk_m\", 0), ' m')")
-    reglages.isExpression = True
-    # HORIZONTALE : une section de controle est souvent tracee en travers du
-    # lit, donc presque verticale, et une etiquette parallele s'y lirait mal.
-    reglages.placement = Qgis.LabelPlacement.Horizontal
-    couche.setLabeling(QgsVectorLayerSimpleLabeling(reglages))
-    couche.setLabelsEnabled(True)
-
-
-def afficher_pk_sur_carte(chemins, sens, crs_defaut="EPSG:2154", bases=None):
+def etiqueter_pk_sur_carte(chemins, sens, bases):
     """
-    Montre a la carte les couches de PK des sections et des injections.
+    Etiquette les couches de base du modele : « nom — PK 1 250 m ».
 
     Montrer une incoherence d'ordre A L'ENDROIT OU ELLE EST est le seul
     apport du plugin qu'un rapport texte ne peut pas remplacer.
 
-    REMPLACEES, JAMAIS EMPILEES (24/09/2026, demande utilisateur). Chaque
-    composition en ajoutait deux de plus, au style par defaut de QGIS ; avec
-    la recomposition automatique, deux par pause dans la frappe. Elles
-    prennent desormais le style de leur couche de base — sections.qml,
-    injections.qml — plus l'etiquette du PK, et se posent SOUS elle dans la
-    legende : la couche de base, dessinee par-dessus, reste celle qu'on voit
-    et qu'on edite ; les etiquettes, elles, passent devant.
+    SUR LES COUCHES DE BASE, SANS COUCHE DE PLUS (24/09/2026, demande
+    utilisateur). Jusqu'a la 0.9.15, « Sections — PK » et « Injections — PK »
+    doublaient les couches de base — memes objets, meme trace — et se
+    lisaient comme des doublons ; le PK n'y ajoutait qu'une etiquette. Elle
+    passe sur la couche de base, par une table nom -> PK figee dans
+    l'expression : aucun champ n'est ajoute a une couche que l'utilisateur
+    edite, et un objet trace apres la composition, sans PK, n'affiche que
+    son nom jusqu'a la suivante.
 
     chemins : dict a cles « sections », « apports », « axe ».
-    bases : dict a cles « sections », « apports » — les couches du modele
-        sous lesquelles poser chaque couche de PK. Absente : en tete.
+    bases : dict a cles « sections », « apports » — les couches a etiqueter.
     """
-    if not chemins.get("axe"):
-        return []
     projet = QgsProject.instance()
     for ancienne in list(projet.mapLayers().values()):
         if ancienne.customProperty(MARQUE_PK):
             projet.removeMapLayer(ancienne.id())
-    racine = projet.layerTreeRoot()
-    ajoutees = []
-    for libelle, cle, style in (("Sections — PK", "sections", "sections"),
-                                ("Injections — PK", "apports", "injections")):
-        if not chemins.get(cle):
+    if not chemins.get("axe"):
+        return
+    for cle, couche in bases.items():
+        couche = couche_vivante(couche)
+        if couche is None or not chemins.get(cle):
             continue
         gdf = noyau.pk_pour_affichage(chemins[cle], chemins["axe"], sens=sens)
-        couche = gdf_vers_couche(
-            gdf, libelle, gdf.crs.to_string() if gdf.crs else crs_defaut)
-        appliquer_style(couche, style)
-        etiqueter_pk(couche)
-        # LA MARQUE APRES LE STYLE : charger un .qml remplace les proprietes
-        # personnalisees de la couche par les siennes — posee avant, elle
-        # disparaissait (mesure au banc le 24/09/2026).
-        couche.setCustomProperty(MARQUE_PK, cle)
-        projet.addMapLayer(couche, False)
-        base = couche_vivante((bases or {}).get(cle))
-        noeud = racine.findLayer(base.id()) if base is not None else None
-        parent, rang = racine, 0
-        if noeud is not None:
-            parent = noeud.parent()
-            # PAR IDENTIFIANT : un groupe de la legende n'a pas de layerId.
-            ids = [getattr(n, "layerId", lambda: None)()
-                   for n in parent.children()]
-            rang = ids.index(base.id()) + 1
-        parent.insertLayer(rang, couche)
-        ajoutees.append(couche)
-    return ajoutees
+        gdf = gdf.dropna(subset=["pk_m"])
+        table = ", ".join(
+            "'{}', {:.1f}".format(str(nom).replace("'", "''"), float(pk))
+            for nom, pk in zip(gdf["nom"], gdf["pk_m"]))
+        reglages = QgsPalLayerSettings()
+        reglages.fieldName = (
+            "concat(\"nom\", ' — PK ' || format_number("
+            f"map_get(map({table}), \"nom\"), 0) || ' m')")
+        reglages.isExpression = True
+        # HORIZONTALE : une section de controle est souvent tracee en travers
+        # du lit, donc presque verticale, et une etiquette parallele s'y
+        # lirait mal.
+        reglages.placement = Qgis.LabelPlacement.Horizontal
+        couche.setLabeling(QgsVectorLayerSimpleLabeling(reglages))
+        couche.setLabelsEnabled(True)
+        couche.triggerRepaint()
 
 
 # ---------------------------------------------------------------------------
 # Fenetre de parametrage — six onglets
 #
-# Les rangs sont NOMMES : deux methodes basculent d'onglet apres une action
-# (composer amene a l'onglet 4, lancer amene au suivi), et un indice ecrit en
-# dur y devenait faux au premier onglet insere — sans que rien ne le signale,
-# puisque Qt affiche simplement l'onglet voisin.
+# Les rangs sont NOMMES : les liens du fil conducteur, F1 et « Consulter le
+# suivi » visent un onglet par son rang, et un indice ecrit en dur y devenait
+# faux au premier onglet insere — sans que rien ne le signale, puisque Qt
+# affiche simplement l'onglet voisin. Aucune action ne change plus d'onglet
+# d'elle-meme (24/09/2026, demande utilisateur).
 # ---------------------------------------------------------------------------
 
 # COMBIEN DE TEMPS ON LAISSE AU CALAGE POUR ECRIRE SON PREMIER ETAT avant de
@@ -2027,7 +1972,6 @@ class DialogueParametrage(QDialog):
         # la recalcule pas — l'appariement se deduit des PK, donc des
         # shapefiles du paquet, que la reprise n'a pas. Sans ce temoin, elle
         # continuait d'annoncer les paires du paquet precedent.
-        self.classeur_apparie = None
         # DE QUELLE GEOMETRIE VIENNENT LES COUCHES CHARGEES. Changer de plan,
         # ou surcharger la geometrie, n'invalide rien : la zone 2D et le CRS
         # restent ceux d'AVANT, et ils ne sont pas des comptes rendus dates —
@@ -2988,11 +2932,10 @@ class DialogueParametrage(QDialog):
         UN ECART EST UN CHAMP CHANGE DEPUIS QUE LE PAQUET EST LA (24/09/2026).
         Differer du paquet ne suffit plus : il faut aussi differer de ce que
         l'ecran tenait quand le paquet est arrive (_valeurs_au_paquet, pose
-        par le setter de « classeur »). Reprendre un Excel ne remplit que
-        les reglages de lancement : le modele, les dossiers et l'axe restent
-        vides ou par defaut, et ces champs muets passaient pour des ecarts —
-        le lancement, qui refuse tant qu'il y en a, serait devenu impossible
-        sur un classeur repris sans son modele.
+        par le setter de « classeur »). La composition normalise des champs
+        — un sous-dossier vide devient « resultats_finaux » ou « suivi » dans
+        le paquet — et sans cette regle ils s'allumeraient des le clic, alors
+        que personne n'y a touche.
 
         Rend {cle du paquet : texte de l'ecart}, dans l'ordre de _COMPARES.
         """
@@ -3882,14 +3825,11 @@ class DialogueParametrage(QDialog):
             "plus bas au retour dans QGIS.")
         self.consigne_classeur.setWordWrap(True)
         v_classeur.addWidget(self.consigne_classeur)
-        # COTE A COTE, LIBELLES COURTS (0.8.4, demande utilisateur). La 0.8.2
-        # les avait EMPILES : a 13 pt, « Ouvrir les objectifs dans Excel » et
-        # « Reprendre un Excel existant… » demandaient 703 px a eux seuls, le
-        # groupe 747 et la page 773 pour 750 disponibles — l'onglet 3
-        # debordait horizontalement. Raccourcis, ils tiennent sur une ligne
-        # et rendent la hauteur que l'empilement coutait. Ce que les libelles
-        # longs disaient vit dans les infobulles.
-        ligne_classeur = QHBoxLayout()
+        # EMPILES DE NOUVEAU (24/09/2026). La 0.8.4 les avait mis cote a cote
+        # avec des libelles raccourcis ; le libelle d'import demande par
+        # l'utilisateur ne tient plus sur la ligne d'« Ouvrir dans Excel » a
+        # 13 pt — une rangee de boutons ne se replie pas, elle deborde.
+        ligne_classeur = QVBoxLayout()
         ligne_classeur.setSpacing(6)
         self.bouton_ouvrir_classeur = QPushButton("Ouvrir dans &Excel")
         self.bouton_ouvrir_classeur.setToolTip(
@@ -3897,19 +3837,24 @@ class DialogueParametrage(QDialog):
             "Cibles que se saisissent les hydrogrammes, une colonne par "
             "section.")
         self.bouton_ouvrir_classeur.clicked.connect(self._ouvrir_classeur)
-        ligne_classeur.addWidget(self.bouton_ouvrir_classeur)
-        bouton_recontroler = QPushButton("&Reprendre un Excel…")
-        bouton_recontroler.setToolTip(
-            "Reprend un Excel des objectifs composé lors d'une autre "
-            "session : rejoue tous les contrôles sans rien recomposer. Les "
-            "chemins des shapefiles y sont relus.")
-        bouton_recontroler.clicked.connect(self._recontroler_classeur)
-        ligne_classeur.addWidget(bouton_recontroler)
-        ligne_classeur.addStretch(1)
-        for _b in (self.bouton_ouvrir_classeur, bouton_recontroler):
+        self.bouton_importer = QPushButton(
+            "&Importer des hydrogrammes d'un calcul précédent…")
+        self.bouton_importer.setToolTip(
+            "Recopie dans l'Excel de ce calcul, depuis l'Excel d'un calcul "
+            "précédent, les hydrogrammes des sections de même nom (feuille "
+            "Cibles) et les pentes des apports de même nom. Rien d'autre ne "
+            "change : paramètres, modèle et dossier de sortie restent ceux "
+            "de ce calcul.")
+        self.bouton_importer.clicked.connect(self._importer_hydrogrammes)
+        for _b in (self.bouton_ouvrir_classeur, self.bouton_importer):
             _b.setSizePolicy(QSizePolicy.Policy.Maximum,
                              QSizePolicy.Policy.Fixed)
+            ligne_classeur.addWidget(_b, 0, Qt.AlignmentFlag.AlignLeft)
         v_classeur.addLayout(ligne_classeur)
+        # LE COMPTE RENDU DE L'IMPORT, DANS LA PAGE, SOUS SON BOUTON : on le
+        # relit en complétant l'Excel.
+        self.label_import = texte_etat()
+        v_classeur.addWidget(self.label_import)
 
         # HYPOTHESE SUR LA PENTE, dite a cote du bouton qui ouvre le fichier
         # ou elle se corrige. Elle est desormais PRE-REMPLIE a la composition,
@@ -3942,19 +3887,19 @@ class DialogueParametrage(QDialog):
 
     @property
     def classeur(self):
-        """Chemin de l'Excel des objectifs ; None tant que rien n'est compose ni repris."""
+        """Chemin de l'Excel des objectifs ; None tant que rien n'est compose."""
         return self._classeur
 
     @classeur.setter
     def classeur(self, chemin):
         # LE GROUPE « Excel des hydrogrammes objectifs » SUIT CET ETAT, ET
-        # L'APPREND ICI. Trois endroits l'affectent — construction,
-        # composition, reprise — et le rafraichir a chacun, c'est en oublier
+        # L'APPREND ICI. Deux endroits l'affectent — construction et
+        # composition — et le rafraichir a chacun, c'est en oublier
         # un tot ou tard. A la construction l'onglet 3 n'existe pas encore :
         # il se peint lui-meme en naissant (_groupe_classeur).
         self._classeur = chemin
-        # CE QUE L'ECRAN TENAIT QUAND LE PAQUET EST ARRIVE — composition ou
-        # reprise. Un champ n'est perime que s'il a bouge depuis : voir
+        # CE QUE L'ECRAN TENAIT QUAND LE PAQUET EST ARRIVE, a la composition.
+        # Un champ n'est perime que s'il a bouge depuis : voir
         # _ecarts_avec_le_paquet.
         try:
             self._valeurs_au_paquet = self._valeurs_de_la_fenetre()
@@ -3969,17 +3914,13 @@ class DialogueParametrage(QDialog):
         demande utilisateur) ; la ligne d'attente, posee a la construction,
         dit pourquoi et quoi faire.
 
-        « REPRENDRE UN EXCEL… » RESTE ACTIF, ET C'EST DELIBERE : c'est la
-        SEULE porte d'entree vers un calage d'une autre session. Le griser
-        avec le reste fermerait la reprise a cle — il faudrait recomposer,
-        donc recharger le modele et ses couches, pour rouvrir un classeur
-        qu'on a deja sous la main. Le groupe entier n'est donc pas
-        desactive : seuls le bouton qui ouvrirait un fichier absent et la
-        consigne qui parle de sa saisie le sont.
+        L'IMPORT SE GRISE AUSSI (24/09/2026) : il ecrit DANS l'Excel de ce
+        calcul, qui n'existe pas encore. Le groupe entier n'est pas desactive
+        pour autant — le prefixe et le bouton de composition y vivent.
         """
         pret = bool(self.classeur)
-        for widget in (self.bouton_ouvrir_classeur, self.consigne_classeur,
-                       self.groupe_pente):
+        for widget in (self.bouton_ouvrir_classeur, self.bouton_importer,
+                       self.consigne_classeur, self.groupe_pente):
             widget.setEnabled(pret)
         self.label_classeur_attente.setVisible(not pret)
 
@@ -4017,8 +3958,8 @@ class DialogueParametrage(QDialog):
             f"ci-dessous, puis « {BOUTON_GEOMETRIE} » — le bouton est gris "
             "tant qu’il manque quelque chose, et son infobulle le nomme. Le "
             "dossier de sortie se propose tout seul (« _calage\\&lt;préfixe&gt; » "
-            "à côté du modèle, modifiable juste au-dessus). « Reprendre un "
-            "Excel… » reste disponible pour rouvrir celui d’une autre session.")
+            "à côté du modèle, modifiable juste au-dessus). Les hydrogrammes "
+            "d’un calcul précédent s’importent ensuite dans cet Excel.")
         # LE DOSSIER DE SORTIE JUSTE AU-DESSUS DU CLASSEUR (22/09/2026,
         # demande utilisateur) : « comme ca on sait ou mettre l'Excel ». Il
         # vivait a l'etape Lancer depuis la 0.9.0 — « une decision du
@@ -4068,7 +4009,7 @@ class DialogueParametrage(QDialog):
         groupe = QGroupBox("Ce que portent les hydrogrammes cibles")
         groupe.setToolTip(
             "Relu dans la feuille Cibles à chaque composition, à chaque "
-            "reprise d'un Excel, et dès que le classeur a changé sur disque "
+            "import d'hydrogrammes, et dès que le classeur a changé sur disque "
             "— au retour dans QGIS ou au changement d'onglet. Le volume est "
             "intégré sur la colonne "
             "Temps_h, à la règle des trapèzes.")
@@ -5949,39 +5890,62 @@ class DialogueParametrage(QDialog):
             Qgis.MessageLevel.Success if disponible else Qgis.MessageLevel.Warning)
 
     @avec_sablier
-    def _recontroler_classeur(self):
+    def _importer_hydrogrammes(self):
         """
-        Rejoue les controles sur un classeur compose lors d'une autre
-        session. Les chemins des shapefiles sont relus DANS le classeur, et
-        non repris de la session en cours : c'est ce qui permet de revenir
-        sur un paquet sans avoir a recomposer.
+        Recopie dans l'Excel de CE calcul les hydrogrammes et les pentes de
+        l'Excel d'un calcul precedent — et rien d'autre (24/09/2026, demande
+        utilisateur). Remplace « Reprendre un Excel… », qui faisait du fichier
+        choisi le classeur de la fenetre, rejouait les controles et reprenait
+        ses reglages : l'utilisateur n'en voulait que les hydrogrammes. La
+        regle d'appariement et les refus sont ceux de
+        noyau.importer_hydrogrammes.
         """
+        if not self.classeur:
+            return                  # bouton grise tant qu'aucun Excel n'existe
         try:
-            # str() defensif : Qt n'accepte pas un Path, et il n'y a aucun
-            # moyen de savoir a la lecture d'ou vient « classeur ».
-            depart = str(self.classeur
-                         or self.edit_dossier_sortie.text().strip())
             with sans_sablier(self):
-                classeur, _ = QFileDialog.getOpenFileName(
-                    self, "Classeur de calage", depart,
-                    "Classeur Excel (*.xlsx)")
-            if not classeur:
+                source, _ = QFileDialog.getOpenFileName(
+                    self, "Excel des hydrogrammes d'un calcul précédent",
+                    str(Path(self.classeur).parent), "Classeur Excel (*.xlsx)")
+            if not source:
                 return
-            self.classeur = classeur
-
-            anomalies, tableau, prolongation = noyau.controler_paquet(
-                classeur)
-            chemins = noyau.chemins_du_classeur(classeur)
-            afficher_pk_sur_carte(chemins, chemins["sens"],
-                                  bases={"sections": self.couche_sections,
-                                         "apports": self.couche_injections})
-
-            self._rendre_compte_du_controle("Contrôle de l'implantation",
-                                            anomalies, tableau, prolongation)
-            self._maj_onglet_validation_depuis_classeur()
-        except Exception as e:
-            journaliser("Contrôle d'un classeur existant", e)
-            QMessageBox.critical(self, "Contrôle", str(e))
+            bilan = noyau.importer_hydrogrammes(source, self.classeur)
+        except ValueError as e:
+            # LES CIBLES NE CORRESPONDENT PAS, ou ce n'est pas un Excel des
+            # objectifs : c'est un constat a lire, pas une panne.
+            dire(self.label_import, f"<span style='color:{ISL_ROUGE}'>Rien "
+                                    f"n’a été importé : {e}</span>")
+            self._signaler("Hydrogrammes non importés", str(e),
+                           Qgis.MessageLevel.Warning, duree=12)
+            return
+        except Exception as e:                              # noqa: BLE001
+            journaliser("Import des hydrogrammes", e)
+            QMessageBox.critical(
+                self, "Import des hydrogrammes",
+                f"{e}\n\nSi l'Excel de ce calcul est ouvert dans Excel, le "
+                f"fermer puis recommencer : rien n'a été importé.")
+            return
+        lignes = [f"<b>{len(bilan['importees'])} hydrogramme(s) importé(s)</b>"
+                  f" de {Path(source).name} : {', '.join(bilan['importees'])}."]
+        if bilan["vides"]:
+            lignes.append("Restent vides, faute de correspondance dans "
+                          f"l’Excel importé : {', '.join(bilan['vides'])}.")
+        if bilan["gardees"]:
+            lignes.append("Sans correspondance, gardent leur saisie : "
+                          f"{', '.join(bilan['gardees'])}.")
+        if bilan["ignorees"]:
+            lignes.append("Ignorés, leurs sections n’étant pas dans ce "
+                          f"calcul : {', '.join(bilan['ignorees'])}.")
+        lignes.append(f"Pentes reprises : {', '.join(bilan['pentes'])}."
+                      if bilan["pentes"] else "Aucune pente reprise.")
+        lignes.append("L’Excel d’avant l’import est gardé sous "
+                      f"{Path(bilan['sauvegarde']).name}.")
+        dire(self.label_import, "<br>".join(lignes))
+        self._signaler("Hydrogrammes importés",
+                       f"{len(bilan['importees'])} hydrogramme(s) importé(s) ; "
+                       "le détail est sous le bouton.",
+                       Qgis.MessageLevel.Success, duree=8)
+        self._maj_onglet_validation_depuis_classeur()
 
     # --- premier apport a caler ---------------------------------------------
 
@@ -6144,94 +6108,6 @@ class DialogueParametrage(QDialog):
                 f"écrits dans chaque plan d’étape juste avant son calcul.")
         dire(label, "<br>".join(phrases))
 
-    def _appliquer_reglages_du_classeur(self, classeur):
-        """
-        Remet la fenetre sur les reglages de LANCEMENT du classeur repris.
-
-        LA MOITIE INDISPENSABLE DE L'ECRITURE AU LANCEMENT, ET ELLE DOIT LUI
-        ETRE EXACTEMENT SYMETRIQUE. Le lancement ecrit SIX valeurs dans le
-        classeur ; cette lecture n'en reprenait que QUATRE, et s'appelait
-        « objectifs » — ce qu'elle etait devenue a moitie.
-
-        Les deux qui manquaient sont les plus cheres :
-
-          - « Prefixe_scenario ». Reprendre le classeur d'un Q100 puis lancer
-            reecrivait le prefixe avec le champ VIDE de la fenetre : « Q100 »
-            disparaissait du classeur, les plans etaient titres hors scenario,
-            et caler le Q10 ensuite sur le meme modele effacait les plans du
-            Q100 — l'accident meme que le prefixe existe pour empecher (0.6.0).
-          - « Premier_apport ». Meme trou : la reprise remettait la liste sur
-            « tous », et le lancement reecrivait ce « tous » dans le classeur.
-            Un calage repris au vingtieme apport repartait de zero.
-
-        Rien de tout cela n'etait BLOQUANT — le calage part et rend ses
-        livrables. Cela coutait des heures, en silence.
-
-        Ne leve jamais : un classeur illisible se signale ailleurs, et des
-        reglages ne sont pas ce qui doit faire echouer sa reprise.
-        """
-        try:
-            parametres = noyau.lire_parametres(classeur)
-        except Exception as e:                              # noqa: BLE001
-            journaliser("Réglages du classeur repris", e)
-            return
-        for cle, widget in (("Tolerance_volume_pct", self.spin_tol_volume),
-                            ("Tolerance_pic_pct", self.spin_tol_pic),
-                            ("Bilan_masse_max_pct", self.spin_bilan_masse),
-                            ("Nb_max_iterations_par_apport",
-                             self.spin_nb_max_essais)):
-            valeur = parametres.get(cle)
-            if valeur is None:
-                continue
-            try:
-                widget.setValue(type(widget.value())(valeur))
-            except (TypeError, ValueError):
-                continue
-
-        # LE PREFIXE. Une chaine VIDE est une valeur — « pas de prefixe » — et
-        # non une absence : seule une cle ABSENTE du classeur laisse le champ
-        # tel quel.
-        prefixe = parametres.get("Prefixe_scenario")
-        if prefixe is not None and hasattr(self, "edit_prefixe_scenario"):
-            self.edit_prefixe_scenario.setText(str(prefixe).strip())
-
-        # LES CŒURS. La case dit « appliquer la suggestion de CE poste » : un
-        # classeur qui portait un nombre (> 0) la recoche, et la valeur
-        # reecrite au lancement sera celle d'ici — l'etiquette la dit.
-        coeurs = parametres.get("Coeurs_par_calcul")
-        case = getattr(self, "case_coeurs", None)
-        if coeurs not in (None, "") and case is not None:
-            try:
-                case.setChecked(int(float(coeurs)) > 0)
-            except (TypeError, ValueError):
-                pass
-
-        # L'ELAGAGE, ecrit au lancement depuis le 24/09/2026 : il se relit ici.
-        elaguer = parametres.get("Elaguer_plans_etape")
-        if elaguer is not None and hasattr(self, "case_elaguer"):
-            self.case_elaguer.setChecked(str(elaguer).strip().lower() == "oui")
-
-        # LE PREMIER APPORT, ICI ET PAS DANS _remplir_premier_apport. La regle
-        # de preservation de celui-la sert la RECOMPOSITION, ou le choix
-        # courant ne doit pas etre efface en silence. Ici on reprend un AUTRE
-        # classeur : c'est lui qui fait foi, et il faut le DIRE — remplacer un
-        # reglage muet par un autre reglage muet ne vaudrait guere mieux.
-        premier = parametres.get("Premier_apport")
-        combo = getattr(self, "combo_premier_apport", None)
-        if premier is not None and combo is not None:
-            voulu = str(premier).strip()
-            rang = combo.findData(voulu)
-            if rang >= 0:
-                combo.setCurrentIndex(rang)      # declenche _dire_premier_apport
-                dire(self.label_premier_apport,
-                     self.label_premier_apport.text()
-                     + " <i>Repris du classeur.</i>")
-            elif voulu:
-                dire(self.label_premier_apport,
-                     f"Le classeur désigne « {voulu} » comme premier apport, "
-                     f"absent de sa propre liste : le choix affiché n'est pas "
-                     f"le sien.")
-
     def _relire_cibles_si_modifiees(self, *_):
         """
         Relit les cibles si le classeur a change sur disque — Excel vient
@@ -6251,48 +6127,24 @@ class DialogueParametrage(QDialog):
         if cle is None or cle == getattr(self, "_classeur_lu", None):
             return
         self._classeur_lu = cle
-        self._maj_onglet_validation_depuis_classeur(reglages=False)
+        self._maj_onglet_validation_depuis_classeur()
 
-    def _maj_onglet_validation_depuis_classeur(self, reglages=True):
+    def _maj_onglet_validation_depuis_classeur(self):
         """
-        Rafraichit l'onglet 4 apres un controle sur classeur existant.
-
-        reglages=False : le classeur a change sur disque (Excel vient
-        d'enregistrer) ; on relit ce qu'il porte sans reprendre ses reglages,
-        qui ecraseraient le prefixe et le premier apport saisis a l'ecran.
+        Relit l'etat des cibles quand l'Excel a change sur disque — Excel
+        vient d'enregistrer, ou un import vient d'y ecrire.
         """
-        # L'ORDRE COMPTE : _remplir_premier_apport recharge la LISTE depuis le
-        # classeur, _appliquer_reglages_du_classeur choisit ensuite DANS cette
-        # liste ce que le classeur designe. L'inverse choisirait avant que les
-        # entrees n'existent.
-        if reglages:
-            self._remplir_premier_apport()
-            if self.classeur:
-                self._appliquer_reglages_du_classeur(self.classeur)
         try:
             etat = noyau.etat_cibles(self.classeur)
         except Exception as e:
-            # LE CLASSEUR REPRIS S'AFFICHE MEME QUAND SON ETAT EST ILLISIBLE.
-            # Un simple « return » laissait les deux etiquettes sur le CLASSEUR
-            # PRECEDENT — chemin et « 6/6 renseignee(s) » — alors que
-            # self.classeur pointait deja le nouveau : un affichage qui ment.
-            # Meme conduite que _maj_onglet_validation, plus bas.
+            # LE CLASSEUR S'AFFICHE MEME QUAND SON ETAT EST ILLISIBLE : un
+            # simple « return » laissait l'etat d'avant a l'ecran, un
+            # affichage qui ment. Meme conduite que _maj_onglet_validation.
             journaliser("État des cibles après contrôle", e)
             self.label_validation_classeur.setText(str(self.classeur))
             self.label_validation_cibles.setText(f"(illisible : {e})")
             return
         self.label_validation_classeur.setText(str(self.classeur))
-        # LA LIGNE DU HAUT NE PARLE PAS DE CE CLASSEUR-CI. Elle decrit le
-        # paquet COMPOSE — ses paires apport -> section, ses injections sans
-        # section en aval. Reprendre le classeur d'un autre calcul ne la
-        # recalcule pas : l'appariement se deduit des PK, donc des shapefiles
-        # du paquet, que la reprise n'a pas. Elle continuait donc d'annoncer
-        # les paires du precedent, avec ses noms, sous le chemin du nouveau.
-        if self.classeur_apparie and str(self.classeur) != self.classeur_apparie:
-            self.label_validation_comptes.setText(
-                "Classeur repris d'un autre calcul : l'appariement "
-                "apport → section affiché plus haut est celui du dernier "
-                "paquet composé, pas celui-ci. Recomposer pour le revoir.")
         manquantes = etat.get("manquantes") or []
         self.label_validation_cibles.setText(
             f"{etat['renseignees']}/{etat['total']} renseignée(s)"
@@ -6482,16 +6334,10 @@ class DialogueParametrage(QDialog):
             # ensuite n'avait aucun effet, la chaine lisant le classeur et non
             # la fenetre. On voyait « +/-2 % » a l'ecran et le calage
             # s'arretait a 5 %.
-            #   L'INVERSE EST TOUT AUSSI VRAI, et c'est pourquoi la fenetre se
-            # remplit DEPUIS le classeur quand on en reprend un
-            # (_appliquer_reglages_du_classeur) : sans cela, reprendre un
-            # classeur cale a +/-2 % puis lancer l'aurait desserre a 5 % en
-            # silence. Les deux moities vont ensemble.
-            #   ET ELLES DOIVENT COMPTER PAREIL. Ce bloc ecrit SIX valeurs ;
-            # la lecture n'en reprenait que quatre, et laissait donc le
-            # prefixe de scenario et le premier apport se faire ecraser par
-            # les champs vides de la fenetre. Toute valeur ajoutee ici se
-            # relit la-bas, sans quoi la reprise d'un classeur la perd.
+            #   La reprise d'un classeur, qui relisait ces valeurs dans l'autre
+            # sens, n'existe plus depuis le 24/09/2026 : « Importer des
+            # hydrogrammes d'un calcul precedent » n'apporte que les cibles et
+            # les pentes, jamais les reglages.
             for cle, valeur in (
                     ("Tolerance_volume_pct", self.spin_tol_volume.value()),
                     ("Tolerance_pic_pct", self.spin_tol_pic.value()),
@@ -6580,16 +6426,16 @@ class DialogueParametrage(QDialog):
         # doit jamais être introduit par un mot qui décrit un état.
         message = (
             f"Calage lancé en arrière-plan (PID {info['pid']}).\n"
-            f"Suivre l'avancement dans l'onglet 5 « Suivi », qui se rafraîchit "
-            f"tout seul.\n"
+            f"Suivre l'avancement à l'étape « 4. Suivi », qui se rafraîchit "
+            f"toute seule quand elle est affichée.\n"
             f"Journal de lancement : {info['journal']}")
         dire(self.label_lancement, message)
-        self._signaler("Calage lancé", "Le calcul tourne en arrière-plan ; cet "
-                       "onglet suit son avancement.", Qgis.MessageLevel.Success, 12)
-        # On bascule sur le suivi : c'est là que la suite se passe. Le
-        # changement d'onglet démarre lui-même le rafraîchissement.
-        if hasattr(self, "onglets") and hasattr(self, "minuteur_suivi"):
-            self.onglets.setCurrentIndex(ONGLET_SUIVI)
+        # PLUS DE BASCULE VERS LE SUIVI (24/09/2026, demande utilisateur) : la
+        # fenetre reste ou l'on est ; « Consulter le suivi », a cote du bouton
+        # de lancement, et le lien du fil conducteur y menent.
+        self._signaler("Calage lancé", "Le calcul tourne en arrière-plan ; "
+                       "l'étape Suivi montre son avancement.",
+                       Qgis.MessageLevel.Success, 12)
 
     def _rendre_compte_du_controle(self, titre, anomalies, tableau,
                                    prolongation, avant="", apres=""):
@@ -6744,7 +6590,9 @@ class DialogueParametrage(QDialog):
             dire(self.label_prochaine_etape,
                  f"<b style='color:{ISL_VERT}'>Tous les hydrogrammes cibles "
                  f"sont renseignés</b> — le calage peut être lancé.")
-        self.onglets.setCurrentIndex(ONGLET_LANCER)
+        # PLUS DE BASCULE VERS LANCER apres la composition (24/09/2026, demande
+        # utilisateur) : on reste sur l'etape du bouton, ou se lit le compte
+        # rendu.
 
     # --- resume, mis a jour a chaque changement pertinent -------------------
 
@@ -7050,8 +6898,6 @@ class DialogueParametrage(QDialog):
             self.classeur = str(noyau.preparer_classeur(
                 dossier_sortie, self.appariement["paires"],
                 self.paquet, parametres=parametres, pentes=pentes))
-            # L'APPARIEMENT AFFICHE PARLE DE CE CLASSEUR-CI, et de lui seul.
-            self.classeur_apparie = self.classeur
 
             # Les sous-dossiers de resultats existent des la composition :
             # l'utilisateur les voit, meme avant le premier calcul.
@@ -7060,9 +6906,9 @@ class DialogueParametrage(QDialog):
 
             anomalies, tableau, prolongation = noyau.controler_paquet(
                 self.classeur)
-            afficher_pk_sur_carte(self.paquet, parametres["Sens_axe"],
-                                  self.crs_modele, bases={"sections": self.couche_sections,
-                                         "apports": self.couche_injections})
+            etiqueter_pk_sur_carte(self.paquet, parametres["Sens_axe"],
+                                   {"sections": self.couche_sections,
+                                    "apports": self.couche_injections})
 
             # LA BOITE PORTE LE NOM DU BOUTON (0.8.5) : « Composition et
             # controle » puis « Composition » pour un geste que la fenetre
