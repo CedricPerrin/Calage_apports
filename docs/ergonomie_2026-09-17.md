@@ -217,7 +217,7 @@ comme un objet muet (§ 7.2, *Accessibility for QWidget applications*).
 volume », « Cible et débit calculé ») et `setAccessibleDescription` mis à jour dans
 `actualiser()` avec la phrase que le widget dessine (« Volume 101,2 % — conforme ») — la valeur
 est déjà calculée, il ne manque que de l'écrire dans une propriété. Puis **Accessibility
-Insights for Windows**, FastPass, sur la fenêtre ouverte dans le profil TEST : c'est la recette
+Insights for Windows**, FastPass, sur la fenêtre ouverte dans le profil ISL (TEST est supprimé le 24 septembre 2026) : c'est la recette
 que la veille du 11 septembre proposait et que le CHECKPOINT liste encore comme restant
 (0.8.2, 0.8.3). Elle dira ce que Windows voit — noms, ordre de tabulation, pièges — que le banc
 ne peut pas voir.
@@ -364,7 +364,7 @@ confort, pas un défaut — et une décision.
 ## 4. Ce qu'aucune lecture de code ne tranchera
 
 - **Les trois widgets peints en Night Mapping, avec un suivi réel** (C1) : l'onglet Suivi d'un
-  calage en cours, dans le profil TEST — c'est la seule façon de voir si la courbe se lit.
+  calage en cours, dans le profil ISL — c'est la seule façon de voir si la courbe se lit.
 - **Quel bouton reçoit Entrée** dans les trois boîtes Oui/Non (C3) : appuyer, une fois.
 - **Ce que Windows voit** de la fenêtre : Accessibility Insights, FastPass et parcours des
   tab stops (C6) — la veille du 11 septembre l'avait mis au programme.

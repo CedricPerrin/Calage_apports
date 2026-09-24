@@ -5,11 +5,11 @@ Met le garde-fou d'empaquetage de faire_zip.py EN DEFAUT, volontairement.
 UN CONTROLE QUI N'A JAMAIS ECHOUE NE PROUVE RIEN. Celui-ci a laisse partir le
 chemin du poste de developpement pendant des semaines, et l'essai equivalent
 de test_plugin_qgis.py portait meme ce chemin en liste blanche. On injecte
-donc, une par une, les trois fautes qu'il doit voir, on verifie qu'il REFUSE
+donc, une par une, les quatre fautes qu'il doit voir, on verifie qu'il REFUSE
 l'archive, puis on retablit la source et on reconstruit.
 
-Ce script MODIFIE temporairement calage_apports/noyau.py et le retablit dans
-un bloc finally. Il ne s'execute pas pendant un calage : faire_zip.py
+Ce script MODIFIE temporairement calage_apports/noyau.py et metadata.txt, et
+les retablit dans un bloc finally. Il ne s'execute pas pendant un calage : faire_zip.py
 reconstruit l'archive a chaque appel.
 
 Usage :  python essai_garde_fou_archive.py
@@ -23,6 +23,7 @@ if hasattr(sys.stdout, "reconfigure"):
 
 PROJET = Path(__file__).resolve().parent
 CIBLE = PROJET.parent / "calage_apports" / "noyau.py"
+META = PROJET.parent / "calage_apports" / "metadata.txt"
 PYTHON = sys.executable
 
 # LES MOTS INJECTES VIENNENT DE .affaires, comme ceux que le garde-fou
@@ -73,11 +74,24 @@ FAUTES = [
      "\n_ESSAI_IMPORT_OUBLIE = essai_module_jamais_importe.valeur\n"),
 ]
 
+# LA FAUTE DU 24/09/2026, DANS metadata.txt : quinze « % » isoles dans le
+# changelog, de la 0.5.0 a la 0.9.13. QGIS lit chaque champ avec
+# interpolation et rendait « __error__ » pour celui-la ; faire_zip.py ne
+# relisait que la version. La ligne est indentee : elle prolonge le
+# changelog, dernier champ du fichier. Octets relus et reecrits tels quels.
+FAUTE_META = ("« % » isole dans metadata.txt, champ illisible par QGIS",
+              "    essai : 5 % de la cible\n")
+
 sauvegarde = CIBLE.read_text(encoding="utf-8")
+sauvegarde_meta = META.read_bytes()
 echecs = []
 try:
-    for intitule, faute in FAUTES:
-        CIBLE.write_text(sauvegarde + faute, encoding="utf-8")
+    for cible, intitule, faute in [*((CIBLE, i, f) for i, f in FAUTES),
+                                   (META, *FAUTE_META)]:
+        CIBLE.write_text(sauvegarde + (faute if cible == CIBLE else ""),
+                         encoding="utf-8")
+        META.write_bytes(sauvegarde_meta + (faute.encode("utf-8")
+                                            if cible == META else b""))
         acheve = subprocess.run([PYTHON, "faire_zip.py"], cwd=PROJET,
                                 capture_output=True, text=True,
                                 encoding="utf-8", errors="replace")
@@ -92,6 +106,7 @@ try:
             echecs.append(intitule)
 finally:
     CIBLE.write_text(sauvegarde, encoding="utf-8")
+    META.write_bytes(sauvegarde_meta)
     # LA RECONSTRUCTION PROPRE SE FAIT AVEC LA LISTE ENCORE EN PLACE : le
     # garde-fou doit rendre une archive conforme ALORS QU'IL EST ARME, sinon
     # on ne prouve que sa capacite a refuser, jamais celle a accepter.

@@ -2,7 +2,8 @@
 
 Préparation et contrôle du paquet de calage pour **HEC-RAS uniquement**.
 Voir `methodologie_calage_amont_aval.docx`, § 2.4.
-Version **0.9.13** : la recherche des interpréteurs Python quitte le fil
+Version **0.9.14** : le changelog redevient lisible par QGIS — ses signes
+pour cent sont doublés. Avant, la **0.9.13** : la recherche des interpréteurs Python quitte le fil
 graphique — une tâche QGIS annulable, dont le résultat attend la réouverture
 de la fenêtre. Avant, la **0.9.12** : un refus de composer — feuille Cibles
 saisie sans en-tête « Temps_h » — ne met plus le classeur de côté ; le fichier
@@ -93,8 +94,15 @@ et figerait l'interface.
 
 ## Installation
 
-**Depuis l'archive.** `calage_apports_<version>.zip` —
-`calage_apports_0.9.13.zip` pour cette version — est **à la racine du dépôt** : la télécharger
+**Depuis le dépôt d'extensions PIO**, la voie normale : déclarer une fois
+`file:///D:/1-Python/REPOs/02-depot_QGIS/plugins.xml` dans *Extensions →
+Installer/Gérer les extensions → Paramètres*, cocher **Afficher aussi les
+extensions expérimentales**, puis installer **Calage des apports**. QGIS
+propose ensuite les mises à jour. Le `LISEZMOI.md` du dépôt détaille la marche.
+
+**Depuis l'archive**, pour un poste sans accès au dépôt.
+`calage_apports_<version>.zip` —
+`calage_apports_0.9.14.zip` pour cette version — est **à la racine du dépôt** : la télécharger
 suffit, il n'y a rien à reconstruire. Le nom porte la version pour qu'on
 sache, sur un poste distant, ce qu'on installe ; il n'y en a jamais qu'une
 dans le dépôt, la plus récente. Puis, dans QGIS :
@@ -102,26 +110,23 @@ dans le dépôt, la plus récente. Puis, dans QGIS :
 la choisir, et cocher **Calage des apports** dans *Extensions installées*.
 
 Pour la reconstruire après une modification des sources :
-`python src/faire_zip.py`.
+`python src/faire_zip.py` ; pour la publier ensuite dans le dépôt PIO,
+double-cliquer `D:\1-Python\REPOs\02-depot_QGIS\outils\publier.bat`.
 
 Si l'extension n'apparaît pas dans la liste après installation, cocher
 *Extensions → Paramètres → **Afficher aussi les extensions expérimentales***  :
 `metadata.txt` porte `experimental=True`, et le gestionnaire masque ces
 extensions par défaut.
 
-**Par lien symbolique**, préférable pendant la mise au point : le plugin suit
-alors les modifications du dossier projet sans réinstallation. Le profil QGIS
-actif n'est pas nécessairement `default` — le lire dans le titre de la fenêtre,
-ou sous *Préférences → Profils utilisateur*, et le substituer à `<PROFIL>`
-ci-dessous.
-
-```bat
-REM invite de commandes en administrateur
-REM <PROFIL> : le profil QGIS actif   <PROJET> : le dossier de ce projet
-mklink /D ^
-  "%APPDATA%\QGIS\QGIS3\profiles\<PROFIL>\python\plugins\calage_apports" ^
-  "<PROJET>\calage_apports"
-```
+⛔ **Jamais de lien symbolique ni de jonction vers les sources** dans un profil
+QGIS. Sous Windows, QGIS ne sait pas retirer une jonction : une mise à jour ou
+une désinstallation depuis le gestionnaire vide le dossier **au travers**,
+c'est-à-dire dans les sources — constaté le 23 septembre 2026 sur une jonction
+d'essai, QGIS 3.44.14 ; le lien symbolique de dossier n'a pas été essayé, le
+traiter pareil. L'installation par lien, conseillée ici pour la mise au point
+jusqu'au 24 septembre 2026, est abandonnée avec le passage en phase
+opérationnelle. Si un lien existe encore, le retirer par `rmdir`, sans `/s`,
+avant toute autre opération.
 
 ## Les deux chemins que le plugin doit connaître
 

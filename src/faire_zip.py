@@ -68,11 +68,17 @@ def _version():
     try:
         lecteur.read(SOURCE / "metadata.txt", encoding="utf-8")
         vue_par_qgis = lecteur.get("general", "version", raw=True).strip()
+        # ET CHAQUE CHAMP AVEC INTERPOLATION, comme QGIS le lit : un « % »
+        # isole lui fait rendre « __error__ » pour ce champ. Le changelog l'a
+        # ete de la 0.5.0 a la 0.9.13 sans que rien ne le signale, la seule
+        # version etant relue ici (constate le 24/09/2026).
+        for cle in lecteur["general"]:
+            lecteur.get("general", cle)
     except Exception as e:                                  # noqa: BLE001
         raise SystemExit(
             f"{SOURCE / 'metadata.txt'} est illisible par configparser, donc "
             f"par QGIS : {e}. Les lignes de continuation du changelog "
-            f"doivent etre INDENTEES.")
+            f"doivent etre INDENTEES, et un « % » s'ecrire « %% ».")
     if vue_par_qgis != version:
         raise SystemExit(
             f"QGIS lirait la version « {vue_par_qgis} » la ou metadata.txt "

@@ -1,16 +1,19 @@
 # Calage_apports
 
-**20 septembre 2026 — lot UX B/C, intégration dans `main` demandée ([PR #3](https://github.com/CedricPerrin/Calage_apports/pull/3)).**
-Effets du contrôle explicités ; installation Python dans une tâche QGIS avec journal et protection contre les doubles lancements.
+**24 septembre 2026 — version 0.9.14, diffusée par le dépôt d'extensions PIO**
+(`file:///D:/1-Python/REPOs/02-depot_QGIS/plugins.xml`). Le lot UX B/C
+([PR #3](https://github.com/CedricPerrin/Calage_apports/pull/3), fusionnée le
+20 septembre) est dans l'archive depuis la 0.9.13 : effets du contrôle explicités ;
+installation Python dans une tâche QGIS avec journal et protection contre les doubles lancements.
 Voir [les changements, contrôles et limites](docs/UX_ISL.md) et le
 [suivi d’intégration](https://github.com/CedricPerrin/ergonomie/blob/main/SUIVI_LOTS_2026-09-20.md). Les preuves antérieures ci-dessous restent datées ;
-la nouvelle recette visuelle et métier sur le poste ISL reste à réaliser.
-Les ZIP déjà publiés précèdent ce lot : utiliser les sources de `main` pour la recette.
+la recette visuelle et métier sur le poste ISL reste à réaliser, dans le profil `ISL`,
+extension installée depuis le dépôt.
 
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 
-Version des sources du plugin : **0.9.13**. La
+Version des sources du plugin : **0.9.14**. La
 [note d’ergonomie du 11 septembre 2026](docs/ergonomie_2026-09-11.md)
 décrit le parcours, les choix d’interface et les points de recette.
 
@@ -188,6 +191,14 @@ sa réouverture. Le choix reste sur le fil graphique ; aucune installation
 implicite après annulation ou erreur. Un test de sondes hors QGIS et trois
 scénarios QGIS natifs l'éprouvent en CI.
 
+La **0.9.14** (24 septembre 2026) rend le changelog lisible par QGIS. Ses
+quinze signes pour cent, présents depuis la 0.5.0, n'étaient pas doublés :
+QGIS lit `metadata.txt` avec interpolation et rendait une erreur pour ce champ,
+d'où un historique vide dans le gestionnaire d'extensions. `faire_zip.py`
+relit désormais chaque champ comme QGIS et refuse l'archive sinon ;
+`essai_garde_fou_archive.py` l'éprouve. Aucun changement de comportement du
+plugin.
+
 Pour chaque apport, de l'amont vers l'aval : estimer, calculer, comparer à la
 cible, corriger, répéter jusqu'à concordance, puis vérifier la cohérence des
 sections amont avant de passer au suivant.
@@ -297,6 +308,19 @@ fichier par ordre alphabétique : les passer explicitement dès qu'un projet por
 plusieurs plans. `--objet <nom d'une condition limite>` ouvre une section de
 plus. Le modèle doit porter au moins une ligne d'injection et une ligne de
 référence, la seconde en **aval** de la première.
+
+### Publier une version
+
+Le plugin est diffusé par le dépôt d'extensions PIO,
+`file:///D:/1-Python/REPOs/02-depot_QGIS/plugins.xml`, à déclarer une fois dans
+QGIS. Pour une nouvelle version :
+
+1. Monter `version=` dans `calage_apports/metadata.txt`, avec son entrée de
+   changelog — un « % » s'y écrit « %% ».
+2. Construire l'archive avec l'outil du projet : `python src\faire_zip.py`.
+3. Double-cliquer `D:\1-Python\REPOs\02-depot_QGIS\outils\publier.bat`.
+
+Le `LISEZMOI.md` de ce dossier détaille la marche à suivre.
 
 ## La fenêtre du plugin
 

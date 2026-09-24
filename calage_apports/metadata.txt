@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont un onglet de suivi montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.9.13
+version=0.9.14
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,15 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.9.13 — La recherche des interpréteurs Python quitte le fil
+changelog=0.9.14 — Le changelog redevient lisible par QGIS.
+    Depuis la 0.5.0, ses signes pour cent n'étaient pas doublés : QGIS, qui
+    lit metadata.txt avec interpolation, rendait une erreur pour ce champ,
+    et le gestionnaire d'extensions affichait un historique vide. Ils sont
+    doublés, comme le format le veut ; faire_zip.py refuse désormais une
+    archive dont un champ serait illisible par QGIS. Aucun changement de
+    comportement du plugin.
+
+    0.9.13 — La recherche des interpréteurs Python quitte le fil
     graphique.
     Au clic « Installer l'interpréteur », la recherche des Python candidats
     — chacun est exécuté pour être validé — tournait sur le fil graphique
@@ -73,7 +81,7 @@ changelog=0.9.13 — La recherche des interpréteurs Python quitte le fil
     0.9.7 — Les cœurs se proposent au lancement ; la couverture ne compte
     plus Dt deux fois.
     Avec une fenêtre jugée, le calcul est lu sur [f0 + Dt, f1 + Dt] : neuf
-    faux « ne couvre que 45 à 90 % » disparaissent sur Aran-Q100. Le plafond
+    faux « ne couvre que 45 à 90 %% » disparaissent sur Aran-Q100. Le plafond
     du plan de référence se compare à la durée en vigueur et alerte quand la
     perte dépasse la marge. Case « Demander N cœurs à HEC-RAS pour chaque
     calcul » à l'étape Lancer, proposition lue sur le poste, plafond 8 ;
@@ -381,8 +389,8 @@ changelog=0.9.13 — La recherche des interpréteurs Python quitte le fil
     mesuré entre l'apport et sa section. Quand Δt est grand devant le temps
     de montée de la cible, le pic de la cible tombe hors de la fenêtre : le
     verdict compare alors le pic du calcul à la décrue de la cible.
-    CE QUE ÇA A COÛTÉ, SUR UN CAS RÉEL : une section calée à 0,1 % près a été
-    annoncée à 350 % de pointe et 370 % de volume, puis refusée sur « le
+    CE QUE ÇA A COÛTÉ, SUR UN CAS RÉEL : une section calée à 0,1 %% près a été
+    annoncée à 350 %% de pointe et 370 %% de volume, puis refusée sur « le
     modèle répond de façon trop non linéaire » après trois essais et sept
     heures de calcul. Les onze apports suivants n'ont pas été traités.
     Le pic, le volume, la forme, la couverture et la mesure du décalage
@@ -544,7 +552,7 @@ changelog=0.9.13 — La recherche des interpréteurs Python quitte le fil
     vide, « Volume non enregistré ». La boucle de calage, elle, écrivait
     encore « beta » : dans les livrables finaux, le panneau traçait le terme
     de biais du KGE — rapport des moyennes sur la grille qui englobe les deux
-    séries — sous le libellé « Volume atteint (% de la cible) ». Sur un cas
+    séries — sous le libellé « Volume atteint (%% de la cible) ». Sur un cas
     réel, beta valait 2,613 quand le volume valait 1,040. Le verdict, le
     tableau de bord, le journal et la note de synthèse lisaient tous le bon
     nombre : seule cette figure mentait, et seulement pour les apports qui
@@ -611,10 +619,10 @@ changelog=0.9.13 — La recherche des interpréteurs Python quitte le fil
     une vue de 302, et chaque ancre atterrit à sa place.
     0.7.10 — Deux textes qui trompaient, et une correction de la 0.7.1.
     LE POURCENTAGE CHANGEAIT DE SENS DANS LE MÊME CADRE. Le rappel annonçait
-    « tout est rapporté en pourcentage d'atteinte de la cible » — où 100 %
+    « tout est rapporté en pourcentage d'atteinte de la cible » — où 100 %%
     est le juste — et les deux champs sous lui attendent un ÉCART ADMIS, où
-    5 % est le juste. Un « 5 % » lu sous cette phrase se comprend comme
-    « on vise 5 % de la cible ». Les deux sens sont dits, et les étiquettes
+    5 %% est le juste. Un « 5 %% » lu sous cette phrase se comprend comme
+    « on vise 5 %% de la cible ». Les deux sens sont dits, et les étiquettes
     nomment ce qu'elles demandent.
     LE MESSAGE « INTERPRÉTEUR INTROUVABLE » N'EXISTE PLUS QU'EN UN
     EXEMPLAIRE. Il en avait deux, dont un seul avait été corrigé ; le jumeau
@@ -806,7 +814,7 @@ changelog=0.9.13 — La recherche des interpréteurs Python quitte le fil
     composition : les resserrer ensuite n'avait aucun effet, la chaîne
     lisant le classeur. Le lancement les y écrit désormais, et la fenêtre
     se remplit depuis le classeur qu'on reprend — sans quoi la reprise
-    d'un calage à ±2 % l'aurait desserré à 5 % en silence.
+    d'un calage à ±2 %% l'aurait desserré à 5 %% en silence.
     Le dossier de suivi ne suivait pas les champs de l'onglet 3 sans
     rouvrir QGIS. Il suit, et la bannière dit d'où vient le dossier
     surveillé — et signale le désaccord quand le classeur en désigne un
@@ -835,7 +843,7 @@ changelog=0.9.13 — La recherche des interpréteurs Python quitte le fil
     classeur, puis pente locale du fond, puis rien — avait donc deux
     échelons sur trois, alors que deux docstrings promettent les trois : un
     apport dont la case Pente_m_par_m est vide gardait la pente déjà en
-    place, soit 1 % pour une injection créée par le plugin.
+    place, soit 1 %% pour une injection créée par le plugin.
     Un garde-fou d'archive refuse désormais tout nom lu sans avoir jamais
     été lié dans son fichier. Il est éprouvé par le banc adverse, qui
     injecte la faute et vérifie qu'elle est refusée : un module qui
@@ -905,7 +913,7 @@ changelog=0.9.13 — La recherche des interpréteurs Python quitte le fil
     l'onglet 3, qui ne disent que où composer le PROCHAIN paquet ; le calage,
     lui, écrit là où le classeur le dit. Reprendre le classeur d'un calcul
     précédent puis lancer, pendant que l'onglet 3 désignait un autre dossier,
-    laissait le suivi sur « Aucun calage suivi », 0 %, devant un calcul qui
+    laissait le suivi sur « Aucun calage suivi », 0 %%, devant un calcul qui
     tournait. Le suivi lit désormais le dossier dans le classeur — la règle du
     pont — et la bannière nomme le dossier qu'elle surveille.
     0.6.1 — Le bouton « Installer… » complète un environnement réutilisé.
@@ -954,11 +962,11 @@ changelog=0.9.13 — La recherche des interpréteurs Python quitte le fil
     borner le volume, la pointe et la forme sans borner leur appariement ne
     bornait rien. Un transitoire de mise en eau plus haut que l'événement,
     hors de la fenêtre, faisait rendre −26,00 h pour un retard réel de
-    +1,50 h, et emportait avec lui le volume (109 %) et la forme (r = 0,95).
+    +1,50 h, et emportait avec lui le volume (109 %%) et la forme (r = 0,95).
     LE VOLUME PLANCHER EST ANNONCÉ AVANT LE PREMIER ESSAI. Un apport ne sait
     qu'ajouter du débit : là où la section donne déjà plus que la cible,
     l'excès est irréductible et le rapport de volume ne peut plus redescendre
-    à 100 %. La chaîne refusait le cas total — une cible entièrement sous le
+    à 100 %%. La chaîne refusait le cas total — une cible entièrement sous le
     résiduel — et laissait passer le cas ordinaire, où la cible est
     atteignable en pointe mais le volume condamné. Le calage y dépensait tous
     ses essais, puis rendait un verdict qui accusait la non-linéarité du
