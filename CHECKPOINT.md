@@ -1,5 +1,36 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## Reprendre ici — 28 septembre 2026 : 0.9.17, deux défauts vus sur Suhi-Q100
+
+Calage réel Suhi-Q100 (SUHI_ARAN, 12 apports, 18 calculs, 27 h 46, journal
+`calage_20260925_174155.log`, poste lsso). Il est **non conforme**, et c'est
+juste : SUH06 est en pointe à 104,5 % et SUH07 à 103,9 %, pour 2 % admis.
+Le remous des apports aval les a fait dériver après leur calage.
+
+- **Le plan final n'est pas visible sous son nom dans RAS Mapper.** Le
+  `.rasmap` avait bien été écrit, mais RAS Mapper l'a réécrit le 28/09 à
+  08:15 et a renommé la couche p23 en « Apport_SUH12 ». Il a pris ce nom
+  dans les attributs de `Plan Data/Plan Information` du `.p23.hdf`, que
+  `conclure()` ne retitrait pas. Correctif :
+  `PiloteHecRas._retitrer_resultats_hdf`, appelé par `conclure()`. Il réécrit
+  les attributs Plan Name, Plan ShortID, Plan Title et Flow Title, et ne lève
+  jamais. Contrôle neuf dans `pilote_hecras.py`, banc vert.
+- **L'élagage coché ne fait rien, sans le dire.** C'est voulu : il n'élague
+  que sur un calage conforme, parce que la reprise a besoin des plans
+  d'étape. Mais rien ne l'annonçait. Correctif : `pont_hecras.py` écrit
+  désormais un AVERTISSEMENT quand la case est cochée et le calage non
+  conforme.
+- Constat écrit dans `0-HECRAS/.../08_constats_mesures.md`.
+
+Bancs : QGIS **381 contrôles, aucun échec** ; `pilote_hecras.py` vert ;
+`calage_apports_0.9.17.zip` conforme (le garde-fou a refusé un premier jet
+qui citait « SUH12 » dans un commentaire). **Publiée** dans `00-depot_QGIS`
+(STATUT=OK), vérifiée par `verifier_dans_qgis.py`, synchro L lancée.
+
+**Non fait** : le modèle réel n'est pas retouché (p23.hdf et `.rasmap` portent encore
+« Apport_SUH12 ») ; affichage dans RAS Mapper toujours pas vérifié à
+l'écran.
+
 ## Reprendre ici — 24 septembre 2026 (après-midi) : 0.9.16
 
 Trois demandes utilisateur après la publication de la 0.9.15 :

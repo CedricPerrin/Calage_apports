@@ -22,6 +22,25 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+VERSION 0.9.17 — 28 SEPTEMBRE 2026. LE PLAN FINAL GARDE SON NOM DANS RAS
+  MAPPER ; L'ELAGAGE REFUSE SE DIT.
+  Deux defauts vus sur le calage reel Suhi-Q100 (SUHI_ARAN, 12 apports,
+  journal calage_20260925_174155.log, non conforme a bon droit : SUH06 et
+  SUH07 en pointe a 104,5 et 103,9 % pour 2 % admis, derive par remous).
+  1. RAS MAPPER NOMME LA COUCHE D'APRES LE .pNN.hdf. conclure() retitrait le
+     .pNN, l'unsteady et le .rasmap ; RAS Mapper, a l'ouverture suivante, a
+     reecrit le .rasmap en « Apport_SUH12 », lu dans les attributs Plan Name,
+     Plan ShortID, Plan Title, Flow Title de « Plan Data/Plan Information ».
+     PiloteHecRas._retitrer_resultats_hdf les reecrit (h5py r+), ne leve
+     jamais. Controle neuf dans pilote_hecras.py.
+  2. ELAGAGE COCHE SUR UN CALAGE NON CONFORME : rien n'est retire — voulu,
+     la reprise a besoin des plans d'etape —, mais rien ne le disait.
+     pont_hecras.py ecrit un AVERTISSEMENT.
+  Fichiers : src/pilote_hecras.py, src/pont_hecras.py. Constat date dans
+  0-HECRAS, 08_constats_mesures.md.
+  Limite : le modele reel Suhi-Q100 n'est pas retouche (son p23.hdf porte
+  encore « Apport_SUH12 ») ; affichage RAS Mapper non regarde a l'ecran.
+
 VERSION 0.9.16 — 24 SEPTEMBRE 2026 (APRES-MIDI). IMPORTER DES HYDROGRAMMES ;
   PLUS DE COUCHE EN DOUBLE ; PLUS DE CHANGEMENT D'ONGLET AUTOMATIQUE.
   Demandes utilisateur, apres la publication de la 0.9.15.

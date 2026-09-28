@@ -1760,6 +1760,12 @@ def commande_caler(args):
                 # confort de rangement.
                 print(f"AVERTISSEMENT : elagage non effectue : {e}",
                       flush=True)
+    elif texte("Elaguer_plans_etape", "non").lower() in ("oui", "true", "1"):
+        # La case etait cochee : dire pourquoi rien n'est retire, sinon
+        # l'utilisateur croit l'option cassee (modele reel, 28/09/2026).
+        print("AVERTISSEMENT : elagage non fait — le calage n'est pas "
+              "conforme, et ses plans d'etape sont ce qui permet de le "
+              "reprendre.", flush=True)
 
     return repondre(
         ok=True, conforme=resultat.conforme, motif=resultat.motif,

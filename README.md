@@ -1,6 +1,6 @@
 # Calage_apports
 
-**24 septembre 2026 — version 0.9.16, diffusée par le dépôt d'extensions PIO**
+**28 septembre 2026 — version 0.9.17, diffusée par le dépôt d'extensions PIO**
 (`file://sudouest/users/perrin/16-Dev/1-Utilitaires/1.1-Plugins_QGIS/00-depot_QGIS/plugins.xml`). Le lot UX B/C
 ([PR #3](https://github.com/CedricPerrin/Calage_apports/pull/3), fusionnée le
 20 septembre) est dans l'archive depuis la 0.9.13 : effets du contrôle explicités ;
@@ -13,7 +13,7 @@ extension installée depuis le dépôt.
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 
-Version des sources du plugin : **0.9.16**. La
+Version des sources du plugin : **0.9.17**. La
 [note d’ergonomie du 11 septembre 2026](docs/ergonomie_2026-09-11.md)
 décrit le parcours, les choix d’interface et les points de recette.
 
@@ -223,6 +223,14 @@ PK » et « Injections — PK », qui doublaient les couches de base,
 disparaissent : le PK s'affiche en étiquette « nom — PK » sur celles-ci. Et la
 fenêtre ne change plus d'onglet d'elle-même après une composition ou un
 lancement.
+
+La **0.9.17** (28 septembre 2026) corrige deux défauts vus sur le calage
+Suhi-Q100. RAS Mapper nomme la couche de résultats d'après les attributs du
+`.pNN.hdf` : le plan final y apparaissait sous le nom de la dernière étape.
+`conclure()` réécrit donc aussi ces attributs. Par ailleurs, la case de
+suppression des plans d'étape n'agit que sur un calage conforme, puisque la
+reprise a besoin de ces plans. Sur un calage non conforme, le journal le dit
+désormais par un avertissement.
 
 Pour chaque apport, de l'amont vers l'aval : estimer, calculer, comparer à la
 cible, corriger, répéter jusqu'à concordance, puis vérifier la cohérence des

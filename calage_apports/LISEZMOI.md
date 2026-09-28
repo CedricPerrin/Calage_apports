@@ -2,7 +2,10 @@
 
 Préparation et contrôle du paquet de calage pour **HEC-RAS uniquement**.
 Voir `methodologie_calage_amont_aval.docx`, § 2.4.
-Version **0.9.16** : **« Importer des hydrogrammes d'un calcul précédent »**
+Version **0.9.17** : le plan « <préfixe>_avec_apports » apparaît sous ce nom
+dans RAS Mapper (le titre est aussi réécrit dans son `.hdf`), et la
+suppression des plans d'étape refusée sur un calage non conforme est
+annoncée. Avant, la **0.9.16** : **« Importer des hydrogrammes d'un calcul précédent »**
 remplace « Reprendre un Excel… » — il recopie dans l'Excel de ce calcul les
 hydrogrammes des sections de même nom et les pentes des apports de même nom,
 rien d'autre, et dit ce qui a été importé et ce qui reste vide. Les couches
@@ -118,7 +121,7 @@ propose ensuite les mises à jour. Le `LISEZMOI.md` du dépôt détaille la marc
 
 **Depuis l'archive**, pour un poste sans accès au dépôt.
 `calage_apports_<version>.zip` —
-`calage_apports_0.9.16.zip` pour cette version — est **à la racine du dépôt** : la télécharger
+`calage_apports_0.9.17.zip` pour cette version — est **à la racine du dépôt** : la télécharger
 suffit, il n'y a rien à reconstruire. Le nom porte la version pour qu'on
 sache, sur un poste distant, ce qu'on installe ; il n'y en a jamais qu'une
 dans le dépôt, la plus récente. Puis, dans QGIS :

@@ -1702,11 +1702,46 @@ class PiloteHecRas(Modele):
             # hdf_resultats ne bougent — les livrables restent intacts.
             self.etapes[-1] = titre
         remplaces = self._remplacer_homonymes(titre)
+        dit_hdf = self._retitrer_resultats_hdf(numero, titre)
         dit_rasmap = self._declarer_resultats_rasmap(numero, titre)
         return (f"plan p{numero} / unsteady u{flot} retitré"
                 + (f" — {', '.join(remplaces)} de même nom remplacé(s)"
                    if remplaces else "")
+                + (f" ; {dit_hdf}" if dit_hdf else "")
                 + (f" ; {dit_rasmap}" if dit_rasmap else ""))
+
+    def _retitrer_resultats_hdf(self, numero, titre):
+        """
+        Reporte le titre final dans les attributs du .pNN.hdf.
+
+        RAS MAPPER NOMME LA COUCHE D'APRES LE HDF, ni d'apres le .pNN ni
+        d'apres le .rasmap (constate le 28/09/2026 sur un modele reel, HEC-RAS
+        7.0.1). Le .rasmap ecrit par conclure() declarait
+        « <prefixe>_avec_apports » ; RAS Mapper l'a reecrit a l'ouverture
+        en « <prefixe>_Apport_<dernier> », le nom que HEC-RAS avait grave dans
+        « Plan Data/Plan Information » au calcul de la derniere etape. Le
+        plan final n'apparaissait plus sous son nom.
+
+        NE LEVE JAMAIS, comme _declarer_resultats_rasmap : les resultats
+        sont bons, seul leur nom affiche est en jeu.
+        """
+        chemin = self.dossier / f"{self.nom_projet}.p{numero}.hdf"
+        if not chemin.is_file():
+            return None
+        try:
+            import h5py
+            import numpy as np
+            with h5py.File(chemin, "r+") as h:
+                info = h["Plan Data/Plan Information"].attrs
+                for cle in ("Plan Name", "Plan ShortID", "Plan Title",
+                            "Flow Title"):
+                    if cle in info:
+                        info[cle] = np.bytes_(titre.encode("utf-8"))
+            return "resultats retitres dans le .hdf"
+        except Exception as e:                              # noqa: BLE001
+            return (f"{chemin.name} non retitre ({type(e).__name__}: {e}) "
+                    f"— RAS Mapper nommera la couche d'apres l'ancienne "
+                    f"etape")
 
     # Le bloc qu'ecrit HEC-RAS pour un plan calcule, reduit a ce qui compte :
     # la couche de resultats, sa geometrie, son plan et les trois cartes
@@ -3450,6 +3485,22 @@ if __name__ == "__main__":
                          for p in _bac.glob(f"{_NOM}.p[0-9][0-9]"))))
     _verifier("plan final : l'etape courante est rebaptisee, pas ajoutee",
               _p.etapes == ["Q100_avec_apports"], str(_p.etapes))
+
+    # RAS MAPPER NOMME LA COUCHE D'APRES LE HDF (28/09/2026) : sans ce
+    # retitrage, le plan final s'affichait sous le nom de la derniere etape.
+    import h5py as _h5
+    (_bac / f"{_NOM}.p11.hdf").unlink()
+    with _h5.File(_bac / f"{_NOM}.p11.hdf", "w") as _h:
+        _info = _h.create_group("Plan Data/Plan Information").attrs
+        for _cle in ("Plan Name", "Plan ShortID", "Plan Title", "Flow Title"):
+            _info[_cle] = np.bytes_(b"Q100-Apport_A1")
+    _rendu = _p.conclure("Q100_avec_apports")
+    with _h5.File(_bac / f"{_NOM}.p11.hdf", "r") as _h:
+        _lu = dict(_h["Plan Data/Plan Information"].attrs)
+    _verifier("plan final : le .hdf porte le titre final (RAS Mapper le lit)",
+              all(_lu[c] == b"Q100_avec_apports" for c in
+                  ("Plan Name", "Plan ShortID", "Plan Title", "Flow Title")),
+              f"{_rendu} | {_lu}")
 
     # --- LE PLAN FINAL EST DECLARE A RAS MAPPER (21/09/2026) --------------
     # Constate sur deux modeles reels : la chaine laissait des plans avec
