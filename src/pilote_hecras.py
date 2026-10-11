@@ -21,6 +21,7 @@ Usage :  python pilote_hecras.py --projet <dossier> --plan p01
              (diagnostic de raccordement, sans lancer de calcul)
 """
 
+import difflib
 import math
 import re
 import subprocess
@@ -299,8 +300,9 @@ def _encodage(octets):
     L'ASCII PUR EST DU cp1252 (regle de la maison, decision du 11/10/2026) :
     c'est un fichier HEC-RAS, que HEC-RAS relit en cp1252. Le premier accent
     qu'on y ecrit — un nom d'apport, un titre d'etape — part donc en cp1252,
-    plus en UTF-8 que HEC-RAS afficherait « Ã© ». Le .rasmap fait
-    exception (UTF-8) : voir _ecrire_texte.
+    plus en UTF-8 que HEC-RAS afficherait « Ã© ». Ce que ras-commander
+    reecrit ensuite en UTF-8 est rendu a cet encodage par _retablir_octets.
+    Le .rasmap fait exception (UTF-8) : voir _ecrire_texte.
     """
     if octets.isascii():
         return "cp1252"
@@ -346,6 +348,62 @@ def _ecrire_texte(chemin, texte):
     # lire en octets (voir 05-HECRAS_Organizer, core/io/textfile.py).
     fin = b"\n" if b"\n" in ancien and b"\r\n" not in ancien else b"\r\n"
     chemin.write_bytes(octets.replace(b"\n", fin))
+
+
+def _retablir_octets(chemin, origine):
+    """
+    Rend a un fichier que ras-commander vient de reecrire l'encodage et les
+    octets de « origine » : les siens avant l'appel, ou ceux du fichier dont
+    il est le clone.
+
+    ras-commander (0.99.2) relit et reecrit en UTF-8 errors="replace" : a
+    chaque clone, essai ou calcul, un accent cp1252 devenait EF BF BD. Mesure
+    du 11/10/2026 sur un projet fabrique : titre du projet, region LCMann
+    « Forêt », et l'apport « Écluse », que la geometrie clonee et l'unsteady
+    de l'etape suivante n'appariaient plus — l'apport sortait du calage.
+
+    UNE LIGNE QU'IL N'A PAS CHANGEE REPREND SES OCTETS, terminateur compris :
+    on la reconnait a ce qu'il en a lu. Une ligne ajoutee ou changee est
+    encodee dans l'encodage d'origine, avec la fin de ligne qu'il lui a
+    donnee ; un caractere que cet encodage ne sait pas ecrire leve
+    ValueError, le fichier restant tel que ras-commander l'a laisse. Un
+    fichier d'origine en UTF-8 n'a rien perdu : il n'est pas touche.
+    """
+    chemin = Path(chemin)
+    apres = chemin.read_bytes()
+    encodage = _encodage(origine)
+    if apres == origine or encodage == "utf-8":
+        return
+
+    def lu(ligne):                         # ce qu'en a lu ras-commander
+        return ligne.rstrip(b"\r\n").decode("utf-8", "replace")
+
+    anciennes = origine.splitlines(keepends=True)
+    nouvelles = apres.splitlines(keepends=True)
+    sortie = []
+    for op, i1, i2, j1, j2 in difflib.SequenceMatcher(
+            None, [lu(l) for l in anciennes], [lu(l) for l in nouvelles],
+            autojunk=False).get_opcodes():
+        if op == "equal":
+            sortie += anciennes[i1:i2]
+            continue
+        for ligne in nouvelles[j1:j2]:
+            # ponytail: un U+FFFD dans une ligne CHANGEE vient d'un texte que
+            # ras-commander a mal lu puis recopie. Seul cas connu : la ligne
+            # « Short Identifier=<ancien>_copy » de clone_plan, que
+            # _renommer_plan reecrit aussitot. Il devient « ? » ; retrouver
+            # l'octet demanderait d'aligner la ligne sur son originale.
+            texte = lu(ligne).replace("�", "?")
+            try:
+                sortie.append(texte.encode(encodage)
+                              + ligne[len(ligne.rstrip(b"\r\n")):])
+            except UnicodeEncodeError as e:
+                raise ValueError(
+                    f"« {texte[e.start]} » ne s'ecrit pas en {encodage}, "
+                    f"l'encodage de {chemin.name} : ras-commander l'y a ecrit "
+                    f"en UTF-8. Retirer ce caractere du nom ou du titre."
+                ) from e
+    chemin.write_bytes(b"".join(sortie))
 
 
 def _echapper_xml(valeur):
@@ -1290,14 +1348,20 @@ class PiloteHecRas(Modele):
 
         init_ras_project(str(self.dossier), self.version)
 
+        # CHAQUE APPEL A ras-commander QUI ECRIT passe par _par_ras_commander,
+        # qui rend aux fichiers leur encodage et leurs octets : voir
+        # _retablir_octets.
         geometrie = None
         if self.geometrie_override:
-            geometrie = RasPlan.clone_geom(self.geometrie_override)
+            geometrie = self._par_ras_commander(
+                lambda: RasPlan.clone_geom(self.geometrie_override),
+                clone=("g", self.geometrie_override))
             if self.nom_clone_geometrie:
                 # clone_geom ne prend pas de titre : on le pose apres coup.
-                GeomParser.set_geom_title(
-                    self.dossier / f"{self.nom_projet}.g{geometrie}",
-                    self.nom_clone_geometrie)
+                chemin = self.dossier / f"{self.nom_projet}.g{geometrie}"
+                self._par_ras_commander(
+                    lambda: GeomParser.set_geom_title(
+                        chemin, self.nom_clone_geometrie), chemin)
 
         # SANS TITRE ICI, volontairement : jalonner() titre le plan et
         # l'unsteady des l'ouverture de la premiere etape, quelques lignes plus
@@ -1305,10 +1369,14 @@ class PiloteHecRas(Modele):
         # voir remplace aussitot.
         unsteady = None
         if self.unsteady_override:
-            unsteady = RasPlan.clone_unsteady(self.unsteady_override)
+            unsteady = self._par_ras_commander(
+                lambda: RasPlan.clone_unsteady(self.unsteady_override),
+                clone=("u", self.unsteady_override))
 
-        self.plan_travail = RasPlan.clone_plan(
-            self.plan_reference, geometry=geometrie, unsteady_flow=unsteady)
+        self.plan_travail = self._par_ras_commander(
+            lambda: RasPlan.clone_plan(self.plan_reference, geometry=geometrie,
+                                       unsteady_flow=unsteady),
+            clone=("p", self.plan_reference))
 
         self.fichier_unsteady = self._unsteady_du_plan(self.plan_travail)
         # Le fichier unsteady effectivement utilise n'est clone ICI que s'il
@@ -1322,7 +1390,9 @@ class PiloteHecRas(Modele):
         # numero avait commence par une lettre du prefixe).
         if unsteady is None:
             numero_actuel = self.fichier_unsteady.suffix[2:]
-            unsteady = RasPlan.clone_unsteady(numero_actuel)
+            unsteady = self._par_ras_commander(
+                lambda: RasPlan.clone_unsteady(numero_actuel),
+                clone=("u", numero_actuel))
             self._reassigner_unsteady(self.plan_travail, unsteady)
             self.fichier_unsteady = self._unsteady_du_plan(self.plan_travail)
 
@@ -1362,8 +1432,10 @@ class PiloteHecRas(Modele):
 
         if self.activer_courant:
             try:
-                RasPlan.enable_hdf_output_variable(self.plan_travail,
-                                                   "Cell Courant")
+                self._par_ras_commander(
+                    lambda: RasPlan.enable_hdf_output_variable(
+                        self.plan_travail, "Cell Courant"),
+                    self.dossier / f"{self.nom_projet}.p{self.plan_travail}")
             except Exception:
                 # Sans effet sur le calage : le bilan de masse suffit au
                 # controle de qualite, le Courant n'est qu'un complement.
@@ -1643,10 +1715,14 @@ class PiloteHecRas(Modele):
             plan = self.plan_travail
             flot = self.fichier_unsteady.suffix[2:]
         else:
-            flot = RasPlan.clone_unsteady(self.fichier_unsteady.suffix[2:],
-                                          new_title=titre)
-            plan = RasPlan.clone_plan(self.plan_travail, new_title=titre,
-                                      unsteady_flow=flot)
+            source = self.fichier_unsteady.suffix[2:]
+            flot = self._par_ras_commander(
+                lambda: RasPlan.clone_unsteady(source, new_title=titre),
+                clone=("u", source))
+            plan = self._par_ras_commander(
+                lambda: RasPlan.clone_plan(self.plan_travail, new_title=titre,
+                                           unsteady_flow=flot),
+                clone=("p", self.plan_travail))
         # Titres poses explicitement dans les deux cas : clone_plan ne renseigne
         # pas « Short Identifier », qui est ce que RASMapper affiche.
         self._renommer_plan(str(plan).zfill(2), titre)
@@ -2490,8 +2566,11 @@ class PiloteHecRas(Modele):
         self._verifier_connu(nom_apport)
         info = self.carte[nom_apport]
         table = pd.DataFrame({"Value": self.originaux[nom_apport] * float(facteur)})
-        RasUnsteady.write_table_to_file(str(self.fichier_unsteady),
-                                        MOTIF_HYDROGRAMME, table, info["debut"])
+        self._par_ras_commander(
+            lambda: RasUnsteady.write_table_to_file(
+                str(self.fichier_unsteady), MOTIF_HYDROGRAMME, table,
+                info["debut"]),
+            self.fichier_unsteady)
 
     def _fermer_orphelins(self, processus_avant):
         """
@@ -2518,7 +2597,7 @@ class PiloteHecRas(Modele):
 
     def calculer(self):
         """Lance le calcul et rapporte sa qualite numerique."""
-        from ras_commander import RasCmdr, HdfResultsPlan
+        from ras_commander import HdfResultsPlan, RasCmdr, RasPlan
 
         debut = time.time()
         self.nb_calculs += 1
@@ -2539,12 +2618,17 @@ class PiloteHecRas(Modele):
             # chaque ligne « UNET D1 Cores= », « UNET D2 Cores= » et
             # « PS Cores= » du plan calcule — ici le plan d'etape, jamais le
             # plan de reference. 0 vaudrait « tous » ; None laisse le plan tel
-            # quel. LIMITE CONNUE : il relit et reecrit le plan en utf-8 avec
-            # errors="replace" ; un titre accentue ecrit en cp1252 y perdrait
-            # ses accents. Les titres d'etape sont en ASCII.
-            options = {"num_cores": self.coeurs} if self.coeurs else {}
+            # quel. APPELE ICI ET NON PAR compute_plan(num_cores=) : il relit
+            # et reecrit le plan en UTF-8 errors="replace", et un titre
+            # d'etape accentue (« Apport_Écluse ») y perdait son accent avant
+            # le calcul. _par_ras_commander le lui rend.
+            if self.coeurs:
+                self._par_ras_commander(
+                    lambda: RasPlan.set_num_cores(self.plan_travail,
+                                                  self.coeurs),
+                    self.dossier / f"{self.nom_projet}.p{self.plan_travail}")
             reussi = RasCmdr.compute_plan(self.plan_travail,
-                                          overwrite_dest=True, **options)
+                                          overwrite_dest=True)
         except Exception as e:
             self._fermer_orphelins(processus_avant)
             return ResultatCalcul(reussi=False, duree_s=time.time() - debut,
@@ -2615,6 +2699,31 @@ class PiloteHecRas(Modele):
                 serie["debit_m3s"].to_numpy(dtype=float))
 
     # --- utilitaires -------------------------------------------------------
+
+    def _par_ras_commander(self, appel, *fichiers, clone=None):
+        """
+        Lance un ecrivain de ras-commander, puis rend au .prj, aux
+        « fichiers » qu'il reecrit en place et a la copie qu'il cree
+        l'encodage et les octets d'avant l'appel (_retablir_octets).
+        Decision du 11/10/2026.
+
+        clone : (prefixe, numero) du fichier que l'appel clone. L'appel rend
+            le numero de la copie, qui reprend les octets de sa source.
+        """
+        def fichier(prefixe, numero):
+            return self.dossier / f"{self.nom_projet}.{prefixe}{numero}"
+
+        gardes = {Path(f): Path(f).read_bytes()
+                  for f in (fichier("prj", ""), *fichiers)}
+        source = fichier(*clone).read_bytes() if clone else None
+        try:
+            resultat = appel()
+        finally:
+            for chemin, octets in gardes.items():
+                _retablir_octets(chemin, octets)
+        if clone:
+            _retablir_octets(fichier(clone[0], resultat), source)
+        return resultat
 
     def _verifier_connu(self, nom_apport):
         if nom_apport not in self.carte:
@@ -3924,6 +4033,107 @@ if __name__ == "__main__":
     _verifier("encodage : plus aucune ecriture ne force l'UTF-8 hors du banc",
               "write_text(" not in _corps,
               f"{_corps.count('write_text(')} « write_text( »")
+    shutil.rmtree(_bac, ignore_errors=True)
+
+    # -----------------------------------------------------------------------
+    # LES ECRITURES DE ras-commander (decision du 11/10/2026)
+    #
+    # ras-commander relit et reecrit en UTF-8 errors="replace" : a chaque
+    # clone, essai ou calcul, un accent cp1252 devenait EF BF BD. Mesure sur
+    # ce meme projet : le .prj perdait son titre ; la geometrie clonee,
+    # « Forêt » et la BC line « Écluse », que preparer() retirait alors de la
+    # carte sans un mot ; l'unsteady de la 2e etape, « Écluse » a son tour.
+    #   Le calage tourne ici pour de vrai, CALCUL EXCLU : RasCmdr.compute_plan
+    # est remplace par un leurre, et AUCUN HEC-RAS n'est lance.
+    # -----------------------------------------------------------------------
+    print("\n--- Encodage a travers ras-commander : clones, essais, calcul ---")
+    from ras_commander import RasCmdr
+    _bac = Path(tempfile.mkdtemp(prefix="_essai_clones_"))
+
+    def _cp1252(*lignes):
+        return "".join(f"{l}\r\n" for l in lignes).encode("cp1252")
+
+    (_bac / "ESSAI.prj").write_bytes(_cp1252(
+        "Proj Title=Étude de dangers – digue", "Current Plan=p01", "SI Units",
+        "Geom File=g01", "Unsteady File=u01", "Plan File=p01",
+        "BEGIN DESCRIPTION:", "Modèle calé en février", "END DESCRIPTION:"))
+    (_bac / "ESSAI.p01").write_bytes(_cp1252(
+        "Plan Title=Crue décennale", "Program Version=6.60",
+        "Short Identifier=Q10 aménagé",
+        "Simulation Date=01JAN2024,0000,02JAN2024,0000", "Geom File=g01",
+        "Flow File=u01", "UNET D2 Cores= 0", "BEGIN DESCRIPTION:",
+        "État aménagé", "END DESCRIPTION:"))
+    (_bac / "ESSAI.g01").write_bytes(_cp1252(
+        "Geom Title=Géométrie état aménagé", "Program Version=6.60",
+        "Storage Area=Zone Test       ,,", f"BC Line Name={'Amont':<40}",
+        f"BC Line Name={'Écluse':<40}", "LCMann Region Name=Forêt"))
+    (_bac / "ESSAI.u01").write_bytes(_cp1252(
+        "Flow Title=Crue décennale", "Program Version=6.60",
+        ligne_localisation("Amont", "Zone Test"), "Interval=1HOUR",
+        "Flow Hydrograph= 25 ", "      10" * 10, "      10" * 10,
+        "      10" * 5, "Flow Hydrograph Slope= 0.01 "))
+    ajouter_condition_limite_debit(_bac / "ESSAI.u01", "Écluse", "Zone Test",
+                                   [1.0] * 25, intervalle="1HOUR")
+    _origine = {f.suffix: f.read_bytes() for f in _bac.iterdir()}
+    _vrai_calcul = RasCmdr.compute_plan
+    _p = PiloteHecRas(_bac, "ESSAI", plan_reference="01", version="6.6",
+                      nom_zone_2d="Zone Test", geometrie_override="01",
+                      nom_clone_geometrie="Géométrie calage",
+                      fermer_orphelins=False, coeurs=2)
+    try:
+        _p.preparer()
+        _carte = sorted(_p.carte)
+        _p.jalonner("sans apport")
+        _p.jalonner("Apport_Écluse")
+        _p.appliquer_facteur("Écluse", 1.5)
+        RasCmdr.compute_plan = staticmethod(lambda *a, **k: False)
+        if RasCmdr.compute_plan("leurre") is False:     # jamais de vrai calcul
+            _p.calculer()
+        _arret = ""
+    except Exception as e:                                   # noqa: BLE001
+        _arret = f"{type(e).__name__}: {e}"
+    finally:
+        RasCmdr.compute_plan = _vrai_calcul
+    _octets = {f.suffix: f.read_bytes() for f in _bac.iterdir()}
+    _verifier("ras-commander : le calage va jusqu'au calcul exclu",
+              not _arret, _arret[:150])
+    _verifier("ras-commander : le .prj garde chaque octet, ses lignes neuves "
+              "en cp1252 et CRLF", _octets.get(".prj") == _origine[".prj"]
+              + b"Geom File=g02\r\nPlan File=p02\r\nUnsteady File=u02\r\n"
+              b"Unsteady File=u03\r\nPlan File=p03\r\n",
+              repr(_octets.get(".prj", b"")[:48]))
+    _verifier("ras-commander : la geometrie clonee ne change que son titre, "
+              "BC line « Écluse » et « Forêt » comprises",
+              _octets.get(".g02") == _origine[".g01"].replace(
+                  "Géométrie état aménagé".encode("cp1252"),
+                  "Géométrie calage".encode("cp1252")),
+              repr(_octets.get(".g02", b"")[:48]))
+    _verifier("ras-commander : preparer() garde l'apport « Écluse » dans la "
+              "carte", _arret == "" and _carte == ["Amont", "Écluse"], _carte)
+    _verifier("ras-commander : l'unsteady de la 2e etape, essai ecrit, garde "
+              "« Écluse » en cp1252",
+              _champ("Écluse", 32).encode("cp1252") in _octets.get(".u03", b"")
+              and b"\xef\xbf\xbd" not in _octets.get(".u03", b"X\xef\xbf\xbd"))
+    _verifier("ras-commander : le plan de l'etape garde titre et description "
+              "accentues, coeurs ecrits",
+              all(l in _octets.get(".p03", b"").splitlines(keepends=True)
+                  for l in _cp1252("Plan Title=Apport_Écluse", "État aménagé",
+                                   "UNET D2 Cores= 2").splitlines(keepends=True))
+              and b"\xef\xbf\xbd" not in _octets.get(".p03", b"X\xef\xbf\xbd"),
+              repr(_octets.get(".p03", b"")[:60]))
+    _verifier("ras-commander : plan, geometrie et unsteady de reference "
+              "intacts", all(_octets.get(s) == _origine[s]
+                             for s in (".p01", ".g01", ".u01")))
+    # Ce que ras-commander n'a pas change garde AUSSI sa fin de ligne, LF
+    # comme CRLF ; une ligne qu'il a changee prend la sienne.
+    _f = _bac / "melange.p09"
+    _f.write_bytes(b"Plan Title=Apport_\xc3\x89cluse\r\n"
+                   b"DSS File=Donn\xef\xbf\xbdes\r\nLigne=neuve\r\n")
+    _retablir_octets(_f, b"Plan Title=Q100\r\nDSS File=Donn\xe9es\n")
+    _verifier("ras-commander : ligne inchangee a l'octet (LF garde), ligne "
+              "changee en cp1252", _f.read_bytes()
+              == b"Plan Title=Apport_\xc9cluse\r\nDSS File=Donn\xe9es\n"
+              b"Ligne=neuve\r\n", repr(_f.read_bytes()))
     shutil.rmtree(_bac, ignore_errors=True)
 
     # -----------------------------------------------------------------------
