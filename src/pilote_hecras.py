@@ -1838,29 +1838,40 @@ class PiloteHecRas(Modele):
         """
         Efface les plans d'un calage PRECEDENT portant le titre de l'etape.
 
-        Le plan de reference et le plan de travail sont intouchables. Un
-        unsteady ou une geometrie que plus aucun plan survivant ne designe part
-        avec eux : sans cela, chaque relance laisserait derriere elle un jeu
-        complet de fichiers que personne ne saurait plus rattacher a rien.
+        Le plan de reference et le plan de travail sont intouchables. L'unsteady
+        et la geometrie QUE CES PLANS DESIGNAIENT partent avec eux, si plus
+        aucun plan survivant ne les designe : sans cela, chaque relance
+        laisserait derriere elle un jeu complet de fichiers que personne ne
+        saurait plus rattacher a rien.
+
+        EUX SEULS, comme elaguer_etapes. Balayer tout .uNN et tout .gNN sans
+        plan emportait aussi la variante que l'ingenieur garde de cote, sans
+        sauvegarde (audit du 11/10/2026).
         """
-        efface = []
+        efface, designes = [], set()
         for chemin in sorted(self.dossier.glob(f"{self.nom_projet}.p[0-9][0-9]")):
             numero = chemin.suffix[2:]
             if numero in (str(self.plan_travail).zfill(2), self.plan_reference):
                 continue
             if self._titre(chemin, "Plan Title") != titre:
                 continue
+            # Ce que le plan designe, RELEVE AVANT de l'effacer : apres, le
+            # fichier n'est plus la pour le dire.
+            texte = _lire_texte(chemin)
+            for cle, lettre in (("Flow File", "u"), ("Geom File", "g")):
+                trouve = re.search(rf"^{cle}={lettre}(\w+)", texte, re.M)
+                if trouve:
+                    designes.add(f"{lettre}{trouve.group(1)}")
             self._effacer_objet(f"p{numero}")
             efface.append(f"p{numero}")
         if not efface:
             return []
-        for prefixe, cle in (("u", "Flow File"), ("g", "Geom File")):
-            for chemin in sorted(
-                    self.dossier.glob(f"{self.nom_projet}.{prefixe}[0-9][0-9]")):
-                numero = chemin.suffix[2:]
-                if not self._utilise_par_un_plan(cle, prefixe, numero):
-                    self._effacer_objet(f"{prefixe}{numero}")
-                    efface.append(f"{prefixe}{numero}")
+        for objet in sorted(designes, reverse=True):          # u avant g
+            lettre, numero = objet[0], objet[1:]
+            cle = "Flow File" if lettre == "u" else "Geom File"
+            if not self._utilise_par_un_plan(cle, lettre, numero):
+                self._effacer_objet(objet)
+                efface.append(objet)
         self._nettoyer_prj()
         return efface
 
@@ -3431,6 +3442,39 @@ if __name__ == "__main__":
               and "Geom File=g11" in _prj)
     _verifier("etapes : le compte rendu enumere ce qui est parti",
               set(_efface) == {"p10", "u10", "g10"}, str(_efface))
+
+    # 1 bis. UNE GEOMETRIE ET UN FLUX SANS PLAN RESTENT. Le remplacement
+    #    balayait tout .uNN et tout .gNN qu'aucun plan ne designe : une
+    #    variante que l'ingenieur garde de cote, sans plan, disparaissait
+    #    sans sauvegarde (audit du 11/10/2026). Ne partent que le flux et la
+    #    geometrie du plan REMPLACE.
+    _batir_projet()
+    (_bac / f"{_NOM}.g05").write_text("Geom Title=Variante gardee\n",
+                                      encoding="utf-8")
+    (_bac / f"{_NOM}.u05").write_text("Flow Title=Hydrogramme garde\n",
+                                      encoding="utf-8")
+    with open(_bac / f"{_NOM}.prj", "a", encoding="utf-8") as _f:
+        _f.write("Geom File=g05\nUnsteady File=u05\n")
+    _efface = _pilote_menage()._remplacer_homonymes("Apport_A1")
+    _prj = (_bac / f"{_NOM}.prj").read_text(encoding="utf-8")
+    _verifier("etapes : une geometrie et un flux SANS PLAN restent",
+              {f"{_NOM}.g05", f"{_NOM}.u05"} <= _presents(), str(_efface))
+    _verifier("etapes : le .prj les declare toujours",
+              "Geom File=g05" in _prj and "Unsteady File=u05" in _prj)
+    _verifier("etapes : le flux et la geometrie du plan remplace partent, eux",
+              set(_efface) == {"p10", "u10", "g10"}, str(_efface))
+
+    # 1 ter. CE QUE LE PLAN REMPLACE PARTAGE AVEC UN PLAN RESTANT RESTE. Ici
+    #    l'homonyme tourne sur la geometrie du plan de reference ; g10, que
+    #    plus aucun plan ne designe, n'etait pas la sienne et reste aussi.
+    _batir_projet()
+    (_bac / f"{_NOM}.p10").write_text(
+        "Plan Title=Apport_A1\nShort Identifier=Apport_A1\n"
+        "Geom File=g01\nFlow File=u10\n", encoding="utf-8")
+    _efface = _pilote_menage()._remplacer_homonymes("Apport_A1")
+    _verifier("etapes : une geometrie partagee avec un plan restant reste",
+              {f"{_NOM}.g01", f"{_NOM}.g10"} <= _presents()
+              and set(_efface) == {"p10", "u10"}, str(_efface))
 
     # 2. UN PLAN D'UNE AUTRE ETAPE N'EST JAMAIS TOUCHE. C'est ce qui permet de
     #    reprendre un calage a l'apport A2 sans perdre l'etape A1.
