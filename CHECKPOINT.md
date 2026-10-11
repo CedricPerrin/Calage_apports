@@ -1,5 +1,46 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## Reprendre ici — 11 octobre 2026 : branche `audit-1011-calage`, à fusionner
+
+Correctifs de l'audit du 11/10/2026 et trois décisions de Cédric du même
+jour. Sept commits sur la branche locale `audit-1011-calage`, partie de
+`main` (`b692ca6`, 0.9.17). Rien n'est poussé ni fusionné. La version reste
+0.9.17 dans `metadata.txt` ; l'entrée de changelog est écrite sous le numéro
+provisoire 0.9.18.
+
+- **A1** `e51312d` : le ménage de fin de calage ne retire plus le dossier
+  de sortie `_calage\<préfixe>` ; seulement `_calage\sections.*`,
+  `_calage\injections.*` et les sauvegardes (STATUT § 2.7).
+- **A2** `2006a5f` : remplacer un plan homonyme n'efface plus une géométrie
+  ou un flux sans plan.
+- **A3** `e309bc1` : un fichier HEC-RAS réécrit garde son encodage et ses
+  octets (lecture UTF-8 puis cp1252 puis latin-1).
+- **A4** `2efe7c3` : le projet chargé est le `.prj` désigné.
+- **ASCII = cp1252** `9baee91` : un accent écrit dans un fichier ASCII part
+  en cp1252, comme HEC-RAS l'écrit ; le `.rasmap` reste en UTF-8.
+- **Écritures de ras-commander** `55debba` : clones, titre du clone de
+  géométrie, sorties HDF, essais et cœurs passent par
+  `PiloteHecRas._par_ras_commander`, qui rend au `.prj` et aux fichiers leur
+  encodage et leurs octets. Mesuré sur un projet fabriqué : avant, la BC
+  line « Écluse » de la géométrie clonée devenait `EF BF BD` et l'apport
+  sortait du calage sans message.
+- **Documentation** : STATUT § 2.7 et § 2.11, ce paragraphe, changelog.
+
+Bancs de la branche : `pilote_hecras.py` 181 [OK], `geometrie.py` 32,
+`elaguer_projet.py` 20, `noyau.py` 55 ; pytest 5 réussis (dont les 3 neufs
+de `test_projet_hecras.py`) et 11 sous `python-qgis-ltr.bat` ;
+`test_plugin_qgis.py` hors écran 372 [OK] et 4 [ECHEC], les mêmes que sur
+`main` (géométrie de la fenêtre sous la plateforme `offscreen`). Aucun
+calcul HEC-RAS lancé, aucun modèle réel retouché.
+
+**Reste à Cédric** :
+1. Relire et fusionner `audit-1011-calage` dans `main` (commit direct, sans PR).
+2. Choisir la version (0.9.18 proposé) : `version=` de `metadata.txt` et
+   titre de l'entrée de changelog.
+3. Construire le zip, publier dans `00-depot_QGIS`, vérifier dans QGIS.
+4. Un calage réel sur un modèle à noms accentués, pour voir HEC-RAS
+   apparier « Écluse » (non fait : aucun calcul lancé par la branche).
+
 ## Reprendre ici — 28 septembre 2026 : 0.9.17, deux défauts vus sur Suhi-Q100
 
 Calage réel Suhi-Q100 (SUHI_ARAN, 12 apports, 18 calculs, 27 h 46, journal

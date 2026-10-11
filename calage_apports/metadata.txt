@@ -25,7 +25,25 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.9.17 — Le plan final garde son nom dans RAS Mapper ; l'élagage
+changelog=0.9.18 — Le ménage garde le dossier de sortie ; les fichiers du
+    modèle gardent leurs accents ; le projet chargé est celui que vous
+    désignez.
+    Après un calage conforme, le ménage retirait tout le dossier _calage,
+    où se trouvent par défaut le classeur, le suivi et les livrables : il
+    ne retire plus que les sauvegardes et les shapefiles transmis au calcul.
+    Remplacer une étape homonyme n'efface plus une géométrie ni un
+    hydrogramme que vous gardez sans plan. Les fichiers HEC-RAS relus puis
+    réécrits gardent leur encodage et leurs accents, géométrie d'origine
+    comprise ; un accent écrit dans un fichier sans accent l'est en cp1252,
+    comme HEC-RAS l'écrit, et non plus en UTF-8. ras-commander, qui clone
+    les plans, les hydrogrammes et la géométrie, détruisait les accents du
+    .prj et des fichiers clonés : ils sont rétablis après chacun de ses
+    passages, et un apport au nom accentué n'est plus perdu entre la
+    géométrie et l'hydrogramme. Un caractère que l'encodage du fichier ne
+    sait pas écrire est refusé et nommé. Dans un dossier à plusieurs
+    projets, le .prj que vous choisissez est bien celui qui est chargé.
+
+    0.9.17 — Le plan final garde son nom dans RAS Mapper ; l'élagage
     refusé se dit.
     RAS Mapper nomme la couche de résultats d'après le .pNN.hdf : le plan
     final s'y affichait sous le nom de la dernière étape (« Apport_… »),

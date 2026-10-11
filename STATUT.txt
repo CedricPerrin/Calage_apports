@@ -2226,11 +2226,19 @@ utilisable sur l'etape precedente, jamais a cheval entre un plan et
 l'unsteady d'un autre.
 
 MENAGE APRES CALAGE REUSSI : LES PLANS D'ETAPE NE SONT PLUS SUPPRIMES. Ne
-partent que les traces de preparation (sauvegardes horodatees, sous-dossier
-_calage/). La seule suppression de plan autorisee est le REMPLACEMENT D'UN
+partent que les traces de preparation : les sauvegardes horodatees et les
+shapefiles transmis au pont, _calage\sections.* et _calage\injections.*
+(les deux noms qu'ecrit noyau.ecrire_shp_temporaire). Le dossier _calage
+n'est retire que s'il reste vide (rmdir, jamais rmtree) : depuis la 0.9.8 il
+porte aussi, par defaut, le dossier de sortie _calage\<prefixe> — classeur,
+JSON, suivi, livrables —, que le menage emportait jusqu'a l'audit du
+11/10/2026. Meme regle dans src/elaguer_projet.py.
+La seule suppression de plan autorisee est le REMPLACEMENT D'UN
 HOMONYME — sans quoi le gestionnaire afficherait deux « Apport_A1 » dont rien
-ne dirait lequel fait foi. Le plan de reference et les plans de l'utilisateur
-sont intouchables, et rien n'est supprime si le calage echoue.
+ne dirait lequel fait foi. N'en partent que le flux et la geometrie que ce
+plan designait, si aucun plan restant ne les designe : une geometrie ou un
+hydrogramme garde sans plan reste. Le plan de reference et les plans de
+l'utilisateur sont intouchables, et rien n'est supprime si le calage echoue.
 COUT ASSUME : trente apports laissent trente et un jeux de resultats.
 
 REPRISE A UN APPORT DONNE : parametre Premier_apport (vide = tous). Renseigne,
@@ -2392,6 +2400,10 @@ du code n'y figure : si un nom manque ici, c'est qu'il n'existe plus.
   Bilan de masse lu dans le HDF                pilote_hecras.
                                                bilan_masse_depuis_comptes
   Menage apres calage                          pilote_hecras.nettoyer_reliquats
+  Encodage d'un fichier reecrit (ASCII =       pilote_hecras._encodage,
+    cp1252, .rasmap = UTF-8)                   _ecrire_texte
+  Ce que ras-commander reecrit, rendu a son    pilote_hecras._retablir_octets,
+    encodage et a ses octets                   PiloteHecRas._par_ras_commander
 
   Bloc « Reference Line » : ses attributs et   geometrie.
     ses coordonnees, RIEN d'autre              supprimer_lignes_reference
@@ -2433,7 +2445,9 @@ TROIS FONCTIONS A NE PAS « NETTOYER »
 LA POLITIQUE D'ENCODAGE EST DUPLIQUEE dans trois modules
 (pilote_hecras._lire_texte, elaguer_projet._lire_texte,
 noyau._lire_texte_hecras) parce qu'ils ne peuvent pas partager de code.
-Toute correction doit etre reportee aux trois.
+Toute correction doit etre reportee aux trois. Cote ecriture, _encodage et
+_ecrire_texte existent en deux exemplaires (pilote_hecras, elaguer_projet ;
+le noyau n'ecrit aucun fichier HEC-RAS).
 
 
 3. PIEGES VERIFIES
