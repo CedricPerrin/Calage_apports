@@ -294,16 +294,16 @@ def _lire_lignes(chemin):
 def _encodage(octets):
     """
     L'encodage ou des octets deja ecrits se relisent, donc celui ou l'on
-    REECRIT le fichier : la cascade de _lire_texte, mot pour mot.
+    REECRIT le fichier : la cascade de _lire_texte.
 
-    L'ASCII PUR — presque tous les fichiers — RESTE DONC EN UTF-8, COMME
-    AVANT. La regle de la maison le voudrait en cp1252, que HEC-RAS relit.
-    Mais ras-commander (0.99.2) ecrit en UTF-8 les memes noms dans les
-    fichiers voisins — BC lines de la geometrie, titres des clones — et
-    detruit, en les relisant, tout accent ecrit en cp1252 : un nom d'apport
-    accentue ecrit ici en cp1252 ne s'apparierait plus a celui de la
-    geometrie. A revoir le jour ou ses ecritures seront encadrees.
+    L'ASCII PUR EST DU cp1252 (regle de la maison, decision du 11/10/2026) :
+    c'est un fichier HEC-RAS, que HEC-RAS relit en cp1252. Le premier accent
+    qu'on y ecrit — un nom d'apport, un titre d'etape — part donc en cp1252,
+    plus en UTF-8 que HEC-RAS afficherait « Ã© ». Le .rasmap fait
+    exception (UTF-8) : voir _ecrire_texte.
     """
+    if octets.isascii():
+        return "cp1252"
     for encodage in ("utf-8", "cp1252"):
         try:
             octets.decode(encodage)
@@ -326,10 +326,14 @@ def _ecrire_texte(chemin, texte):
 
     REFUSER PLUTOT QUE TRONQUER : un caractere que l'encodage du fichier ne
     sait pas ecrire leve ValueError AVANT toute ecriture.
+
+    LE .rasmap EST EN UTF-8, ASCII compris : RAS Mapper l'ecrit ainsi, et un
+    accent ecrit en cp1252 dans une carte la rend invalide (0-HECRAS).
     """
     chemin = Path(chemin)
     ancien = chemin.read_bytes() if chemin.is_file() else b""
-    encodage = _encodage(ancien)
+    encodage = ("utf-8" if chemin.suffix.lower() == ".rasmap"
+                else _encodage(ancien))
     try:
         octets = texte.encode(encodage)
     except UnicodeEncodeError as e:
@@ -3884,15 +3888,22 @@ if __name__ == "__main__":
               _u02.read_bytes() == b"Flow Title=Q100\r\nNote=\x81\xe9\r\n",
               repr(_u02.read_bytes()))
 
-    # L'ASCII PUR RESTE EN UTF-8, COMME AVANT ET COMME ras-commander L'ECRIT
-    # (voir _encodage) : un accent neuf y prend deux octets, .rasmap compris.
+    # L'ASCII PUR EST DU cp1252 (decision du 11/10/2026, regle de la maison) :
+    # un accent neuf y prend UN octet, comme HEC-RAS l'ecrit. Le .rasmap,
+    # que RAS Mapper ecrit en UTF-8, fait exception.
     _u10 = _bac / f"{_NOM}.u10"
     _u10.write_bytes(b"Flow Title=Apport_A1\r\n")
     _p._renommer_unsteady("10", "Été")
     _verifier("encodage : un accent ecrit dans un fichier ASCII l'est en "
-              "UTF-8, comme le fait ras-commander",
-              _u10.read_bytes() == b"Flow Title=\xc3\x89t\xc3\xa9\r\n",
+              "cp1252", _u10.read_bytes() == b"Flow Title=\xc9t\xe9\r\n",
               repr(_u10.read_bytes()))
+    _u10.write_bytes(b"Flow Title=Q100\r\n"
+                     + ligne_localisation("Amont", "Zone").encode() + b"\r\n")
+    ajouter_condition_limite_debit(_u10, "Écluse", "Zone", [1.0, 2.0])
+    _verifier("encodage : un nom d'apport accentue ajoute a un unsteady ASCII "
+              "l'est en cp1252, comme dans la geometrie",
+              _champ("Écluse", 32).encode("cp1252") in _u10.read_bytes()
+              and b"\xc3" not in _u10.read_bytes(), repr(_u10.read_bytes()[:90]))
     _rasmap_ascii = _bac / "ascii.rasmap"
     _rasmap_ascii.write_bytes(b"<RASMapper>\r\n</RASMapper>\r\n")
     _ecrire_texte(_rasmap_ascii, '<RASMapper Name="Été">\n</RASMapper>\n')

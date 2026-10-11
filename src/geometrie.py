@@ -1422,6 +1422,17 @@ if __name__ == "__main__":
                   _octets.startswith(_tete) and b"For\xeat" in _octets
                   and b"Line Name=\xc9cluse" in _octets,
                   repr(_octets[:48]))
+        # UNE GEOMETRIE TOUT ASCII EST DU cp1252 (decision du 11/10/2026) : le
+        # nom d'apport neuf y prend un octet, comme HEC-RAS l'ecrit et comme
+        # dans l'unsteady, et non deux (UTF-8).
+        fichier_rc.write_bytes(_corps_rc.replace(b"For\xeat", b"Foret"))
+        ecrire_dans_geometrie(fichier_rc, gdf_apports=_gdf,
+                              nom_zone_2d="Zone Test")
+        _octets = fichier_rc.read_bytes()
+        _ctrl("dans une geometrie ASCII, un nom d'apport accentue s'ecrit en "
+              "cp1252", b"Line Name=\xc9cluse" in _octets
+              and b"\xc3" not in _octets,
+              repr(_octets[_octets.find(b"Line Name="):][:24]))
 
     print("\n" + "=" * 72)
     if _echecs_pente:

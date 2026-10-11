@@ -98,9 +98,11 @@ def _lire_texte(chemin):
 def _encodage(octets):
     """
     L'encodage ou des octets deja ecrits se relisent, donc celui ou l'on
-    REECRIT : la cascade de _lire_texte. L'ASCII pur reste en UTF-8, comme
-    avant — pourquoi : voir pilote_hecras._encodage, dont ceci est la copie.
+    REECRIT : la cascade de _lire_texte. L'ASCII pur est du cp1252, que
+    HEC-RAS relit (regle de la maison). Copie de pilote_hecras._encodage.
     """
+    if octets.isascii():
+        return "cp1252"
     for encodage in ("utf-8", "cp1252"):
         try:
             octets.decode(encodage)
@@ -512,6 +514,14 @@ def autotest():
     verifier("les fichiers texte ont ete sauvegardes avant l'elagage",
              any(d.name.startswith("_avant_elagage_")
                  for d in bac.iterdir() if d.is_dir()))
+    # L'ASCII PUR EST DU cp1252 (decision du 11/10/2026) : un accent neuf y
+    # prend un octet, comme HEC-RAS l'ecrit, et non deux (UTF-8).
+    ascii_ = bac / "ascii.p99"
+    ascii_.write_bytes(b"Plan Title=A1\r\n")
+    _ecrire_texte(ascii_, "Plan Title=Été\n")
+    verifier("un accent ecrit dans un fichier ASCII l'est en cp1252",
+             ascii_.read_bytes() == b"Plan Title=\xc9t\xe9\r\n",
+             repr(ascii_.read_bytes()))
 
     shutil.rmtree(bac, ignore_errors=True)
     print()
