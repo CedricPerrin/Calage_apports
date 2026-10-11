@@ -264,10 +264,13 @@ def _lire_texte(chemin):
     ici : un .prj ou un .pXX ecrit par l'interface en cp1252 — un titre de
     plan accentue suffit — se relisait avec des U+FFFD a la place des
     accents, et la reecriture les gravait dans le fichier de l'utilisateur.
-    L'ordre des tentatives est celui de ras-commander : utf-8 d'abord, puis
-    les deux encodages que Windows utilise en pratique. Le repli final ne
-    sert que pour un fichier reellement binaire, cas ou l'on a de toute
-    facon perdu.
+
+    UTF-8 STRICT, PUIS cp1252, PUIS latin-1 — DANS CET ORDRE. HEC-RAS ecrit
+    en cp1252. latin-1 lit tout octet et ne peut donc pas echouer : place
+    avant cp1252, comme il l'etait ici (l'ordre de ras-commander), cp1252
+    n'etait jamais atteint, et le tiret long (0x97) ou « œ » (0x9C)
+    revenaient en caracteres de controle. Il ne vient qu'en dernier, pour
+    le fichier dont on n'a pas reconnu l'encodage : aucun octet n'est perdu.
 
     Meme politique que calage_apports.noyau._lire_texte_hecras et
     elaguer_projet._lire_texte : ces trois modules ne peuvent PAS partager
@@ -276,38 +279,69 @@ def _lire_texte(chemin):
     toute correction ici doit etre reportee aux deux autres.
     """
     chemin = Path(chemin)
-    for encodage in ("utf-8", "latin1", "cp1252"):
+    for encodage in ("utf-8", "cp1252"):
         try:
             return chemin.read_text(encoding=encodage)
         except (UnicodeDecodeError, LookupError):
             continue
-    return chemin.read_text(encoding="latin1", errors="replace")
+    return chemin.read_text(encoding="latin-1")
 
 
 def _lire_lignes(chemin):
     return _lire_texte(chemin).splitlines(keepends=True)
 
 
+def _encodage(octets):
+    """
+    L'encodage ou des octets deja ecrits se relisent, donc celui ou l'on
+    REECRIT le fichier : la cascade de _lire_texte, mot pour mot.
+
+    L'ASCII PUR — presque tous les fichiers — RESTE DONC EN UTF-8, COMME
+    AVANT. La regle de la maison le voudrait en cp1252, que HEC-RAS relit.
+    Mais ras-commander (0.99.2) ecrit en UTF-8 les memes noms dans les
+    fichiers voisins — BC lines de la geometrie, titres des clones — et
+    detruit, en les relisant, tout accent ecrit en cp1252 : un nom d'apport
+    accentue ecrit ici en cp1252 ne s'apparierait plus a celui de la
+    geometrie. A revoir le jour ou ses ecritures seront encadrees.
+    """
+    for encodage in ("utf-8", "cp1252"):
+        try:
+            octets.decode(encodage)
+            return encodage
+        except UnicodeDecodeError:
+            continue
+    return "latin-1"
+
+
 def _ecrire_texte(chemin, texte):
     """
-    Reecrit un fichier texte HEC-RAS, dans l'encodage ou il se relit.
+    Reecrit un fichier texte HEC-RAS dans L'ENCODAGE ET AVEC LA FIN DE LIGNE
+    QU'IL AVAIT : on y a touche une ligne, on ne le convertit pas.
 
-    L'UTF-8 D'ABORD, COMME A LA LECTURE. Un .rasmap sans declaration
-    d'encodage — c'est le cas, il commence par « <RASMapper> » sans prologue
-    XML — est lu en UTF-8 par RAS Mapper. Mais un fichier qui ne s'encode
-    PAS en UTF-8 sans perte n'existe pas ; le repli cp1252 ne sert qu'aux
-    fichiers que HEC-RAS a lui-meme ecrits en cp1252 et qu'on ne veut pas
-    convertir sous pretexte qu'on y a touche une ligne.
+    TOUTE REECRITURE D'UN FICHIER DU MODELE PASSE PAR ICI. Neuf d'entre elles
+    forcaient l'UTF-8 : un .pNN, un .uNN ou le .prj lu juste en cp1252
+    ressortait avec ses accents sur deux octets, et HEC-RAS affichait « Ã© »
+    (audit du 11/10/2026). Le texte vient de _lire_texte, fins de ligne
+    ramenees a « \\n » : on rend celle du fichier, CRLF a defaut.
+
+    REFUSER PLUTOT QUE TRONQUER : un caractere que l'encodage du fichier ne
+    sait pas ecrire leve ValueError AVANT toute ecriture.
     """
     chemin = Path(chemin)
     ancien = chemin.read_bytes() if chemin.is_file() else b""
-    encodage = "utf-8"
-    if ancien:
-        try:
-            ancien.decode("utf-8")
-        except UnicodeDecodeError:
-            encodage = "cp1252"
-    chemin.write_text(texte, encoding=encodage)
+    encodage = _encodage(ancien)
+    try:
+        octets = texte.encode(encodage)
+    except UnicodeEncodeError as e:
+        raise ValueError(
+            f"« {texte[e.start]} » ne s'ecrit pas en {encodage}, l'encodage "
+            f"de {chemin.name} : rien n'y est ecrit. Retirer ce caractere du "
+            f"nom ou du titre.") from e
+    # ponytail: une seule fin de ligne par fichier ; un melange CRLF/LF est
+    # ramene a CRLF, comme avant. La garder ligne par ligne demanderait de
+    # lire en octets (voir 05-HECRAS_Organizer, core/io/textfile.py).
+    fin = b"\n" if b"\n" in ancien and b"\r\n" not in ancien else b"\r\n"
+    chemin.write_bytes(octets.replace(b"\n", fin))
 
 
 def _echapper_xml(valeur):
@@ -439,7 +473,7 @@ def ajouter_condition_limite_debit(fichier_unsteady, nom, nom_zone_2d, debits,
             f"probablement pas un fichier unsteady exploitable.")
 
     lignes[insertion:insertion] = bloc
-    chemin.write_text("".join(lignes), encoding="utf-8")
+    _ecrire_texte(chemin, "".join(lignes))
     return len(valeurs)
 
 
@@ -561,7 +595,7 @@ def imposer_intervalle_apport(fichier_unsteady, nom, nom_zone_2d=None,
     lignes[entete] = f"{MOTIF_HYDROGRAMME} {nb_apres} \n"
     lignes[info["debut"]:info["fin"]] = [l + "\n" for l
                                          in _table_debits(nouvelles)]
-    chemin.write_text("".join(lignes), encoding="utf-8")
+    _ecrire_texte(chemin, "".join(lignes))
 
     return {"nom": nom, "zone": info["zone"], "duree_h": duree_h,
             "duree_apres_h": (nb_apres - 1) * pas_apres,
@@ -1894,7 +1928,7 @@ class PiloteHecRas(Modele):
             if ligne.startswith("Flow Title="):
                 fin = "\n" if ligne.endswith("\n") else ""
                 lignes[i] = f"Flow Title={titre}{fin}"
-        chemin.write_text("".join(lignes), encoding="utf-8")
+        _ecrire_texte(chemin, "".join(lignes))
 
     def _appliquer_pentes_deposees(self):
         """
@@ -1951,7 +1985,7 @@ class PiloteHecRas(Modele):
                 f"{', '.join(sorted(restants))}. Le plan de reference n'a pas "
                 f"la structure attendue ; la fenetre de simulation ne peut pas "
                 f"y etre imposee sans risque.")
-        fichier_plan.write_text("".join(lignes), encoding="utf-8")
+        _ecrire_texte(fichier_plan, "".join(lignes))
 
     def _coeurs_du_plan(self, numero):
         """Valeurs « UNET D2 Cores= » d'un plan, « tous » pour 0 ; « ? » si illisible."""
@@ -2038,7 +2072,7 @@ class PiloteHecRas(Modele):
             if ligne.startswith("Simulation Date="):
                 saut = "\n" if ligne.endswith("\n") else ""
                 lignes[i] = f"Simulation Date={debut},{nouvelle_fin}{saut}"
-                fichier_plan.write_text("".join(lignes), encoding="utf-8")
+                _ecrire_texte(fichier_plan, "".join(lignes))
                 return voulue_min / 60.0
         return None
 
@@ -2119,7 +2153,7 @@ class PiloteHecRas(Modele):
             raise ValueError(
                 f"aucune ligne « Flow Hydrograph Slope= » dans le bloc de "
                 f"« {nom_apport} » : la pente ne peut pas y etre imposee.")
-        self.fichier_unsteady.write_text("".join(lignes), encoding="utf-8")
+        _ecrire_texte(self.fichier_unsteady, "".join(lignes))
 
     # --- menage de fin de calage -------------------------------------------
 
@@ -2347,7 +2381,7 @@ class PiloteHecRas(Modele):
                 continue
             gardees.append(ligne)
         if len(gardees) != len(lignes):
-            prj.write_text("".join(gardees), encoding="utf-8")
+            _ecrire_texte(prj, "".join(gardees))
 
     def _renommer_plan(self, numero, nom):
         """Donne son titre definitif au plan conserve."""
@@ -2378,7 +2412,7 @@ class PiloteHecRas(Modele):
                     # des 34 plans que la chaine a deja ecrits.
                     valeur = nom.ljust(24) if "Short" in cle else nom
                     lignes[i] = f"{cle}{valeur}{fin}"
-            chemin.write_text("".join(lignes), encoding="utf-8")
+            _ecrire_texte(chemin, "".join(lignes))
 
     def _reassigner_unsteady(self, numero_plan, numero_unsteady):
         """
@@ -2392,7 +2426,7 @@ class PiloteHecRas(Modele):
             if ligne.startswith("Flow File="):
                 fin = "\n" if ligne.endswith("\n") else ""
                 lignes[i] = f"Flow File=u{str(numero_unsteady).zfill(2)}{fin}"
-        fichier_plan.write_text("".join(lignes), encoding="utf-8")
+        _ecrire_texte(fichier_plan, "".join(lignes))
 
     # --- interface Modele --------------------------------------------------
 
@@ -3758,6 +3792,127 @@ if __name__ == "__main__":
 
     _verifier("detection de HEC-RAS ouvert : repond sans lever",
               hecras_ouvert() in (True, False, None), str(hecras_ouvert()))
+
+    # -----------------------------------------------------------------------
+    # ENCODAGE ET FINS DE LIGNE (audit du 11/10/2026)
+    #
+    # HEC-RAS ecrit en cp1252 et en CRLF. La chaine relisait juste, puis
+    # reecrivait TOUT le fichier en UTF-8 : le titre accentue d'un plan, d'un
+    # unsteady ou du projet ressortait « Ã© » dans HEC-RAS. Et la lecture
+    # essayait latin1 avant cp1252 : latin1 lit tout octet, cp1252 n'etait
+    # jamais atteint, le tiret long (0x97) et « œ » (0x9C) devenaient des
+    # caracteres de controle.
+    #   LA REGLE : un fichier relu puis reecrit garde son encodage, sa fin de
+    # ligne, et chaque octet des lignes qu'on n'a pas voulu changer.
+    # -----------------------------------------------------------------------
+    print("\n--- Encodage : un fichier reecrit garde ses octets ---")
+    _ACCENTS = "Crue décennale — état aménagé, bœuf"
+
+    def _lignes_perdues(avant, apres):
+        """Lignes d'« avant », octets et fin de ligne compris, absentes d'« apres »."""
+        reste = apres.splitlines(keepends=True)
+        return [l for l in avant.splitlines(keepends=True) if l not in reste]
+
+    _batir_projet()
+    _p = _pilote_menage()
+    _p11 = _bac / f"{_NOM}.p11"
+    _avant = ("Plan Title=Apport_A1\r\nShort Identifier=Apport_A1\r\n"
+              "Geom File=g11\r\nFlow File=u11\r\n"
+              f"BEGIN DESCRIPTION:\r\n{_ACCENTS}\r\nEND DESCRIPTION:\r\n"
+              ).encode("cp1252")
+    _p11.write_bytes(_avant)
+    _verifier("encodage : un texte cp1252 se lit juste, tiret long et « œ » "
+              "compris", _ACCENTS in _lire_texte(_p11),
+              repr(_lire_texte(_p11).splitlines()[5]))
+    _p._renommer_plan("11", "Q100_Apport_A1")
+    _verifier("encodage : retitrer un plan cp1252 ne change que ses deux lignes",
+              _lignes_perdues(_avant, _p11.read_bytes())
+              == [b"Plan Title=Apport_A1\r\n", b"Short Identifier=Apport_A1\r\n"]
+              and b"Plan Title=Q100_Apport_A1\r\n" in _p11.read_bytes(),
+              repr(_p11.read_bytes()[:120]))
+    _avant = _p11.read_bytes()
+    _p._reassigner_unsteady("11", "10")
+    _verifier("encodage : rattacher un unsteady ne change que « Flow File= »",
+              _lignes_perdues(_avant, _p11.read_bytes())
+              == [b"Flow File=u11\r\n"]
+              and b"Flow File=u10\r\n" in _p11.read_bytes())
+
+    # LE .prj DU PROJET, fichier d'origine : une ligne retiree, rien d'autre.
+    _prj_essai = _bac / f"{_NOM}.prj"
+    _avant = (f"Proj Title={_ACCENTS}\r\nPlan File=p01\r\nPlan File=p99\r\n"
+              "Geom File=g01\r\n").encode("cp1252")
+    _prj_essai.write_bytes(_avant)
+    _p._nettoyer_prj()
+    _verifier("encodage : le .prj garde son titre accentue, a l'octet pres",
+              _prj_essai.read_bytes()
+              == _avant.replace(b"Plan File=p99\r\n", b""),
+              repr(_prj_essai.read_bytes()[:60]))
+
+    # L'UNSTEADY D'ORIGINE, ou le plugin cree l'hydrogramme d'une injection.
+    _u_essai = _bac / f"{_NOM}.u01"
+    _avant = (f"Flow Title={_ACCENTS}\r\nProgram Version=6.60\r\n"
+              + ligne_localisation("Amont", "Zone") + "\r\n"
+              "Interval=1HOUR\r\nFlow Hydrograph= 2 \r\n"
+              "      10      20\r\n").encode("cp1252")
+    _u_essai.write_bytes(_avant)
+    ajouter_condition_limite_debit(_u_essai, "A1", "Zone", [1.0, 2.0, 3.0])
+    _apres = _u_essai.read_bytes()
+    _verifier("encodage : creer un hydrogramme ne touche a aucune ligne de "
+              "l'unsteady d'origine", _lignes_perdues(_avant, _apres) == []
+              and _champ("A1", 32).encode() in _apres,
+              repr(_apres[:60]))
+    _verifier("encodage : le bloc ajoute prend la fin de ligne du fichier",
+              _apres.count(b"\n") == _apres.count(b"\r\n"))
+
+    # CE QUI ETAIT EN UTF-8 ET EN LF LE RESTE : on ne convertit rien.
+    _u11 = _bac / f"{_NOM}.u11"
+    _avant = (f"Flow Title=Apport_A1\nBEGIN DESCRIPTION:\n{_ACCENTS}\n"
+              "END DESCRIPTION:\n").encode("utf-8")
+    _u11.write_bytes(_avant)
+    _p._renommer_unsteady("11", "Q100_Apport_A1")
+    _verifier("encodage : un fichier UTF-8 en LF reste en UTF-8 et en LF",
+              _u11.read_bytes() == _avant.replace(
+                  b"Flow Title=Apport_A1\n", b"Flow Title=Q100_Apport_A1\n"),
+              repr(_u11.read_bytes()[:60]))
+
+    # NI UTF-8 NI cp1252 (0x81 n'existe pas en cp1252) : latin-1 en dernier
+    # recours, qui rend chaque octet tel quel.
+    _u02 = _bac / f"{_NOM}.u02"
+    _u02.write_bytes(b"Flow Title=Q100 copy\r\nNote=\x81\xe9\r\n")
+    _p._renommer_unsteady("02", "Q100")
+    _verifier("encodage : un fichier d'encodage inconnu garde ses octets",
+              _u02.read_bytes() == b"Flow Title=Q100\r\nNote=\x81\xe9\r\n",
+              repr(_u02.read_bytes()))
+
+    # L'ASCII PUR RESTE EN UTF-8, COMME AVANT ET COMME ras-commander L'ECRIT
+    # (voir _encodage) : un accent neuf y prend deux octets, .rasmap compris.
+    _u10 = _bac / f"{_NOM}.u10"
+    _u10.write_bytes(b"Flow Title=Apport_A1\r\n")
+    _p._renommer_unsteady("10", "Été")
+    _verifier("encodage : un accent ecrit dans un fichier ASCII l'est en "
+              "UTF-8, comme le fait ras-commander",
+              _u10.read_bytes() == b"Flow Title=\xc3\x89t\xc3\xa9\r\n",
+              repr(_u10.read_bytes()))
+    _rasmap_ascii = _bac / "ascii.rasmap"
+    _rasmap_ascii.write_bytes(b"<RASMapper>\r\n</RASMapper>\r\n")
+    _ecrire_texte(_rasmap_ascii, '<RASMapper Name="Été">\n</RASMapper>\n')
+    _verifier("encodage : un .rasmap ASCII aussi, que RAS Mapper lit en UTF-8",
+              _rasmap_ascii.read_bytes()
+              == b'<RASMapper Name="\xc3\x89t\xc3\xa9">\r\n</RASMapper>\r\n',
+              repr(_rasmap_ascii.read_bytes()))
+    # REFUSER PLUTOT QUE TRONQUER : « → » n'existe pas en cp1252. Avant, le
+    # fichier entier passait en UTF-8 sans un mot.
+    _avant = _u_essai.read_bytes()
+    _verifier("encodage : un caractere que le fichier ne sait pas ecrire est "
+              "refuse, fichier intact",
+              _leve(ValueError, _p._renommer_unsteady, "01", "Q100 → aval")
+              and _u_essai.read_bytes() == _avant,
+              repr(_u_essai.read_bytes()[:40]))
+    _corps = Path(__file__).read_text(encoding="utf-8").split(
+        '\nif __name__ == "__main__":')[0]
+    _verifier("encodage : plus aucune ecriture ne force l'UTF-8 hors du banc",
+              "write_text(" not in _corps,
+              f"{_corps.count('write_text(')} « write_text( »")
     shutil.rmtree(_bac, ignore_errors=True)
 
     # -----------------------------------------------------------------------

@@ -72,8 +72,12 @@ def _lire_texte(chemin):
     PAS DE errors=\"replace\" : cet outil REECRIT les fichiers qu'il lit (le
     .prj, et le plan qu'il reconstruit). Un titre de plan accentue ecrit par
     l'interface en cp1252 se relisait avec des U+FFFD a la place des accents,
-    et la reecriture les gravait dans le projet de l'utilisateur. Le repli
-    final ne sert que pour un fichier reellement binaire.
+    et la reecriture les gravait dans le projet de l'utilisateur.
+
+    UTF-8 STRICT, PUIS cp1252, PUIS latin-1 — DANS CET ORDRE. latin-1 lit
+    tout octet et ne peut pas echouer : place avant cp1252, comme il l'etait
+    ici, cp1252 n'etait jamais atteint, et le tiret long (0x97) ou « œ »
+    (0x9C) revenaient en caracteres de controle.
 
     Meme politique que pilote_hecras._lire_texte et
     calage_apports.noyau._lire_texte_hecras. Ces trois modules ne peuvent PAS
@@ -83,12 +87,40 @@ def _lire_texte(chemin):
     toute correction ici doit etre reportee aux deux autres.
     """
     chemin = Path(chemin)
-    for encodage in ("utf-8", "latin1", "cp1252"):
+    for encodage in ("utf-8", "cp1252"):
         try:
             return chemin.read_text(encoding=encodage)
         except (UnicodeDecodeError, LookupError):
             continue
-    return chemin.read_text(encoding="latin1", errors="replace")
+    return chemin.read_text(encoding="latin-1")
+
+
+def _encodage(octets):
+    """
+    L'encodage ou des octets deja ecrits se relisent, donc celui ou l'on
+    REECRIT : la cascade de _lire_texte. L'ASCII pur reste en UTF-8, comme
+    avant — pourquoi : voir pilote_hecras._encodage, dont ceci est la copie.
+    """
+    for encodage in ("utf-8", "cp1252"):
+        try:
+            octets.decode(encodage)
+            return encodage
+        except UnicodeDecodeError:
+            continue
+    return "latin-1"
+
+
+def _ecrire_texte(chemin, texte):
+    """
+    Reecrit un fichier texte HEC-RAS dans l'encodage et avec la fin de ligne
+    qu'il avait — jamais en UTF-8 d'office, que HEC-RAS afficherait « Ã© ».
+    Copie de pilote_hecras._ecrire_texte ; un caractere que l'encodage du
+    fichier ne sait pas ecrire leve avant toute ecriture (UnicodeEncodeError).
+    """
+    chemin = Path(chemin)
+    ancien = chemin.read_bytes() if chemin.is_file() else b""
+    fin = b"\n" if b"\n" in ancien and b"\r\n" not in ancien else b"\r\n"
+    chemin.write_bytes(texte.encode(_encodage(ancien)).replace(b"\n", fin))
 
 
 def champ(chemin, cle):
@@ -182,7 +214,7 @@ def reparer_plan(dossier, projet, retenu, plans, executer):
         elif ligne.startswith("Flow File="):
             lignes[i] = f"Flow File={flot}{fin}"
     if executer:
-        plan.write_text("".join(lignes), encoding="utf-8")
+        _ecrire_texte(plan, "".join(lignes))
     return (f"p{retenu} « {titre} » reconstruit d'apres p{modele['numero']} : "
             f"geom={geom}, flot={flot}"
             + ("" if executer else "  (simulation)"))
@@ -303,7 +335,7 @@ def nettoyer_prj(dossier, projet):
         gardees.append(ligne)
     retirees = len(lignes) - len(gardees)
     if retirees:
-        prj.write_text("".join(gardees), encoding="utf-8")
+        _ecrire_texte(prj, "".join(gardees))
     return retirees
 
 
@@ -338,12 +370,21 @@ def autotest():
         if not condition:
             echecs.append(libelle)
 
+    # COMME HEC-RAS LES ECRIT : cp1252 et CRLF. Le tiret long (0x97) et « œ »
+    # (0x9C) n'existent qu'en cp1252 ; relus en latin1 puis reecrits en UTF-8,
+    # ils revenaient en caracteres de controle (audit du 11/10/2026).
+    accents = "Crue décennale — état aménagé, bœuf"
+
+    def octets_hecras(lignes):
+        return "".join(lignes).replace("\n", "\r\n").encode("cp1252")
+
     def ecrire_plan(numero, titre, court, geom, flot):
         lignes = [f"Plan Title={titre}\n", f"Short Identifier={court}\n"]
         if geom:
             lignes += [f"Geom File={geom}\n", f"Flow File={flot}\n"]
+        lignes += ["BEGIN DESCRIPTION:\n", f"{accents}\n", "END DESCRIPTION:\n"]
         lignes.append("Computation Interval=20SEC\n")
-        (bac / f"{nom}.p{numero}").write_text("".join(lignes), encoding="utf-8")
+        (bac / f"{nom}.p{numero}").write_bytes(octets_hecras(lignes))
 
     def ecrire_resultats(numero, geom, flot, court):
         with h5py.File(bac / f"{nom}.p{numero}.hdf", "w") as f:
@@ -386,10 +427,11 @@ def autotest():
     # « _calage/<prefixe> » depuis la 0.9.8.
     (bac / "_calage" / "Q100").mkdir()
     (bac / "_calage" / "Q100" / "donnees_calage_Q100.xlsx").write_bytes(b"x")
-    lignes = ["Proj Title=Essai\n", "Geom File=g01\n"]
+    lignes = [f"Proj Title={accents}\n", "Geom File=g01\n"]
     lignes += [f"Unsteady File=u{n}\n" for n in ("01", "02", "06", "07", "12")]
     lignes += [f"Plan File=p{n}\n" for n in ("01", "02", "15", "16", "21")]
-    (bac / f"{nom}.prj").write_text("".join(lignes), encoding="utf-8")
+    prj_avant = octets_hecras(lignes)
+    (bac / f"{nom}.prj").write_bytes(prj_avant)
 
     code = subprocess.call(
         [sys.executable, str(Path(__file__).resolve()), str(bac),
@@ -401,8 +443,10 @@ def autotest():
     # conclure que rien n'a ete supprime.
     reste = {p.name for p in bac.rglob("*") if p.is_file()
              and not any(x.startswith("_avant_elagage_") for x in p.parts)}
-    p21 = (bac / f"{nom}.p21").read_text(encoding="utf-8")
-    prj = (bac / f"{nom}.prj").read_text(encoding="utf-8")
+    p21_octets = (bac / f"{nom}.p21").read_bytes()
+    prj_octets = (bac / f"{nom}.prj").read_bytes()
+    p21 = p21_octets.decode("cp1252", "replace")
+    prj = prj_octets.decode("cp1252", "replace")
 
     verifier("le plan retenu, vide, est reconstruit d'apres son .hdf",
              "Geom File=g01" in p21 and "Flow File=u12" in p21)
@@ -442,6 +486,15 @@ def autotest():
     verifier("le .prj suit les suppressions et garde le reste",
              "Plan File=p15" not in prj and "Unsteady File=u06" not in prj
              and all(f"Plan File=p{n}" in prj for n in ("01", "02", "16", "21")))
+    verifier("le plan reconstruit garde l'encodage et les fins de ligne du "
+             "modele (cp1252, CRLF)",
+             octets_hecras([f"{accents}\n"]) in p21_octets
+             and p21_octets.count(b"\n") == p21_octets.count(b"\r\n"),
+             repr(p21_octets[-80:]))
+    verifier("le .prj garde son titre accentue, a l'octet pres",
+             prj_octets == prj_avant.replace(b"Plan File=p15\r\n", b"")
+             .replace(b"Unsteady File=u06\r\n", b""),
+             repr(prj_octets[:60]))
     verifier("les fichiers texte ont ete sauvegardes avant l'elagage",
              any(d.name.startswith("_avant_elagage_")
                  for d in bac.iterdir() if d.is_dir()))

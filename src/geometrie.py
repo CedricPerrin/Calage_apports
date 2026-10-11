@@ -737,10 +737,16 @@ def noms_objets_geometrie(fichier_geometrie):
     Sert a ne pas recreer un objet existant : GeomBcLines.add_bc_lines sans
     remplacement INSERE un second bloc de meme nom, et une geometrie qui
     contient deux objets homonymes rend l'appariement indecidable.
+
+    L'ENCODAGE EST CELUI DU PILOTE (_lire_texte : UTF-8, sinon cp1252). Lu en
+    UTF-8 errors="replace", un nom accentue ecrit par HEC-RAS revenait avec
+    un U+FFFD : il ne s'appariait plus a celui de QGIS, et l'objet etait
+    ecrit une seconde fois. Import tardif : le pilote importe ce module.
     """
+    from pilote_hecras import _lire_texte
+
     sections, apports = [], []
-    for ligne in Path(fichier_geometrie).read_text(
-            encoding="utf-8", errors="replace").splitlines():
+    for ligne in _lire_texte(fichier_geometrie).splitlines():
         if ligne.startswith("BC Line Name="):
             apports.append(ligne.split("=", 1)[1].strip())
         elif ligne.startswith("Reference Line Name="):
@@ -794,8 +800,9 @@ def objets_depuis_texte(fichier_geometrie):
 
     Retourne {"sections": [{"nom", "zone", "wkt"}...], "apports": [...]}.
     """
-    lignes = Path(fichier_geometrie).read_text(
-        encoding="utf-8", errors="replace").splitlines()
+    from pilote_hecras import _lire_texte      # voir noms_objets_geometrie
+
+    lignes = _lire_texte(fichier_geometrie).splitlines()
 
     familles = {"BC": [], "Reference": []}
     i = 0
@@ -844,8 +851,9 @@ def perimetres_depuis_texte(fichier_geometrie):
 
     Retourne [{"zone", "wkt"}...], wkt en POLYGON, contour referme si besoin.
     """
-    lignes = Path(fichier_geometrie).read_text(
-        encoding="utf-8", errors="replace").splitlines()
+    from pilote_hecras import _lire_texte      # voir noms_objets_geometrie
+
+    lignes = _lire_texte(fichier_geometrie).splitlines()
 
     perimetres = []
     i = 0
@@ -910,14 +918,22 @@ def supprimer_lignes_reference(fichier_geometrie, noms):
     CRLF) sont preservees telles quelles sur les lignes conservees, comme le
     fait ras-commander dans ses propres ecritures.
 
+    L'ENCODAGE AUSSI : le fichier est relu puis reecrit dans celui ou il
+    etait (pilote_hecras._encodage). C'est la geometrie D'ORIGINE ; lue en
+    UTF-8 errors="replace" puis reecrite en UTF-8, elle perdait chacun de
+    ses accents au premier remplacement de section (audit du 11/10/2026).
+
     Retourne la liste des noms effectivement retires. N'ecrit pas le fichier
     si aucun ne l'est.
     """
     if not noms:
         return []
+    from pilote_hecras import _encodage        # voir noms_objets_geometrie
+
     a_retirer = {str(n).strip() for n in noms}
     chemin = Path(fichier_geometrie)
-    with open(chemin, "r", encoding="utf-8", errors="replace", newline="") as f:
+    encodage = _encodage(chemin.read_bytes())
+    with open(chemin, "r", encoding=encodage, newline="") as f:
         lignes = f.readlines()
 
     conservees, retirees = [], []
@@ -946,7 +962,7 @@ def supprimer_lignes_reference(fichier_geometrie, noms):
         i = j
 
     if retirees:
-        with open(chemin, "w", encoding="utf-8", newline="") as f:
+        with open(chemin, "w", encoding=encodage, newline="") as f:
             f.writelines(conservees)
     return retirees
 
@@ -983,22 +999,48 @@ def ecrire_dans_geometrie(fichier_geometrie, gdf_sections=None, gdf_apports=None
             "nom doit correspondre a un bloc « Storage Area= » du fichier "
             "geometrie.")
 
-    bilan = {}
-    if gdf_sections is not None and len(gdf_sections):
-        if remplacer:
-            supprimer_lignes_reference(fichier_geometrie,
-                                       list(gdf_sections["nom"]))
-        lignes = [{"name": n, "coordinates": list(g.coords)}
-                  for n, g in zip(gdf_sections["nom"], gdf_sections.geometry)]
-        bilan["sections"] = GeomReferenceFeatures.add_reference_lines(
-            fichier_geometrie, lignes, nom_zone_2d)
+    # L'ENCODAGE DE LA GEOMETRIE D'ORIGINE, A TRAVERS ras-commander. Ses deux
+    # ecrivains (0.99.2) relisent en UTF-8 errors="ignore" et reecrivent en
+    # UTF-8 : chaque accent qu'HEC-RAS avait ecrit en cp1252 disparaissait
+    # (audit du 11/10/2026). On leur presente le fichier en UTF-8, ce qui ne
+    # perd rien, puis on le rend dans son encodage. Un nom neuf que cet
+    # encodage ne sait pas ecrire est refuse AVANT toute ecriture.
+    from pilote_hecras import _encodage        # voir noms_objets_geometrie
 
-    if gdf_apports is not None and len(gdf_apports):
-        lignes = [{"name": n, "storage_area": nom_zone_2d,
-                   "coordinates": list(g.coords)}
-                  for n, g in zip(gdf_apports["nom"], gdf_apports.geometry)]
-        bilan["apports"] = GeomBcLines.add_bc_lines(
-            fichier_geometrie, lignes, replace_existing=remplacer)
+    chemin = Path(fichier_geometrie)
+    encodage = _encodage(chemin.read_bytes())
+    for gdf in (gdf_sections, gdf_apports):
+        for nom in ([] if gdf is None else gdf["nom"]):
+            try:
+                str(nom).encode(encodage)
+            except UnicodeEncodeError:
+                raise ValueError(
+                    f"« {nom} » ne s'ecrit pas en {encodage}, l'encodage de "
+                    f"{chemin.name} : rien n'y est ecrit.") from None
+    if encodage != "utf-8":
+        chemin.write_bytes(chemin.read_bytes().decode(encodage).encode("utf-8"))
+    try:
+        bilan = {}
+        if gdf_sections is not None and len(gdf_sections):
+            if remplacer:
+                supprimer_lignes_reference(fichier_geometrie,
+                                           list(gdf_sections["nom"]))
+            lignes = [{"name": n, "coordinates": list(g.coords)}
+                      for n, g in zip(gdf_sections["nom"],
+                                      gdf_sections.geometry)]
+            bilan["sections"] = GeomReferenceFeatures.add_reference_lines(
+                fichier_geometrie, lignes, nom_zone_2d)
+
+        if gdf_apports is not None and len(gdf_apports):
+            lignes = [{"name": n, "storage_area": nom_zone_2d,
+                       "coordinates": list(g.coords)}
+                      for n, g in zip(gdf_apports["nom"], gdf_apports.geometry)]
+            bilan["apports"] = GeomBcLines.add_bc_lines(
+                fichier_geometrie, lignes, replace_existing=remplacer)
+    finally:
+        if encodage != "utf-8":
+            chemin.write_bytes(
+                chemin.read_bytes().decode("utf-8").encode(encodage))
 
     return bilan
 
@@ -1318,6 +1360,68 @@ if __name__ == "__main__":
                 - len(_apres_queue.splitlines()))
     _ctrl("seules les lignes du bloc vise disparaissent",
           _perdues == 4 + len(section_brute), f"{_perdues} ligne(s) perdue(s)")
+
+    # ENCODAGE (audit du 11/10/2026). HEC-RAS ecrit en cp1252 et en CRLF. La
+    # geometrie D'ORIGINE se relisait en UTF-8 errors="replace" puis se
+    # reecrivait en UTF-8 : au premier remplacement de section, chaque accent
+    # du fichier devenait U+FFFD. Tout ce qui n'est pas le bloc retire doit
+    # revenir A L'OCTET PRES — le tiret (0x96) n'existe qu'en cp1252, et la
+    # derniere ligne est en LF : chaque ligne garde SA fin.
+    _tete = b"Geom Title=G\xe9om\xe9trie \xe9tat am\xe9nag\xe9 \x96 digue\r\n"
+    _bloc_sc1 = ("Reference Line Name=SC1\r\n"
+                 "Reference Line Storage Area=2D Area 1       \r\n"
+                 f"Reference Line Arc= {len(section_brute)} \r\n"
+                 + "".join(_ligne_point(p) + "\r\n" for p in section_brute)
+                 ).encode("cp1252")
+    _bloc_ecluse = _bloc_sc1.replace(b"SC1", "Écluse".encode("cp1252"))
+    _queue = b"LCMann Region Name=For\xeat\r\nChan Stop Cuts=-1 \n"
+    fichier_accents = dossier / "geometrie_accents.g01"
+    fichier_accents.write_bytes(_tete + _bloc_sc1 + _bloc_ecluse + _queue)
+
+    _ctrl("un nom de section accentue en cp1252 est lu juste",
+          noms_objets_geometrie(fichier_accents)["sections"]
+          == ["SC1", "Écluse"]
+          and [o["nom"] for o in objets_depuis_texte(fichier_accents)["sections"]]
+          == ["SC1", "Écluse"],
+          noms_objets_geometrie(fichier_accents)["sections"])
+    _ctrl("retirer une section rend le reste de la geometrie a l'octet pres",
+          supprimer_lignes_reference(fichier_accents, ["SC1"]) == ["SC1"]
+          and fichier_accents.read_bytes() == _tete + _bloc_ecluse + _queue,
+          repr(fichier_accents.read_bytes()[:48]))
+    _ctrl("une section au nom accentue se retire aussi",
+          supprimer_lignes_reference(fichier_accents, ["Écluse"]) == ["Écluse"]
+          and fichier_accents.read_bytes() == _tete + _queue,
+          repr(fichier_accents.read_bytes()[-48:]))
+
+    # ET A TRAVERS ras-commander, qui ECRIT le trace. Retirer le bloc ne
+    # suffisait pas : add_reference_lines et add_bc_lines (0.99.2) relisent
+    # en UTF-8 errors="ignore" et reecrivent en UTF-8 — mesure le 11/10/2026,
+    # « Géométrie état aménagé – digue » ressortait « Gomtrie tat amnag  digue ».
+    try:
+        import ras_commander  # noqa: F401
+    except ImportError:
+        print("   ignore : ras-commander absent, son ecriture n'est pas eprouvee")
+    else:
+        _corps_rc = "\r\n".join([
+            "Storage Area=Zone Test     ,,",
+            f"Storage Area Surface Line= {len(perimetre_brut)} ",
+            *[_ligne_point(p) for p in perimetre_brut],
+            "Storage Area Type= 1 ", "Storage Area Is2D=-1", "",
+            "LCMann Region Name=Forêt", "Chan Stop Cuts=-1 ", ""]
+        ).encode("cp1252")
+        fichier_rc = dossier / "geometrie_ras_commander.g01"
+        for _genre in ("sections", "apports"):
+            fichier_rc.write_bytes(_tete + _corps_rc)
+            _gdf = gpd.GeoDataFrame({"nom": ["Écluse"]}, crs=CRS,
+                                    geometry=[LineString(section_brute)])
+            ecrire_dans_geometrie(fichier_rc, **{f"gdf_{_genre}": _gdf},
+                                  nom_zone_2d="Zone Test", remplacer=True)
+            _octets = fichier_rc.read_bytes()
+            _ctrl(f"ecrire des {_genre} par ras-commander garde l'encodage "
+                  f"de la geometrie (cp1252), accents et nom neuf compris",
+                  _octets.startswith(_tete) and b"For\xeat" in _octets
+                  and b"Line Name=\xc9cluse" in _octets,
+                  repr(_octets[:48]))
 
     print("\n" + "=" * 72)
     if _echecs_pente:

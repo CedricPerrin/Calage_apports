@@ -2351,9 +2351,15 @@ def creer_injections_dans_modele(fichier_geometrie, chemin_shp, nom_zone_2d,
 
 def _lire_texte_hecras(chemin):
     """
-    Lit un fichier texte HEC-RAS en essayant plusieurs encodages, comme le
-    fait ras-commander en interne. Aucune dependance a ras-commander : cette
-    fonction tourne directement dans le processus QGIS.
+    Lit un fichier texte HEC-RAS en essayant plusieurs encodages. Aucune
+    dependance a ras-commander : cette fonction tourne directement dans le
+    processus QGIS.
+
+    UTF-8 STRICT, PUIS cp1252, PUIS latin-1 — DANS CET ORDRE. HEC-RAS ecrit
+    en cp1252. latin-1 lit tout octet et ne peut pas echouer : place avant
+    cp1252, comme il l'etait ici (l'ordre de ras-commander), cp1252 n'etait
+    jamais atteint, et un titre portant un tiret long (0x97) ou « œ » (0x9C)
+    s'affichait avec des caracteres de controle.
 
     Meme politique que pilote_hecras._lire_texte et elaguer_projet._lire_texte.
     Ces trois modules ne peuvent PAS partager de code : le plugin est livre
@@ -2362,12 +2368,12 @@ def _lire_texte_hecras(chemin):
     reportee aux deux autres.
     """
     chemin = Path(chemin)
-    for encodage in ("utf-8", "latin1", "cp1252"):
+    for encodage in ("utf-8", "cp1252"):
         try:
             return chemin.read_text(encoding=encodage)
         except (UnicodeDecodeError, LookupError):
             continue
-    return chemin.read_text(encoding="latin1", errors="replace")
+    return chemin.read_text(encoding="latin-1")
 
 
 def _normaliser_version(brute):
