@@ -240,11 +240,14 @@ def a_supprimer(dossier, projet, morts, orphelins_u, orphelins_g, courts_gardes)
             chemin = dossier / f"{projet}{suffixe}"
             if chemin.is_file():
                 cibles.append(chemin)
-    # Traces de preparation.
+    # Traces de preparation. Les shapefiles transmis au pont, JAMAIS le
+    # dossier « _calage/ » : la chaine actuelle y range la sortie d'un calage
+    # (« _calage/<prefixe> », plugin 0.9.8). Meme regle que
+    # pilote_hecras._reliquats.
     cibles += sorted(dossier.glob(f"{projet}.*.sauvegarde_*"))
-    shapefiles = dossier / "_calage"
-    if shapefiles.is_dir():
-        cibles.append(shapefiles)
+    for nom in ("sections", "injections"):
+        cibles += sorted(f for f in (dossier / "_calage").glob(f"{nom}.*")
+                         if f.is_file())
     # Derives dont le plan a DEJA disparu, laisses par une suppression
     # anterieure. Ceux des plans retires ci-dessus sont deja dans la liste.
     for chemin in derives_orphelins(dossier, projet):
@@ -379,6 +382,10 @@ def autotest():
     (bac / f"{nom}.g01.sauvegarde_20260727_101500").write_bytes(b"x")
     (bac / "_calage").mkdir()
     (bac / "_calage" / "sections.shp").write_bytes(b"x")
+    # Sortie d'un calage de la chaine actuelle : le plugin la propose dans
+    # « _calage/<prefixe> » depuis la 0.9.8.
+    (bac / "_calage" / "Q100").mkdir()
+    (bac / "_calage" / "Q100" / "donnees_calage_Q100.xlsx").write_bytes(b"x")
     lignes = ["Proj Title=Essai\n", "Geom File=g01\n"]
     lignes += [f"Unsteady File=u{n}\n" for n in ("01", "02", "06", "07", "12")]
     lignes += [f"Plan File=p{n}\n" for n in ("01", "02", "15", "16", "21")]
@@ -419,7 +426,9 @@ def autotest():
              and not (bac / "Q100_copy_copy").is_dir())
     verifier("sauvegardes horodatees et shapefiles temporaires partent",
              not any("sauvegarde_" in n for n in reste)
-             and not (bac / "_calage").is_dir())
+             and "sections.shp" not in reste)
+    verifier("le dossier de sortie _calage/<prefixe> d'un calage est conserve",
+             "donnees_calage_Q100.xlsx" in reste)
     verifier("les derives d'un plan DEJA disparu sont rattrapes",
              f"{nom}.p30.snapshot.hdf" not in reste
              and f"{nom}.b30" not in reste
@@ -583,6 +592,10 @@ def main():
             retires += 1
         except OSError as e:
             print(f"   NON RETIRE : {chemin.name} — {e}")
+    try:
+        (dossier / "_calage").rmdir()     # refuse un dossier qui n'est pas vide
+    except OSError:
+        pass
     lignes = nettoyer_prj(dossier, projet)
     print(f"{retires} element(s) retire(s), {lignes} ligne(s) du .prj nettoyee(s)")
     print("\nLe dossier de sauvegarde peut etre supprime une fois le projet "

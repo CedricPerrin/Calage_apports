@@ -23,7 +23,6 @@ Usage :  python pilote_hecras.py --projet <dossier> --plan p01
 
 import math
 import re
-import shutil
 import subprocess
 import time
 from datetime import datetime, timedelta
@@ -2122,8 +2121,15 @@ class PiloteHecRas(Modele):
         """
         Traces laissees dans le dossier du modele par la preparation, hors
         plans et fichiers de calcul : les sauvegardes horodatees faites avant
-        toute ecriture dans la geometrie ou l'unsteady, et le sous-dossier ou
-        le plugin depose les shapefiles transmis au pont.
+        toute ecriture dans la geometrie ou l'unsteady, et les shapefiles que
+        le plugin depose dans « _calage/ » pour les transmettre au pont.
+
+        LES FICHIERS, JAMAIS LE DOSSIER « _calage/ ». Depuis la 0.9.8 le
+        plugin propose la sortie dans « _calage/<prefixe> » : retirer le
+        dossier emportait le classeur, le JSON, le suivi et les livrables du
+        calage qui venait d'aboutir (audit du 11/10/2026). Ne partent que
+        « sections.* » et « injections.* », les deux noms qu'ecrit
+        noyau.ecrire_shp_temporaire.
 
         Elles ne sont retirees qu'a la FIN D'UN CALAGE REUSSI. Tant qu'il
         n'a pas abouti, les sauvegardes sont le seul retour en arriere
@@ -2131,9 +2137,9 @@ class PiloteHecRas(Modele):
         """
         traces = sorted(
             self.dossier.glob(f"{self.nom_projet}.*.sauvegarde_*"))
-        shapefiles = self.dossier / "_calage"
-        if shapefiles.is_dir():
-            traces.append(shapefiles)
+        for nom in ("sections", "injections"):
+            traces += sorted(f for f in (self.dossier / "_calage").glob(
+                f"{nom}.*") if f.is_file())
         return traces
 
     def nettoyer_reliquats(self, simuler=False):
@@ -2150,7 +2156,9 @@ class PiloteHecRas(Modele):
         resultats : c'est un cout de disque assume, pas un oubli.
 
         Ce qui part ici n'est reclame par personne : sauvegardes horodatees de
-        la preparation, et sous-dossier des shapefiles transmis au pont.
+        la preparation, et shapefiles transmis au pont. Le dossier
+        « _calage/ » ne part que s'il en reste VIDE : il peut porter la
+        sortie du calage (voir _reliquats).
 
         simuler : ne rien supprimer, rendre seulement la liste.
 
@@ -2165,14 +2173,16 @@ class PiloteHecRas(Modele):
             return rendu
         for trace in traces:
             try:
-                if trace.is_dir():
-                    shutil.rmtree(trace)
-                else:
-                    trace.unlink()
+                trace.unlink()
             except OSError:
-                # Un reliquat verrouille — dossier ouvert dans l'explorateur —
-                # ne doit pas faire echouer un calage abouti.
+                # Un reliquat verrouille — fichier ouvert ailleurs — ne doit
+                # pas faire echouer un calage abouti.
                 pass
+        try:
+            # rmdir, jamais rmtree : il refuse un dossier qui n'est pas vide.
+            (self.dossier / "_calage").rmdir()
+        except OSError:
+            pass
         return rendu
 
     def elaguer_etapes(self, prefixe="", simuler=True):
@@ -3363,12 +3373,13 @@ if __name__ == "__main__":
         lignes += [f"Unsteady File=u{n}\n" for n in ("01", "02", "10", "11")]
         lignes += [f"Plan File=p{n}\n" for n in plans]
         (_bac / f"{_NOM}.prj").write_text("".join(lignes), encoding="utf-8")
-        # Reliquats : sauvegardes horodatees et shapefiles du plugin.
+        # Reliquats : sauvegardes horodatees et shapefiles transmis au pont.
         (_bac / f"{_NOM}.g01.sauvegarde_20260727_101500").write_bytes(b"x")
         (_bac / f"{_NOM}.u01.sauvegarde_20260727_101500").write_bytes(b"x")
         shp = _bac / "_calage"
         shp.mkdir(exist_ok=True)
-        (shp / "sections.shp").write_bytes(b"x")
+        for nom in ("sections.shp", "sections.dbf", "injections.shp"):
+            (shp / nom).write_bytes(b"x")
 
     def _presents():
         return {p.name for p in _bac.glob("*") if p.is_file()}
@@ -3429,21 +3440,54 @@ if __name__ == "__main__":
               {f"{_NOM}.p10", f"{_NOM}.u10", f"{_NOM}.g10"} <= _presents())
 
     # 3. LE MENAGE DE FIN NE TOUCHE PLUS AUX PLANS. Il ne retire que ce que
-    #    personne ne reclame : sauvegardes de preparation et shapefiles.
+    #    personne ne reclame : sauvegardes de preparation et shapefiles
+    #    transmis au pont.
     _batir_projet()
     _temoin = _objets()
     _bilan = _pilote_menage().nettoyer_reliquats()
     _verifier("menage : les sauvegardes horodatees sont retirees",
               not any("sauvegarde_" in n for n in _presents()))
-    _verifier("menage : le dossier _calage/ est retire",
-              not (_bac / "_calage").exists())
+    _verifier("menage : un _calage/ qui ne portait que les shapefiles du pont "
+              "est retire", not (_bac / "_calage").exists())
     _verifier("menage : AUCUN plan, unsteady ou geometrie n'est supprime",
               _objets() == _temoin, f"{sorted(_temoin - _objets())} manquant(s)")
     _verifier("menage : les reliquats sont enumeres dans le compte rendu",
-              len(_bilan["reliquats"]) == 3, str(_bilan["reliquats"]))
+              sorted(_bilan["reliquats"])
+              == [f"{_NOM}.g01.sauvegarde_20260727_101500",
+                  f"{_NOM}.u01.sauvegarde_20260727_101500",
+                  "injections.shp", "sections.dbf", "sections.shp"],
+              str(_bilan["reliquats"]))
     _verifier("menage : simuler=True ne retire rien",
               _pilote_menage().nettoyer_reliquats(simuler=True)["conserve"]
               == "p11")
+
+    # 3 bis. LE DOSSIER DE SORTIE EST INTOUCHABLE. Depuis la 0.9.8 le plugin
+    #    le propose dans « _calage/<prefixe> ». Le menage retirait TOUT
+    #    _calage/ : le classeur, le JSON, le suivi et les livrables d'un
+    #    calage qui venait d'aboutir partaient avec les shapefiles (audit du
+    #    11/10/2026). Le dernier temoin est a la racine de _calage/, pour le
+    #    cas ou l'utilisateur y met lui-meme sa sortie : « sections.* » ne
+    #    doit pas devenir « sections* ».
+    _batir_projet()
+    _sortie = _bac / "_calage" / "Q100"
+    _gardes = [_sortie / "donnees_calage_Q100.xlsx",
+               _sortie / "donnees_calage_Q100.json",
+               _sortie / "sections_controle.shp",
+               _sortie / "suivi" / "avancement.json",
+               _sortie / "resultats_finaux" / "synthese.md",
+               _bac / "_calage" / "sections_controle.shp"]
+    for _f in _gardes:
+        _f.parent.mkdir(parents=True, exist_ok=True)
+        _f.write_bytes(b"x")
+    _bilan = _pilote_menage().nettoyer_reliquats()
+    _verifier("menage : le dossier de sortie _calage/<prefixe> garde tout",
+              all(f.is_file() for f in _gardes),
+              f"{[f.name for f in _gardes if not f.is_file()]} perdu(s)")
+    _verifier("menage : les shapefiles transmis au pont partent quand meme",
+              not any((_bac / "_calage" / n).exists() for n in
+                      ("sections.shp", "sections.dbf", "injections.shp")),
+              str(_bilan["reliquats"]))
+    shutil.rmtree(_bac / "_calage", ignore_errors=True)
 
     # 4. RETROUVER UN PLAN PAR SON TITRE : c'est ce sur quoi repose la reprise
     #    a un apport donne.
