@@ -2,6 +2,8 @@
 from pathlib import Path
 import sys
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from calage_apports import noyau
 
@@ -31,3 +33,22 @@ def test_un_titre_cp1252_se_lit_juste(tmp_path):
     info = noyau.lister_projet_hecras(prj.parent)
     assert [info["plans"][0]["titre"], info["geometries"][0]["titre"],
             info["unsteady"][0]["titre"]] == [TITRE] * 3
+
+
+def test_le_projet_lu_est_le_prj_designe(tmp_path):
+    # Deux projets dans un dossier. On chargeait le premier .prj de projet du
+    # dossier, « Aval_ancien » ici, et la version la plus récente de tous ses
+    # fichiers, projets confondus (audit du 11/10/2026).
+    _ecrire_projet(tmp_path, "Aval_ancien", version="7.01")
+    choisi = _ecrire_projet(tmp_path, "Projet_choisi", version="6.60")
+    assert noyau.lister_projet_hecras(choisi)["nom_projet"] == "Projet_choisi"
+    assert noyau.version_hecras_du_projet(choisi) == ("6.6", {"6.60": 3})
+
+
+def test_un_dossier_a_deux_projets_est_refuse(tmp_path):
+    # Le dossier reste accepté, mais seulement s'il ne porte qu'un projet :
+    # deviner lequel est voulu, c'est le défaut corrigé ci-dessus.
+    _ecrire_projet(tmp_path, "Aval_ancien")
+    _ecrire_projet(tmp_path, "Projet_choisi")
+    with pytest.raises(ValueError, match="Projet_choisi"):
+        noyau.lister_projet_hecras(tmp_path)

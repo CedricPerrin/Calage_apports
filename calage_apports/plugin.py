@@ -3215,11 +3215,13 @@ class DialogueParametrage(QDialog):
         if not prj:
             return
         self.edit_projet_hecras.setText(prj)
-        self._charger_projet_hecras(str(Path(prj).parent))
+        # LE .prj, PAS SON DOSSIER : le noyau y prenait le premier projet
+        # venu, pas forcement celui-ci (audit du 11/10/2026).
+        self._charger_projet_hecras(prj)
 
-    def _charger_projet_hecras(self, dossier):
+    def _charger_projet_hecras(self, projet):
         try:
-            self.info_projet = noyau.lister_projet_hecras(dossier)
+            self.info_projet = noyau.lister_projet_hecras(projet)
         except Exception as e:
             journaliser("Lecture du projet HEC-RAS", e)
             QMessageBox.critical(self, "Projet HEC-RAS", str(e))
@@ -3228,7 +3230,7 @@ class DialogueParametrage(QDialog):
         # Version lue dans les fichiers, la plus recente en cas de melange :
         # un projet ancien repris avec une version recente en contient
         # plusieurs, et seule la plus recente sait toutes les relire.
-        self.version_hecras, versions_vues = noyau.version_hecras_du_projet(dossier)
+        self.version_hecras, versions_vues = noyau.version_hecras_du_projet(projet)
         installees = noyau.versions_hecras_installees()
         if not self.version_hecras:
             texte_version = " — version HEC-RAS illisible dans les fichiers"

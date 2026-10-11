@@ -2395,7 +2395,7 @@ def _normaliser_version(brute):
     return f"{majeur}.{mineur}.{correctif}"
 
 
-def version_hecras_du_projet(dossier):
+def version_hecras_du_projet(projet):
     """
     Lit la version de HEC-RAS dans les fichiers du projet, plutot que de la
     faire saisir : elle y est deja, et une saisie manuelle ne peut
@@ -2408,16 +2408,25 @@ def version_hecras_du_projet(dossier):
     7.01 dans 2. On retient LA PLUS RECENTE, seule capable de relire toutes
     les autres.
 
+    projet : le .prj designe — seuls SES fichiers sont lus. Le plugin
+    passait le dossier, et tous ses fichiers etaient lus : dans un dossier a
+    deux projets, la version de l'autre pouvait l'emporter (audit du
+    11/10/2026). Un dossier reste accepte, avec ce comportement.
+
     Retourne (version, detail) ou detail liste ce qui a ete trouve. Retourne
     (None, ...) si aucune version n'est lisible : mieux vaut le dire que
     d'inventer une valeur par defaut qui echouerait plus loin.
     """
-    dossier = Path(dossier)
+    projet = Path(projet)
+    dossier, nom = ((projet.parent, projet.stem.lower())
+                    if projet.suffix.lower() == ".prj" else (projet, None))
     trouvees = {}
     for fichier in dossier.iterdir():
         if not fichier.is_file():
             continue
         if not re.match(r"^\.(g|p|u|f|b)\d+$", fichier.suffix, re.I):
+            continue
+        if nom is not None and fichier.stem.lower() != nom:
             continue
         try:
             for ligne in fichier.read_text(encoding="utf-8",
@@ -2450,12 +2459,17 @@ def versions_hecras_installees():
     return sorted(set(versions))
 
 
-def lister_projet_hecras(dossier):
+def lister_projet_hecras(projet):
     """
     Enumere geometries, unsteady flows et plans d'un projet HEC-RAS par
     simple lecture de fichiers texte (.prj, .gXX, .uXX, .pXX) — SANS
     ras-commander, donc directement utilisable dans le processus QGIS, sans
     passer par le pont.
+
+    projet : LE .prj DESIGNE. On recevait le dossier et l'on y prenait le
+    premier .prj de projet : dans un dossier a deux projets, un autre que
+    celui choisi pouvait etre charge (audit du 11/10/2026). Un dossier reste
+    accepte, mais seulement s'il ne porte qu'un projet ; sinon ValueError.
 
     Retourne {"nom_projet", "geometries", "unsteady", "plans"}. Les entrees
     de "geometries"/"unsteady" sont {"numero", "titre"} ; celles de "plans"
@@ -2465,12 +2479,18 @@ def lister_projet_hecras(dossier):
     un dossier peut contenir un .prj de PROJECTION (shapefile) qui n'a rien
     a voir : on ne retient que celui qui contient « Proj Title= ».
     """
-    dossier = Path(dossier)
-    prj = next((f for f in dossier.glob("*.prj")
-               if "Proj Title=" in _lire_texte_hecras(f)), None)
-    if prj is None:
-        raise FileNotFoundError(
-            f"aucun projet HEC-RAS (.prj) trouve dans {dossier}")
+    projet = Path(projet)
+    candidats = (sorted(projet.glob("*.prj")) if projet.is_dir()
+                 else [projet] if projet.is_file() else [])
+    projets = [f for f in candidats if "Proj Title=" in _lire_texte_hecras(f)]
+    if not projets:
+        raise FileNotFoundError(f"aucun projet HEC-RAS (.prj) trouve : {projet}")
+    if len(projets) > 1:
+        raise ValueError(
+            f"{len(projets)} projets HEC-RAS dans {projet} "
+            f"({', '.join(f.name for f in projets)}) : designer le .prj.")
+    prj = projets[0]
+    dossier = prj.parent
 
     texte_prj = _lire_texte_hecras(prj)
     nom_projet = prj.stem

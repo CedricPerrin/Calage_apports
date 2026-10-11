@@ -18,8 +18,8 @@ CE QUI N'EST JAMAIS TOUCHE : tout plan, geometrie ou unsteady dont le titre
 n'est pas un titre de calage, le plan RETENU et ce qu'il reference, et tout
 objet mis en jeu par un calcul en cours.
 
-  python elaguer_projet.py <dossier> --retenu p21          (simulation)
-  python elaguer_projet.py <dossier> --retenu p21 --executer
+  python elaguer_projet.py <projet.prj> --retenu p21          (simulation)
+  python elaguer_projet.py <projet.prj> --retenu p21 --executer
 
 Rien n'est supprime sans --executer. Une sauvegarde des fichiers TEXTE du
 projet est faite avant toute suppression : ce sont eux qui rendent un projet
@@ -432,12 +432,26 @@ def autotest():
     lignes += [f"Plan File=p{n}\n" for n in ("01", "02", "15", "16", "21")]
     prj_avant = octets_hecras(lignes)
     (bac / f"{nom}.prj").write_bytes(prj_avant)
-
-    code = subprocess.call(
+    # UN SECOND PROJET DANS LE DOSSIER, en tete par ordre alphabetique. On
+    # elaguait le premier projet du dossier, quel qu'il soit (audit du
+    # 11/10/2026) : on designe desormais le .prj.
+    (bac / "Aval.prj").write_text("Proj Title=Aval\nPlan File=p01\n",
+                                  encoding="utf-8")
+    (bac / "Aval.p01").write_text("Plan Title=Aval\n", encoding="utf-8")
+    refus = subprocess.run(
         [sys.executable, str(Path(__file__).resolve()), str(bac),
          "--retenu", "p21", "--executer", "--ignorer-hecras"],
+        capture_output=True, text=True)
+    verifier("un dossier a deux projets est refuse : il faut designer le .prj",
+             refus.returncode != 0 and "designer le .prj" in refus.stderr,
+             refus.stderr.strip()[-90:])
+
+    code = subprocess.call(
+        [sys.executable, str(Path(__file__).resolve()), str(bac / f"{nom}.prj"),
+         "--retenu", "p21", "--executer", "--ignorer-hecras"],
         stdout=subprocess.DEVNULL)
-    verifier("l'elagage se termine sans erreur", code == 0, f"code {code}")
+    verifier("l'elagage du .prj designe se termine sans erreur", code == 0,
+             f"code {code}")
 
     # Le coffre contient une COPIE des fichiers retires : l'inclure ferait
     # conclure que rien n'a ete supprime.
@@ -508,7 +522,8 @@ def autotest():
 def main():
     a = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     a.add_argument("dossier", nargs="?",
-                   help="dossier du projet HEC-RAS ; omis : auto-test seul")
+                   help="le .prj du projet HEC-RAS (ou son dossier, s'il "
+                        "n'en porte qu'un) ; omis : auto-test seul")
     a.add_argument("--retenu", help="plan a conserver, ex. p21")
     a.add_argument("--executer", action="store_true",
                    help="sans lui, rien n'est supprime")
@@ -530,12 +545,20 @@ def main():
     if not args.retenu:
         raise SystemExit("--retenu est obligatoire : quel plan conserver ?")
 
+    # LE .prj DESIGNE, ou un dossier qui n'en porte qu'un. On elaguait le
+    # premier projet du dossier, quel qu'il soit (audit du 11/10/2026).
     dossier = Path(args.dossier)
-    projets = [p.stem for p in sorted(dossier.glob("*.prj"))
-               if (dossier / f"{p.stem}.p01").exists()
-               or list(dossier.glob(f"{p.stem}.p[0-9][0-9]"))]
+    if dossier.suffix.lower() == ".prj":
+        dossier, projets = dossier.parent, [dossier.stem]
+    else:
+        projets = [p.stem for p in sorted(dossier.glob("*.prj"))
+                   if (dossier / f"{p.stem}.p01").exists()
+                   or list(dossier.glob(f"{p.stem}.p[0-9][0-9]"))]
     if not projets:
         raise SystemExit(f"aucun projet HEC-RAS dans {dossier}")
+    if len(projets) > 1:
+        raise SystemExit(f"{len(projets)} projets HEC-RAS dans {dossier} "
+                         f"({', '.join(projets)}) : designer le .prj.")
     projet = projets[0]
     retenu = args.retenu.lstrip("pP").zfill(2)
 

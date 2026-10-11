@@ -2306,6 +2306,27 @@ verifier("un dossier saisi a la main n'est jamais remplace",
 dlg.edit_projet_hecras.setText(_projet_avant_prop)
 dlg.edit_prefixe_scenario.setText(_prefixe_avant_prop)
 dlg.edit_dossier_sortie.setText(_dossier_avant_prop)
+
+# LE PROJET CHARGE EST CELUI QU'ON DESIGNE (audit du 11/10/2026). Le
+# selecteur rend le .prj, mais on chargeait son DOSSIER, et le noyau y
+# prenait le premier .prj de projet : dans un dossier a deux projets, un
+# autre que celui choisi — « Aval_ancien » vient ici en tete — et la version
+# de HEC-RAS lue dans les fichiers des deux.
+_bac_prj = Path(tempfile.mkdtemp(prefix="deux_projets_"))
+for _nom, _version in (("Aval_ancien", "7.01"), ("Projet_choisi", "6.60")):
+    (_bac_prj / f"{_nom}.prj").write_text(
+        f"Proj Title={_nom}\nPlan File=p01\n", encoding="utf-8")
+    (_bac_prj / f"{_nom}.p01").write_text(
+        f"Plan Title=Q100\nProgram Version={_version}\n", encoding="utf-8")
+_dlg_prj = mod_plugin.DialogueParametrage(iface)
+fichiers.fichiers.append(str(_bac_prj / "Projet_choisi.prj"))
+_dlg_prj._parcourir_projet_hecras()
+verifier("le projet charge est le .prj designe, pas le premier du dossier",
+         (_dlg_prj.info_projet or {}).get("nom_projet") == "Projet_choisi"
+         and _dlg_prj.version_hecras == "6.6",
+         f"{(_dlg_prj.info_projet or {}).get('nom_projet')}, "
+         f"HEC-RAS {_dlg_prj.version_hecras}")
+shutil.rmtree(_bac_prj, ignore_errors=True)
 # ET LE PREFIXE A QUITTE « Objectifs ». Laisse aux deux endroits, il aurait
 # donne deux champs a lire pour un seul reglage.
 # L'ORDRE DE L'ONGLET OBJECTIFS (20/09/2026, demande utilisateur) : ce qu'on
