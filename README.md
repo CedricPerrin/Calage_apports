@@ -1,6 +1,6 @@
 # Calage_apports
 
-**28 septembre 2026 — version 0.9.17, diffusée par le dépôt d'extensions PIO**
+**21 octobre 2026 — version 0.9.18, diffusée par le dépôt d'extensions PIO**
 (`file://sudouest/users/perrin/16-Dev/1-Utilitaires/1.1-Plugins_QGIS/00-depot_QGIS/plugins.xml`). Le lot UX B/C
 ([PR #3](https://github.com/CedricPerrin/Calage_apports/pull/3), fusionnée le
 20 septembre) est dans l'archive depuis la 0.9.13 : effets du contrôle explicités ;
@@ -13,7 +13,7 @@ extension installée depuis le dépôt.
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 
-Version des sources du plugin : **0.9.17**. La
+Version des sources du plugin : **0.9.18**. La
 [note d’ergonomie du 11 septembre 2026](docs/ergonomie_2026-09-11.md)
 décrit le parcours, les choix d’interface et les points de recette.
 
@@ -223,6 +223,11 @@ PK » et « Injections — PK », qui doublaient les couches de base,
 disparaissent : le PK s'affiche en étiquette « nom — PK » sur celles-ci. Et la
 fenêtre ne change plus d'onglet d'elle-même après une composition ou un
 lancement.
+
+La **0.9.18** (21 octobre 2026) reprend l'audit du 11 octobre : le ménage
+garde le dossier de sortie, un fichier HEC-RAS réécrit garde son encodage et
+ses octets (clones ras-commander compris), et le projet chargé est le `.prj`
+désigné, pas le premier du dossier.
 
 La **0.9.17** (28 septembre 2026) corrige deux défauts vus sur le calage
 Suhi-Q100. RAS Mapper nomme la couche de résultats d'après les attributs du
