@@ -125,7 +125,7 @@ propose ensuite les mises à jour. Le `LISEZMOI.md` du dépôt détaille la marc
 
 **Depuis l'archive**, pour un poste sans accès au dépôt.
 `calage_apports_<version>.zip` —
-`calage_apports_0.9.18.zip` pour cette version — est **à la racine du dépôt** : la télécharger
+`calage_apports_0.9.19.zip` pour cette version — est **à la racine du dépôt** : la télécharger
 suffit, il n'y a rien à reconstruire. Le nom porte la version pour qu'on
 sache, sur un poste distant, ce qu'on installe ; il n'y en a jamais qu'une
 dans le dépôt, la plus récente. Puis, dans QGIS :
