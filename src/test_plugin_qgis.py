@@ -3856,7 +3856,7 @@ verifier("fil conducteur : les liens sont accessibles au clavier",
          bool(_flags & Qt.TextInteractionFlag.LinksAccessibleByKeyboard)
          and dlg.label_fil.focusPolicy() != Qt.FocusPolicy.NoFocus,
          f"flags={int(_flags)} focus={dlg.label_fil.focusPolicy()}")
-_cible = re.search(r"href=['\"](\d)['\"]", dlg.label_fil.text())
+_cible = re.search(r"href=['\"](\d)(?::\w+)?['\"]", dlg.label_fil.text())
 if _cible is None:
     print("   ignore : le fil ne porte aucun lien dans cet etat")
 else:

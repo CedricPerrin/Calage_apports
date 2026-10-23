@@ -31,7 +31,8 @@ poussée, non fusionnée, version inchangée.
   9 px à 13 pt sur 720 px) ; le cadre vide des cibles ne répète plus la
   consigne.
 
-Banc sans `--modele` : 411 [OK], 0 [ECHEC] (17 contrôles nouveaux) ;
+Banc sans `--modele` : 413 [OK], 0 [ECHEC] (13 contrôles nouveaux ; les
+deux contrôles clavier du fil se sautaient, leur regex ignorait « rang:champ ») ;
 `python src/calage.py` et l'autotest du noyau passent ; aperçus clair et
 sombre, 9 et 13 pt, 720 et 940 px : aucun défilement de côté.
 
