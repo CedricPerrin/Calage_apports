@@ -7047,8 +7047,9 @@ class PluginCalage:
         # Aide). Un menu a rallonge laissait croire qu'il fallait choisir,
         # alors qu'il n'y a qu'un chemin — et ses entrees numerotees
         # suggeraient l'inverse de l'ordre reel, ou l'ecriture des sections
-        # dans le modele precede la composition du paquet.
-        action = QAction(icone, f"{NOM_PLUGIN}\u2026",
+        # dans le modele precede la composition du paquet. Texte choisi par
+        # l'ingenieur le 23/10/2026 pour le bouton de la barre \u00ab CPN \u00bb.
+        action = QAction(icone, "Calage apports",
                          self.iface.mainWindow())
         action.setObjectName("calageApports_fenetre")
         infobulle = ("Fen\u00eatre unique : mod\u00e8le HEC-RAS, \u00e9criture des "
