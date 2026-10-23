@@ -121,6 +121,18 @@ print("=" * 74)
 print("EXERCICE DES QUATRE ACTIONS DU PLUGIN, SANS INTERFACE")
 print("=" * 74)
 
+# LE GREFFON « offscreen » NE VOIT AUCUNE POLICE SOUS WINDOWS tant qu'on ne
+# lui donne pas le dossier des polices du systeme (23/10/2026). Il mesurait
+# alors chaque texte dans une police de repli sans nom (« police resolue : »
+# vide), aux metriques gonflees — le bouton « Valider la geometrie… » y
+# demandait 1088 px a 13 pt, 600 environ sous la plate-forme windows —, et
+# quatre controles de disposition echouaient sans rien dire de la fenetre
+# reelle : la page Objectifs et le dernier champ des etapes 1 a 3 a 13 pt.
+# Avec ce dossier, Segoe UI est resolue et les memes controles passent ; un
+# QT_QPA_FONTDIR deja pose est respecte.
+if sys.platform == "win32":
+    os.environ.setdefault("QT_QPA_FONTDIR", os.path.join(
+        os.environ.get("WINDIR", r"C:\Windows"), "Fonts"))
 qgs = QgsApplication([], False)
 qgs.initQgis()
 from qgis.PyQt.QtGui import QFont, QFontDatabase, QFontInfo    # noqa: E402
