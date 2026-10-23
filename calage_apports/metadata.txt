@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont l'étape « Suivi » montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.9.18
+version=0.9.19
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,17 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.9.18 — Le ménage garde le dossier de sortie ; les fichiers du
+changelog=0.9.19 — Le bouton s'affiche dans la barre « CPN » ; esthétique
+    commune aux extensions de la maison.
+    Le bouton « Calage apports » rejoint la barre d'outils « CPN », commune
+    aux extensions de la maison : la barre n'apparaissait pas dans QGIS, elle
+    s'affiche. Les étapes passent dans la bande de gauche, comme dans Rhoé et
+    Hyétos. Les graphiques du suivi prennent les couleurs du registre commun
+    (teintes ISL nuancées) ; un symbole ✔ ou ⚠ accompagne le vert et le rouge.
+    Les chemins longs et la barre de préparation tiennent à 13 pt sans
+    élargir la fenêtre. Aucun changement de calcul.
+
+    0.9.18 — Le ménage garde le dossier de sortie ; les fichiers du
     modèle gardent leurs accents ; le projet chargé est celui que vous
     désignez.
     Après un calage conforme, le ménage retirait tout le dossier _calage,

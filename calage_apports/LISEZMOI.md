@@ -2,7 +2,9 @@
 
 Préparation et contrôle du paquet de calage pour **HEC-RAS uniquement**.
 Voir `methodologie_calage_amont_aval.docx`, § 2.4.
-Version **0.9.18** : le ménage garde le dossier de sortie, les fichiers du
+Version **0.9.19** : le bouton « Calage apports » s'affiche dans la barre
+d'outils « CPN », et la fenêtre prend l'esthétique commune aux extensions de
+la maison. Avant, la **0.9.18** : le ménage garde le dossier de sortie, les fichiers du
 modèle gardent leur encodage et leurs accents, et le projet chargé est le
 `.prj` désigné. Avant, la **0.9.17** : le plan « <préfixe>_avec_apports » apparaît sous ce nom
 dans RAS Mapper (le titre est aussi réécrit dans son `.hdf`), et la
