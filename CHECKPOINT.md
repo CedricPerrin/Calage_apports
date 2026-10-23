@@ -1,5 +1,28 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 23 octobre 2026 (soir) : esthétique commune (non publié)
+
+Leçons de Rhoé et de Hyétos appliquées, sans changement fonctionnel ni de
+version (0.9.18), zip non reconstruit, rien poussé. Quatre commits sur
+`main` :
+
+- `79c1ca4` : ruban, jauges et courbe du suivi sur la carte du registre
+  commun (`calage_apports/registre.py`, copie identique de Rhoé), dans les
+  deux thèmes ; verdict « ✔ » / « ⚠ » ; légende de la courbe au-dessus du
+  tracé.
+- `931aacf` : à 13 pt sur 720 px, plus de défilement de côté (chemin du
+  dossier surveillé coupable, chemins de « Aide et configuration » sur leur
+  ligne, barre de préparation à la largeur de son texte).
+- `f1bb274` : la barre d'onglets cède la place à la bande commune
+  (`calage_apports/bande.py`, copie identique) ; le « ! » d'étape passe sur
+  l'entrée de la bande ; « onglet » devient « étape » dans les textes.
+- `47d9521` : le banc donne au greffon `offscreen` le dossier des polices
+  du système ; les 4 échecs de référence étaient des artefacts de police.
+
+Banc `test_plugin_qgis.py` sans `--modele` : 400 [OK], 0 [ECHEC]
+(référence : 4 [ECHEC]). Aperçus remplis, plate-forme windows, clair et
+sombre, 9 et 13 pt, 720 et 940 px : aucune page ne défile de côté.
+
 ## 23 octobre 2026 : bouton dans la barre « CPN » (non publié)
 
 Le bouton quitte sa barre propre « Calage des apports » pour la barre « CPN »,

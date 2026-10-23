@@ -22,6 +22,34 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+ESTHETIQUE COMMUNE — 23 OCTOBRE 2026 (0.9.18, NON PUBLIEE). LA FENETRE
+  REJOINT CELLES DE RHOE ET DE HYETOS. Aucun calcul, format ni fichier ecrit
+  ne change ; version, zip et depot PIO inchanges.
+  1. GRAPHIQUES DU SUIVI SUR LE REGISTRE COMMUN (calage_apports/registre.py,
+     copie identique de rhoe/gui/registre.py, a ne jamais modifier seul) :
+     carte blanche dans les deux themes. Ruban : teinte claire et trait par
+     statut, encre foncee (accent = cale ou en cours, ocre = echec, neutre
+     fonce = en attente ou repris). Jauges : « ✔ » / « ⚠ » devant la valeur.
+     Courbe : legende sur ses lignes au-dessus du trace, « 3 sections
+     calees ». Le tableau Statut garde le vert et le rouge de la charte.
+  2. BANDE COMMUNE A GAUCHE (calage_apports/bande.py, copie identique) a la
+     place de la barre d'onglets ; le QTabWidget reste la pile des pages,
+     barre cachee. LARGEUR_PLANCHER_MAX n'existe plus. « Aide et
+     configuration » garde son nom, coupe « configu- / ration ». Le « ! »
+     d'une etape perimee est sur son entree de la bande (« 2 ! », rouge,
+     reglages en infobulle), plus sur le titre d'onglet.
+  3. A 13 PT SUR 720 PX, AUCUNE PAGE NE DEFILE DE COTE : chemin du dossier
+     surveille coupable (U+200B, texte non selectionnable), chemins du poste
+     sur leur ligne et boutons dessous (copiables tels quels), barre de
+     preparation a la largeur de son texte (BarreTexte), heure du suivi
+     repliable.
+  4. LE BANC POSE QT_QPA_FONTDIR (dossier des polices de Windows) avant de
+     creer QgsApplication : sans lui, « offscreen » ne resout aucune police,
+     les metriques doublent et quatre controles de disposition echouaient a
+     tort. 400 [OK], 0 [ECHEC].
+  Limites : non regarde dans QGIS sur poste ; registre de langue, accords
+  « (s) » hors graphiques et liste de l'axe (layerChanged) non repris.
+
 VERSION 0.9.17 — 28 SEPTEMBRE 2026. LE PLAN FINAL GARDE SON NOM DANS RAS
   MAPPER ; L'ELAGAGE REFUSE SE DIT.
   Deux defauts vus sur le calage reel Suhi-Q100 (SUHI_ARAN, 12 apports,
