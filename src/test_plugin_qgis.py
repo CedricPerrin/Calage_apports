@@ -215,11 +215,12 @@ class Iface:
     # UNE VRAIE QToolBar, PARENTEE A LA VRAIE FENETRE PRINCIPALE, comme le
     # fait QGIS. Un talon suffisait tant que unload() se contentait d'un
     # « del » ; il ne suffit plus des lors que le plugin appelle
-    # removeToolBar(), qui exige un QToolBar et rien d'autre.
-    def addToolBar(self, nom):  # noqa: N802
-        from qgis.PyQt.QtWidgets import QMenu, QToolBar
-        self.barres.append(nom)
-        barre = QToolBar(nom, self.mainWindow())
+    # removeToolBar(), qui exige un QToolBar et rien d'autre. cpn.ajouter()
+    # passe la barre toute faite (23/10/2026) : addToolBar(nom) de QGIS rend
+    # une barre que Python detruit aussitot.
+    def addToolBar(self, barre):  # noqa: N802
+        from qgis.PyQt.QtWidgets import QMenu
+        self.barres.append(barre.windowTitle())
         self.mainWindow().addToolBar(barre)
         # CE QUE FAIT QGIS EN PLUS, et qu'il faut imiter sous peine d'un essai
         # qui ne prouve rien : QgisApp::addToolBar place le toggleViewAction()
@@ -230,7 +231,6 @@ class Iface:
             self._menu_barres = QMenu("Barres d'outils", self.mainWindow())
             self.mainWindow().menuBar().addMenu(self._menu_barres)
         self._menu_barres.addAction(barre.toggleViewAction())
-        return barre
 
 
 class DialogueTexte:

@@ -39,8 +39,13 @@ def ajouter(iface: Any, action: Any) -> None:
         return
     barre = _barre(iface)
     if barre is None:
-        barre = creer(TITRE)
+        # La barre naît enfant de la fenêtre, puis QGIS l'accueille avec sa case du menu Vue. Pas
+        # ``iface.addToolBar(TITRE)`` : la barre qu'il rend appartient à Python (SIP_FACTORY) et
+        # meurt, bouton compris, à la sortie de cette fonction (constat du 23/10/2026 sous
+        # QGIS 3.44.14 : aucune barre à l'écran, alors que les doublures des tests passaient).
+        barre = QToolBar(TITRE, iface.mainWindow())
         barre.setObjectName(NOM_OBJET)
+        creer(barre)
     barre.addAction(action)
 
 
