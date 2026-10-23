@@ -65,7 +65,6 @@ from qgis.PyQt.QtWidgets import (
     QLabel,
     QLayout,
     QLineEdit,
-    QMenu,
     QMessageBox,
     QProgressBar,
     QPushButton,
@@ -84,7 +83,7 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
-from . import materiel, noyau
+from . import cpn, materiel, noyau
 from .installation import TacheInstallation, TacheRecherchePython, installation_en_cours
 from .interface import Etiquette as QLabel, Manuel as QTextBrowser
 from .interface import couleur as couleur_theme, sombre as fond_sombre
@@ -6943,7 +6942,8 @@ class DialogueParametrage(QDialog):
 # ---------------------------------------------------------------------------
 
 class PluginCalage:
-    """Barre d'outils « Calage des apports »."""
+    """Extension « Calage des apports » : une entree de menu et un bouton dans
+    la barre « CPN »."""
 
     def __init__(self, iface):
         self.iface = iface
@@ -6975,38 +6975,23 @@ class PluginCalage:
         action.triggered.connect(self.composer)
         self.iface.addPluginToVectorMenu(self.menu, action)
         self.actions.append(action)
-
-        self.barre = self.iface.addToolBar(NOM_PLUGIN)
-        self.barre.setObjectName("calageApportsToolbar")
-        # Une seule entree : tout le deroulement normal passe par la fenetre.
-        self.barre.addAction(self.actions[0])
+        # Le bouton va dans la barre « CPN », commune aux extensions de la
+        # maison (23/10/2026).
+        cpn.ajouter(self.iface, action)
 
     def unload(self):
         """
         Defait ce que initGui a fait — l'essentiel, sinon tout.
 
-        ET L'ENTREE DE MENU AVEC. iface.addToolBar() n'ajoute pas qu'un
-        QToolBar : il place aussi son toggleViewAction() dans le menu
-        Vue > Barres d'outils, que removeToolBar() ne touche pas. Une case a
-        cocher « Calage des apports » y survivait donc au dechargement, et un
-        rechargement en ajoutait une seconde. On retrouve l'action dans les
-        menus de la fenetre principale et on l'en retire — par l'action
-        elle-meme, jamais par le nom du menu, qui est un detail interne de
-        QGIS.
+        LE BOUTON : cpn.retirer() l'enleve de la barre « CPN » ; la derniere
+        extension dechargee retire la barre et sa case du menu Vue > Barres
+        d'outils (lecon d'ici, reportee dans cpn.py).
 
         LA FENETRE D'ABORD. Elle est NON MODALE et conservee d'une ouverture a
         l'autre : la fermer ne la detruit pas. Elle survivait donc au
         dechargement, cablee sur un module qui n'existe plus, et son premier
         clic executait du code decharge. C'est le scenario ordinaire du
         developpement avec Plugin Reloader.
-
-        LA BARRE D'OUTILS ENSUITE. « del self.barre » ne larguait que la
-        reference Python. Selon l'annotation SIP de iface.addToolBar(), le
-        QToolBar peut rester parente a la fenetre principale de QGIS : il
-        survivait alors au dechargement, et chaque rechargement en ajoutait un
-        second. removeToolBar() le retire de la disposition et le masque sans
-        rien detruire — ce qui vaut dans les DEUX cas de figure, et n'expose
-        a aucune double liberation.
 
         LE CHEMIN D'IMPORT ENFIN : noyau l'a modifie des son import, il n'y a
         pas de raison de le laisser modifie apres.
@@ -7022,21 +7007,8 @@ class PluginCalage:
 
         for action in self.actions:
             self.iface.removePluginVectorMenu(self.menu, action)
+            cpn.retirer(self.iface, action)
         self.actions = []
-
-        barre = getattr(self, "barre", None)
-        fenetre_principale = self.iface.mainWindow()
-        if barre is not None:
-            if fenetre_principale is not None:
-                try:
-                    bascule = barre.toggleViewAction()
-                    for menu in fenetre_principale.findChildren(QMenu):
-                        if bascule in menu.actions():
-                            menu.removeAction(bascule)
-                    fenetre_principale.removeToolBar(barre)
-                except RuntimeError:
-                    pass
-            del self.barre
 
         noyau.detacher()
 

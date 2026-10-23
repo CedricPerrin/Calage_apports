@@ -1,5 +1,11 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 23 octobre 2026 : bouton dans la barre « CPN » (non publié)
+
+Le bouton quitte sa barre propre « Calage des apports » pour la barre « CPN »,
+commune aux extensions de la maison (`calage_apports/cpn.py`, copie identique
+dans chaque extension). Version inchangée (0.9.18), zip non reconstruit.
+
 ## Reprendre ici — 11 octobre 2026 : branche `audit-1011-calage`, à fusionner
 
 Correctifs de l'audit du 11/10/2026 et trois décisions de Cédric du même

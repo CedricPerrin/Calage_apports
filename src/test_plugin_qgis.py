@@ -3736,7 +3736,14 @@ dlg._rafraichir_suivi()
 
 # ---------------------------------------------------------------------------
 print("\n8. DECHARGEMENT")
-_barre_avant = p.barre
+# LE BOUTON EST DANS LA BARRE « CPN », commune aux extensions de la maison
+# (23/10/2026) : cpn.ajouter() l'y pose des que l'interface sait creer une
+# barre, ce que fait le mannequin.
+from qgis.PyQt.QtWidgets import QToolBar as _QToolBar          # noqa: E402
+_barre_avant = iface.mainWindow().findChild(_QToolBar, "CPN")
+verifier("initGui pose le bouton dans la barre « CPN »",
+         _barre_avant is not None and p.actions[0] in _barre_avant.actions(),
+         f"barre={_barre_avant}")
 _fenetre_avant = p.fenetre
 # CE QUE unload() DOIT TROUVER A DEFAIRE. Sans ce constat prealable, les essais
 # qui suivent passeraient au vert meme si rien n'avait jamais ete accroche —
@@ -3776,6 +3783,8 @@ verifier("unload masque la barre d'outils et la sort de la disposition",
          == _Qt.ToolBarArea.NoToolBarArea,
          f"visible={_barre_avant.isVisible()} "
          f"zone={iface.mainWindow().toolBarArea(_barre_avant)}")
+verifier("unload retire la barre « CPN », dont il etait le seul bouton",
+         iface.mainWindow().findChild(_QToolBar, "CPN") is None)
 verifier("unload ferme la fenetre non modale",
          p.fenetre is None and (_fenetre_avant is None
                                 or not _fenetre_avant.isVisible()),
