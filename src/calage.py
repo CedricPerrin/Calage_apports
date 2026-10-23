@@ -157,6 +157,12 @@ LONGUEUR_MAX_TITRE_PLAN = 32
 # prefixe finissant deja par « - » ou « _ » garde le sien : on ne reecrit pas
 # ce que l'utilisateur a tape.
 SEPARATEUR_PREFIXE = "_"
+# SEPARATEUR D'UN PREFIXE A TIRETS ESPACES (23/10/2026, demande utilisateur :
+# « propose plutot "Cours-d'eau - Q100 - ..." sinon il y aura des doublons
+# quand plusieurs cours d'eau »). « Riviere - Q100 » donne
+# « Riviere - Q100 - Apport_A1 », et non « Riviere - Q100_Apport_A1 ». Il coute
+# deux caracteres de plus que le souligne sur les 32 du titre.
+SEPARATEUR_PREFIXE_ESPACE = " - "
 
 
 def titre_etape(nom, prefixe=""):
@@ -183,13 +189,26 @@ def titre_etape(nom, prefixe=""):
     supprime. Un prefixe finissant deja par « - » ou « _ » garde le sien : on
     ne reecrit pas ce que l'utilisateur a tape.
 
+    UN PREFIXE A TIRETS ESPACES — « Riviere - Q100 », le modele que la fenetre
+    propose — prend « - » (SEPARATEUR_PREFIXE_ESPACE). Tape avec son tiret
+    final, « Riviere - Q100 - », il rend le meme titre, pour la meme raison.
+    COPIE dans calage_apports/plugin.py (_titre_etape), qui ne peut pas
+    importer la chaine : changer l'une, c'est changer l'autre.
+
     PREFIXE VIDE = LE COMPORTEMENT D'AVANT, AU CARACTERE PRES.
     """
     prefixe = str(prefixe or "").strip()
+    if prefixe.endswith(" -"):
+        prefixe = prefixe[:-2].rstrip()
     if not prefixe:
         titre = str(nom)
     else:
-        separateur = "" if prefixe[-1] in "-_" else SEPARATEUR_PREFIXE
+        if prefixe[-1] in "-_":
+            separateur = ""
+        elif SEPARATEUR_PREFIXE_ESPACE in prefixe:
+            separateur = SEPARATEUR_PREFIXE_ESPACE
+        else:
+            separateur = SEPARATEUR_PREFIXE
         titre = f"{prefixe}{separateur}{nom}"
     if len(titre) > LONGUEUR_MAX_TITRE_PLAN:
         raise ValueError(
@@ -2639,6 +2658,16 @@ if __name__ == "__main__":
     controler("« Riviere1-Q100 » donne « Riviere1-Q100_avec_apports »",
               titre_etape(ETAPE_AVEC_APPORTS, "Riviere1-Q100")
               == "Riviere1-Q100_avec_apports")
+    # LE MODELE PROPOSE DEPUIS LE 23/10/2026 : « Cours d'eau - Q100 - … ».
+    controler("« Riviere - Q100 » donne « Riviere - Q100 - Apport_A1 »",
+              etape_apport("A1", "Riviere - Q100") == "Riviere - Q100 - Apport_A1"
+              and titre_etape(ETAPE_SANS_APPORT, "Riviere - Q100")
+              == "Riviere - Q100 - sans_apport",
+              etape_apport("A1", "Riviere - Q100"))
+    controler("« Riviere - Q100 - » et « Riviere - Q100 » rendent le meme titre",
+              titre_etape(ETAPE_AVEC_APPORTS, "Riviere - Q100 - ")
+              == titre_etape(ETAPE_AVEC_APPORTS, "Riviere - Q100")
+              == "Riviere - Q100 - avec_apports")
     # AU-DELA, ON REFUSE — jamais on ne tronque : deux titres rognes au meme
     # « Short Identifier » partagent le dossier de resultats que RAS Mapper
     # nomme d'apres ce champ. C'est le doublon que le prefixe supprime, et il

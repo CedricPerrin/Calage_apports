@@ -1,5 +1,40 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 23 octobre 2026 (nuit) : ergonomie à fond, branche `ergonomie-calage-1023`
+
+Demande : « optimise a fond l'ergonomie de calage des apports. Vérifie que les
+liens hypertexte sont corrects. Pour le préfixe, propose plutôt "Cours-d'eau -
+Q100 - ..." sinon il y aura des doublons quand plusieurs cours d'eau. Test
+l'ergonomie et fais les modifications nécessaires dans une branche
+spécifique. » Branche locale partie de `main` `b955a11` (0.9.19), non
+poussée, non fusionnée, version inchangée.
+
+- **Préfixe « cours d'eau - crue »** : un préfixe qui contient « - » relie
+  les étapes par « - » (« Riviere - Q100 - sans_apport »), tiret final
+  toléré ; sans « - », le souligné reste (« Q100_sans_apport ») : les
+  calages en cours se reprennent à l'identique. Même règle dans
+  `src/calage.py` (`titre_etape`) et `plugin.py` (`_titre_etape`).
+  Excel : `donnees_calage_Riviere_-_Q100.xlsx` ; dossier proposé :
+  `_calage\Riviere - Q100` (caractères interdits par Windows → « _ »).
+- **Ligne sous le préfixe** (`label_titres_prefixe`) : titres et Excel à la
+  frappe, plus long titre sur 32 caractères, « ⚠ Trop long » avec le compte
+  à retirer, « ⚠ Accents » (HEC-RAS met « ? » dans ses résultats).
+- **Liens** : liens externes (18 URL, HTTP 200), relatifs, ancres s1 à s11
+  vérifiés. Le fil menait le dossier de sortie à l'étape Lancer : les liens
+  portent maintenant « rang:champ » et donnent le focus au champ.
+- **États** : une seule écriture de l'étape suivante (`_maj_coherence`),
+  vraie selon les cibles manquantes ; « Paquet composé » idem.
+- **Textes** : nombres à virgule, dates « 24/10/2026 à 03 h 15 », pluriels
+  accordés (`compte()`), accents rendus aux messages du noyau, sens du tracé
+  en mots, noms d'étape homogènes, légende « calculé », vouvoiement.
+- **Disposition** : l'heure du Suivi passe sous ses boutons (débordement de
+  9 px à 13 pt sur 720 px) ; le cadre vide des cibles ne répète plus la
+  consigne.
+
+Banc sans `--modele` : 411 [OK], 0 [ECHEC] (17 contrôles nouveaux) ;
+`python src/calage.py` et l'autotest du noyau passent ; aperçus clair et
+sombre, 9 et 13 pt, 720 et 940 px : aucun défilement de côté.
+
 ## 23 octobre 2026 (soir) : esthétique commune (non publié)
 
 Leçons de Rhoé et de Hyétos appliquées, sans changement fonctionnel ni de

@@ -22,6 +22,16 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+ERGONOMIE A FOND — 23 OCTOBRE 2026, BRANCHE ergonomie-calage-1023 (partie de
+  main b955a11, 0.9.19 ; non poussee, non fusionnee, version inchangee).
+  REGLE DU PREFIXE : cours d'eau en tete, « Riviere - Q100 ». Un prefixe qui
+  contient « - » relie les etapes par « - » ; sinon le souligne reste, et un
+  calage en cours se reprend a l'identique. calage.titre_etape et
+  DialogueParametrage._titre_etape appliquent la meme regle : changer l'une,
+  c'est changer l'autre. Un titre fait au plus 32 caracteres (ras-commander) ;
+  la ligne sous le prefixe le dit a la frappe. Liens du fil : « rang:champ ».
+  Banc 411 [OK], 0 [ECHEC]. Detail : CHECKPOINT.md.
+
 ESTHETIQUE COMMUNE — 23 OCTOBRE 2026 (0.9.18, NON PUBLIEE). LA FENETRE
   REJOINT CELLES DE RHOE ET DE HYETOS. Aucun calcul, format ni fichier ecrit
   ne change ; version, zip et depot PIO inchanges.

@@ -213,7 +213,9 @@ def nom_classeur(prefixe=""):
     faire pour nommer un fichier. Si la regle change, elle change aux deux
     endroits.
     """
-    prefixe = str(prefixe or "").strip().strip("-_")
+    # « Riviere - Q100 - » et « Riviere - Q100 » nomment les memes plans
+    # (calage.titre_etape) : ils nomment le meme classeur.
+    prefixe = str(prefixe or "").strip().strip("-_ ")
     if not prefixe:
         return NOMS_FICHIERS["classeur"]
     sur = "".join(c if (c.isalnum() or c in "-_") else "_" for c in prefixe)
@@ -448,12 +450,13 @@ def message_interpreteur_introuvable():
     l'onglet « Aide et configuration ». L'annoncer comme un onglet envoie
     chercher ce qui n'existe pas.
     """
-    return (f"aucun interpreteur capable de piloter HEC-RAS n'a ete trouve. "
+    return (f"aucun interpréteur capable de piloter HEC-RAS n'a été trouvé. "
             f"Dans « Aide et configuration » du plugin, groupe "
-            f"« Parametres du poste » : bouton « Installer… » pour en creer "
-            f"un — il cherche seul les Python presents sur le poste et "
-            f"propose ceux qui conviennent — ou « Designer… » si un "
-            f"environnement avec ras-commander existe deja. A defaut, la "
+            f"« Diagnostic et paramètres du poste » : bouton « Installer… » "
+            f"pour en créer un — il cherche seul les Python présents sur le "
+            f"poste et propose ceux qui conviennent — ou « Choisir un "
+            f"Python… » si un environnement avec ras-commander existe déjà. "
+            f"À défaut, la "
             f"variable d'environnement {VARIABLE_INTERPRETEUR} accepte le "
             f"chemin d'un python.exe.")
 
@@ -1079,14 +1082,15 @@ def verifier_interpreteur(chemin, depuis_installeur=False):
         connus = dict(PAQUETS_HECRAS)
         pip = " ".join(connus.get(a, a) for a in absents)
         return False, (
-            f"module(s) absent(s) de cet interpreteur : "
-            f"{', '.join(absents)}.\n\nLe pont en a besoin des la premiere "
+            f"{'module absent' if len(absents) < 2 else 'modules absents'} "
+            f"de cet interpréteur : "
+            f"{', '.join(absents)}.\n\nLe pont en a besoin dès la première "
             f"composition. Les installer par :\n"
             f"    \"{chemin}\" -m pip install {pip}\n\n"
-            + ("L'installeur a deja tente de les poser : voir la sortie de "
+            + ("L'installeur a déjà tenté de les poser : voir la sortie de "
                "pip ci-dessus, et le journal du plugin."
                if depuis_installeur else
-               "ou laisser le bouton « Installer… » creer un environnement "
+               "ou laisser le bouton « Installer… » créer un environnement "
                "complet."))
     if acheve.returncode != 0:
         return False, _cause_echec(acheve)
@@ -1194,9 +1198,9 @@ def appeler_pont(*arguments, delai=300):
     chaine = trouver_chaine()
     if chaine is None:
         raise RuntimeError(
-            f"chaine de calage introuvable : impossible d'atteindre "
-            f"pont_hecras.py. La declarer par la variable {VARIABLE_CHAINE}, "
-            f"ou la designer depuis le plugin.")
+            f"Chaîne de calage introuvable : impossible d'atteindre "
+            f"pont_hecras.py. La déclarer par la variable {VARIABLE_CHAINE}, "
+            f"ou la désigner depuis le plugin.")
 
     interpreteur = interpreteur_hecras()
     if interpreteur is None:
@@ -1210,21 +1214,21 @@ def appeler_pont(*arguments, delai=300):
                                 env=environnement_propre(interpreteur),
                                 creationflags=SANS_FENETRE)
     except subprocess.TimeoutExpired:
-        raise RuntimeError(f"delai depasse ({delai} s) : {' '.join(arguments[:2])}")
+        raise RuntimeError(f"Délai dépassé ({delai} s) : {' '.join(arguments[:2])}")
 
     sortie = (acheve.stdout or "").strip()
     if not sortie:
         raise RuntimeError(
-            f"aucune reponse du pont.\nCommande : {' '.join(commande)}\n"
+            f"Aucune réponse du pont.\nCommande : {' '.join(commande)}\n"
             f"Erreur : {(acheve.stderr or '').strip()[:800]}")
     try:
         reponse = json.loads(sortie.splitlines()[-1])
     except json.JSONDecodeError:
-        raise RuntimeError(f"reponse illisible du pont :\n{sortie[:800]}")
+        raise RuntimeError(f"Réponse illisible du pont :\n{sortie[:800]}")
 
     if not reponse.get("ok"):
         details = reponse.get("details") or []
-        raise RuntimeError(reponse.get("erreur", "echec sans message")
+        raise RuntimeError(reponse.get("erreur", "échec sans message")
                            + ("\n" + "\n".join(details) if details else ""))
     return reponse
 
@@ -1798,9 +1802,9 @@ def etat_cibles(chemin_classeur):
     # trouve a la place — c'est lui qu'il faut corriger.
     if "Temps_h" not in cibles.columns:
         raise ValueError(
-            f"la feuille Cibles n'a pas de colonne « Temps_h » (en-tete A1). "
-            f"En-tetes trouves : {_entetes_dits(cibles.columns)}. Le calage "
-            f"n'est pas lance.")
+            f"La feuille Cibles n'a pas de colonne « Temps_h » (en-tête A1). "
+            f"En-têtes trouvés : {_entetes_dits(cibles.columns)}. Le calage "
+            f"n'est pas lancé.")
 
     # DES DATES NE SONT PAS DES HEURES. pd.to_numeric ne rend NaN que sur du
     # texte : sur une colonne de DATES il rend les microsecondes depuis 1970,
@@ -1808,9 +1812,9 @@ def etat_cibles(chemin_classeur):
     # loin sur une allocation de 536 Gio (relecture adverse du 04/09/2026).
     if pd.api.types.is_datetime64_any_dtype(cibles["Temps_h"]):
         raise ValueError(
-            "la colonne « Temps_h » de la feuille Cibles contient des DATES. "
-            "Le calage attend des heures decimales comptees depuis le debut "
-            "de la simulation (0 ; 0,5 ; 1 …). Le calage n'est pas lance.")
+            "La colonne « Temps_h » de la feuille Cibles contient des DATES. "
+            "Le calage attend des heures décimales comptées depuis le début "
+            "de la simulation (0 ; 0,5 ; 1 …). Le calage n'est pas lancé.")
 
     temps_ok = pd.to_numeric(cibles["Temps_h"], errors="coerce").notna()
     manquantes = []
@@ -1868,8 +1872,8 @@ def resume_cibles(chemin_classeur):
             f"En-tetes trouves : {_entetes_dits(cibles.columns)}.")
     if pd.api.types.is_datetime64_any_dtype(cibles["Temps_h"]):
         raise ValueError(
-            "la colonne « Temps_h » de la feuille Cibles contient des DATES. "
-            "Le calage attend des heures decimales comptees depuis le debut "
+            "La colonne « Temps_h » de la feuille Cibles contient des DATES. "
+            "Le calage attend des heures décimales comptées depuis le début "
             "de la simulation (0 ; 0,5 ; 1 …).")
 
     temps = pd.to_numeric(cibles["Temps_h"], errors="coerce")
@@ -2045,8 +2049,8 @@ def prolonger_cibles(chemin_classeur, duree_h):
         if isinstance(valeur, (int, float)):
             temps.append((ligne, float(valeur)))
     if len(temps) < 2:
-        raise ValueError("la feuille Cibles porte moins de deux instants : "
-                         "le pas de temps n'est pas deductible.")
+        raise ValueError("La feuille Cibles porte moins de deux instants : "
+                         "le pas de temps n'est pas déductible.")
 
     derniere_ligne, derniere_h = temps[-1]
     pas_h = temps[-1][1] - temps[-2][1]
@@ -2153,7 +2157,7 @@ def importer_hydrogrammes(source, cible):
     temps = valeurs(src, cols_src["Temps_h"])
     if gardees and valeurs(dst, cols_dst["Temps_h"]) != temps:
         raise ValueError(
-            f"{', '.join(gardees)} porte(nt) déjà des valeurs, sur une autre "
+            f"{', '.join(gardees)} {'porte' if len(gardees) < 2 else 'portent'} déjà des valeurs, sur une autre "
             f"base de temps que {source.name} : l’import changerait la colonne "
             f"Temps_h sous elles. Les vider dans l’Excel de ce calcul, ou les "
             f"ajouter à l’Excel importé, puis recommencer.")
@@ -2484,11 +2488,11 @@ def lister_projet_hecras(projet):
                  else [projet] if projet.is_file() else [])
     projets = [f for f in candidats if "Proj Title=" in _lire_texte_hecras(f)]
     if not projets:
-        raise FileNotFoundError(f"aucun projet HEC-RAS (.prj) trouve : {projet}")
+        raise FileNotFoundError(f"Aucun projet HEC-RAS (.prj) trouvé : {projet}")
     if len(projets) > 1:
         raise ValueError(
             f"{len(projets)} projets HEC-RAS dans {projet} "
-            f"({', '.join(f.name for f in projets)}) : designer le .prj.")
+            f"({', '.join(f.name for f in projets)}) : désigner le .prj.")
     prj = projets[0]
     dossier = prj.parent
 
@@ -2633,8 +2637,8 @@ def lancer_calage(chemin_classeur):
     chaine = trouver_chaine()
     if chaine is None:
         raise RuntimeError(
-            f"chaine de calage introuvable. La declarer par la variable "
-            f"{VARIABLE_CHAINE}, ou la designer depuis le plugin.")
+            f"Chaîne de calage introuvable. La déclarer par la variable "
+            f"{VARIABLE_CHAINE}, ou la désigner depuis le plugin.")
     interpreteur = interpreteur_hecras()
     if interpreteur is None:
         raise RuntimeError(message_interpreteur_introuvable())
@@ -2653,7 +2657,7 @@ def lancer_calage(chemin_classeur):
     # qu'il protege.
     ok, motif = verifier_interpreteur(interpreteur)
     if not ok:
-        raise RuntimeError(f"interpreteur HEC-RAS inutilisable : {motif}")
+        raise RuntimeError(f"Interpréteur HEC-RAS inutilisable : {motif}")
 
     commande = [str(chaine / "pont_hecras.py"),
                 "caler", "--template", str(chemin_classeur)]
@@ -3046,7 +3050,9 @@ if __name__ == "__main__":
                                ("Q100", "donnees_calage_Q100.xlsx"),
                                ("Q100_", "donnees_calage_Q100.xlsx"),
                                ("Q100 V2", "donnees_calage_Q100_V2.xlsx"),
-                               ("Q100/bis", "donnees_calage_Q100_bis.xlsx")):
+                               ("Q100/bis", "donnees_calage_Q100_bis.xlsx"),
+                               ("Riviere - Q100", "donnees_calage_Riviere_-_Q100.xlsx"),
+                               ("Riviere - Q100 - ", "donnees_calage_Riviere_-_Q100.xlsx")):
         _rendu = nom_classeur(_prefixe)
         _ok = _rendu == _attendu
         print(f"   [{'OK' if _ok else 'ECHEC'}] prefixe « {_prefixe} »  ->  {_rendu}")

@@ -129,19 +129,26 @@ def inventaire(coeurs_windows=None):
         coeurs, performance, classes = None, None, ()
 
     hybride = len(set(classes)) > 1
+
+    def compte(n, singulier, pluriel):
+        return f"{n} {singulier if n < 2 else pluriel}"
+
+    processeurs = compte(logiques, "processeur logique", "processeurs logiques")
     if coeurs is None:
-        detail = (f"Ce poste : {logiques} processeur(s) logique(s) ; la "
+        detail = (f"Ce poste : {processeurs} ; la "
                   "composition du processeur n'a pas pu être lue, la "
                   "suggestion se fonde sur ce seul nombre.")
     elif hybride:
-        detail = (f"Ce poste : {logiques} processeur(s) logique(s), {coeurs} "
-                  f"cœur(s), dont {performance} de performance. HEC-RAS 7.0.1 "
-                  f"ne calcule le maillage 2D que sur ceux-là : les "
-                  f"{coeurs - performance} cœur(s) d'efficience ne participent "
-                  "pas (mesure Sensi, 9 sept. 2026).")
+        detail = (f"Ce poste : {processeurs}, {compte(coeurs, 'cœur', 'cœurs')}, "
+                  f"dont {performance} de performance. HEC-RAS 7.0.1 "
+                  f"ne calcule le maillage 2D que sur ceux-là : "
+                  + ("le cœur d'efficience ne participe "
+                     if coeurs - performance < 2 else
+                     f"les {coeurs - performance} cœurs d'efficience ne participent ")
+                  + "pas (mesure Sensi, 9 sept. 2026).")
     else:
-        detail = (f"Ce poste : {logiques} processeur(s) logique(s), {coeurs} "
-                  "cœur(s) de même classe : tous comptent.")
+        detail = (f"Ce poste : {processeurs}, {compte(coeurs, 'cœur', 'cœurs')} "
+                  "de même classe : tous comptent.")
     return Poste(logiques=logiques, coeurs=coeurs, performance=performance,
                  hybride=hybride, detail=detail)
 

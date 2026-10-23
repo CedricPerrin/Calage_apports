@@ -401,7 +401,15 @@ calage** : elle distingue l’**écart admis à la cible** de l’erreur de bila
 masse HEC-RAS, et le nombre maximal d’essais y reste réglable. Puis le
 **dossier de sortie**, proposé tout seul, et les **hydrogrammes cibles** : le
 **préfixe de scénario** — **obligatoire** : sans lui, caler le Q10 après le
-Q100 sur le même modèle effacerait les plans du Q100 — et, sous lui, le bouton
+Q100 sur le même modèle effacerait les plans du Q100. Il commence par le
+**cours d'eau**, puis la crue : « Riviere - Q100 » donne les plans
+« Riviere - Q100 - sans_apport », « Riviere - Q100 - Apport_A1 »… et
+`donnees_calage_Riviere_-_Q100.xlsx` ; deux cours d'eau calés pour la même
+crue ne partagent donc ni plans, ni Excel, ni dossier. Un préfixe sans « - »
+garde le souligné (« Q100_sans_apport »). Sous le champ, une ligne montre les
+titres à la frappe et prévient si le plus long dépasse 32 caractères (borne
+de ras-commander) ou porte un accent (HEC-RAS le remplace par « ? » dans ses
+résultats). Puis, sous lui, le bouton
 qui compose l'Excel, décrit plus bas. L’**Excel des hydrogrammes objectifs**
 s'ouvre ou se reprend là. Enfin **ce que ces
 hydrogrammes portent** une fois l’Excel validé : débit de pointe, heure du pic

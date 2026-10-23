@@ -862,7 +862,7 @@ fichiers.fichiers = [str(_precedent)]
 _imp._importer_hydrogrammes()
 _compte_rendu = _imp.label_import.text()
 verifier("le compte rendu nomme les hydrogrammes importes",
-         "Cible_S1" in _compte_rendu and "1 hydrogramme(s) importé(s)"
+         "Cible_S1" in _compte_rendu and "1 hydrogramme importé"
          in _compte_rendu, re.sub("<[^>]+>", "", _compte_rendu)[:120])
 verifier("et les colonnes restees vides faute de correspondance",
          "Restent vides" in _compte_rendu and "Cible_S2" in _compte_rendu
@@ -1974,7 +1974,8 @@ _PORTEES_CONNUES = (
     "KeyboardModifier|Key|CursorShape|WindowType|ItemFlag|SortOrder|"
     "GlobalColor|LayoutDirection|FocusPolicy|ConnectionType|MatchFlag|"
     "ToolButtonStyle|TimeSpec|DateFormat|TextElideMode|AspectRatioMode|"
-    "TransformationMode|ContextMenuPolicy|WidgetAttribute|ArrowType|ShortcutContext|ApplicationState")
+    "TransformationMode|ContextMenuPolicy|WidgetAttribute|ArrowType|ShortcutContext|ApplicationState|"
+    "FocusReason")
 #
 # CE GARDE-FOU AVAIT UN ANGLE MORT, et il a coute exactement ce qu'il devait
 # eviter : il ne portait que sur six classes. QFormLayout, QTextEdit et
@@ -2327,6 +2328,79 @@ dlg.edit_prefixe_scenario.setText("Q1000")
 verifier("un dossier saisi a la main n'est jamais remplace",
          dlg.edit_dossier_sortie.text() == str(ESSAI / "ailleurs"),
          dlg.edit_dossier_sortie.text())
+
+# LE COURS D'EAU EN TETE DU PREFIXE (23/10/2026, demande utilisateur :
+# « propose plutot "Cours-d'eau - Q100 - ..." sinon il y aura des doublons
+# quand plusieurs cours d'eau »). Meme regle que calage.titre_etape.
+dlg.edit_dossier_sortie.setText("")
+dlg.edit_prefixe_scenario.setText("Riviere - Q100 - ")
+verifier("un prefixe a tirets espaces prend « - », tiret final ou non",
+         dlg._titre_etape("Apport_A1") == "Riviere - Q100 - Apport_A1"
+         and dlg.edit_prefixe_scenario.setText("Riviere - Q100") is None
+         and dlg._titre_etape("sans_apport") == "Riviere - Q100 - sans_apport",
+         dlg._titre_etape("Apport_A1"))
+verifier("le dossier propose a un nom Windows (ni « - » ni espace final)",
+         dlg.edit_dossier_sortie.text()
+         == str(ESSAI / "Modele" / "_calage" / "Riviere - Q100"),
+         dlg.edit_dossier_sortie.text())
+dlg.edit_prefixe_scenario.setText("Q100/bis")
+verifier("un caractere interdit dans un nom de dossier devient « _ »",
+         dlg.edit_dossier_sortie.text().endswith("Q100_bis"),
+         dlg.edit_dossier_sortie.text())
+dlg.edit_prefixe_scenario.setText("Q100")
+verifier("un prefixe sans tiret espace garde le souligne",
+         dlg._titre_etape("Apport_A1") == "Q100_Apport_A1", dlg._titre_etape("Apport_A1"))
+dlg.edit_prefixe_scenario.setText("")
+_ligne = dlg.label_titres_prefixe.text()
+verifier("prefixe vide : la ligne dit de commencer par le cours d'eau",
+         "cours d’eau" in _ligne and "Q100" in _ligne, _ligne[:90])
+dlg.edit_prefixe_scenario.setText("Riviere - Q100")
+_ligne = dlg.label_titres_prefixe.text()
+verifier("la ligne montre les titres, l'Excel et le compte des caracteres",
+         "Riviere - Q100 - sans_apport" in _ligne
+         and "donnees_calage_Riviere_-_Q100.xlsx" in _ligne
+         and "sur 32" in _ligne and "Trop long" not in _ligne,
+         re.sub("<[^>]+>", " ", _ligne)[:140])
+dlg.edit_prefixe_scenario.setText("Riviere des Grandes Eaux - Q1000")
+_ligne = dlg.label_titres_prefixe.text()
+verifier("un prefixe trop long est dit a la frappe, avec le compte a retirer",
+         "Trop long" in _ligne and "Raccourcissez le préfixe de" in _ligne,
+         re.sub("<[^>]+>", " ", _ligne)[:140])
+dlg.edit_prefixe_scenario.setText("Rivière - Q100")
+verifier("un accent est signale : HEC-RAS le rabote dans les resultats",
+         "Accents" in dlg.label_titres_prefixe.text(),
+         re.sub("<[^>]+>", " ", dlg.label_titres_prefixe.text())[-90:])
+dlg.edit_prefixe_scenario.setText("<b>Q100")
+verifier("le prefixe est echappe dans la ligne (texte riche)",
+         "&lt;b&gt;Q100" in dlg.label_titres_prefixe.text(),
+         dlg.label_titres_prefixe.text()[:80])
+verifier("« Sens du tracé » montre des mots, garde le code en donnee",
+         [dlg.combo_sens_axe.itemText(i) for i in range(2)]
+         == ["De l'amont vers l'aval", "De l'aval vers l'amont"]
+         and [dlg.combo_sens_axe.itemData(i) for i in range(2)]
+         == ["amont_aval", "aval_amont"],
+         str([dlg.combo_sens_axe.itemText(i) for i in range(2)]))
+verifier("les nombres affiches prennent la virgule",
+         mod_plugin.nombre(99.84) == "99,8"
+         and mod_plugin.nombre(-1.25, 2, signe=True) == "-1,25"
+         and mod_plugin.nombre(1234.5, 1, milliers=True) == "1 234,5"
+         and mod_plugin.date_lisible("2026-10-24T03:15") == "24/10/2026 à 03 h 15",
+         mod_plugin.nombre(1234.5, 1, milliers=True))
+
+# UN LIEN DU FIL MENE AU CHAMP, PAS SEULEMENT A L'ETAPE (23/10/2026) :
+# « Choisir le dossier de sortie » ouvrait l'etape Lancer, ou il n'est plus.
+_rang_avant_lien = dlg.onglets.currentIndex()
+dlg._aller_etape("1:edit_dossier_sortie")
+verifier("le lien « 1:edit_dossier_sortie » ouvre l'etape 2 et y donne le focus au champ",
+         dlg.onglets.currentIndex() == 1
+         and dlg.focusWidget() is dlg.edit_dossier_sortie,
+         f"etape {dlg.onglets.currentIndex()}, focus "
+         f"{type(dlg.focusWidget()).__name__ if dlg.focusWidget() else None}")
+dlg._aller_etape("9:inconnu")
+dlg._aller_etape("2:attribut_absent")
+verifier("un lien inconnu ne casse rien ; une cible absente ouvre l'etape seule",
+         dlg.onglets.currentIndex() == 2, str(dlg.onglets.currentIndex()))
+dlg.onglets.setCurrentIndex(_rang_avant_lien)
 dlg.edit_projet_hecras.setText(_projet_avant_prop)
 dlg.edit_prefixe_scenario.setText(_prefixe_avant_prop)
 dlg.edit_dossier_sortie.setText(_dossier_avant_prop)
@@ -2697,7 +2771,7 @@ verifier("changer le PK d'origine allume son « ! » et celui de l'etape Modele"
 _coh.spin_pk_origine.setValue(0.0)
 # ET UN CHAMP REMIS A LA VALEUR DU PAQUET N'EST PAS UN ECART, meme s'il a
 # bouge depuis la reprise : c'est le paquet qui fait foi.
-_coh.combo_sens_axe.setCurrentText("aval_amont")
+_coh.combo_sens_axe.setCurrentIndex(_coh.combo_sens_axe.findData("aval_amont"))
 verifier("un sens remis a celui du paquet n'est pas un ecart",
          "Sens_axe" not in _coh._ecarts_avec_le_paquet()
          and _marque_onglet(_coh, mod_plugin.ONGLET_MODELE) is None,
@@ -3064,7 +3138,7 @@ dlg._ouvrir_classeur()
 verifier("ouvrir l'Excel sans paquet : avertissement dans le bandeau, pas de boite",
          dlg.barre_messages.isVisibleTo(dlg)
          and dlg.barre_messages.currentItem() is not None
-         and "Composer d'abord" in dlg.barre_messages.currentItem().text(),
+         and "Aucun Excel pour l'instant" in dlg.barre_messages.currentItem().text(),
          dlg.barre_messages.currentItem().text()[:60]
          if dlg.barre_messages.currentItem() else "aucun message")
 dlg.barre_messages.clearWidgets()
@@ -3327,7 +3401,7 @@ verifier("fil conducteur renseigne et coherent",
          ("Prochaine étape" in dlg.label_fil.text()
           or "Paquet composé" in dlg.label_fil.text()
           or "Calage lancé" in dlg.label_fil.text())
-         and bool(re.search(r"href=['\"][0-5]['\"]", dlg.label_fil.text())),
+         and bool(re.search(r"href=['\"][0-5](:\w+)?['\"]", dlg.label_fil.text())),
          dlg.label_fil.text().replace("<b>", "").replace("</b>", "")[:90])
 BoiteMessage.informations.clear()
 BoiteMessage.dernier = None

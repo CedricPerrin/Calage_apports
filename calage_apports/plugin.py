@@ -18,6 +18,7 @@ et figerait l'interface.
 """
 
 import functools
+import html
 import inspect
 import os
 import traceback
@@ -136,6 +137,9 @@ except TypeError:                                            # QGIS < 3.38
 
 PREFIXE_APPORT = "A"        # apports a caler          : A1, A2...
 PREFIXE_SECTION = "SC"      # sections de controle     : SC1, SC2...
+# Borne du titre d'un plan d'etape, copie de calage.LONGUEUR_MAX_TITRE_PLAN
+# (la chaine n'est pas importable dans le processus QGIS).
+LONGUEUR_MAX_TITRE = 32
 # IN_... et OUT_... restent aux entrees permanentes et aux exutoires, qui ne
 # sont pas cales : c'est deja l'usage du modele d'essai, et il est parlant.
 
@@ -475,9 +479,9 @@ BOUTON_GEOMETRIE = "Valider la géométrie et générer le fichier des hydrogram
 # avec la composition, automatique depuis la 0.9.5 (constate le 22/09/2026
 # sur le poste de calcul).
 ATTENTE_PAQUET = (
-    "Aucun paquet composé pour l’instant. Renseigner le modèle, ses couches "
-    "et l’axe (étape Modèle) et le préfixe de scénario (étape Paramètres) — "
-    "le dossier de sortie se propose alors de lui-même —, puis cliquer "
+    "Aucun paquet composé pour l’instant. Renseignez le modèle, ses couches "
+    "et l’axe (étape Modèle), puis le préfixe de scénario (étape Paramètres) — "
+    "le dossier de sortie se propose alors de lui-même —, puis cliquez "
     f"« {BOUTON_GEOMETRIE} », sous le préfixe : gris, il dit ce qui manque.")
 NOM_CLONE_GEOMETRIE_DEFAUT = "Geometrie_calage"
 
@@ -672,6 +676,23 @@ def compte(nombre, singulier, pluriel=None):
     return f"{nombre} {singulier if nombre < 2 else pluriel or singulier + 's'}"
 
 
+def nombre(valeur, decimales=1, signe=False, milliers=False):
+    """« 99,9 », « +0,35 », « 1 234,5 » : la virgule de l'interface, et
+    l'espace fine insecable des milliers. Pour l'ecran seulement : les
+    fichiers (Excel, JSON, HEC-RAS) gardent le point."""
+    texte = format(valeur, f"{'+' if signe else ''}{',' if milliers else ''}.{decimales}f")
+    return texte.replace(",", "\u202f").replace(".", ",")
+
+
+def date_lisible(iso):
+    """« 24/10/2026 à 03 h 15 » depuis l'ISO de l'avancement ; le texte tel
+    quel s'il ne se lit pas."""
+    try:
+        return datetime.fromisoformat(str(iso)).strftime("%d/%m/%Y à %H h %M")
+    except ValueError:
+        return str(iso)
+
+
 class RubanApports(QWidget):
     """
     Une bande de segments, un par apport, teintee selon son statut.
@@ -819,7 +840,7 @@ class JaugeAtteinte(QWidget):
         """(texte affiche, conforme) — conforme vaut None tant que rien n'est evalue."""
         if self.valeur is None:
             return "—", None
-        return f"{self.valeur:.1f} %", abs(self.valeur - 100.0) <= self.tolerance
+        return f"{nombre(self.valeur)} %", abs(self.valeur - 100.0) <= self.tolerance
 
     def actualiser(self, valeur_pct):
         self.valeur = valeur_pct
@@ -960,7 +981,7 @@ class CourbeComparaison(QWidget):
                        if len(c.get("debit") or []) > 1)
             description = (
                 "Cible et débit calculé au dernier essai évalué"
-                + (f", cible décalée de {decalage:+.2f} h"
+                + (f", cible décalée de {nombre(decalage, 2, signe=True)} h"
                    if abs(decalage) >= 0.005 else "")
                 + (f", {compte(deja, 'section calée', 'sections calées')} derrière"
                    if deja else ""))
@@ -1023,9 +1044,9 @@ class CourbeComparaison(QWidget):
         # courbes absentes. Les entrees passent a la ligne quand la largeur
         # manque.
         decalage = float(self.courbes.get("decalage_h") or 0.0)
-        entrees = [(stylo_mesure, "mesuré"),
+        entrees = [(stylo_mesure, "calculé"),
                    (stylo_cible, "cible" if abs(decalage) < 0.005
-                    else f"cible décalée de {decalage:+.2f} h")]
+                    else f"cible décalée de {nombre(decalage, 2, signe=True)} h")]
         if courantes:
             entrees.append((stylo_cale, compte(len(courantes), "section calée",
                                                "sections calées")))
@@ -1451,7 +1472,7 @@ de contrôle reproduise un hydrogramme cible.</p>
 <h3><a name="s1"></a>Première utilisation — ce qu'il faut installer</h3>
 <p><b>Vous n'avez pas besoin de savoir où Python est installé sur ce poste, ni
 même s'il l'est.</b> Dans <i>Diagnostic et paramètres du poste</i>, au-dessus
-de ce mode opératoire, cliquer <b>Vérifier l’environnement</b> : il dit ce qui manque et propose
+de ce mode opératoire, cliquez <b>Vérifier l’environnement</b> : il dit ce qui manque et propose
 de le poser. Deux choses, et deux seulement :</p>
 <ol>
 <li>La <b>chaîne de calage</b>. Elle est <i>embarquée dans l'extension</i> :
@@ -1460,7 +1481,7 @@ si le plugin vient de son archive, elle est déjà là et rien n'est à faire.</
 manque, le bouton <b>Installer…</b> fait tout : il cherche les Python présents
 sur le poste, propose le meilleur, crée l'environnement, y pose la dizaine de
 paquets nécessaires, puis <i>vérifie</i> le résultat. Compter plusieurs
-centaines de Mo et quelques minutes, pendant lesquelles QGIS reste figé.</li>
+centaines de Mo et quelques minutes, pendant lesquelles QGIS reste utilisable.</li>
 </ol>
 <p><b>Et s'il n'y a aucun Python sur le poste ?</b> Le diagnostic le dit au
 lieu d'ouvrir un sélecteur de fichier devant lequel on n'a rien à répondre :
@@ -1495,8 +1516,8 @@ tout : compter 3 à 5 calculs par apport.</li>
 <h3><a name="s3"></a>Le déroulement, étape par étape</h3>
 <ol>
 <li><b>Modèle.</b> Fichier <tt>.prj</tt> du projet HEC-RAS, plan de référence,
-<i>profil en long</i>, puis
-<i>Charger les couches du modèle</i> : sections, injections et maillage
+puis
+<i>Charger les couches du modèle</i>, puis le <i>profil en long</i> : sections, injections et maillage
 s'affichent sur la carte. Y dessiner les sections de contrôle qui manquent —
 sans elles, le calage n'a aucun endroit où lire un débit. Elles sont écrites
 dans la géométrie par <i>Valider la géométrie et générer le fichier des
@@ -1506,9 +1527,12 @@ Unsteady&nbsp;Flow, sinon il n'apporterait rien. La fenêtre de simulation n'est
 retenu couvre une <b>autre période</b> que le plan de référence.</li>
 <li><b>Paramètres.</b> D'abord la <i>précision du calage</i> : les écarts
 admis sur le volume et sur le débit de pointe, et le nombre maximal d'essais.
-Puis le <b>préfixe de scénario</b>, qui est <b>obligatoire</b> — il nomme les
-plans de ce calage-ci comme le fichier Excel, et c'est lui qui empêche un
-second scénario d'effacer les plans du premier. Le bouton <i>Valider la
+Puis le <b>dossier de sortie</b>, proposé tout seul, et le <b>préfixe de scénario</b>,
+qui est <b>obligatoire</b> — il nomme les plans de ce calage-ci comme le fichier
+Excel, et c'est lui qui empêche un second scénario d'effacer les plans du
+premier. Commencez-le par le cours d'eau : <tt>Riviere - Q100</tt> donne
+<tt>Riviere - Q100 - Apport_A1</tt> ; <tt>Q100</tt> seul donnerait les mêmes plans à
+deux cours d'eau calés pour la même crue. Le bouton <i>Valider la
 géométrie et générer le fichier des hydrogrammes</i>, sous le préfixe,
 <b>écrit, compose et contrôle</b> ; il crée alors l'Excel, et c'est dans sa
 feuille <i>Cibles</i> que se saisissent les hydrogrammes visés, une colonne
@@ -1518,8 +1542,8 @@ rouge</b>, sur son champ et sur le titre de son étape, jusqu'au clic suivant
 — et le lancement est refusé d'ici là.</li>
 <li><b>Lancer.</b> Tout ce qui décide du lancement, dans l'ordre où il se
 décide. L'appariement et l'état des cibles ; le premier apport à caler — le
-plugin le demande de lui-même si un calage précédent existe ; <b>le dossier de
-sortie</b>, ses sous-dossiers et la <i>conservation des plans d’étape</i>,
+plugin le demande de lui-même si un calage précédent existe ; la
+<i>conservation des plans d’étape</i>,
 dont une case décide du sort à la fin du calage — voir <a href="#s11">Ce que
 le calage laisse dans le modèle</a>. Au-dessus du bouton, un récapitulatif dit
 d'où le calage repart et ce qu'il va calculer. Puis lancer : le calage tourne
@@ -1680,10 +1704,13 @@ ne peuvent pas partager la même bibliothèque HDF5.</li>
 
 <h3><a name="s11"></a>Ce que le calage laisse dans le modèle</h3>
 <p>Un plan HEC-RAS par <b>étape</b>, et son Unsteady&nbsp;Flow :
-<tt>…_sans_apport</tt> d'abord — tous les apports à zéro —, puis
-<tt>…_Apport_A1</tt>, <tt>…_Apport_A2</tt>… et, à l'arrivée,
-<tt>…_avec_apports</tt>. Le préfixe de scénario les précède tous s'il est
-renseigné : <tt>Q100_sans_apport</tt>, <tt>Q100_avec_apports</tt>.</p>
+<tt>sans_apport</tt> d'abord — tous les apports à zéro —, puis
+<tt>Apport_A1</tt>, <tt>Apport_A2</tt>… et, à l'arrivée,
+<tt>avec_apports</tt>. Le préfixe de scénario les précède tous :
+<tt>Riviere - Q100 - sans_apport</tt>, <tt>Riviere - Q100 - avec_apports</tt>.
+Sans « - » dans le préfixe, un souligné les relie : <tt>Q100_sans_apport</tt>.
+Un titre compte au plus 32 caractères, préfixe compris : l'étape Paramètres
+montre le plus long à la frappe.</p>
 <p><b>Le plan final n'est pas un clone</b> : c'est le plan de la dernière
 étape, retitré. Il porte donc tous les apports calés <i>et</i> ses résultats
 de calcul — un clone n'emporterait pas son <tt>.hdf</tt> et serait muet dans
@@ -2073,12 +2100,13 @@ class DialogueParametrage(QDialog):
              "et chargement des couches existantes du modèle."),
             (self._onglet_objectifs(), "2. Paramètres", "2\nParamètres",
              "Précision attendue sur le volume et la pointe, nombre maximal "
-             "d'essais, le classeur où se saisissent les hydrogrammes "
-             "cibles, et ce que ces hydrogrammes portent une fois validés."),
+             "d'essais, dossier de sortie, préfixe de scénario, l'Excel où "
+             "se saisissent les hydrogrammes cibles, et ce que ces "
+             "hydrogrammes portent une fois validés."),
             (self._onglet_validation(), "3. Lancer", "3\nLancer",
              "Correspondance sections / injections, état des hydrogrammes "
-             "cibles, apports à déterminer, dossiers de sortie, préfixe de "
-             "scénario, et lancement du calage."),
+             "cibles, apports à déterminer, conservation des plans d'étape, "
+             "cœurs de calcul, et lancement du calage."),
             (self._onglet_suivi(), "4. Suivi", "4\nSuivi",
              "Où en est le calage : apport en cours, essai, avancement, "
              "temps restant, et ce qui s'est passé quand il s'arrête."),
@@ -2324,8 +2352,16 @@ class DialogueParametrage(QDialog):
         self.bouton_suivant.setToolTip(f"Ouvrir {titre} — Alt + flèche droite")
 
     def _aller_etape(self, lien):
-        if lien.isdigit() and int(lien) <= DERNIER_ONGLET:
-            self.onglets.setCurrentIndex(int(lien))
+        """« 2 » ouvre l'etape ; « 1:edit_dossier_sortie » y montre aussi ce
+        champ, focus compris."""
+        rang, _, objet = lien.partition(":")
+        if not (rang.isdigit() and int(rang) <= DERNIER_ONGLET):
+            return
+        self.onglets.setCurrentIndex(int(rang))
+        cible = getattr(self, objet, None) if objet else None
+        if isinstance(cible, QWidget):
+            self.onglets.widget(int(rang)).ensureWidgetVisible(cible)
+            cible.setFocus(Qt.FocusReason.OtherFocusReason)
 
     def keyPressEvent(self, evenement):
         """
@@ -2439,7 +2475,7 @@ class DialogueParametrage(QDialog):
                    if reste else "Tout est renseigné."))
             barre.setAccessibleName("Préparation avant lancement")
             barre.setAccessibleDescription(
-                f"{faites} étape(s) sur {len(etapes)}"
+                f"{compte(faites, 'étape')} sur {len(etapes)}"
                 + (" ; il reste " + ", ".join(reste) if reste else ""))
         # LE FIL NE DIT PLUS « LANCER » PENDANT QU'UN CALAGE TOURNE. Il est le
         # seul repere permanent de la fenetre, et il continuait d'ordonner
@@ -2452,17 +2488,40 @@ class DialogueParametrage(QDialog):
             fin = (f"<b>Calage lancé</b> — processus {self.pid_lance}. "
                    f"<a href='{ONGLET_SUIVI}'>Voir le suivi</a>")
         elif suivante is None:
-            fin = ("<b>Paquet composé.</b> Renseigner les cibles, puis "
-                   f"<a href='{ONGLET_LANCER}'>vérifier le lancement</a>.")
+            manquantes = getattr(self, "_cibles_manquantes", None)
+            fin = ("<b>Paquet composé.</b> "
+                   + ("Hydrogrammes cibles renseignés : " if manquantes == []
+                      else "Renseignez les hydrogrammes cibles dans l’Excel, puis ")
+                   + f"<a href='{ONGLET_LANCER}:bouton_lancer'>vérifier le lancement</a>.")
         else:
-            cibles = {"Modèle chargé": (ONGLET_MODELE, "Choisir le modèle et charger ses couches"),
-                      "Profil en long": (ONGLET_MODELE, "Choisir le profil en long"),
-                      # LE DOSSIER DE SORTIE A SUIVI SON GROUPE DANS « Lancer ».
-                      "Dossier de sortie": (ONGLET_LANCER, "Choisir le dossier de sortie"),
+            # LE LIEN MENE AU CHAMP, PAS SEULEMENT A L'ETAPE (23/10/2026) :
+            # « Choisir le dossier de sortie » ouvrait l'etape Lancer, ou ce
+            # dossier n'est plus depuis le 22/09/2026 (il est a l'etape
+            # Parametres, au-dessus du classeur), et une page longue laissait
+            # chercher le champ. « <etape>:<attribut> », lu par _aller_etape.
+            sans_prefixe = not self.edit_prefixe_scenario.text().strip()
+            cibles = {"Modèle chargé": (
+                          (ONGLET_MODELE, "bouton_charger_couches",
+                           "Charger les couches du modèle")
+                          if self.info_projet is not None else
+                          (ONGLET_MODELE, "edit_projet_hecras",
+                           "Choisir le projet HEC-RAS")),
+                      "Profil en long": (ONGLET_MODELE, "combo_axe",
+                                         "Choisir la couche de l'axe du profil en long"),
+                      # Le dossier se propose tout seul d'apres le prefixe :
+                      # sans prefixe, c'est le prefixe qui manque.
+                      "Dossier de sortie": (
+                          (ONGLET_OBJECTIFS, "edit_prefixe_scenario",
+                           "Renseigner le préfixe de scénario")
+                          if sans_prefixe else
+                          (ONGLET_OBJECTIFS, "edit_dossier_sortie",
+                           "Choisir le dossier de sortie")),
                       # UN PAQUET PERIME N'EST PAS COMPOSE : le lien mene au
                       # bouton qui l'actualise (voir _etapes_preparation).
-                      "Paquet composé": (ONGLET_OBJECTIFS, BOUTON_GEOMETRIE)}
-            indice, action = cibles[suivante]
+                      "Paquet composé": (ONGLET_OBJECTIFS, "bouton_composer",
+                                         BOUTON_GEOMETRIE)}
+            rang, objet, action = cibles[suivante]
+            indice = f"{rang}:{objet}"
             # LE COMPTE A QUITTE LE FIL : la barre du bas le porte
             # desormais, et les deux se lisaient a trois centimetres l'un de
             # l'autre — « Préparation : 0/4 » au-dessus de
@@ -2721,6 +2780,7 @@ class DialogueParametrage(QDialog):
             "contient déjà. C'est là-dessus qu'on dessine les objets "
             "manquants.")
         bouton_charger.clicked.connect(self._charger_couches_modele)
+        self.bouton_charger_couches = bouton_charger  # cible d'un lien du fil
         v3.addWidget(bouton_charger, 0, Qt.AlignmentFlag.AlignLeft)
         self.label_couches = texte_etat()
         v3.addWidget(self.label_couches)
@@ -2805,6 +2865,7 @@ class DialogueParametrage(QDialog):
         # prefixes a demi tapes. Il ecrit, compose et controle ; ce qui change
         # ensuite porte un « ! » jusqu'au clic suivant.
         bouton_composer = QPushButton(BOUTON_GEOMETRIE)
+        self.bouton_composer = bouton_composer      # cible d'un lien du fil
         # Mise en avant par le STYLE, jamais par la touche Entree : ce bouton
         # ecrit dans la geometrie HEC-RAS. Voir keyPressEvent().
         bouton_composer.setObjectName("boutonControleAttente")
@@ -2929,7 +2990,7 @@ class DialogueParametrage(QDialog):
             "Geometrie_reference": f"g{geometrie}" if geometrie else "",
             "Unsteady_reference": f"u{flux}" if flux else "",
             "Nom_zone_2D": self.combo_zone_2d.currentText(),
-            "Sens_axe": self.combo_sens_axe.currentText(),
+            "Sens_axe": self.combo_sens_axe.currentData(),
             "PK_origine_m": self.spin_pk_origine.value(),
             "Prefixe_scenario": self.edit_prefixe_scenario.text().strip(),
             "Dossier_sortie": self.edit_dossier_sortie.text().strip(),
@@ -3017,9 +3078,19 @@ class DialogueParametrage(QDialog):
                 continue
             if cle in au_paquet and self._memes_valeurs(vue, au_paquet[cle]):
                 continue        # champ que personne n'a touche depuis
-            ecarts[cle] = (f"{libelle} : « {vue} » à l’écran, "
-                           f"« {'' if fige is None else fige} » dans le paquet")
+            ecarts[cle] = (f"{libelle} : « {self._montrer(cle, vue)} » à l’écran, "
+                           f"« {self._montrer(cle, fige)} » dans le paquet")
         return ecarts
+
+    def _montrer(self, cle, valeur):
+        """Une valeur comparee, telle qu'un humain la lit : le libelle du
+        sens de l'axe, la virgule d'un nombre."""
+        if valeur is None:
+            return ""
+        if cle == "Sens_axe":
+            rang = self.combo_sens_axe.findData(valeur)
+            return self.combo_sens_axe.itemText(rang) if rang >= 0 else valeur
+        return format(valeur, "g").replace(".", ",") if isinstance(valeur, float) else valeur
 
     def _classeur_neuf_annonce(self):
         """
@@ -3059,7 +3130,7 @@ class DialogueParametrage(QDialog):
             return ""
         return (f"Composer maintenant créera <b>{futur.name}</b>, un "
                 f"classeur <b>neuf, aux cibles vides</b>. Les "
-                f"{remplies} valeur(s) déjà saisies restent dans "
+                f"{compte(remplies, 'valeur déjà saisie reste', 'valeurs déjà saisies restent')} dans "
                 f"<b>{actuel.name}</b> — rien n’est supprimé, mais elles "
                 f"ne seront pas reprises : un scénario n’a pas les "
                 f"hydrogrammes d’un autre.")
@@ -3155,12 +3226,29 @@ class DialogueParametrage(QDialog):
         if label is None:
             return
         if not ecarts:
-            dire(label, ATTENTE_PAQUET if not self.classeur else
-                 "Le paquet composé dit la même chose que cet écran.")
+            # LA SEULE VOIX DE CE CADRE (23/10/2026) : la relecture des
+            # cibles y ecrivait aussi, et le texte de l'une effacait celui
+            # de l'autre au rafraichissement suivant.
+            manquantes = getattr(self, "_cibles_manquantes", None)
+            if not self.classeur:
+                dire(label, ATTENTE_PAQUET)
+            elif manquantes:
+                dire(label,
+                     "<b>Étape suivante</b> — ouvrez l’Excel (étape "
+                     "Paramètres, « Ouvrir dans Excel ») et complétez la "
+                     "feuille « Cibles » pour " + ", ".join(manquantes)
+                     + ", puis lancez. Recomposer plus tard préserve les "
+                       "hydrogrammes déjà saisis.")
+            elif manquantes == []:
+                dire(label,
+                     f"<b style='color:{ISL_VERT}'>Tous les hydrogrammes "
+                     f"cibles sont renseignés</b> — le calage peut être lancé.")
+            else:
+                dire(label, "Le paquet composé dit la même chose que cet écran.")
             return
         neuf = self._classeur_neuf_annonce()
         dire(label,
-             f"<b>{len(ecarts)} réglage(s) changé(s) depuis la composition —"
+             f"<b>{compte(len(ecarts), 'réglage changé', 'réglages changés')} depuis la composition —"
              f" le calage lirait le paquet, pas l’écran :</b><br>• "
              + "<br>• ".join(ecarts.values())
              + f"<br>Cliquer « {BOUTON_GEOMETRIE} » (étape Paramètres) pour "
@@ -3493,11 +3581,11 @@ class DialogueParametrage(QDialog):
         try:
             if not self.info_projet:
                 raise ValueError(
-                    "choisir d'abord le fichier .prj du projet HEC-RAS "
+                    "Choisir d'abord le fichier .prj du projet HEC-RAS "
                     "(« Choisir le projet… »).")
             numero_geom = self._geometrie_effective()
             if not numero_geom:
-                raise ValueError("choisir un plan de référence.")
+                raise ValueError("Choisir un plan de référence.")
             chemin_hdf = (Path(self._dossier_projet())
                          / f"{self.info_projet['nom_projet']}.g{numero_geom}.hdf")
             reponse = noyau.charger_couches_modele(chemin_hdf)
@@ -3591,24 +3679,24 @@ class DialogueParametrage(QDialog):
         # phrase, parce que rien d'autre ne le dirait.
         pretraitee = reponse.get("geometrie_pretraitee", True)
         dire(self.label_couches,
-             f"<b>{len(reponse['sections'])} section(s)</b>, "
-             f"<b>{len(reponse['injections'])} injection(s)</b> et "
-             f"<b>{len(reponse['perimetres'])} emprise(s) 2D</b> ajoutées à "
+             f"<b>{compte(len(reponse['sections']), 'section')}</b>, "
+             f"<b>{compte(len(reponse['injections']), 'injection')}</b> et "
+             f"<b>{compte(len(reponse['perimetres']), 'emprise 2D', 'emprises 2D')}</b> ajoutées à "
              f"la carte, éditables."
              + ("" if reponse["sections"] else
                 " Aucune section existante : la couche attend les nouvelles.")
              + (" Géométrie jamais prétraitée par HEC-RAS : maillage "
-                "indisponible, contour(s) de zone 2D lu(s) directement dans "
+                "indisponible, contours de zone 2D lus directement dans "
                 "le fichier géométrie. Dessiner les sections et injections "
-                "manquantes, puis « Écrire dans la géométrie HEC-RAS » (bouton du "
-                "bas) — le maillage apparaîtra au premier calcul."
+                f"manquantes, puis cliquer « {BOUTON_GEOMETRIE} » (étape "
+                "Paramètres) — le maillage apparaîtra au premier calcul."
                 if not pretraitee else
-                f" Maillage natif : {groupes} donnée(s)."
+                f" Maillage natif : {compte(groupes, 'donnée')}."
                 if maillage.isValid() else
                 " Maillage natif indisponible ici (MDAL) — sans effet sur la "
                 "suite.")
-             + (f"<br>{len(reponse['en_attente_pretraitement'])} objet(s) "
-                f"écrits mais pas encore prétraités par HEC-RAS "
+             + (f"<br>{compte(len(reponse['en_attente_pretraitement']), 'objet écrit', 'objets écrits')} "
+                f"mais pas encore prétraités par HEC-RAS "
                 f"({', '.join(reponse['en_attente_pretraitement'][:5])}) : "
                 f"affichés d'après le fichier géométrie, pris en compte au "
                 f"prochain calcul."
@@ -3666,10 +3754,14 @@ class DialogueParametrage(QDialog):
 
         self.combo_sens_axe = QComboBox()
         self.combo_sens_axe.setAccessibleName("Sens de dessin de l'axe")
-        self.combo_sens_axe.addItems(["amont_aval", "aval_amont"])
+        # DES MOTS A L'ECRAN, LE CODE EN DONNEE (23/10/2026) : « amont_aval »
+        # s'affichait tel que le paquet l'ecrit.
+        self.combo_sens_axe.addItem("De l'amont vers l'aval", "amont_aval")
+        self.combo_sens_axe.addItem("De l'aval vers l'amont", "aval_amont")
         self.combo_sens_axe.setToolTip(
-            "amont_aval : tracé dans le sens de l'écoulement. "
-            "aval_amont : tracé dans le sens opposé.")
+            "Sens dans lequel la polyligne de l'axe a été dessinée : dans le "
+            "sens de l'écoulement (de l'amont vers l'aval) ou à rebours. "
+            "Les PK croissent de l'amont vers l'aval.")
         f.addRow("Sens du tracé :",
                  self._avec_temoin(self.combo_sens_axe, "Sens_axe"))
 
@@ -3817,26 +3909,35 @@ class DialogueParametrage(QDialog):
             "hydrogrammes cibles.")
         f = formulaire(enveloppe)
         self.edit_prefixe_scenario = QLineEdit()
+        # LE COURS D'EAU D'ABORD, PUIS LA CRUE (23/10/2026, demande
+        # utilisateur : « propose plutot "Cours-d'eau - Q100 - ..." sinon il
+        # y aura des doublons quand plusieurs cours d'eau »). « Q100 » seul
+        # donnait les memes plans, le meme Excel et le meme dossier a deux
+        # cours d'eau cales pour la meme crue dans un modele.
         self.edit_prefixe_scenario.setPlaceholderText(
-            "Q100 — obligatoire")
+            "Cours d'eau - Q100 (obligatoire)")
         self.edit_prefixe_scenario.setToolTip(
             "Préfixe posé devant le titre de chaque plan créé par le "
-            "calage : « Q100 » donne « Q100_sans_apport », "
-            "« Q100_Apport_A1 » et, à l'arrivée, « Q100_avec_apports ».\n\n"
+            "calage : « Riviere - Q100 » donne « Riviere - Q100 - sans_apport », "
+            "« Riviere - Q100 - Apport_A1 » et, à l'arrivée, "
+            "« Riviere - Q100 - avec_apports ».\n\n"
             "OBLIGATOIRE, et c'est pour cela : sans lui, le calage du Q10 "
             "REMPLACERAIT les plans du Q100, qui porteraient exactement les "
-            "mêmes titres.\n\n"
-            "Il nomme aussi le fichier Excel des objectifs — "
-            "« donnees_calage_Q100.xlsx » : deux scénarios ont donc deux "
-            "classeurs, et composer l'un n'écrase pas l'autre.\n\n"
-            "Le souligné est ajouté tout seul : « Q100 » et « Q100_ » "
-            "donnent le même titre.\n\n"
+            "mêmes titres. Le cours d'eau en tête fait de même pour deux "
+            "cours d'eau d'un même modèle.\n\n"
+            "Il nomme aussi le fichier Excel des objectifs et le dossier de "
+            "sortie proposé : deux scénarios ont donc deux classeurs, et "
+            "composer l'un n'écrase pas l'autre.\n\n"
+            "Le séparateur est ajouté tout seul : « - » après un préfixe à "
+            "tirets espacés, « _ » sinon (« Q100 » donne « Q100_Apport_A1 »). "
+            "« Riviere - Q100 » et « Riviere - Q100 - » donnent le même titre.\n\n"
             "Titre complet limité à 32 caractères — la borne de "
             "ras-commander, qui refuse au-delà sur « Plan Title » et "
             "« Flow Title ». Au-delà, la composition REFUSE plutôt que de "
             "tronquer : deux plans tronqués au même identifiant "
             "partageraient le dossier de résultats que RAS Mapper nomme "
-            "d'après le « Short Identifier ».")
+            "d'après le « Short Identifier ». La ligne sous le champ compte "
+            "les caractères à la frappe.")
         # « OBLIGATOIRE » DANS LE LIBELLE, PAS SEULEMENT DANS LE PLACEHOLDER
         # (0.8.5) : un placeholder disparait a la premiere frappe.
         f.addRow("&Préfixe de scénario (obligatoire) :", self._avec_temoin(
@@ -3849,11 +3950,77 @@ class DialogueParametrage(QDialog):
             self._proposer_dossier_sortie)
         self.edit_prefixe_scenario.textChanged.connect(self._dire_reprise)
         self.edit_prefixe_scenario.textChanged.connect(self._maj_resume)
-        f.addRow(texte_aide(
-            "Nomme les plans du calage <i>et</i> le fichier Excel des "
-            "objectifs. Changer de préfixe compose un nouveau classeur au "
-            "lieu d’écraser le précédent."))
+        self.label_titres_prefixe = texte_aide("")
+        self.label_titres_prefixe.setObjectName("titresPrefixe")
+        self.label_titres_prefixe.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse)
+        f.addRow(self.label_titres_prefixe)
+        self._dire_titres_prefixe()
         return enveloppe
+
+    def _noms_injections(self):
+        """Noms des injections de la couche chargée, dans l'ordre de la couche."""
+        couche = couche_vivante(getattr(self, "couche_injections", None))
+        if couche is None or "nom" not in couche.fields().names():
+            return []
+        return [str(e["nom"]) for e in couche.getFeatures()
+                if e["nom"] not in (None, "") and str(e["nom"]) != "NULL"]
+
+    def _dire_titres_prefixe(self, *_):
+        """
+        LES TITRES QUE LE PREFIXE DONNERA, SOUS LE CHAMP, A LA FRAPPE
+        (23/10/2026). La borne de 32 caracteres n'etait jugee qu'a la
+        composition, apres l'ecriture dans la geometrie ; « Riviere - Q100 »
+        coute deux caracteres de separateur de plus que « Q100 ». Le controle
+        du classeur reste l'arbitre (controle_donnees) : ici, on previent.
+
+        Les apports viennent de la couche des injections chargee : avant
+        qu'elle le soit, seuls les titres fixes se comptent, et la ligne le
+        dit. Tous les titres de reprise sont comptes, comme le controle du
+        classeur, a ceci pres que l'ordre de la couche n'est pas celui du
+        calage : le titre de reprise du premier apport, jamais construit,
+        peut faire prevenir a tort d'un caractere ou deux.
+        """
+        label = getattr(self, "label_titres_prefixe", None)
+        if label is None:
+            return
+        prefixe = self.edit_prefixe_scenario.text().strip()
+        if not prefixe:
+            label.setText(
+                "Commencez par le cours d’eau, puis la crue : « Riviere - Q100 ». "
+                "Deux cours d’eau calés pour la même crue dans un modèle "
+                "partageraient sinon leurs plans, leur Excel et leur dossier "
+                "de sortie.")
+            return
+        noms = self._noms_injections()
+        etapes = (["sans_apport"] + [f"Apport_{a}" for a in noms or ["A1"]]
+                  + ["avec_apports"] + [f"sans {a} et aval" for a in noms])
+        titres = [self._titre_etape(nom) for nom in etapes]
+        long_ = max(titres, key=len)
+        exemple = "« " + " », « ".join(html.escape(t) for t in titres[:2]) + " »"
+        exemple += (("…" if len(noms) > 1 else "")
+                    + f", « {html.escape(self._titre_etape('avec_apports'))} »")
+        phrases = [f"Plans : {exemple}.",
+                   f"Excel : {html.escape(noyau.nom_classeur(prefixe))}."]
+        trop = len(long_) - LONGUEUR_MAX_TITRE
+        if trop > 0:
+            phrases.insert(0, (
+                f"<b style='color:{ISL_ROUGE}'>⚠ Trop long :</b> "
+                f"« {html.escape(long_)} » compte {len(long_)} caractères pour "
+                f"{LONGUEUR_MAX_TITRE} (borne de ras-commander). Raccourcissez "
+                f"le préfixe de {trop} caractère{'s' if trop > 1 else ''}."))
+        else:
+            phrases.append(f"Titre le plus long : {len(long_)} caractères sur "
+                           f"{LONGUEUR_MAX_TITRE}"
+                           + ("" if noms else " (sans les noms des apports : "
+                              "chargez les couches du modèle pour les compter)")
+                           + ".")
+        if not prefixe.isascii():
+            phrases.append(
+                "<b>⚠ Accents :</b> HEC-RAS les "
+                "remplace par « ? » dans le titre des résultats qu’il "
+                "calcule. Écrivez le préfixe sans accent.")
+        label.setText("<br>".join(phrases))
 
     def _groupe_classeur(self):
         # « EXCEL DES HYDROGRAMMES OBJECTIFS », ET NON « CLASSEUR ». Le mot
@@ -4019,8 +4186,9 @@ class DialogueParametrage(QDialog):
         # expliquait, depuis l'interieur d'un groupe grise, comment le
         # degriser. Posee entre les deux, elle est l'etape qu'elle decrit.
         self.label_classeur_attente = texte_aide(
-            "Aucun Excel composé : renseignez le <b>préfixe de scénario</b> "
-            f"ci-dessous, puis « {BOUTON_GEOMETRIE} » — le bouton est gris "
+            "Aucun Excel pour l’instant : il naît de "
+            f"« {BOUTON_GEOMETRIE} », sous le <b>préfixe de scénario</b> "
+            "ci-dessous — le bouton est gris "
             "tant qu’il manque quelque chose, et son infobulle le nomme. Le "
             "dossier de sortie se propose tout seul (« _calage\\&lt;préfixe&gt; » "
             "à côté du modèle, modifiable juste au-dessus). Les hydrogrammes "
@@ -4039,9 +4207,12 @@ class DialogueParametrage(QDialog):
 
     # « COMPOSER LE PAQUET » N'EST PLUS UN GESTE (21/09/2026) : il se fait
     # tout seul. Ce qui manque ici n'est pas une action, c'est un fichier.
+    # Un renvoi, pas la consigne : celle du dessus, visible dans le meme cas,
+    # la porte deja (deux fois la meme phrase a l'ecran, 23/10/2026).
     _ATTENTE_CIBLES = (
-        f"<i style='color:{ISL_ARDOISE}'>Renseignez le préfixe de scénario, "
-        f"ou reprenez un Excel : les cibles se liront dès qu'il existe.</i>")
+        f"<i style='color:{ISL_ARDOISE}'>Les hydrogrammes saisis dans la "
+        f"feuille Cibles de l’Excel se liront ici, chiffrés. L’Excel naît "
+        f"sous le préfixe de scénario, plus haut.</i>")
 
     def _groupe_ce_que_portent_les_cibles(self):
         """
@@ -4149,10 +4320,9 @@ class DialogueParametrage(QDialog):
             if e["renseignee"]:
                 lignes.append(
                     f"<tr><td>{paire}</td>"
-                    f"<td align='right'>{e['pic_m3s']:,.1f}</td>"
-                    f"<td align='right'>{e['heure_pic_h']:,.2f}</td>"
-                    f"<td align='right'>{e['volume_hm3']:,.3f}</td></tr>"
-                    .replace(",", "\u202f"))
+                    f"<td align='right'>{nombre(e['pic_m3s'], 1, milliers=True)}</td>"
+                    f"<td align='right'>{nombre(e['heure_pic_h'], 2, milliers=True)}</td>"
+                    f"<td align='right'>{nombre(e['volume_hm3'], 3, milliers=True)}</td></tr>")
             else:
                 lignes.append(
                     f"<tr><td>{paire}</td>"
@@ -4245,7 +4415,7 @@ class DialogueParametrage(QDialog):
         fm = formulaire(groupe_menage)
         fm.addRow(texte_aide(
             "Les plans d’étape documentent le calage et permettent sa reprise : "
-            "un plan « …_sans_apport », puis un par apport. Par exemple, trente "
+            "un plan « … sans_apport », puis un par apport. Par exemple, trente "
             "apports produisent trente et un jeux de résultats intermédiaires."))
         # UNE CASE, PAS UN BOUTON (0.7.22, demande utilisateur). Le bouton
         # elaguait APRES COUP : il fallait y penser une fois le calage fini,
@@ -4374,15 +4544,15 @@ class DialogueParametrage(QDialog):
         controler) gère l'affichage des erreurs.
         """
         if not self.info_projet:
-            raise ValueError("choisir d'abord le fichier .prj du projet "
+            raise ValueError("Choisir d'abord le fichier .prj du projet "
                              "HEC-RAS (« Choisir le projet… »).")
         numero_geom = self._geometrie_effective()
         if not numero_geom:
-            raise ValueError("choisir un plan de référence.")
+            raise ValueError("Choisir un plan de référence.")
         zone = self.combo_zone_2d.currentText().strip()
         if not zone:
             raise ValueError(
-                "la zone d'écoulement 2D est obligatoire : HEC-RAS y "
+                "La zone d'écoulement 2D est obligatoire : HEC-RAS y "
                 "rattache sections et injections. Cliquer « Charger les "
                 "couches du modèle » pour la renseigner.")
 
@@ -4390,7 +4560,7 @@ class DialogueParametrage(QDialog):
         couche_a = couche_vivante(self.couche_injections)
         if couche_s is None or couche_a is None:
             raise ValueError(
-                "cliquer « Charger les couches du modèle » avant de "
+                "Cliquer « Charger les couches du modèle » avant de "
                 "composer.")
 
         dossier = Path(self._dossier_projet())
@@ -4424,9 +4594,9 @@ class DialogueParametrage(QDialog):
                 reponse = noyau.creer_sections_dans_modele(
                     str(geometrie), chemin_shp, zone, remplacer=True)
                 resume.append(
-                    f"{reponse['creees']} section(s) : "
+                    f"{compte(reponse['creees'], 'section')} : "
                     f"{', '.join(reponse['noms'][:6])}"
-                    + (f" (dont {len(reponse['remplacees'])} remplacée(s))"
+                    + (f" (dont {compte(len(reponse['remplacees']), 'remplacée')})"
                        if reponse.get("remplacees") else ""))
             else:
                 reponse = noyau.creer_injections_dans_modele(
@@ -4434,7 +4604,7 @@ class DialogueParametrage(QDialog):
                     fichier_unsteady=str(unsteady),
                     pente=PENTE_APPORT_DEFAUT)
                 resume.append(
-                    f"{reponse['creees']} injection(s) : "
+                    f"{compte(reponse['creees'], 'injection')} : "
                     f"{', '.join(reponse['noms'][:6])}")
                 if reponse.get("raccordes"):
                     resume.append(
@@ -4478,7 +4648,11 @@ class DialogueParametrage(QDialog):
         if champ is None or prefixe_champ is None:
             return
         dossier = self._dossier_projet()
-        prefixe = prefixe_champ.text().strip().rstrip("-_")
+        # UN NOM DE DOSSIER WINDOWS : ni « <>:"/\|?* », ni espace ou point
+        # final, que Windows retire en silence (« Riviere - Q100 - » laissait
+        # « Riviere - Q100 »). Le reste du prefixe — espaces, apostrophe — y tient.
+        prefixe = "".join("_" if c in '<>:"/\\|?*' else c
+                          for c in prefixe_champ.text()).strip().rstrip("-_ .")
         if not dossier or not prefixe:
             return
         propose = str(Path(dossier) / "_calage" / prefixe)
@@ -4554,6 +4728,7 @@ class DialogueParametrage(QDialog):
         vl.addWidget(self.label_reprise)
         ligne_lancer = QHBoxLayout()
         bouton_lancer = QPushButton("Lancer le calage")
+        self.bouton_lancer = bouton_lancer          # cible d'un lien du fil
         bouton_lancer.setObjectName("boutonAccent")
         bouton_lancer.setToolTip(
             "Lance la boucle séquentielle complète dans un processus "
@@ -4731,8 +4906,8 @@ class DialogueParametrage(QDialog):
         vd = QVBoxLayout(groupe_detail)
         self.table_suivi = QTableWidget(0, 6)
         self.table_suivi.setHorizontalHeaderLabels(
-            ["Apport", "Section", "Statut", "Essais", "Volume (%)",
-             "Pointe (%)"])
+            ["Apport", "Section", "Statut", "Essais", "Volume",
+             "Pointe"])
         self.table_suivi.verticalHeader().setVisible(False)
         self.table_suivi.setEditTriggers(
             QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -4749,7 +4924,7 @@ class DialogueParametrage(QDialog):
         bouton_dossier = QPushButton("Ouvrir le dossier de suivi")
         bouton_dossier.clicked.connect(self._ouvrir_dossier_suivi)
         ligne.addWidget(bouton_dossier)
-        bouton_figure = QPushButton("Ouvrir avancement.png")
+        bouton_figure = QPushButton("Ouvrir la figure d’avancement")
         bouton_figure.setToolTip(
             "La figure produite par la chaîne : état de chaque apport, et "
             "volume et débit de pointe atteints face aux 100 % visés.")
@@ -4758,12 +4933,12 @@ class DialogueParametrage(QDialog):
         ligne.addStretch(1)
         self.label_suivi_maj = QLabel("")
         self.label_suivi_maj.setProperty("role", ROLE_AIDE)
-        # Passe a la ligne plutot que d'imposer sa largeur a la rangee : a
-        # 13 pt sur 720 px, a cote de la bande, la rangee faisait defiler
-        # l'etape (23/10/2026).
+        # Sous la rangee, pas dedans : a 13 pt sur 720 px, a cote de la bande,
+        # la rangee faisait defiler l'etape, de 9 px encore avec « Ouvrir la
+        # figure d'avancement » et l'heure repliee (23/10/2026).
         self.label_suivi_maj.setWordWrap(True)
-        ligne.addWidget(self.label_suivi_maj)
         v.addLayout(ligne)
+        v.addWidget(self.label_suivi_maj)
 
         # RAFRAICHISSEMENT AUTOMATIQUE. Deux secondes : assez pour que l'ecran
         # suive un essai qui dure des minutes, assez peu pour ne rien couter —
@@ -4890,9 +5065,10 @@ class DialogueParametrage(QDialog):
         le dit donc, au lieu de laisser deviner.
         """
         if not self.classeur:
-            return "étape Lancer"
+            return "étape Paramètres"
         cache = getattr(self, "_suivi_du_classeur", None)
-        return "classeur" if cache and cache[1] is not None else "étape Lancer"
+        return ("Excel lancé" if cache and cache[1] is not None
+                else "étape Paramètres")
 
     def _dossier_suivi_de_l_onglet_3(self):
         """Ce que les champs de l'onglet 3 designent, ou None."""
@@ -4955,7 +5131,7 @@ class DialogueParametrage(QDialog):
         if dossier is None or not dossier.is_dir():
             self._signaler(
                 "Suivi", "Aucun dossier de suivi : renseigner le dossier de "
-                "sortie (étape Lancer), puis composer le paquet.",
+                f"sortie (étape Paramètres), puis cliquer « {BOUTON_GEOMETRIE} ».",
                 Qgis.MessageLevel.Warning)
             return
         os.startfile(str(dossier))  # noqa: S606 (usage Windows assume)
@@ -4982,9 +5158,9 @@ class DialogueParametrage(QDialog):
         autre = self._dossier_suivi_de_l_onglet_3()
         if autre is None or Path(autre) == Path(dossier):
             return ""
-        return (f"<br>L'étape Lancer en désigne un autre — <i>{autre}</i> — qui "
-                f"n'est pas surveillé : c'est le classeur lancé qui fait foi. "
-                f"Recomposer le paquet pour que les deux s'accordent.")
+        return (f"<br>L'étape Paramètres en désigne un autre — <i>{autre}</i> — "
+                f"qui n'est pas surveillé : c'est l'Excel lancé qui fait foi. "
+                f"Cliquer « {BOUTON_GEOMETRIE} » pour que les deux s'accordent.")
 
     def _banniere(self, couleur, titre, detail="", glyphe=""):
         """
@@ -5271,7 +5447,7 @@ class DialogueParametrage(QDialog):
                               f"état." + journal)
             if perime:
                 detail += (f"<br>Le dossier porte encore l'état d'un calage "
-                           f"précédent, commencé à {etat.get('debut')} : il "
+                           f"précédent, commencé le {date_lisible(etat.get('debut'))} : il "
                            f"n'est pas affiché, pour ne pas se lire comme "
                            f"celui du calage en cours.")
             # Le dossier surveille n'est plus recopie ici : il vit desormais
@@ -5335,9 +5511,9 @@ class DialogueParametrage(QDialog):
             if etat.get("conforme"):
                 self._banniere(
                     ISL_VERT, "Calage terminé — conforme", glyphe="✔",
-                    detail=f"{comptes.get('validé', 0)} apport(s) calés en "
+                    detail=f"{compte(comptes.get('validé', 0), 'apport calé', 'apports calés')} en "
                     f"{duree_lisible(etat.get('ecoule_s'))}"
-                    + (f", {etat['nb_calculs']} calculs"
+                    + (f", {compte(etat['nb_calculs'], 'calcul')}"
                        if etat.get("nb_calculs") else "")
                     + ". Les livrables sont dans le dossier de résultats.")
             else:
@@ -5376,8 +5552,8 @@ class DialogueParametrage(QDialog):
                 f"<b>{etat.get('total')}</b>")
         else:
             self.label_suivi_position.setText(
-                f"{comptes.get('validé', 0)} validé(s), "
-                f"{comptes.get('échoué', 0)} échoué(s), "
+                f"{compte(comptes.get('validé', 0), 'validé')}, "
+                f"{compte(comptes.get('échoué', 0), 'échoué')}, "
                 f"{comptes.get('en attente', 0)} en attente")
 
         # LES JAUGES SE REPLIENT SUR LE DERNIER APPORT CHIFFRE. Un apport dont
@@ -5410,10 +5586,10 @@ class DialogueParametrage(QDialog):
             "—" if etat.get("termine") else duree_lisible(etat.get("reste_s")))
         fin = etat.get("fin") or etat.get("fin_prevue")
         self.label_suivi_fin.setText(
-            (fin or "—").replace("T", " à ") if fin else "—")
+            date_lisible(fin) if fin else "—")
         self.label_suivi_maj.setText(
             f"actualisé {etat.get('maj', '')[11:]}"
-            + (f" · {etat['incidents']} incident(s)"
+            + (f" · {compte(etat['incidents'], 'incident')}"
                if etat.get("incidents") else ""))
         self._remplir_table_suivi(repris + apports)
 
@@ -5483,8 +5659,8 @@ class DialogueParametrage(QDialog):
         couleur = ISL_ROUGE if depasse else ISL_VERT
         self.label_bilan_masse.setText(
             f"Bilan de masse du dernier calcul : "
-            f"<b style='color:{couleur}'>{pct:+.3f} %</b> "
-            f"(seuil {seuil:g} %)"
+            f"<b style='color:{couleur}'>{nombre(pct, 3, signe=True)} %</b> "
+            f"(seuil {format(seuil, 'g').replace('.', ',')} %)"
             + (" — au-delà du seuil : l'essai est rejeté sans être comparé "
                "à la cible. Resserrer le pas de calcul du plan."
                if depasse else
@@ -5498,8 +5674,8 @@ class DialogueParametrage(QDialog):
                 a.get("apport", ""), a.get("section", ""),
                 f"{GLYPHE_STATUT.get(statut, '')}  {statut}",
                 str(a.get("essais") or ""),
-                "—" if a.get("volume_pct") is None else f"{a['volume_pct']} %",
-                "—" if a.get("pic_pct") is None else f"{a['pic_pct']} %",
+                "—" if a.get("volume_pct") is None else f"{nombre(a['volume_pct'])} %",
+                "—" if a.get("pic_pct") is None else f"{nombre(a['pic_pct'])} %",
             ]
             for colonne, valeur in enumerate(valeurs):
                 cellule = QTableWidgetItem(str(valeur))
@@ -5644,12 +5820,12 @@ class DialogueParametrage(QDialog):
         self.label_chaine.setText(
             str(chaine) if chaine
             else f"<span style='color:{ISL_ROUGE}'>introuvable</span> — "
-                 f"la désigner ci-dessous")
+                 f"désignez-la ci-dessous")
         interp = noyau.interpreteur_hecras()
         self.label_interpreteur.setText(
             str(interp) if interp
             else f"<span style='color:{ISL_ROUGE}'>introuvable</span> — "
-                 f"cliquer « Installer… », qui trouvera Python tout seul")
+                 f"cliquez « Installer… », qui trouvera Python tout seul")
 
     def _choisir_chaine(self):
         dossier = QFileDialog.getExistingDirectory(
@@ -5815,7 +5991,7 @@ class DialogueParametrage(QDialog):
             with sans_sablier(self):
                 choix, valide = QInputDialog.getItem(
                     self, "Python de base",
-                    f"{len(candidats)} interpréteur(s) utilisable(s) trouvé(s) "
+                    f"{compte(len(candidats), 'interpréteur utilisable trouvé', 'interpréteurs utilisables trouvés')} "
                     f"sur ce poste.\nLe premier est recommandé : un "
                     f"environnement bâti sur le Python de QGIS cesse de "
                     f"fonctionner\nle jour où une montée de version de QGIS "
@@ -5952,7 +6128,7 @@ class DialogueParametrage(QDialog):
             bouton_poser = boite.addButton(
                 "Installer…", QMessageBox.ButtonRole.AcceptRole)
             bouton_designer = boite.addButton(
-                "J'en ai déjà un : le désigner…",
+                "Désigner un Python existant…",
                 QMessageBox.ButtonRole.ActionRole)
             boite.addButton("Plus tard", QMessageBox.ButtonRole.RejectRole)
             boite.setDefaultButton(bouton_poser)
@@ -6010,7 +6186,7 @@ class DialogueParametrage(QDialog):
                 f"{e}\n\nSi l'Excel de ce calcul est ouvert dans Excel, le "
                 f"fermer puis recommencer : rien n'a été importé.")
             return
-        lignes = [f"<b>{len(bilan['importees'])} hydrogramme(s) importé(s)</b>"
+        lignes = [f"<b>{compte(len(bilan['importees']), 'hydrogramme importé', 'hydrogrammes importés')}</b>"
                   f" de {Path(source).name} : {', '.join(bilan['importees'])}."]
         if bilan["vides"]:
             lignes.append("Restent vides, faute de correspondance dans "
@@ -6027,7 +6203,7 @@ class DialogueParametrage(QDialog):
                       f"{Path(bilan['sauvegarde']).name}.")
         dire(self.label_import, "<br>".join(lignes))
         self._signaler("Hydrogrammes importés",
-                       f"{len(bilan['importees'])} hydrogramme(s) importé(s) ; "
+                       f"{compte(len(bilan['importees']), 'hydrogramme importé', 'hydrogrammes importés')} ; "
                        "le détail est sous le bouton.",
                        Qgis.MessageLevel.Success, duree=8)
         self._maj_onglet_validation_depuis_classeur()
@@ -6077,7 +6253,7 @@ class DialogueParametrage(QDialog):
         if not premier:
             dire(self.label_premier_apport,
                  "Tous les apports seront calés, à partir d'un calcul de "
-                 "référence « sans_apport ».")
+                 f"référence « {self._titre_etape('sans_apport')} ».")
             # LE RECAPITULATIF SUIT AUSSI CE RETOUR-LA. Pose seulement en fin
             # de methode, il gardait a l'ecran la reprise precedente quand on
             # revenait a « tous » — un compte rendu perime, le defaut meme
@@ -6091,12 +6267,13 @@ class DialogueParametrage(QDialog):
             journaliser("Apports en amont du premier apport", e)
             amont = []
         dire(self.label_premier_apport,
-             f"Départ du plan « Apport_{amont[-1]} ». "
-             f"{len(amont)} apport(s) amont tenus pour calés et non "
-             f"retouchés : {', '.join(amont)}."
+             f"Départ du plan « {self._titre_etape('Apport_' + amont[-1])} ». "
+             f"{compte(len(amont), 'apport amont tenu pour calé et non retouché', 'apports amont tenus pour calés et non retouchés')} : "
+             f"{', '.join(amont)}."
              if amont else
              "Premier apport de la liste : le calage part du calcul de "
-             "référence « sans_apport », comme sans ce réglage.")
+             f"référence « {self._titre_etape('sans_apport')} », comme sans "
+             "ce réglage.")
         self._dire_reprise()
 
     def _titre_etape(self, nom):
@@ -6109,9 +6286,13 @@ class DialogueParametrage(QDialog):
         champ = getattr(self, "edit_prefixe_scenario", None)
         if champ is not None:
             prefixe = champ.text().strip()
+        if prefixe.endswith(" -"):
+            prefixe = prefixe[:-2].rstrip()
         if not prefixe:
             return nom
-        return f"{prefixe}{'' if prefixe[-1] in '-_' else '_'}{nom}"
+        if prefixe[-1] in "-_":
+            return f"{prefixe}{nom}"
+        return f"{prefixe}{' - ' if ' - ' in prefixe else '_'}{nom}"
 
     def _dire_reprise(self, *_):
         """
@@ -6183,13 +6364,13 @@ class DialogueParametrage(QDialog):
                 f"avait validés : {', '.join(perdus)}.")
         elif valides:
             phrases.append(
-                f"Le calage précédent avait validé {len(conserves)} "
-                f"apport(s) ; aucun n’est refait.")
+                f"Le calage précédent avait validé "
+                f"{compte(len(conserves), 'apport')} ; aucun n’est refait.")
         # LES CŒURS, S'ILS CHANGENT : c'est ce clic qui les ecrit.
         coeurs = self._coeurs_demandes()
         if coeurs:
             phrases.append(
-                f"<b>Cœurs</b> : HEC-RAS recevra {coeurs} cœur(s) par calcul, "
+                f"<b>Cœurs</b> : HEC-RAS recevra {compte(coeurs, 'cœur')} par calcul, "
                 f"écrits dans chaque plan d’étape juste avant son calcul.")
         dire(label, "<br>".join(phrases))
 
@@ -6228,13 +6409,19 @@ class DialogueParametrage(QDialog):
             journaliser("État des cibles après contrôle", e)
             self.label_validation_classeur.setText(str(self.classeur))
             self.label_validation_cibles.setText(f"(illisible : {e})")
+            self._cibles_manquantes = None
             return
         self.label_validation_classeur.setText(str(self.classeur))
         manquantes = etat.get("manquantes") or []
         self.label_validation_cibles.setText(
-            f"{etat['renseignees']}/{etat['total']} renseignée(s)"
+            f"{etat['renseignees']}/{etat['total']} "
+            f"{'renseignée' if etat['renseignees'] < 2 else 'renseignées'}"
             + (f" — manquantes : {', '.join(manquantes)}" if manquantes else ""))
         self._maj_resume_cibles()
+        # Le fil et « Étape suivante » suivent le retour d'Excel.
+        self._cibles_manquantes = list(manquantes)
+        if hasattr(self, "label_fil"):
+            self._maj_fil()
 
     @avec_sablier
     def _confirmer_reprise(self):
@@ -6299,18 +6486,19 @@ class DialogueParametrage(QDialog):
         else:
             titre = "Un calage précédent existe"
             texte = (
-                f"<b>Tout recaler, et perdre {len(perdus)} apport(s) déjà "
-                f"calés ?</b><br><br>"
+                f"<b>Tout recaler, et perdre "
+                f"{compte(len(perdus), 'apport déjà calé', 'apports déjà calés')} ?</b><br><br>"
                 f"Le calage précédent avait validé : {lister(perdus)}.<br>"
                 f"Lancer maintenant les refait TOUS, depuis le calcul de "
-                f"référence « sans_apport » — plusieurs heures par apport."
+                f"référence « {self._titre_etape('sans_apport')} » — plusieurs "
+                "heures par apport."
                 f"<br><br>"
                 + (f"Pour ne reprendre qu'à partir de « {propose} », le "
                    f"premier que le calage précédent n'a pas validé, les "
                    f"apports en amont seront conservés."
                    if propose else
                    "Pour n'en reprendre qu'une partie, renseigner « Premier "
-                   "apport à caler », étape 4, encadré « Apports à "
+                   "apport à caler », étape 3 « Lancer », encadré « Apports à "
                    "déterminer »."))
         with sans_sablier(self):
             boite = QMessageBox(self)
@@ -6378,7 +6566,7 @@ class DialogueParametrage(QDialog):
         if ecarts:
             self._signaler(
                 "Calage non lancé",
-                f"{len(ecarts)} réglage(s) changé(s) depuis la composition "
+                f"{compte(len(ecarts), 'réglage changé', 'réglages changés')} depuis la composition "
                 "(« ! » rouge) : "
                 + ", ".join(e.split(" : ", 1)[0] for e in ecarts.values())
                 + f". Cliquer « {BOUTON_GEOMETRIE} » (étape Paramètres) pour "
@@ -6458,7 +6646,7 @@ class DialogueParametrage(QDialog):
             rendre_la_main(self)
             QMessageBox.warning(
                 self, "Hydrogrammes cibles incomplets",
-                f"{len(etat['manquantes'])} section(s) sur {etat['total']} "
+                f"{compte(len(etat['manquantes']), 'section')} sur {etat['total']} "
                 f"sans hydrogramme cible exploitable : "
                 f"{', '.join(etat['manquantes'])}.\n\n"
                 f"Le calage n'est pas lancé : la chaîne refuse un classeur "
@@ -6510,7 +6698,7 @@ class DialogueParametrage(QDialog):
         # annonce d'échec alors que le calage venait de partir. Un chemin ne
         # doit jamais être introduit par un mot qui décrit un état.
         message = (
-            f"Calage lancé en arrière-plan (PID {info['pid']}).\n"
+            f"Calage lancé en arrière-plan (processus {info['pid']}).\n"
             f"Suivre l'avancement à l'étape « 4. Suivi », qui se rafraîchit "
             f"toute seule quand elle est affichée.\n"
             f"Journal de lancement : {info['journal']}")
@@ -6544,8 +6732,8 @@ class DialogueParametrage(QDialog):
         boite.setWindowTitle(titre)
         boite.setIcon(QMessageBox.Icon.Critical if erreurs
                       else QMessageBox.Icon.Information)
-        boite.setText(f"{avant}{len(erreurs)} erreur(s), "
-                      f"{len(avertissements)} avertissement(s){apres}")
+        boite.setText(f"{avant}{compte(len(erreurs), 'erreur')}, "
+                      f"{compte(len(avertissements), 'avertissement')}{apres}")
         boite.setDetailedText(texte_rapport_controle(anomalies, tableau))
         rendre_redimensionnable(boite)
         # Le travail est fini : le compte rendu se lit sans sablier.
@@ -6577,12 +6765,12 @@ class DialogueParametrage(QDialog):
         with sans_sablier(self):
             accepte = confirmer(
                 self, "Hydrogrammes cibles trop courts",
-                f"{len(apports)} hydrogramme(s) cible(s) s'arrêtent avant la "
-                f"fin de la simulation ({duree:.2f} h) : "
+                f"{compte(len(apports), 'hydrogramme cible s’arrête', 'hydrogrammes cibles s’arrêtent')} avant la "
+                f"fin de la simulation ({nombre(duree, 2)} h) : "
                 f"{', '.join(apports[:8])}"
                 + ("…" if len(apports) > 8 else "")
                 + f".\n\nHEC-RAS refuserait de calculer.\n\n"
-                f"Prolonger ces colonnes jusqu'à {duree:.2f} h en les "
+                f"Prolonger ces colonnes jusqu'à {nombre(duree, 2)} h en les "
                 f"complétant par des ZÉROS ?\n\n"
                 f"Une crue arrêtée avant la fin de sa fenêtre est retombée : "
                 f"zéro est la valeur juste, et non la dernière connue. Seule "
@@ -6603,16 +6791,16 @@ class DialogueParametrage(QDialog):
         self._signaler(
             "Prolongation",
             f"{bilan['ajoutees']} pas de temps ajoutés à "
-            f"{len(bilan['colonnes'])} colonne(s), de "
-            f"{bilan['duree_avant_h']:.2f} h à {bilan['duree_apres_h']:.2f} h, "
-            f"au pas de {60 * bilan['pas_h']:g} min. Relancer « Contrôle "
-            f"paramétrage » pour vérifier.", Qgis.MessageLevel.Success, 0)
+            f"{compte(len(bilan['colonnes']), 'colonne')}, de "
+            f"{nombre(bilan['duree_avant_h'], 2)} h à {nombre(bilan['duree_apres_h'], 2)} h, "
+            f"au pas de {format(60 * bilan['pas_h'], 'g').replace('.', ',')} min. Cliquer de nouveau "
+            f"« {BOUTON_GEOMETRIE} » (étape Paramètres) pour vérifier.", Qgis.MessageLevel.Success, 0)
 
     def _ouvrir_classeur(self):
         if not self.classeur:
-            self._signaler("Classeur", "Composer d'abord le paquet (bouton "
-                           "« Écrire dans la géométrie HEC-RAS », en bas "
-                           "de la fenêtre).",
+            self._signaler("Excel", "Aucun Excel pour l'instant : cliquer "
+                           f"« {BOUTON_GEOMETRIE} », sous le préfixe "
+                           "(étape Paramètres).",
                            Qgis.MessageLevel.Warning)
             return
         try:
@@ -6637,11 +6825,11 @@ class DialogueParametrage(QDialog):
         appariement = getattr(self, "appariement", None) or {}
         paires = appariement.get("paires") or []
         hors = appariement.get("sans_section") or []
-        texte = (f"{len(paires)} apport(s) à caler, appariés à leur section : "
+        texte = (f"{compte(len(paires), 'apport à caler, apparié', 'apports à caler, appariés')} à leur section : "
                  + ", ".join(f"{a} → {s}" for a, s in paires[:6])
                  + ("…" if len(paires) > 6 else ""))
         if hors:
-            texte += (f"\n{len(hors)} ligne(s) d'injection non calée(s), faute "
+            texte += (f"\n{compte(len(hors), 'ligne d’injection non calée', 'lignes d’injection non calées')}, faute "
                       f"de section en aval — entrées permanentes ou exutoires : "
                       + ", ".join(n for n, _ in hors[:6])
                       + ("…" if len(hors) > 6 else ""))
@@ -6655,26 +6843,22 @@ class DialogueParametrage(QDialog):
         except Exception as e:
             journaliser("État des cibles (étape Lancer)", e)
             self.label_validation_cibles.setText(f"(illisible : {e})")
+            self._cibles_manquantes = None
             return
 
         self.label_validation_cibles.setText(
-            f"{etat['renseignees']} / {etat['total']} section(s) déjà "
-            f"renseignée(s)"
+            f"{etat['renseignees']} / {compte(etat['total'], 'section')} déjà "
+            f"{'renseignée' if etat['renseignees'] < 2 else 'renseignées'}"
             + (f" — manquent : {', '.join(etat['manquantes'])}"
                if etat["manquantes"] else ""))
 
         self._maj_resume_cibles()
 
-        if etat["manquantes"]:
-            dire(self.label_prochaine_etape,
-                 "<b>Étape suivante</b> — ouvrir le classeur et compléter la "
-                 "feuille « Cibles » pour " + ", ".join(etat["manquantes"])
-                 + ", puis lancer. Recomposer plus tard préserve les "
-                   "hydrogrammes déjà saisis.")
+        self._cibles_manquantes = list(etat["manquantes"])
+        if hasattr(self, "label_fil"):
+            self._maj_fil()                 # le fil appelle _maj_coherence
         else:
-            dire(self.label_prochaine_etape,
-                 f"<b style='color:{ISL_VERT}'>Tous les hydrogrammes cibles "
-                 f"sont renseignés</b> — le calage peut être lancé.")
+            self._maj_coherence()
         # PLUS DE BASCULE VERS LANCER apres la composition (24/09/2026, demande
         # utilisateur) : on reste sur l'etape du bouton, ou se lit le compte
         # rendu.
@@ -6728,6 +6912,8 @@ class DialogueParametrage(QDialog):
         """
         self._maj_alerte_couches()
         try:
+            # Les apports de la couche chargee comptent dans les titres.
+            self._dire_titres_prefixe()
             self._composer_resume()
         except RuntimeError:
             return
@@ -6762,10 +6948,10 @@ class DialogueParametrage(QDialog):
         c_injections = couche_vivante(self.couche_injections)
         if c_sections is not None:
             lignes.append(f"Sections de contrôle : "
-                          f"{c_sections.featureCount()} entité(s)")
+                          f"{compte(c_sections.featureCount(), 'entité')}")
         if c_injections is not None:
             lignes.append(f"Lignes d'injection : "
-                          f"{c_injections.featureCount()} entité(s)")
+                          f"{compte(c_injections.featureCount(), 'entité')}")
 
         axe = couche_vivante(
             self.combo_axe.currentLayer() if hasattr(self, "combo_axe") else None)
@@ -6832,11 +7018,11 @@ class DialogueParametrage(QDialog):
         try:
             if not self.info_projet:
                 raise ValueError(
-                    "Étape 1 : choisir d'abord le fichier .prj du projet "
+                    "Étape Modèle : choisir d'abord le fichier .prj du projet "
                     "HEC-RAS (« Choisir le projet… »).")
             plan = self.combo_plan.currentData()
             if plan is None:
-                raise ValueError("Étape 1 : choisir un plan de référence.")
+                raise ValueError("Étape Modèle : choisir un plan de référence.")
             # LE PREFIXE EST OBLIGATOIRE (0.7.22, demande utilisateur). Vide,
             # il etait admis et rendait les titres d'avant — « sans_apport »,
             # « Apport_A1 ». Deux scenarios cales sur le meme modele portaient
@@ -6847,17 +7033,18 @@ class DialogueParametrage(QDialog):
             # sache provoquer.
             if not self.edit_prefixe_scenario.text().strip():
                 raise ValueError(
-                    "Étape Paramètres : renseigner le préfixe de scénario. Il nomme "
-                    "les plans de CE calage — « Q100 » donne "
-                    "« Q100_sans_apport », « Q100_avec_apports » —, il nomme "
-                    "aussi son Excel — « donnees_calage_Q100.xlsx » —, et "
+                    "Étape Paramètres : renseigner le préfixe de scénario, cours "
+                    "d'eau en tête. Il nomme les plans de CE calage — "
+                    "« Riviere - Q100 » donne « Riviere - Q100 - sans_apport », "
+                    "« Riviere - Q100 - avec_apports » —, il nomme aussi son "
+                    "Excel — « donnees_calage_Riviere_-_Q100.xlsx » —, et "
                     "c'est lui qui empêche un second scénario d'effacer les "
                     "plans du premier.")
             c_sections = couche_vivante(self.couche_sections)
             c_injections = couche_vivante(self.couche_injections)
             if c_sections is None or c_injections is None:
                 raise ValueError(
-                    "Étape 1 : cliquer sur « Charger les couches du modèle » "
+                    "Étape Modèle : cliquer sur « Charger les couches du modèle » "
                     "avant de composer. Si elles avaient été chargées, c'est "
                     "qu'elles ont été retirées du projet depuis — les "
                     "recharger.")
@@ -6866,7 +7053,7 @@ class DialogueParametrage(QDialog):
                 raise ValueError(
                     # L'axe a rejoint l'onglet 1 en 0.7.0, avec les couches ou
                     # il se trace ; ce renvoi etait reste sur l'onglet 2.
-                    "Étape 1 : choisir la couche de l'axe hydraulique.")
+                    "Étape Modèle : choisir la couche de l'axe hydraulique.")
             dossier_sortie = self.edit_dossier_sortie.text().strip()
             if not dossier_sortie:
                 raise ValueError("Étape Paramètres : choisir le dossier de "
@@ -6923,7 +7110,7 @@ class DialogueParametrage(QDialog):
                 premier_apport=self._premier_apport(),
                 prefixe_scenario=self.edit_prefixe_scenario.text().strip(),
                 elaguer_etapes=self.case_elaguer.isChecked(),
-                sens_axe=self.combo_sens_axe.currentText(),
+                sens_axe=self.combo_sens_axe.currentData(),
                 pk_origine_m=self.spin_pk_origine.value(),
                 nb_max_iterations=self.spin_nb_max_essais.value(),
                 tolerance_volume_pct=self.spin_tol_volume.value(),
@@ -7005,7 +7192,8 @@ class DialogueParametrage(QDialog):
                 avant=f"{compte_rendu_ecriture}\n\n"
                       f"Paquet composé dans {dossier_sortie}\n",
                 apres=(f"\nPente des apports : {len(pentes)}/"
-                       f"{len(self.appariement['paires'])} pré-remplie(s)"
+                       f"{len(self.appariement['paires'])} "
+                       f"{'pré-remplie' if len(pentes) < 2 else 'pré-remplies'}"
                        + (f" — {motif_pentes}" if motif_pentes else "")))
             self._maj_resume()
             self._maj_onglet_validation()
@@ -7053,8 +7241,8 @@ class PluginCalage:
                          self.iface.mainWindow())
         action.setObjectName("calageApports_fenetre")
         infobulle = ("Fen\u00eatre unique : mod\u00e8le HEC-RAS, \u00e9criture des "
-                     "sections et des apports, profil en long, sorties, aide, "
-                     "puis lancement du calage.")
+                     "sections et des apports, profil en long, paramètres, "
+                     "lancement, suivi du calage et aide.")
         action.setToolTip(infobulle)
         action.setStatusTip(infobulle)
         action.triggered.connect(self.composer)
