@@ -1104,6 +1104,28 @@ class CourbeComparaison(QWidget):
         peintre.end()
 
 
+class BarreTexte(QProgressBar):
+    """
+    Barre de progression toujours assez large pour son texte.
+
+    La largeur que Qt propose a une QProgressBar ne tient pas compte de son
+    texte : a 13 pt, « Préparation 1/4 » se lisait « réparation 1/ » au bas
+    de la fenetre (23/10/2026). La largeur suit donc le texte le plus long
+    que la barre peut ecrire, dans sa police du moment.
+    """
+
+    def sizeHint(self):                                     # noqa: N802
+        taille = super().sizeHint()
+        plein = str(self.maximum())
+        texte = self.format().replace("%v", plein).replace("%m", plein)
+        metriques = self.fontMetrics()
+        taille.setWidth(max(taille.width(), metriques.horizontalAdvance(texte)
+                            + 4 * metriques.averageCharWidth()))
+        return taille
+
+    minimumSizeHint = sizeHint
+
+
 def duree_lisible(secondes):
     """« 2 h 14 » plutot que « 8040 s » : c'est ce qu'on lit d'un coup d'oeil."""
     if secondes is None:
@@ -2145,14 +2167,13 @@ class DialogueParametrage(QDialog):
         # BAS de la fenetre, la ou vit ce qui prepare, non dans le Suivi.
         # Elle porte son compte EN CHIFFRES : une barre remplie aux trois
         # quarts ne dit pas qu'il manque le dossier de sortie.
-        self.barre_preparation = QProgressBar()
+        self.barre_preparation = BarreTexte()
         self.barre_preparation.setObjectName("barrePreparation")
         self.barre_preparation.setFormat("Préparation %v/%m")
         self.barre_preparation.setMinimum(0)
         self.barre_preparation.setMaximum(4)
         self.barre_preparation.setValue(0)
         self.barre_preparation.setTextVisible(True)
-        self.barre_preparation.setMaximumWidth(170)
         self.barre_preparation.setSizePolicy(QSizePolicy.Policy.Preferred,
                                              QSizePolicy.Policy.Fixed)
         boutons.addWidget(self.barre_preparation)
@@ -5159,8 +5180,13 @@ class DialogueParametrage(QDialog):
         # la branche « Aucun calage suivi » sort plus bas, et c'est elle qui
         # le disait — donc jamais quand un calage tourne. Voir la construction
         # de ce label.
+        # LE CHEMIN PEUT PASSER A LA LIGNE APRES CHAQUE SEPARATEUR (23/10/2026) :
+        # un espace sans chasse le permet. Sans lui, Qt ne coupe pas un chemin
+        # sans espace et la page Suivi defilait de 69 px a 13 pt sur 720 px.
+        # Ce texte n'est pas selectionnable ; l'espace ne gene aucune copie.
+        coupable = str(dossier).replace("\\", "\\\u200b").replace("/", "/\u200b")
         dire(self.label_suivi_dossier,
-             (f"Dossier surveillé ({self._origine_dossier_suivi()}) : {dossier}"
+             (f"Dossier surveillé ({self._origine_dossier_suivi()}) : {coupable}"
               + self._detail_desaccord_suivi(dossier)) if dossier
              else "Aucun dossier de suivi désigné.")
 
@@ -5508,10 +5534,18 @@ class DialogueParametrage(QDialog):
             "Dossier contenant criteres.py, geometrie.py, controle_donnees.py, "
             "livrables.py et pont_hecras.py.")
         bouton_chaine.clicked.connect(self._choisir_chaine)
+        # LE CHEMIN SUR SA LIGNE, LES BOUTONS DESSOUS (23/10/2026). Cote a
+        # cote, un chemin sans espace ne passe pas a la ligne : a 13 pt sur
+        # 720 px le groupe exigeait 704 px, la page defilait de 43 px et les
+        # boutons etaient rognes. Le chemin reste selectionnable et copiable
+        # tel quel (audit CAL-A4) : aucun espace sans chasse n'y est insere.
         ligne_chaine = QHBoxLayout()
-        ligne_chaine.addWidget(self.label_chaine, 1)
         ligne_chaine.addWidget(bouton_chaine)
-        fp.addRow("Chaîne de calage :", ligne_chaine)
+        ligne_chaine.addStretch(1)
+        bloc_chaine = QVBoxLayout()
+        bloc_chaine.addWidget(self.label_chaine)
+        bloc_chaine.addLayout(ligne_chaine)
+        fp.addRow("Chaîne de calage :", bloc_chaine)
 
         self.label_interpreteur = QLabel("")
         self.label_interpreteur.setWordWrap(True)
@@ -5537,10 +5571,13 @@ class DialogueParametrage(QDialog):
         # « INSTALLER » AVANT « DESIGNER », parce que c'est le geste de celui
         # qui n'a rien : designer suppose de savoir ou chercher, installer non.
         ligne_interp = QHBoxLayout()
-        ligne_interp.addWidget(self.label_interpreteur, 1)
         ligne_interp.addWidget(bouton_installer)
         ligne_interp.addWidget(bouton_interp)
-        fp.addRow("Interpréteur HEC-RAS :", ligne_interp)
+        ligne_interp.addStretch(1)
+        bloc_interp = QVBoxLayout()
+        bloc_interp.addWidget(self.label_interpreteur)
+        bloc_interp.addLayout(ligne_interp)
+        fp.addRow("Interpréteur HEC-RAS :", bloc_interp)
 
         self.bouton_installer = bouton_installer
         self._commandes_poste = (bouton_installer, bouton_interp, bouton_chaine, bouton)
@@ -5567,7 +5604,7 @@ class DialogueParametrage(QDialog):
         self.label_chaine.setText(
             str(chaine) if chaine
             else f"<span style='color:{ISL_ROUGE}'>introuvable</span> — "
-                 f"la désigner ci-contre")
+                 f"la désigner ci-dessous")
         interp = noyau.interpreteur_hecras()
         self.label_interpreteur.setText(
             str(interp) if interp

@@ -1521,8 +1521,16 @@ verifier("suivi : sans etat, la banniere nomme le dossier qu'elle surveille",
          # LE DOSSIER A QUITTE LA BANNIERE POUR UN LABEL PERMANENT (0.7.9) :
          # il n'y etait nomme que faute de calage a montrer, c'est-a-dire
          # jamais pendant les heures ou cet onglet sert.
-         str(_dossier_etat()) in dlg.label_suivi_dossier.text(),
+         str(_dossier_etat()) in dlg.label_suivi_dossier.text().replace("\u200b", ""),
          dlg.label_suivi_banniere.text()[-100:])
+# LE CHEMIN SURVEILLE PASSE A LA LIGNE (23/10/2026) : sans point de coupure,
+# Qt ne coupe pas un chemin sans espace, et la page Suivi defilait de 69 px a
+# 13 pt sur 720 px. La largeur minimale du label tombe sous celle du chemin.
+verifier("suivi : le chemin du dossier surveille peut passer a la ligne",
+         dlg.label_suivi_dossier.minimumSizeHint().width()
+         < dlg.label_suivi_dossier.fontMetrics().horizontalAdvance(str(_dossier_etat())),
+         f"label {dlg.label_suivi_dossier.minimumSizeHint().width()} px, chemin "
+         f"{dlg.label_suivi_dossier.fontMetrics().horizontalAdvance(str(_dossier_etat()))} px")
 
 # LES JAUGES JUGENT SUR LES TOLERANCES DE L'ETUDE, pas sur des defauts. Figees
 # a 2 %, elles coloraient en rouge des valeurs qu'une etude a 5 % admet.
@@ -3383,6 +3391,14 @@ def _eprouver_petite_fenetre(points):
                      all(w.font().pointSizeF() >= min(points, 10.0) for w in _peints),
                      str([w.font().pointSizeF() for w in _peints]))
             _hauteurs_peintes[points] = [w.minimumHeight() for w in _peints]
+            # LA BARRE DE PREPARATION LOGE SON TEXTE A TOUTE POLICE (23/10/2026) :
+            # plafonnee a 170 px et dimensionnee sans son texte, elle lisait
+            # « réparation 1/ » a 13 pt.
+            _prep = fenetre.barre_preparation
+            verifier(f"police {points} pt : la barre de preparation loge son texte",
+                     _prep.width() >= _prep.fontMetrics().horizontalAdvance(_prep.text()),
+                     f"{_prep.width()} px pour « {_prep.text()} » "
+                     f"({_prep.fontMetrics().horizontalAdvance(_prep.text())} px)")
             verifier(f"police {points} pt : Qt utilise la famille demandee",
                      QFontInfo(fenetre.edit_projet_hecras.font()).family()
                      == police.family(),
@@ -3410,6 +3426,27 @@ def _eprouver_petite_fenetre(points):
                 QApplication.processEvents()
                 verifier(f"{repere} : le clic ouvre la bonne page",
                          fenetre.onglets.currentIndex() == index)
+                # LE CHEMIN SUR SA LIGNE, LES BOUTONS DESSOUS (23/10/2026). Cote
+                # a cote, un chemin sans espace imposait sa largeur a la ligne :
+                # a 13 pt sur 720 px, la page defilait de 43 px et rognait
+                # « Choisir le dossier… ».
+                if index == mod_plugin.ONGLET_AIDE:
+                    def _bas(w):
+                        return w.mapTo(fenetre, w.rect().bottomLeft()).y()
+
+                    def _haut(w):
+                        return w.mapTo(fenetre, w.rect().topLeft()).y()
+
+                    _installer, _interp, _chaine = fenetre._commandes_poste[:3]
+                    verifier(f"{repere} : chaque chemin du poste a sa ligne, "
+                             "ses boutons dessous",
+                             _bas(fenetre.label_chaine) < _haut(_chaine)
+                             and _bas(fenetre.label_interpreteur)
+                             < min(_haut(_installer), _haut(_interp)),
+                             f"chaine {_bas(fenetre.label_chaine)} / bouton "
+                             f"{_haut(_chaine)} ; interpreteur "
+                             f"{_bas(fenetre.label_interpreteur)} / boutons "
+                             f"{_haut(_installer)}, {_haut(_interp)}")
                 # LE BOUTON N'EST PLUS PERMANENT (21/09/2026) : il vit a
                 # l'onglet 1, avec les couches qu'il ecrit. Ce qui reste au
                 # bas de la fenetre, et doit y etre visible depuis chaque
