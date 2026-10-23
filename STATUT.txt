@@ -22,8 +22,8 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
-ERGONOMIE A FOND — 23 OCTOBRE 2026, BRANCHE ergonomie-calage-1023 (partie de
-  main b955a11, 0.9.19 ; non poussee, non fusionnee, version inchangee).
+ERGONOMIE A FOND — 23 OCTOBRE 2026, VERSION 0.9.20 (branche
+  ergonomie-calage-1023 fusionnee dans main ; 0.9.19 publiee le meme jour).
   REGLE DU PREFIXE : cours d'eau en tete, « Riviere - Q100 ». Un prefixe qui
   contient « - » relie les etapes par « - » ; sinon le souligne reste, et un
   calage en cours se reprend a l'identique. calage.titre_etape et

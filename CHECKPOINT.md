@@ -1,6 +1,12 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
-## 23 octobre 2026 (nuit) : ergonomie à fond, branche `ergonomie-calage-1023`
+## 23 octobre 2026 (nuit) : ergonomie à fond, version 0.9.20
+
+Branche `ergonomie-calage-1023` fusionnée dans `main` (avance rapide) à la
+demande de l'utilisateur (« Oui. Push tout »), version 0.9.20, archive
+`calage_apports_0.9.20.zip` conforme, poussé. Publication au dépôt PIO :
+`publier.bat`, lancé par l'utilisateur. La 0.9.19 a été publiée le 23/10/2026
+à 19 h 40.
 
 Demande : « optimise a fond l'ergonomie de calage des apports. Vérifie que les
 liens hypertexte sont corrects. Pour le préfixe, propose plutôt "Cours-d'eau -

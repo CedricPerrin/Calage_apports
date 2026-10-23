@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont l'étape « Suivi » montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.9.19
+version=0.9.20
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,22 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.9.19 — Le bouton s'affiche dans la barre « CPN » ; esthétique
+changelog=0.9.20 — Préfixe « cours d'eau - crue » ; liens du fil qui
+    mènent au champ ; textes et états revus.
+    Le préfixe propose le cours d'eau en tête, « Riviere - Q100 » : deux
+    cours d'eau calés pour la même crue ne partagent plus plans, Excel ni
+    dossier. Un préfixe qui contient « - » relie les étapes par « - »
+    (« Riviere - Q100 - sans_apport ») ; sans « - », le souligné reste et
+    un calage en cours se reprend à l'identique. Sous le champ, une ligne
+    montre les titres et l'Excel à la frappe, et prévient d'un titre de
+    plus de 32 caractères ou d'un accent. Un lien du fil conducteur ouvre
+    l'étape et place le curseur dans le champ (le dossier de sortie
+    menait à l'étape Lancer). L'étape suivante dit vrai quand des cibles
+    manquent. Nombres à virgule, dates lisibles, pluriels accordés,
+    accents rendus aux messages, sens du tracé en mots. Aucun changement
+    de calcul.
+
+    0.9.19 — Le bouton s'affiche dans la barre « CPN » ; esthétique
     commune aux extensions de la maison.
     Le bouton « Calage apports » rejoint la barre d'outils « CPN », commune
     aux extensions de la maison : la barre n'apparaissait pas dans QGIS, elle
