@@ -67,6 +67,7 @@ from qgis.PyQt.QtWidgets import (
     QLabel,
     QLayout,
     QLineEdit,
+    QListWidgetItem,
     QMessageBox,
     QProgressBar,
     QPushButton,
@@ -75,7 +76,6 @@ from qgis.PyQt.QtWidgets import (
     QSizePolicy,
     QSpacerItem,
     QSpinBox,
-    QTabBar,
     QTableWidget,
     QTableWidgetItem,
     QTabWidget,
@@ -86,6 +86,7 @@ from qgis.PyQt.QtWidgets import (
 )
 
 from . import cpn, materiel, noyau, registre
+from .bande import Bande
 from .installation import TacheInstallation, TacheRecherchePython, installation_en_cours
 from .interface import Etiquette as QLabel, Manuel as QTextBrowser
 from .interface import couleur as couleur_theme, sombre as fond_sombre
@@ -1436,7 +1437,7 @@ de contrôle reproduise un hydrogramme cible.</p>
 <ul>
 <li><a href="#s1">Première utilisation — ce qu'il faut installer</a></li>
 <li><a href="#s2">À trancher avant de commencer</a></li>
-<li><a href="#s3">Le déroulement, onglet par onglet</a></li>
+<li><a href="#s3">Le déroulement, étape par étape</a></li>
 <li><a href="#s4">Écrire dans la géométrie</a></li>
 <li><a href="#s5">Comment l'apport est ajusté</a></li>
 <li><a href="#s6">Comment lire le résultat</a></li>
@@ -1491,7 +1492,7 @@ tout : compter 3 à 5 calculs par apport.</li>
 <li><b>Hydrogrammes cibles disponibles</b> pour chaque section ?</li>
 </ul>
 
-<h3><a name="s3"></a>Le déroulement, onglet par onglet</h3>
+<h3><a name="s3"></a>Le déroulement, étape par étape</h3>
 <ol>
 <li><b>Modèle.</b> Fichier <tt>.prj</tt> du projet HEC-RAS, plan de référence,
 <i>profil en long</i>, puis
@@ -1891,16 +1892,6 @@ def etiqueter_pk_sur_carte(chemins, sens, bases):
 # trois secondes apres un lancement qui se deroulait bien.
 DELAI_PREMIER_ETAT_S = 240
 
-# Largeur minimale que la barre d'onglets peut imposer a la fenetre. C'est la
-# petite fenetre de la recette (docs/ergonomie_2026-09-11.md, 800 x 620) :
-# au-dela, les libelles s'elident au lieu d'elargir la fenetre.
-#   LE HIG QGIS DIT « AUCUN DIALOGUE AU-DELA DE 580 PX DE HAUT ET 1000 DE
-# LARGE » (docs.qgis.org, developers_guide/hig). La fenetre s'ouvre a
-# 940 x 760 et l'ecart est VOULU : elle n'est pas un dialogue a valider en un
-# clic mais un poste de travail qu'on garde ouvert pendant qu'on dessine ;
-# chaque onglet defile, et la hauteur se borne a l'ecran moins 64 px.
-LARGEUR_PLANCHER_MAX = 800
-
 # LES CINQ ONGLETS QUI PORTENT UN NUMERO. « Aide et configuration » n'en a
 # pas : il n'est pas une etape.
 #   ILS SONT NOMMES PARCE QUE L'ORDRE A DEJA CHANGE DEUX FOIS — 0.7.0, puis
@@ -1972,6 +1963,11 @@ class DialogueParametrage(QDialog):
         self.setWindowIcon(QIcon(os.path.join(DOSSIER, "icon.png")))
         # Assez large pour que les chemins de fichiers ne soient pas tronques,
         # et redimensionnable : l'onglet 1 est dense.
+        #   LE HIG QGIS DIT « AUCUN DIALOGUE AU-DELA DE 580 PX DE HAUT ET 1000
+        # DE LARGE » (docs.qgis.org, developers_guide/hig). L'ecart est VOULU :
+        # la fenetre n'est pas un dialogue a valider en un clic mais un poste
+        # de travail qu'on garde ouvert pendant qu'on dessine ; chaque etape
+        # defile, et la hauteur se borne a l'ecran moins 64 px.
         self.resize(940, 760)
         self.setMinimumSize(720, 520)
 
@@ -2026,7 +2022,6 @@ class DialogueParametrage(QDialog):
         # un champ que le paquet ne porte plus s'annonce par un « ! » rouge
         # (voir _temoin, _maj_temoins).
         self._temoins = []           # (cles du paquet, « ! » du champ)
-        self._marques_onglets = {}   # rang d'onglet -> « ! » de son titre
         self._actualiser_style()
         QApplication.instance().installEventFilter(self)
         agencement = QVBoxLayout(self)
@@ -2044,37 +2039,50 @@ class DialogueParametrage(QDialog):
         self.barre_messages.setObjectName("barreMessages")
         self.barre_messages.hide()          # pushMessage() la fait apparaitre
         agencement.addWidget(self.barre_messages)
+        # LES ETAPES DANS LA BANDE COMMUNE, A GAUCHE (23/10/2026, esthetique
+        # commune des extensions ISL : la bande de Rhoe et de Hyetos, bande.py
+        # en copie identique). La fenetre est une suite ordonnee — 1. Modele,
+        # 2. Parametres, 3. Lancer, 4. Suivi, que « Precedent », « Suivant » et
+        # le fil parcourent dans cet ordre — : c'est le cas de la bande. La
+        # barre d'onglets qu'elle remplace demandait 816 px a 9 pt et 993 a
+        # 13 pt pour ses cinq titres : il lui fallait un plancher de largeur, et
+        # elle elidait « Aide et configuration » sous 800 px. La bande tient en
+        # une colonne et ne coupe aucun titre ; quand la hauteur manque, elle
+        # ne garde que les numeros, puis defile.
+        #   LE QTabWidget RESTE LA PILE DES PAGES, sa barre cachee : ses titres
+        # (tabText) nomment toujours les etapes pour le fil, les messages et
+        # le banc.
         self.onglets = QTabWidget()
-        self.onglets.setDocumentMode(True)      # onglets sobres, moins encadres
-        # Le gras est pose sur la POLICE de la barre, pas dans la feuille de
-        # style : Qt calcule la largeur des onglets d'apres la police du
-        # widget, et un gras purement decoratif faisait deborder les libelles.
-        police_onglets = self.onglets.tabBar().font()
-        police_onglets.setBold(True)
-        self.onglets.tabBar().setFont(police_onglets)
-        agencement.addWidget(self.onglets)
-        # Chaque onglet vit dans une zone defilante : un ecran d'ordinateur
-        # portable ne montrerait sinon qu'une partie de l'onglet 1, et les
+        self.onglets.setDocumentMode(True)
+        self.onglets.tabBar().hide()
+        # Chaque page vit dans une zone defilante : un ecran d'ordinateur
+        # portable ne montrerait sinon qu'une partie de l'etape 1, et les
         # boutons du bas seraient repousses hors de l'ecran.
-        # Libelles COURTS : mis en gras a la selection, des intitules longs
-        # debordaient de la barre, qui se mettait a defiler et tronquait le
-        # premier onglet. Le detail passe en infobulle, ou il ne coute rien.
-        for page, titre, infobulle in (
-            (self._onglet_modele(), "1. Modèle",
+        #   L'ENTREE DE LA BANDE : le numero, puis le nom court dessous ; le
+        # titre et le role de l'etape en infobulle, ou ils ne coutent rien.
+        # « Aide et configuration » garde son nom entier sous « ? » :
+        # preference de l'utilisateur, qui prime sur le titre court (la
+        # configuration du poste y vit, et « Aide » seul la cachait). Il est
+        # coupe « configu- / ration », comme « Hydro- / grammes » chez Rhoe :
+        # en entier, ce mot elargissait la bande d'une trentaine de pixels a
+        # 13 pt, pris aux pages.
+        entrees = []
+        for page, titre, entree, infobulle in (
+            (self._onglet_modele(), "1. Modèle", "1\nModèle",
              "Projet HEC-RAS, plan de référence, zone 2D, profil en long, "
              "et chargement des couches existantes du modèle."),
-            (self._onglet_objectifs(), "2. Paramètres",
+            (self._onglet_objectifs(), "2. Paramètres", "2\nParamètres",
              "Précision attendue sur le volume et la pointe, nombre maximal "
              "d'essais, le classeur où se saisissent les hydrogrammes "
              "cibles, et ce que ces hydrogrammes portent une fois validés."),
-            (self._onglet_validation(), "3. Lancer",
+            (self._onglet_validation(), "3. Lancer", "3\nLancer",
              "Correspondance sections / injections, état des hydrogrammes "
              "cibles, apports à déterminer, dossiers de sortie, préfixe de "
              "scénario, et lancement du calage."),
-            (self._onglet_suivi(), "4. Suivi",
+            (self._onglet_suivi(), "4. Suivi", "4\nSuivi",
              "Où en est le calage : apport en cours, essai, avancement, "
              "temps restant, et ce qui s'est passé quand il s'arrête."),
-            (self._onglet_aide(), "Aide et configuration",
+            (self._onglet_aide(), "Aide et configuration", "?\nAide et\nconfigu-\nration",
              "Mode opératoire, pièges connus, et les deux emplacements du "
              "poste — chaîne de calage et interpréteur HEC-RAS."),
         ):
@@ -2084,51 +2092,22 @@ class DialogueParametrage(QDialog):
             zone.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
             page.layout().setSizeConstraint(QLayout.SizeConstraint.SetMinAndMaxSize)
             zone.setWidget(page)
-            indice = self.onglets.addTab(zone, titre)
-            self.onglets.setTabToolTip(indice, infobulle)
+            self.onglets.addTab(zone, titre)
+            entrees.append((entree, f"{titre} — {infobulle}"))
+        self.bande = self._bande(entrees)
+        self.bande.currentRowChanged.connect(self.onglets.setCurrentIndex)
+        self.onglets.currentChanged.connect(self.bande.setCurrentRow)
+        self.bande.setCurrentRow(self.onglets.currentIndex())
+        corps = QHBoxLayout()
+        corps.setSpacing(10)
+        corps.addWidget(self.bande)
+        corps.addWidget(self.onglets, 1)
+        agencement.addLayout(corps)
         # Le suivi ne se relit QUE lorsqu'il est a l'ecran (voir _onglet_suivi) :
         # ce signal lui redonne la main des qu'on y revient, sans quoi il
         # afficherait l'etat vieux de la derniere visite pendant deux secondes.
         self.onglets.currentChanged.connect(self._changer_onglet)
         self.onglets.currentChanged.connect(self._maj_navigation)
-
-        # LE PLANCHER DE LARGEUR S'ADAPTE A CE QUE LA BARRE D'ONGLETS DEMANDE.
-        #
-        # Ce qui empeche la barre de defiler — et de tronquer le premier
-        # onglet — n'est pas la brievete des libelles, contrairement a ce que
-        # dit le commentaire plus haut : c'est le plancher pose par
-        # setMinimumSize(). Or c'etait un nombre fixe, qu'on esperait
-        # suffisant.
-        #
-        # Il s'est deja resserre sans que personne le voie : 529 px de besoin
-        # en 0.6.9, 663 px en 0.7.0 apres le renommage de deux onglets, pour
-        # 696 px disponibles a 720 px de fenetre — de +167 px a +33 px. Et
-        # sous une police d'interface plus grande (autre theme Windows,
-        # reglage d'accessibilite, autre mise a l'echelle), la meme barre
-        # demande 877 px : elle DEFILE, et le premier onglet est tronque.
-        #
-        # Plutot qu'un nombre a reverifier a chaque renommage, on demande a la
-        # barre ce qu'il lui faut. L'invariante devient vraie par
-        # construction, sur toute police et toute mise a l'echelle — et un
-        # libelle trop long elargit la fenetre au lieu de disparaitre.
-        #
-        # BORNE A LARGEUR_PLANCHER_MAX (0.8.1) : au-dela, la barre ELIDE ses
-        # libelles au lieu d'elargir la fenetre — et comme elle ne defile
-        # jamais, aucun onglet n'est tronque ni cache. « Aide et
-        # configuration » demande 816 px a 9 pt et 993 a 13 pt : le plein
-        # libelle se lit a la taille d'ouverture (940 px) ; la petite
-        # fenetre de la recette (800 x 620) montre « Aide et configur… ».
-        self.onglets.tabBar().setElideMode(Qt.TextElideMode.ElideRight)
-        self.onglets.tabBar().setUsesScrollButtons(False)
-        self.onglets.tabBar().ensurePolished()
-        _marges = agencement.contentsMargins()
-        _besoin = min(self.onglets.tabBar().sizeHint().width()
-                      + _marges.left() + _marges.right(),
-                      LARGEUR_PLANCHER_MAX)
-        if _besoin > self.minimumWidth():
-            self.setMinimumWidth(_besoin)
-            if _besoin > self.width():
-                self.resize(_besoin, self.height())
 
         # Fil conducteur permanent : a tout moment on sait ou on en est et ce
         # qui vient ensuite, sans avoir a parcourir les onglets.
@@ -2221,6 +2200,54 @@ class DialogueParametrage(QDialog):
             self.setMinimumWidth(min(self.minimumWidth(), disponible.width() - 32))
             self.resize(min(self.width(), disponible.width() - 32),
                         min(self.height(), disponible.height() - 64))
+
+    def _bande(self, entrees):
+        """
+        Bande des etapes, comme celle de Rhoe (rhoe/gui/dock.py, _bande) :
+        numero en gras, nom dessous, titre et role en infobulle et en nom
+        accessible. ``entrees`` : (texte de l'entree, infobulle), dans l'ordre
+        des pages.
+
+        LA BANDE SE MESURE DANS LA POLICE QUE LA FEUILLE DE STYLE LUI POSE —
+        celle de l'application, 10 pt au moins (_actualiser_style) — et non
+        dans une police reduite comme chez Rhoe : la regle « QWidget » de la
+        feuille l'emporterait sur setFont(), et la bande, mesuree trop
+        etroite, couperait ses noms.
+        """
+        police = QFont(QApplication.font())
+        police.setPointSizeF(max(10.0, QApplication.font().pointSizeF()))
+        metrique = QFontMetrics(police)
+        ligne = metrique.lineSpacing()
+        complets = [texte for texte, _ in entrees]
+        largeur = max(metrique.horizontalAdvance(morceau)
+                      for texte in complets for morceau in texte.split("\n"))
+        largeur += ligne
+        # LES TEXTES SANS « ! », et ceux que la bande relit a chaque
+        # changement de forme (Bande.ajuster) : _maj_temoins y pose le « ! »
+        # d'une etape dont un reglage est a actualiser.
+        courts = [texte.partition("\n")[0] for texte in complets]
+        self._textes_bande = (list(complets), list(courts))
+        self._textes_bande_vus = (complets, courts)
+        bande = Bande(complets, courts, largeur, ligne)
+        bande.setObjectName("bandeEtapes")
+        bande.setAccessibleName("Étapes du calage des apports")
+        bande.setFont(police)
+        bande.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        bande.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        # Fonds alternes de la palette : chaque numero reste lie a son nom.
+        bande.setAlternatingRowColors(True)
+        for rang, (texte, infobulle) in enumerate(entrees):
+            element = QListWidgetItem(texte)
+            element.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            element.setToolTip(infobulle)
+            element.setData(Qt.ItemDataRole.AccessibleTextRole,
+                            self.onglets.tabText(rang))
+            bande.addItem(element)
+        bande.ajuster(bande.hauteur_complete)
+        bande.setFixedWidth(largeur + 2 * bande.frameWidth())
+        # Trois etapes au moins : en deca, la bande defile.
+        bande.setMinimumHeight(3 * bande.hauteur_courte + 2 * bande.frameWidth())
+        return bande
 
     def _actualiser_style(self):
         """Lire la palette réellement polie par QGIS, sans modifier son thème."""
@@ -2705,14 +2732,14 @@ class DialogueParametrage(QDialog):
     # c'est le moment : deux textes a tenir d'accord auraient diverge, comme
     # les deux boites de compte rendu avant la 0.7.17.
     _INFOBULLE_CONTROLE = (
-        "Écrit d'abord les sections et injections de l'onglet 1 dans la "
+        "Écrit d'abord les sections et injections de l'étape 1 dans la "
         "géométrie HEC-RAS (en remplaçant tout objet de même nom déjà "
         "présent, après une sauvegarde horodatée du fichier), puis les "
         "shapefiles et le classeur, puis lance tous les contrôles et "
         "reporte les anomalies sur la carte.\n"
         "C'est le seul geste irréversible de la fenêtre, et il est à passer "
         "avant de lancer.\n\n"
-        "Le détail est à l'onglet « Aide et configuration », "
+        "Le détail est dans « Aide et configuration », "
         "§ « Écrire dans la géométrie ».")
 
     def _bouton_controle_parametrage(self):
@@ -3069,9 +3096,9 @@ class DialogueParametrage(QDialog):
 
     def _maj_temoins(self, ecarts):
         """
-        Allume le « ! » de chaque champ perime, et celui du titre de l'onglet
-        qui le porte : un champ perime sur une autre etape serait sinon
-        invisible depuis celle ou l'on est.
+        Allume le « ! » de chaque champ perime, et celui de l'entree de la
+        bande de l'etape qui le porte : un champ perime sur une autre etape
+        serait sinon invisible depuis celle ou l'on est.
         """
         onglets = getattr(self, "onglets", None)
         perimes = {}
@@ -3088,25 +3115,34 @@ class DialogueParametrage(QDialog):
                 if onglets.widget(rang).isAncestorOf(temoin):
                     perimes.setdefault(rang, []).extend(
                         t.split(" : ", 1)[0] for t in textes)
-        if onglets is None:
+        if onglets is None or getattr(self, "bande", None) is None:
             return
-        barre, droite = onglets.tabBar(), QTabBar.ButtonPosition.RightSide
+        # LE « ! » D'ETAPE EST SUR SON ENTREE DE LA BANDE (23/10/2026) : il
+        # etait pose a droite du titre de l'onglet. Le numero le porte —
+        # « 2 ! » —, l'entree passe au rouge de la charte (remappe en theme
+        # sombre), l'infobulle et le nom accessible nomment les reglages ;
+        # le titre de l'etape ne change pas.
+        rouge = QColor(couleur_theme(ISL_ROUGE, self.bande))
         for rang in range(onglets.count()):
-            marque = self._marques_onglets.get(rang)
-            # POSEE = VISIBLE : setTabButton montre le widget qu'il recoit, et
-            # masque celui qu'il remplace.
-            posee = marque is not None and not marque.isHidden()
-            if rang in perimes:
-                if marque is None:
-                    marque = QLabel(f"<b style='color:{ISL_ROUGE}'>!</b>")
-                    marque.setAccessibleName("Réglages à actualiser dans cette étape")
-                    self._marques_onglets[rang] = marque
-                marque.setToolTip("À actualiser dans cette étape : "
-                                  + ", ".join(perimes[rang]) + ".")
-                if not posee:
-                    barre.setTabButton(rang, droite, marque)
-            elif posee:
-                barre.setTabButton(rang, droite, None)
+            reglages = perimes.get(rang)
+            element = self.bande.item(rang)
+            complet = element.text() == self._textes_bande_vus[0][rang]
+            for vus, sans in zip(self._textes_bande_vus, self._textes_bande):
+                numero, saut, nom = sans[rang].partition("\n")
+                vus[rang] = f"{numero} !{saut}{nom}" if reglages else sans[rang]
+            element.setText(self._textes_bande_vus[0 if complet else 1][rang])
+            element.setData(Qt.ItemDataRole.ForegroundRole,
+                            rouge if reglages else None)
+            infobulle = element.toolTip().split("\n\nÀ actualiser")[0]
+            titre = onglets.tabText(rang)
+            if reglages:
+                detail = "À actualiser dans cette étape : " + ", ".join(reglages) + "."
+                element.setToolTip(f"{infobulle}\n\n{detail}")
+                element.setData(Qt.ItemDataRole.AccessibleTextRole,
+                                f"{titre} — {detail}")
+            else:
+                element.setToolTip(infobulle)
+                element.setData(Qt.ItemDataRole.AccessibleTextRole, titre)
 
     def _maj_coherence(self):
         """
@@ -4039,7 +4075,7 @@ class DialogueParametrage(QDialog):
         groupe.setToolTip(
             "Relu dans la feuille Cibles à chaque composition, à chaque "
             "import d'hydrogrammes, et dès que le classeur a changé sur disque "
-            "— au retour dans QGIS ou au changement d'onglet. Le volume est "
+            "— au retour dans QGIS ou au changement d'étape. Le volume est "
             "intégré sur la colonne "
             "Temps_h, à la règle des trapèzes.")
         v = QVBoxLayout(groupe)
@@ -4522,7 +4558,7 @@ class DialogueParametrage(QDialog):
         bouton_lancer.setToolTip(
             "Lance la boucle séquentielle complète dans un processus "
             "détaché. QGIS reste utilisable pendant le calcul ; l'avancement "
-            "se lit à l'onglet 5, qui se rafraîchit tout seul.")
+            "se lit à l'étape 4 « Suivi », qui se rafraîchit toute seule.")
         bouton_lancer.clicked.connect(self._lancer_calage)
         ligne_lancer.addWidget(bouton_lancer)
         bouton_suivi = QPushButton("Consulter le suivi")
@@ -4722,6 +4758,10 @@ class DialogueParametrage(QDialog):
         ligne.addStretch(1)
         self.label_suivi_maj = QLabel("")
         self.label_suivi_maj.setProperty("role", ROLE_AIDE)
+        # Passe a la ligne plutot que d'imposer sa largeur a la rangee : a
+        # 13 pt sur 720 px, a cote de la bande, la rangee faisait defiler
+        # l'etape (23/10/2026).
+        self.label_suivi_maj.setWordWrap(True)
         ligne.addWidget(self.label_suivi_maj)
         v.addLayout(ligne)
 
@@ -4850,9 +4890,9 @@ class DialogueParametrage(QDialog):
         le dit donc, au lieu de laisser deviner.
         """
         if not self.classeur:
-            return "onglet Lancer"
+            return "étape Lancer"
         cache = getattr(self, "_suivi_du_classeur", None)
-        return "classeur" if cache and cache[1] is not None else "onglet Lancer"
+        return "classeur" if cache and cache[1] is not None else "étape Lancer"
 
     def _dossier_suivi_de_l_onglet_3(self):
         """Ce que les champs de l'onglet 3 designent, ou None."""
@@ -4915,7 +4955,7 @@ class DialogueParametrage(QDialog):
         if dossier is None or not dossier.is_dir():
             self._signaler(
                 "Suivi", "Aucun dossier de suivi : renseigner le dossier de "
-                "sortie (onglet Lancer), puis composer le paquet.",
+                "sortie (étape Lancer), puis composer le paquet.",
                 Qgis.MessageLevel.Warning)
             return
         os.startfile(str(dossier))  # noqa: S606 (usage Windows assume)
@@ -4942,7 +4982,7 @@ class DialogueParametrage(QDialog):
         autre = self._dossier_suivi_de_l_onglet_3()
         if autre is None or Path(autre) == Path(dossier):
             return ""
-        return (f"<br>L'onglet Lancer en désigne un autre — <i>{autre}</i> — qui "
+        return (f"<br>L'étape Lancer en désigne un autre — <i>{autre}</i> — qui "
                 f"n'est pas surveillé : c'est le classeur lancé qui fait foi. "
                 f"Recomposer le paquet pour que les deux s'accordent.")
 
@@ -6613,7 +6653,7 @@ class DialogueParametrage(QDialog):
         try:
             etat = noyau.etat_cibles(self.classeur)
         except Exception as e:
-            journaliser("État des cibles (onglet Lancer)", e)
+            journaliser("État des cibles (étape Lancer)", e)
             self.label_validation_cibles.setText(f"(illisible : {e})")
             return
 
@@ -6792,11 +6832,11 @@ class DialogueParametrage(QDialog):
         try:
             if not self.info_projet:
                 raise ValueError(
-                    "Onglet 1 : choisir d'abord le fichier .prj du projet "
+                    "Étape 1 : choisir d'abord le fichier .prj du projet "
                     "HEC-RAS (« Choisir le projet… »).")
             plan = self.combo_plan.currentData()
             if plan is None:
-                raise ValueError("Onglet 1 : choisir un plan de référence.")
+                raise ValueError("Étape 1 : choisir un plan de référence.")
             # LE PREFIXE EST OBLIGATOIRE (0.7.22, demande utilisateur). Vide,
             # il etait admis et rendait les titres d'avant — « sans_apport »,
             # « Apport_A1 ». Deux scenarios cales sur le meme modele portaient
@@ -6817,7 +6857,7 @@ class DialogueParametrage(QDialog):
             c_injections = couche_vivante(self.couche_injections)
             if c_sections is None or c_injections is None:
                 raise ValueError(
-                    "Onglet 1 : cliquer sur « Charger les couches du modèle » "
+                    "Étape 1 : cliquer sur « Charger les couches du modèle » "
                     "avant de composer. Si elles avaient été chargées, c'est "
                     "qu'elles ont été retirées du projet depuis — les "
                     "recharger.")
@@ -6826,7 +6866,7 @@ class DialogueParametrage(QDialog):
                 raise ValueError(
                     # L'axe a rejoint l'onglet 1 en 0.7.0, avec les couches ou
                     # il se trace ; ce renvoi etait reste sur l'onglet 2.
-                    "Onglet 1 : choisir la couche de l'axe hydraulique.")
+                    "Étape 1 : choisir la couche de l'axe hydraulique.")
             dossier_sortie = self.edit_dossier_sortie.text().strip()
             if not dossier_sortie:
                 raise ValueError("Étape Paramètres : choisir le dossier de "
@@ -6974,7 +7014,7 @@ class DialogueParametrage(QDialog):
             QMessageBox.critical(
                 self, f"{BOUTON_GEOMETRIE} — échec",
                 str(e) + ("\n\nLa géométrie HEC-RAS a DÉJÀ été réécrite : "
-                          "les sections et injections de l'onglet 1 y sont, "
+                          "les sections et injections de l'étape 1 y sont, "
                           "et l'échec ci-dessus est survenu après. Une "
                           "sauvegarde horodatée du fichier de géométrie a été "
                           "faite avant l'écriture."

@@ -449,7 +449,7 @@ def message_interpreteur_introuvable():
     chercher ce qui n'existe pas.
     """
     return (f"aucun interpreteur capable de piloter HEC-RAS n'a ete trouve. "
-            f"Dans l'onglet « Aide et configuration » du plugin, groupe "
+            f"Dans « Aide et configuration » du plugin, groupe "
             f"« Parametres du poste » : bouton « Installer… » pour en creer "
             f"un — il cherche seul les Python presents sur le poste et "
             f"propose ceux qui conviennent — ou « Designer… » si un "

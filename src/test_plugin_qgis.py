@@ -631,7 +631,7 @@ else:
     dlg._composer_et_controler()
     _refus = BoiteMessage.critiques[0] if BoiteMessage.critiques else ""
     verifier("sans axe, la composition refuse et nomme le bon onglet",
-             "axe hydraulique" in _refus.lower() and "onglet 1" in _refus.lower(),
+             "axe hydraulique" in _refus.lower() and "étape 1" in _refus.lower(),
              _refus[:90] or "aucun refus — la branche est morte")
     BoiteMessage.critiques.clear()
 
@@ -1225,33 +1225,37 @@ else:
 print("\n6. ONGLET AIDE — CONTENU ET DIAGNOSTIC")
 verifier("5 onglets, dont le suivi et l'aide", dlg.onglets.count() == 5,
          [dlg.onglets.tabText(i) for i in range(dlg.onglets.count())])
-# LA BARRE D'ONGLETS NE DOIT PAS DEFILER, ET CE N'EST PAS LA BRIEVETE DES
-# LIBELLES QUI L'ASSURE — c'est le plancher minimumWidth de la fenetre.
-#
-# Un commentaire de plugin.py attribue la garantie aux « libelles COURTS ».
-# La mesure dit autre chose : le minimumSizeHint de l'agencement descendrait
-# bien plus bas, et c'est le minimumWidth explicite qui retient la barre. Le
-# controle porte donc sur l'invariante reelle — ce que les onglets DEMANDENT
-# contre ce que la fenetre peut leur donner au plus etroit — et non sur une
-# longueur de texte, qui ne protege rien.
-#
-# La marge s'est deja resserree sans que personne le voie : 529 px de besoin
-# en 0.6.9, 663 px en 0.7.0 apres le renommage de deux onglets, pour 696 px
-# disponibles. De +167 px a +33 px. Ce controle existe pour que le prochain
-# renommage se voie ici, et pas sur l'ecran d'un utilisateur.
+# LES ETAPES SONT DANS LA BANDE COMMUNE (23/10/2026), dans l'ordre des pages.
+# La barre d'onglets qu'elle remplace demandait 816 px a 9 pt et 993 a 13 pt,
+# d'ou un plancher de largeur et des titres elides : ce que l'on controlait
+# ici. On controle desormais que la bande nomme chaque etape, dans l'ordre,
+# qu'aucune ligne de ses entrees ne deborde de sa largeur, et que la barre
+# d'onglets ne revient pas a cote d'elle.
 dlg.ensurePolished()
-_barre = dlg.onglets.tabBar(); _barre.ensurePolished()
-_marges = dlg.layout().contentsMargins()
-_besoin = _barre.sizeHint().width()
-_dispo = (max(dlg.minimumSizeHint().width(), dlg.minimumWidth())
-          - _marges.left() - _marges.right())
-verifier("la barre d'onglets ne defile pas, meme au plus etroit",
-         # 0.8.1 : elidee et sans boutons de defilement, la barre ne PEUT plus
-         # defiler ; le plancher est borne a LARGEUR_PLANCHER_MAX.
-         _besoin <= _dispo or not _barre.usesScrollButtons(),
-         f"besoin {_besoin} px / disponible {_dispo} px "
-         f"(marge {_dispo - _besoin:+} px ; plancher "
-         f"minimumWidth={dlg.minimumWidth()} px)")
+_bande = dlg.bande
+verifier("la bande nomme les cinq etapes, dans l'ordre des pages",
+         _bande.count() == dlg.onglets.count()
+         and [_bande.item(i).data(mod_plugin.Qt.ItemDataRole.AccessibleTextRole)
+              for i in range(_bande.count())]
+         == [dlg.onglets.tabText(i) for i in range(dlg.onglets.count())]
+         and _bande.item(mod_plugin.ONGLET_AIDE).text().startswith("?"),
+         str([_bande.item(i).text() for i in range(_bande.count())]))
+_bande.ensurePolished()
+_metrique_bande = mod_plugin.QFontMetrics(_bande.font())
+_utile = _bande.width() - 2 * _bande.frameWidth()
+_plus_large = max(_metrique_bande.horizontalAdvance(m) for i in range(_bande.count())
+                  for m in _bande.item(i).text().split("\n"))
+verifier("aucune entree de la bande ne deborde de sa largeur",
+         _plus_large <= _utile, f"{_plus_large} px pour {_utile} px")
+verifier("la barre d'onglets est cachee, la bande la remplace",
+         dlg.onglets.tabBar().isHidden() and not _bande.isHidden())
+dlg.onglets.setCurrentIndex(mod_plugin.ONGLET_SUIVI)
+_suit = _bande.currentRow() == mod_plugin.ONGLET_SUIVI
+_bande.setCurrentRow(mod_plugin.ONGLET_LANCER)
+verifier("la bande et les pages se suivent dans les deux sens",
+         _suit and dlg.onglets.currentIndex() == mod_plugin.ONGLET_LANCER,
+         f"bande {_bande.currentRow()}, page {dlg.onglets.currentIndex()}")
+dlg.onglets.setCurrentIndex(mod_plugin.ONGLET_MODELE)
 # LES RANGS NOMMES TOMBENT SUR LEUR ONGLET. Deux methodes basculent d'onglet
 # apres une action ; un indice devenu faux ferait afficher l'onglet voisin sans
 # que rien ne le signale — Qt ne s'en plaint pas.
@@ -2568,9 +2572,9 @@ def _temoin_de(fenetre, cle):
 
 
 def _marque_onglet(fenetre, rang):
-    """Le « ! » pose sur le titre de cet onglet, ou None."""
-    return fenetre.onglets.tabBar().tabButton(
-        rang, mod_plugin.QTabBar.ButtonPosition.RightSide)
+    """L'entree de la bande de cette etape si elle porte le « ! », ou None."""
+    element = fenetre.bande.item(rang)
+    return element if "!" in element.text() else None
 
 
 # UN CLASSEUR REPRIS SANS SON MODELE N'ALLUME RIEN (24/09/2026). Le paquet
@@ -2627,6 +2631,25 @@ verifier("l'etape Parametres porte un « ! » sur son titre, pas les autres",
 verifier("et le titre garde son texte",
          _coh.onglets.tabText(mod_plugin.ONGLET_OBJECTIFS) == "2. Paramètres",
          _coh.onglets.tabText(mod_plugin.ONGLET_OBJECTIFS))
+# LE « ! » EST SUR L'ENTREE DE LA BANDE (23/10/2026) : le numero le porte,
+# l'entree passe au rouge de la charte, l'infobulle nomme le reglage.
+_entree_perimee = _coh.bande.item(mod_plugin.ONGLET_OBJECTIFS)
+verifier("l'entree de la bande porte « 2 ! », en rouge, et nomme le reglage",
+         _entree_perimee.text().startswith("2 !")
+         and _entree_perimee.foreground().color().name().lower()
+         == mod_plugin.couleur_theme(mod_plugin.ISL_ROUGE, _coh.bande).name().lower()
+         and "À actualiser dans cette étape" in _entree_perimee.toolTip()
+         and "À actualiser" in _entree_perimee.data(mod_plugin.Qt.ItemDataRole.AccessibleTextRole),
+         f"{_entree_perimee.text()!r} {_entree_perimee.foreground().color().name()} "
+         f"{_entree_perimee.toolTip()[-60:]!r}")
+# ET IL SURVIT AU CHANGEMENT DE FORME DE LA BANDE : resserree aux numeros
+# quand la hauteur manque, elle relit ses textes.
+_coh.bande.ajuster(0)
+_court = _entree_perimee.text()
+_coh.bande.ajuster(_coh.bande.hauteur_complete)
+verifier("le « ! » reste quand la bande ne montre que les numeros",
+         _court == "2 !" and _entree_perimee.text().startswith("2 !"),
+         f"{_court!r} puis {_entree_perimee.text()!r}")
 verifier("un paquet perime ne compte pas comme compose",
          dict(_coh._etapes_preparation())["Paquet composé"] is False,
          str(_coh._etapes_preparation()))
@@ -3414,14 +3437,16 @@ def _eprouver_petite_fenetre(points):
                 bouton.clicked.connect(
                     lambda _c=False, b=bouton: clics.append(b.text()))
 
-            barre = fenetre.onglets.tabBar()
+            bande = fenetre.bande
             for index, titre in enumerate(attendus):
                 repere = f"{points} pt / {titre}"
-                rectangle = barre.tabRect(index)
-                verifier(f"{repere} : onglet entierement accessible au clic",
-                         barre.rect().contains(rectangle),
-                         f"onglet={rectangle.getRect()}, barre={barre.rect().getRect()}")
-                QTest.mouseClick(barre, Qt.MouseButton.LeftButton,
+                bande.scrollToItem(bande.item(index))
+                rectangle = bande.visualItemRect(bande.item(index))
+                verifier(f"{repere} : entree de la bande entierement accessible au clic",
+                         bande.viewport().rect().contains(rectangle),
+                         f"entree={rectangle.getRect()}, "
+                         f"bande={bande.viewport().rect().getRect()}")
+                QTest.mouseClick(bande.viewport(), Qt.MouseButton.LeftButton,
                                  pos=rectangle.center())
                 QApplication.processEvents()
                 verifier(f"{repere} : le clic ouvre la bonne page",

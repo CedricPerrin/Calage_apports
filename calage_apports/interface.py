@@ -98,9 +98,6 @@ QLabel[role="aide"] {{ color: {secondaire}; padding: 2px 0; }}
 QLabel[role="etat"] {{ background: palette(base); padding: 8px; border: 1px solid palette(mid); }}
 QLabel#filConducteur {{ padding: 8px 2px; }}
 QTabWidget::pane {{ border: none; }}
-QTabBar::tab {{ padding: 8px 12px; border-bottom: 3px solid transparent; }}
-QTabBar::tab:selected {{ color: {accent}; border-bottom-color: {accent}; }}
-QTabBar::tab:focus {{ border-bottom-color: palette(highlight); }}
 QGroupBox {{ border: 1px solid palette(mid); border-radius: 3px; margin-top: 14px; padding: 12px 8px 8px; }}
 QGroupBox::title {{ subcontrol-origin: margin; left: 9px; padding: 0 5px; color: {accent}; }}
 QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox {{ min-height: 24px; }}
