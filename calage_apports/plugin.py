@@ -44,9 +44,11 @@ from qgis.core import (
 )
 from qgis.gui import (QgsCollapsibleGroupBox, QgsFieldComboBox, QgsGui,
                       QgsMapLayerComboBox, QgsMessageBar)
-from qgis.PyQt.QtCore import QEvent, QMetaType, QSettings, Qt, QTimer
-from qgis.PyQt.QtGui import (QFont, QFontDatabase, QFontMetrics, QIcon,
-                             QKeySequence, QPalette, QTextCursor)
+from qgis.PyQt.QtCore import (QEvent, QMetaType, QPointF, QRectF, QSettings,
+                              Qt, QTimer)
+from qgis.PyQt.QtGui import (QColor, QFont, QFontDatabase, QFontMetrics, QIcon,
+                             QKeySequence, QPainter, QPalette, QPen, QPolygonF,
+                             QTextCursor)
 from qgis.PyQt.QtWidgets import (
     QAbstractItemView,
     QAction,
@@ -83,7 +85,7 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
-from . import cpn, materiel, noyau
+from . import cpn, materiel, noyau, registre
 from .installation import TacheInstallation, TacheRecherchePython, installation_en_cours
 from .interface import Etiquette as QLabel, Manuel as QTextBrowser
 from .interface import couleur as couleur_theme, sombre as fond_sombre
@@ -612,9 +614,66 @@ def _taille_police(widget, facteur):
     return base * facteur
 
 
+# LES TROIS GRAPHIQUES DU SUIVI SE DESSINENT SUR LA CARTE DU REGISTRE COMMUN
+# (23/10/2026, esthetique commune des extensions ISL : « Teintes ISL
+# nuancees », registre.py en copie identique de celui de Rhoe). Carte blanche
+# a bordure grise fine et coins de 6 px, encre foncee, DANS LES DEUX THEMES,
+# comme les graphiques de Rhoe et de Hyetos : le remappage sombre de la 0.8.5
+# (C1) ne vaut plus pour l'interieur des graphiques. Il vaut toujours pour le
+# reste de la fenetre — tableau, bannieres, textes — que le registre ne
+# colore jamais.
+#   LE REGISTRE N'A NI VERT NI ROUGE. Une teinte par statut, prise chez lui :
+# l'accent pour ce que CE calage a cale (et pour l'apport en cours, que son
+# trait souligne), l'ocre d'alerte pour l'echec, le neutre fonce pour ce qui
+# attend et pour ce que le calage PRECEDENT avait cale. Le glyphe, le
+# remplissage et le trait portent le sens ; la teinte le confirme.
+TEINTE_STATUT = {
+    "validé": registre.ACCENT,
+    "en cours": registre.ACCENT,
+    "échoué": registre.ALERTE,
+    "en attente": registre.NEUTRE_FONCE,
+    STATUT_REPRIS: registre.NEUTRE_FONCE,
+}
+# OPACITE DU FOND D'UN SEGMENT ACHEVE : une teinte claire sous une encre
+# foncee. Blanc sur l'accent plein ne rendait que 3,9:1, sous les 4,5:1 d'un
+# texte de 7,5 pt ; l'encre sur ces fonds clairs depasse 7:1. L'apport en
+# cours, plus soutenu, se trouve d'un coup d'oeil.
+OPACITE_SEGMENT = {"en cours": 150}
+OPACITE_SEGMENT_DEFAUT = 80
+
+# Marge interieure de la carte, en hauteurs de ligne de la police du widget.
+MARGE_CARTE = 0.45
+
+
+def _carte(widget):
+    """
+    Peintre d'un graphique sur sa carte claire (fond, bordure et coins du
+    registre), quel que soit le theme de l'hote ; rend aussi la zone de
+    dessin, marges otees.
+    """
+    peintre = QPainter(widget)
+    peintre.setRenderHint(QPainter.RenderHint.Antialiasing)
+    peintre.setPen(QPen(QColor(registre.BORDURE), 1))
+    peintre.setBrush(QColor(registre.FOND))
+    peintre.drawRoundedRect(QRectF(widget.rect()).adjusted(0.5, 0.5, -0.5, -0.5),
+                            registre.RAYON_PX, registre.RAYON_PX)
+    marge = _marge_carte(widget)
+    return peintre, QRectF(marge, marge, widget.width() - 2 * marge,
+                           widget.height() - 2 * marge)
+
+
+def _marge_carte(widget):
+    return round(MARGE_CARTE * widget.fontMetrics().lineSpacing())
+
+
+def compte(nombre, singulier, pluriel=None):
+    """« 1 section », « 3 sections » : le nombre et son nom accordes."""
+    return f"{nombre} {singulier if nombre < 2 else pluriel or singulier + 's'}"
+
+
 class RubanApports(QWidget):
     """
-    Une bande de segments, un par apport, coloree selon son statut.
+    Une bande de segments, un par apport, teintee selon son statut.
 
     C'est la vue d'ensemble : sur douze apports, savoir en un coup d'oeil que
     huit sont valides, un en cours et trois en attente vaut mieux que douze
@@ -635,18 +694,15 @@ class RubanApports(QWidget):
         self.setAccessibleDescription("aucun calage suivi")
 
     def _ajuster_hauteur(self):
-        # Deux lignes de la police du widget — le segment, puis son trait —
-        # et les marges : 46 px a 10 pt, la valeur qui etait ecrite en dur.
-        self.setMinimumHeight(2 * self.fontMetrics().height() + 14)
+        # Deux lignes de la police du widget — le segment, puis son trait —,
+        # leurs marges, et celles de la carte.
+        self.setMinimumHeight(2 * self.fontMetrics().height() + 14
+                              + 2 * _marge_carte(self))
 
     def changeEvent(self, evenement):                       # noqa: N802
         super().changeEvent(evenement)
         if evenement.type() == QEvent.Type.FontChange:
             self._ajuster_hauteur()
-
-    def couleur(self, nom_hex):
-        """La teinte de charte, remappee si le fond est sombre (interface.couleur)."""
-        return couleur_theme(nom_hex, self)
 
     def actualiser(self, apports, en_cours):
         self.apports = apports or []
@@ -657,68 +713,59 @@ class RubanApports(QWidget):
             comptes[statut] = comptes.get(statut, 0) + 1
         self.setAccessibleDescription(
             "aucun calage suivi" if not self.apports else
-            f"{len(self.apports)} apport(s) : "
+            compte(len(self.apports), "apport") + " : "
             + ", ".join(f"{n} {statut}" for statut, n in comptes.items()))
         self.update()
 
     def paintEvent(self, evenement):                        # noqa: N802
-        from qgis.PyQt.QtGui import QColor, QPainter
-
-        peintre = QPainter(self)
-        peintre.setRenderHint(QPainter.RenderHint.Antialiasing)
+        peintre, zone = _carte(self)
         if not self.apports:
-            peintre.setPen(self.couleur(ISL_ARDOISE_CLAIR))
-            peintre.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter,
+            peintre.setPen(QColor(registre.TEXTE_SECONDAIRE))
+            peintre.drawText(zone, Qt.AlignmentFlag.AlignCenter,
                              "aucun calage suivi")
             peintre.end()
             return
 
         n = len(self.apports)
-        marge, ecart = 1, 3
-        largeur = (self.width() - 2 * marge - ecart * (n - 1)) / n
-        hauteur = self.height() - 18
-        # SUR UN SEGMENT PLEIN, L'ENCRE EST CELLE DU FOND DE LA FENETRE quand
-        # le theme est sombre : les teintes remappees y sont claires, et un
-        # texte blanc dessus ne se lirait plus. En clair, blanc sur les
-        # teintes pleines, comme avant.
-        encre_pleine = (self.palette().color(QPalette.ColorRole.Window)
-                        if fond_sombre(self) else QColor("#FFFFFF"))
+        ecart = 3
+        largeur = (zone.width() - ecart * (n - 1)) / n
+        hauteur = zone.height() - 8
+        police = peintre.font()
+        police.setPointSizeF(_taille_police(self, 0.75))
+        police.setBold(True)
+        peintre.setFont(police)
         for i, apport in enumerate(self.apports):
             statut = apport.get("statut")
-            x = marge + i * (largeur + ecart)
-            couleur = self.couleur(COULEUR_STATUT.get(statut, ISL_ARDOISE_CLAIR))
-            # CE QUI EST FAIT est plein ; CE QUI RESTE est un simple contour.
-            # La difference se voit sans distinguer les teintes — c'est la
-            # clarte qui porte l'information, la couleur ne fait que la
+            segment = QRectF(zone.left() + i * (largeur + ecart), zone.top(),
+                             largeur, hauteur)
+            teinte = QColor(TEINTE_STATUT.get(statut, registre.NEUTRE_FONCE))
+            # CE QUI EST FAIT est teinte ; CE QUI RESTE est un simple contour.
+            # La difference se voit sans distinguer les teintes — c'est le
+            # remplissage qui porte l'information, la couleur ne fait que la
             # confirmer.
             acheve = statut in ("validé", "échoué", "en cours",
                                 STATUT_REPRIS)
             if acheve:
-                peintre.setPen(Qt.PenStyle.NoPen)
-                peintre.setBrush(couleur)
+                fond = QColor(teinte)
+                fond.setAlpha(OPACITE_SEGMENT.get(statut, OPACITE_SEGMENT_DEFAUT))
+                peintre.setBrush(fond)
             else:
-                stylo = peintre.pen()
-                stylo.setColor(couleur)
-                stylo.setWidth(1)
-                peintre.setPen(stylo)
                 peintre.setBrush(Qt.BrushStyle.NoBrush)
-            peintre.drawRoundedRect(int(x), 0, int(largeur), int(hauteur), 3, 3)
+            peintre.setPen(QPen(teinte, 1.5))
+            peintre.drawRoundedRect(segment.adjusted(0.75, 0.75, -0.75, -0.75),
+                                    3, 3)
             # Le segment en cours porte un trait epais : c'est celui qu'on
             # cherche des yeux en revenant voir le calcul.
             if i == self.en_cours:
                 peintre.setPen(Qt.PenStyle.NoPen)
-                peintre.setBrush(self.couleur(ISL_TEAL_SOMBRE))
-                peintre.drawRoundedRect(int(x), int(hauteur) + 2,
-                                        int(largeur), 4, 2, 2)
+                peintre.setBrush(QColor(registre.ACCENT))
+                peintre.drawRoundedRect(
+                    QRectF(segment.left(), segment.bottom() + 3, largeur, 4), 2, 2)
             if largeur > 30:
-                peintre.setPen(encre_pleine if acheve
-                               else self.couleur(ISL_ARDOISE))
-                police = peintre.font()
-                police.setPointSizeF(_taille_police(self, 0.75))
-                police.setBold(True)
-                peintre.setFont(police)
+                peintre.setPen(QColor(registre.ENCRE if acheve
+                                      else registre.TEXTE_SECONDAIRE))
                 peintre.drawText(
-                    int(x), 0, int(largeur), int(hauteur), Qt.AlignmentFlag.AlignCenter,
+                    segment, Qt.AlignmentFlag.AlignCenter,
                     f"{GLYPHE_STATUT.get(statut, '')} "
                     f"{str(apport.get('apport', ''))[:8]}")
         peintre.end()
@@ -760,16 +807,12 @@ class JaugeAtteinte(QWidget):
 
     def _ajuster_hauteur(self):
         _, _, haut_piste, h_piste = self._metriques()
-        self.setMinimumHeight(haut_piste + h_piste + 4)
+        self.setMinimumHeight(haut_piste + h_piste + 4 + 2 * _marge_carte(self))
 
     def changeEvent(self, evenement):                       # noqa: N802
         super().changeEvent(evenement)
         if evenement.type() == QEvent.Type.FontChange:
             self._ajuster_hauteur()
-
-    def couleur(self, nom_hex):
-        """La teinte de charte, remappee si le fond est sombre (interface.couleur)."""
-        return couleur_theme(nom_hex, self)
 
     def lecture(self):
         """(texte affiche, conforme) — conforme vaut None tant que rien n'est evalue."""
@@ -787,70 +830,56 @@ class JaugeAtteinte(QWidget):
         self.update()
 
     def paintEvent(self, evenement):                        # noqa: N802
-        from qgis.PyQt.QtGui import QColor, QPainter
-
-        peintre = QPainter(self)
-        peintre.setRenderHint(QPainter.RenderHint.Antialiasing)
+        peintre, zone = _carte(self)
+        peintre.translate(zone.topLeft())
+        largeur = round(zone.width())
         h_libelle, h_valeur, haut, hauteur = self._metriques()
         police = peintre.font()
         police.setPointSizeF(_taille_police(self, 0.8))
         peintre.setFont(police)
 
-        peintre.setPen(self.couleur(ISL_ARDOISE))
-        peintre.drawText(0, 2, self.width(), h_libelle,
+        peintre.setPen(QColor(registre.TEXTE_SECONDAIRE))
+        peintre.drawText(0, 2, largeur, h_libelle,
                          Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, self.libelle)
         texte, conforme = self.lecture()
         police.setBold(True)
         police.setPointSizeF(_taille_police(self, 1.1))
         peintre.setFont(police)
-        peintre.setPen(self.couleur(ISL_VERT if conforme else
-                                    (ISL_ARDOISE_CLAIR if conforme is None
-                                     else ISL_ROUGE)))
-        peintre.drawText(0, 2 + h_libelle, self.width(), h_valeur,
+        # LE VERDICT NE TIENT PAS A LA SEULE COULEUR : « ✔ » dans la
+        # tolerance, « ⚠ » au-dela, a l'encre ou a l'ocre d'alerte du registre.
+        if conforme is None:
+            peintre.setPen(QColor(registre.TEXTE_SECONDAIRE))
+        else:
+            peintre.setPen(QColor(registre.ENCRE if conforme else registre.ALERTE))
+            texte = f"{'✔' if conforme else '⚠'} {texte}"
+        peintre.drawText(0, 2 + h_libelle, largeur, h_valeur,
                          Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, texte)
 
         # Piste : +/- 10 % autour de la cible, ce qui cadre l'ecart utile.
+        # Elle doit se VOIR : sans elle, on ne lit qu'un trait sans savoir sur
+        # quelle etendue il se situe. (Elle ne s'est longtemps pas vue du tout :
+        # QColor lit « #AARRGGBB », pas « #RRGGBBAA » — l'alpha se pose par
+        # setAlpha(), jamais par concatenation ; trouve le 08/09/2026.)
         etendue = 10.0
         peintre.setPen(Qt.PenStyle.NoPen)
-        # La piste doit se VOIR : sans elle, on ne lit qu'un trait rouge sans
-        # savoir sur quelle etendue il se situe.
-        #
-        # ELLE NE SE VOYAIT PAS, ET CE N'ETAIT PAS LE THEME.
-        #
-        # QColor LIT « #AARRGGBB », PAS « #RRGGBBAA ». La piste etait ecrite
-        # QColor("#00000024") en croyant dire « noir a 14 % » : Qt y lit
-        # alpha=00 — TRANSPARENT. Elle n'a jamais ete dessinee, sur aucun
-        # theme, depuis qu'elle existe ; et le commentaire au-dessus dit
-        # pourtant qu'elle doit se voir. De meme, ISL_VERT + "33" donnait
-        # #3E7A5E33, soit alpha=3E sur un (7A,5E,33) KAKI, la ou l'on voulait
-        # un vert pale. Les deux se lisaient comme un choix graphique.
-        # Trouve le 08/09/2026 en regardant la fenetre dans QGIS.
-        #
-        # L'alpha se pose donc par setAlpha(), jamais par concatenation. Et
-        # tant qu'a la rendre visible, la piste demande son sens au fond REEL
-        # du widget : sur clair on assombrit, sur sombre on eclaircit.
-        sombre = fond_sombre(self)
-        piste = QColor(255, 255, 255, 38) if sombre else QColor(0, 0, 0, 36)
-        peintre.setBrush(piste)
-        peintre.drawRoundedRect(0, haut, self.width(), hauteur, 3, 3)
-        centre = self.width() / 2.0
+        peintre.setBrush(QColor(registre.GRILLE))
+        peintre.drawRoundedRect(0, haut, largeur, hauteur, 3, 3)
+        centre = largeur / 2.0
 
-        demi = self.tolerance / etendue * (self.width() / 2.0)
-        # Sur fond sombre le vert translucide se noie : il lui faut le double
-        # d'opacite pour dire la meme chose.
-        bande = self.couleur(ISL_VERT)
-        bande.setAlpha(0x66 if sombre else 0x33)
+        demi = self.tolerance / etendue * (largeur / 2.0)
+        bande = QColor(registre.ACCENT)
+        bande.setAlpha(70)
         peintre.setBrush(bande)
         peintre.drawRect(int(centre - demi), haut, int(2 * demi), hauteur)
 
         if self.valeur is not None:
             ecart = max(-etendue, min(etendue, self.valeur - 100.0))
-            largeur = ecart / etendue * (self.width() / 2.0)
-            peintre.setBrush(self.couleur(ISL_VERT if conforme else ISL_ROUGE))
-            x = centre if largeur >= 0 else centre + largeur
-            peintre.drawRoundedRect(int(x), haut + 2, max(int(abs(largeur)), 2),
+            barre = ecart / etendue * (largeur / 2.0)
+            peintre.setBrush(QColor(registre.ACCENT if conforme else registre.ALERTE))
+            x = centre if barre >= 0 else centre + barre
+            peintre.drawRoundedRect(int(x), haut + 2, max(int(abs(barre)), 2),
                                     hauteur - 4, 2, 2)
-        peintre.setPen(self.couleur(ISL_ARDOISE))
+        peintre.setPen(QColor(registre.NEUTRE_FONCE))
         peintre.drawLine(int(centre), haut - 2, int(centre), haut + hauteur + 2)
         peintre.end()
 
@@ -919,10 +948,6 @@ class CourbeComparaison(QWidget):
         if evenement.type() == QEvent.Type.FontChange:
             self._ajuster_hauteur()
 
-    def couleur(self, nom_hex):
-        """La teinte de charte, remappee si le fond est sombre (interface.couleur)."""
-        return couleur_theme(nom_hex, self)
-
     def actualiser(self, courbes, precedentes=None):
         self.courbes = courbes or None
         self.precedentes = list(precedentes or [])
@@ -936,16 +961,13 @@ class CourbeComparaison(QWidget):
                 "Cible et débit calculé au dernier essai évalué"
                 + (f", cible décalée de {decalage:+.2f} h"
                    if abs(decalage) >= 0.005 else "")
-                + (f", {deja} section(s) calée(s) derrière" if deja else ""))
+                + (f", {compte(deja, 'section calée', 'sections calées')} derrière"
+                   if deja else ""))
         self.setAccessibleDescription(description)
         self.update()
 
     def paintEvent(self, evenement):                        # noqa: N802
-        from qgis.PyQt.QtGui import QPainter, QPen, QPolygonF
-        from qgis.PyQt.QtCore import QPointF
-
-        peintre = QPainter(self)
-        peintre.setRenderHint(QPainter.RenderHint.Antialiasing)
+        peintre, zone = _carte(self)
         police = peintre.font()
         police.setPointSizeF(_taille_police(self, 0.75))
         peintre.setFont(police)
@@ -955,8 +977,8 @@ class CourbeComparaison(QWidget):
         if not self.courbes:
             # Message EXPLICITE sur ce qu'on attend : « au premier essai » se
             # lisait comme une panne au bout de la troisieme heure de calcul.
-            peintre.setPen(self.couleur(ISL_ARDOISE_CLAIR))
-            peintre.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter,
+            peintre.setPen(QColor(registre.TEXTE_SECONDAIRE))
+            peintre.drawText(zone, Qt.AlignmentFlag.AlignCenter,
                              self._TEXTE_ATTENTE)
             peintre.end()
             return
@@ -974,15 +996,70 @@ class CourbeComparaison(QWidget):
         # ce qu'on juge. Les couper a l'echelle les ecraserait ; les laisser
         # commander la fenetre deplacerait le regard vers un apport clos.
         deja = [c for c in self.precedentes if len(c.get("debit") or []) > 1]
+        courantes = [c for c in deja if not c.get("anterieur")]
+        anterieures = [c for c in deja if c.get("anterieur")]
+
+        # DEUX FAMILLES DERRIERE, ET ELLES NE SE CONFONDENT PAS : ce que CE
+        # calage a cale, a l'accent adouci en pointille ; ce que le PRECEDENT
+        # avait cale et qu'on ne refait pas, au neutre fonce en tiret-point.
+        # Deux teintes ET deux styles de trait — la teinte seule ne porte
+        # jamais le sens.
+        cale = QColor(registre.ACCENT)
+        cale.setAlpha(130)
+        stylo_cale = QPen(cale, 1.2, Qt.PenStyle.DotLine)
+        stylo_avant = QPen(QColor(registre.NEUTRE_FONCE), 1.2, Qt.PenStyle.DashDotLine)
+        stylo_cible = QPen(QColor(registre.ENCRE), 1.6, Qt.PenStyle.DashLine)
+        stylo_mesure = QPen(QColor(registre.ACCENT), 2.2)
+
+        # LA LEGENDE A SES PROPRES LIGNES, AU-DESSUS DU TRACE. Posee dans le
+        # trace, en haut a droite, elle passait sous les pointes des courbes
+        # des que la police grandissait (13 pt : « cible décalée » coupee par le
+        # pic). Le libelle de la cible DIT son decalage des qu'il n'est pas nul
+        # — sans quoi le lecteur croirait les deux courbes sur la meme origine
+        # des temps. La troisieme et la quatrieme entree n'apparaissent QUE
+        # s'il y a quelque chose derriere : au premier apport, une legende
+        # annoncant des sections calees qui n'existent pas ferait chercher des
+        # courbes absentes. Les entrees passent a la ligne quand la largeur
+        # manque.
+        decalage = float(self.courbes.get("decalage_h") or 0.0)
+        entrees = [(stylo_mesure, "mesuré"),
+                   (stylo_cible, "cible" if abs(decalage) < 0.005
+                    else f"cible décalée de {decalage:+.2f} h")]
+        if courantes:
+            entrees.append((stylo_cale, compte(len(courantes), "section calée",
+                                               "sections calées")))
+        if anterieures:
+            entrees.append((stylo_avant, compte(len(anterieures), "section")
+                            + " du calage précédent"))
+        lignes, x = [[]], 0.0
+        for stylo, libelle in entrees:
+            place = 22 + metriques.horizontalAdvance(libelle) + 14
+            if lignes[-1] and x + place > zone.width():
+                lignes.append([])
+                x = 0.0
+            lignes[-1].append((x, stylo, libelle))
+            x += place
+        for rang, ligne in enumerate(lignes):
+            y = zone.top() + rang * (h_texte + 2)
+            for x, stylo, libelle in ligne:
+                gauche_entree = zone.left() + x
+                peintre.setPen(stylo)
+                peintre.drawLine(QPointF(gauche_entree, y + h_texte / 2),
+                                 QPointF(gauche_entree + 18, y + h_texte / 2))
+                peintre.setPen(QColor(registre.ENCRE))
+                peintre.drawText(QRectF(gauche_entree + 22, y, zone.width(), h_texte),
+                                 int(Qt.AlignmentFlag.AlignLeft
+                                     | Qt.AlignmentFlag.AlignVCenter), libelle)
+
         q_max = max([max(qc), max(qs)]
                     + [max(c["debit"]) for c in deja]) or 1.0
         # LES MARGES SUIVENT LA POLICE : la gauche loge la plus large des
-        # graduations, le bas une ligne de texte.
-        gauche = max(metriques.horizontalAdvance(f"{q_max:.0f}"),
-                     metriques.horizontalAdvance("m³/s")) + 12
-        droite, haut, bas = 8, 8, h_texte + 8
-        largeur = max(self.width() - gauche - droite, 10)
-        hauteur = max(self.height() - haut - bas, 10)
+        # graduations, le bas une ligne de texte, le haut la legende.
+        gauche = zone.left() + max(metriques.horizontalAdvance(f"{q_max:.0f}"),
+                                   metriques.horizontalAdvance("m³/s")) + 8
+        haut = zone.top() + len(lignes) * (h_texte + 2) + 6
+        largeur = max(zone.right() - gauche, 10)
+        hauteur = max(zone.bottom() - h_texte - 4 - haut, 10)
         t_min, t_max = _fenetre_crue(tc, qc, ts, qs, max(max(qc), max(qs)) or 1.0)
         etendue_t = (t_max - t_min) or 1.0
 
@@ -990,110 +1067,40 @@ class CourbeComparaison(QWidget):
             return QPointF(gauche + largeur * (t - t_min) / etendue_t,
                            haut + hauteur * (1.0 - q / (1.08 * q_max)))
 
-        # Repere discret : trois graduations de debit, l'axe des temps.
-        peintre.setPen(QPen(self.couleur(ISL_ARDOISE_CLAIR), 1, Qt.PenStyle.DotLine))
+        # Repere discret : graduations de debit sur la grille fine du
+        # registre, l'axe des temps.
+        peintre.setPen(QPen(QColor(registre.GRILLE), 1))
         for fraction in (0.25, 0.5, 0.75, 1.0):
             y = haut + hauteur * (1.0 - fraction / 1.08)
-            peintre.drawLine(gauche, int(y), gauche + largeur, int(y))
-        peintre.setPen(self.couleur(ISL_ARDOISE))
+            peintre.drawLine(QPointF(gauche, y), QPointF(gauche + largeur, y))
+        peintre.setPen(QColor(registre.TEXTE_SECONDAIRE))
+        a_droite = int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         for fraction in (0.5, 1.0):
             y = haut + hauteur * (1.0 - fraction / 1.08)
-            peintre.drawText(0, int(y) - h_texte // 2, gauche - 5, h_texte,
-                             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
-                             f"{fraction * q_max:.0f}")
-        peintre.drawText(0, haut + hauteur - h_texte // 2, gauche - 5, h_texte,
-                         Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, "m³/s")
-        peintre.drawText(gauche, haut + hauteur + 2, largeur, h_texte,
-                         Qt.AlignmentFlag.AlignLeft, f"{t_min:.0f} h")
-        peintre.drawText(gauche, haut + hauteur + 2, largeur, h_texte,
-                         Qt.AlignmentFlag.AlignRight, f"{t_max:.0f} h")
+            peintre.drawText(QRectF(zone.left(), y - h_texte / 2,
+                                    gauche - zone.left() - 5, h_texte),
+                             a_droite, f"{fraction * q_max:.0f}")
+        peintre.drawText(QRectF(zone.left(), haut + hauteur - h_texte / 2,
+                                gauche - zone.left() - 5, h_texte), a_droite, "m³/s")
+        peintre.drawText(QRectF(gauche, haut + hauteur + 2, largeur, h_texte),
+                         int(Qt.AlignmentFlag.AlignLeft), f"{t_min:.0f} h")
+        peintre.drawText(QRectF(gauche, haut + hauteur + 2, largeur, h_texte),
+                         int(Qt.AlignmentFlag.AlignRight), f"{t_max:.0f} h")
 
         # DERRIERE, ET CLIPPEES. Une section calee peut deborder la fenetre de
         # crue courante : sans decoupe, sa polyligne irait ecrire par-dessus
         # les graduations et la legende.
-        peintre.setClipRect(gauche, haut, largeur, hauteur)
+        peintre.setClipRect(QRectF(gauche, haut, largeur, hauteur))
         for courbe in deja:
-            # DEUX FAMILLES, ET ELLES NE SE CONFONDENT PAS : ce que CE
-            # calage a cale, en vert pointille ; ce que le PRECEDENT avait
-            # cale et qu'on ne refait pas, en ardoise tiret-point. Deux
-            # teintes ET deux styles de trait — la teinte seule ne porte
-            # jamais le sens.
-            anterieure = bool(courbe.get("anterieur"))
-            peintre.setPen(QPen(
-                self.couleur(ISL_ARDOISE if anterieure else ISL_VERT), 1.2,
-                Qt.PenStyle.DashDotLine if anterieure
-                else Qt.PenStyle.DotLine))
+            peintre.setPen(stylo_avant if courbe.get("anterieur") else stylo_cale)
             peintre.drawPolyline(QPolygonF(
                 [point(t, q) for t, q in zip(courbe["temps"],
                                              courbe["debit"])]))
-        for temps, debits, couleur, style, epaisseur in (
-                (tc, qc, ISL_ARDOISE, Qt.PenStyle.DashLine, 1.6),
-                (ts, qs, ISL_TEAL, Qt.PenStyle.SolidLine, 2.0)):
-            peintre.setPen(QPen(self.couleur(couleur), epaisseur, style))
+        for temps, debits, stylo in ((tc, qc, stylo_cible), (ts, qs, stylo_mesure)):
+            peintre.setPen(stylo)
             peintre.drawPolyline(QPolygonF(
                 [point(t, q) for t, q in zip(temps, debits)]))
         peintre.setClipping(False)
-
-        # Legende, en haut a droite : deux traits et deux mots, pas un cadre.
-        # Le libelle de la cible DIT son decalage des qu'il n'est pas nul —
-        # sans quoi le lecteur croirait les deux courbes sur la meme origine
-        # des temps, et jugerait un calage juste sur une superposition qui ne
-        # lui est pas comparable.
-        # LES LARGEURS SE MESURENT SUR LA POLICE (0.8.5) : « 6 px par
-        # caractere » n'etait vrai que pour une police et une taille.
-        decalage = float(self.courbes.get("decalage_h") or 0.0)
-        libelle_cible = ("cible" if abs(decalage) < 0.005
-                         else f"cible décalée de {decalage:+.2f} h")
-        y_legende = haut + h_texte // 2
-        largeur_mesure = metriques.horizontalAdvance("mesuré") + 26
-        largeur_cible = metriques.horizontalAdvance(libelle_cible) + 26
-        x_mesure = gauche + largeur - largeur_mesure
-        x_cible = x_mesure - largeur_cible
-        peintre.setPen(QPen(self.couleur(ISL_ARDOISE), 1.6, Qt.PenStyle.DashLine))
-        peintre.drawLine(x_cible, y_legende, x_cible + 18, y_legende)
-        peintre.setPen(self.couleur(ISL_ARDOISE))
-        peintre.drawText(x_cible + 22, haut, largeur_cible - 22, h_texte,
-                         Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, libelle_cible)
-        peintre.setPen(QPen(self.couleur(ISL_TEAL), 2.0))
-        peintre.drawLine(x_mesure, y_legende, x_mesure + 18, y_legende)
-        # LE MOT EST EN TEAL SOMBRE, LE TRAIT EN TEAL INSTITUTIONNEL : 3:1
-        # suffit a un trait (WCAG 1.4.11), pas a un texte de 7,5 pt (1.4.3).
-        peintre.setPen(self.couleur(ISL_TEAL_SOMBRE))
-        peintre.drawText(x_mesure + 22, haut, largeur_mesure - 22, h_texte,
-                         Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, "mesuré")
-        # La troisieme entree n'apparait QUE s'il y a quelque chose derriere :
-        # au premier apport, une legende annoncant des sections calees qui
-        # n'existent pas ferait chercher des courbes absentes.
-        courantes = [c for c in deja if not c.get("anterieur")]
-        if courantes:
-            libelle_deja = (f"{len(courantes)} section(s) calée(s)"
-                            if len(courantes) > 1 else "1 section calée")
-            largeur_deja = metriques.horizontalAdvance(libelle_deja) + 26
-            x_deja = x_cible - largeur_deja
-            peintre.setPen(QPen(self.couleur(ISL_VERT), 1.2, Qt.PenStyle.DotLine))
-            peintre.drawLine(x_deja, y_legende, x_deja + 18, y_legende)
-            peintre.setPen(self.couleur(ISL_VERT))
-            peintre.drawText(x_deja + 22, haut, largeur_deja - 22, h_texte,
-                             Qt.AlignmentFlag.AlignLeft
-                             | Qt.AlignmentFlag.AlignVCenter, libelle_deja)
-        # LE CALAGE PRECEDENT A SA PROPRE LIGNE DE LEGENDE, SOUS LA
-        # PREMIERE. A la suite des trois autres, elle sortait du cadre des
-        # que la fenetre etait un peu etroite : quatre entrees sur une
-        # ligne demandent plus de place que le trace lui-meme.
-        anterieures = [c for c in deja if c.get("anterieur")]
-        if anterieures:
-            libelle_avant = (f"{len(anterieures)} section(s) du calage "
-                             f"précédent")
-            largeur_avant = metriques.horizontalAdvance(libelle_avant) + 26
-            x_avant = max(gauche, gauche + largeur - largeur_avant)
-            y_avant = haut + h_texte + 6
-            peintre.setPen(QPen(self.couleur(ISL_ARDOISE), 1.2,
-                                Qt.PenStyle.DashDotLine))
-            peintre.drawLine(x_avant, y_avant, x_avant + 18, y_avant)
-            peintre.setPen(self.couleur(ISL_ARDOISE))
-            peintre.drawText(x_avant + 22, y_avant - h_texte // 2,
-                             largeur_avant - 22, h_texte, Qt.AlignmentFlag.AlignLeft
-                             | Qt.AlignmentFlag.AlignVCenter, libelle_avant)
         peintre.end()
 
 

@@ -3590,39 +3590,56 @@ verifier("theme sombre : chaque couleur remappee tient 4,5:1 sur le fond",
 verifier("theme sombre : le fond de la fenetre sert d'encre lisible sur chaque teinte remappee",
          all(_contraste(_FOND_SOMBRE, c) >= 4.5 for c in _remappees),
          str({c: round(_contraste(_FOND_SOMBRE, c), 2) for c in _remappees}))
-verifier("ruban : le blanc tient 4,5:1 sur chaque segment plein du theme clair",
-         all(_contraste("#ffffff", c) >= 4.5
-             for statut, c in mod_plugin.COULEUR_STATUT.items()
-             if statut != "en attente"),
-         str({statut: round(_contraste("#ffffff", c), 2)
-              for statut, c in mod_plugin.COULEUR_STATUT.items()}))
+# LE RUBAN ECRIT A L'ENCRE DU REGISTRE SUR UNE TEINTE CLAIRE (23/10/2026).
+# Le blanc sur l'accent plein ne rendait que 3,9:1 ; la teinte est posee en
+# transparence sur la carte blanche, on calcule donc le melange.
+def _melange(teinte, alpha, fond="#ffffff"):
+    return "#" + "".join(
+        f"{round(int(fond[i:i + 2], 16) * (1 - alpha / 255) + int(teinte[i:i + 2], 16) * alpha / 255):02x}"
+        for i in (1, 3, 5))
 
-# --- LES WIDGETS PEINTS ET LE TABLEAU SUIVENT LE THEME SOMBRE (C1) ------------
-# Les six scenarios sombres de la recette du 11/09 avaient ete mesures sur un
-# projet VIDE : l'onglet Suivi n'y portait aucune donnee, et les trois widgets
-# dessines au QPainter gardaient les teintes du clair — 2,3:1 pour l'ardoise,
-# 1,8:1 pour le rouge. Ici on leur pose la palette de Night Mapping et on leur
-# demande la couleur qu'ils emploieraient.
+
+_segments = {statut: _melange(teinte, mod_plugin.OPACITE_SEGMENT.get(
+                 statut, mod_plugin.OPACITE_SEGMENT_DEFAUT))
+             for statut, teinte in mod_plugin.TEINTE_STATUT.items()
+             if statut != "en attente"}
+verifier("ruban : l'encre tient 4,5:1 sur chaque segment teinte",
+         all(_contraste(mod_plugin.registre.ENCRE, c) >= 4.5
+             for c in _segments.values())
+         and _contraste(mod_plugin.registre.TEXTE_SECONDAIRE,
+                        mod_plugin.registre.FOND) >= 4.5,
+         str({statut: round(_contraste(mod_plugin.registre.ENCRE, c), 2)
+              for statut, c in _segments.items()}))
+
+# --- LES WIDGETS PEINTS GARDENT LEUR CARTE CLAIRE DANS LES DEUX THEMES -------
+# Ils remappaient leurs teintes sous Night Mapping (0.8.5, C1) ; depuis le
+# 23/10/2026 ils se dessinent sur la carte blanche du registre commun, comme
+# les graphiques de Rhoe et de Hyetos. On le lit sur l'image rendue : un
+# pixel de la carte, pres du bord gauche, a mi-hauteur.
 _nuit = _QPalette()
 _nuit.setColor(_QPalette.ColorRole.Window, _QColor(_FOND_SOMBRE))
 _nuit.setColor(_QPalette.ColorRole.WindowText, _QColor("#e0e0e0"))
 _nuit.setColor(_QPalette.ColorRole.Base, _QColor("#232323"))
 _peints = {"ruban": dlg.ruban_apports, "jauge": dlg.jauges["volume_pct"],
            "courbe": dlg.courbe_suivi}
-for _w in _peints.values():
-    _w.setPalette(_nuit)
-verifier("theme sombre : ruban, jauge et courbe remappent leurs couleurs",
-         all(_w.couleur(mod_plugin.ISL_ROUGE).name().lower() == "#f29d97"
-             and _w.couleur(mod_plugin.ISL_ARDOISE).name().lower() == "#bbcad2"
-             and _w.couleur(mod_plugin.ISL_VERT).name().lower() == "#91cdaa"
-             for _w in _peints.values()),
-         str({n: _w.couleur(mod_plugin.ISL_ROUGE).name() for n, _w in _peints.items()}))
+
+
+def _fond_carte(widget):
+    widget.resize(max(widget.width(), 300), max(widget.height(),
+                                                widget.minimumHeight()))
+    image = widget.grab().toImage()
+    return image.pixelColor(4, image.height() // 2).name().lower()
+
+
+for _theme, _palette in (("sombre", _nuit), ("clair", _QPalette())):
+    for _w in _peints.values():
+        _w.setPalette(_palette)
+    verifier(f"theme {_theme} : ruban, jauge et courbe gardent la carte blanche du registre",
+             all(_fond_carte(_w) == mod_plugin.registre.FOND
+                 for _w in _peints.values()),
+             str({n: _fond_carte(_w) for n, _w in _peints.items()}))
 for _w in _peints.values():
     _w.setPalette(_QPalette())
-verifier("theme clair : les memes rendent la couleur de charte telle quelle",
-         dlg.jauges["volume_pct"].couleur(mod_plugin.ISL_ROUGE).name().lower()
-         == mod_plugin.ISL_ROUGE.lower(),
-         dlg.jauges["volume_pct"].couleur(mod_plugin.ISL_ROUGE).name())
 dlg.table_suivi.setPalette(_nuit)
 _ecrire_etat(total=1, en_cours=None,
              apports=[{"ordre": 1, "apport": "A1", "section": "SC1",
