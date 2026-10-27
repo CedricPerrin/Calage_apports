@@ -1,5 +1,35 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 27 octobre 2026 (nuit) : lexique et tri, version 0.9.26, non publiée
+
+Demande : « reparcourir Rhoé, Hyétos, Plemmyra, Sensi et Calage ; prendre le
+meilleur et les plus récentes évolutions de chaque pour la GUI, l'aide,
+l'ergonomie et l'esthétique ». Deux évolutions du 27/10 reportées :
+
+- **Lexique** (`calage_apports/lexique.py`, repris de Rhoé et Hyétos, termes
+  propres à Calage, 23 termes) : dans les textes d'aide (`texte_aide`), les
+  lignes d'état (`texte_etat`) et le mode opératoire, chaque terme est un lien
+  discret (couleur du texte, sans soulignement) ; survol = définition, clic =
+  entrée de la section « Lexique » (s12) de l'aide ; l'entrée cite sa source,
+  lien ↗ quand l'adresse est vérifiée (HTTP 200, DOI relu sur Crossref).
+  `interface.EtiquetteLexique` : `text()` rend le texte brut ; sans terme, le
+  libellé garde son format. Le sommaire de l'aide et le fil gardent leur
+  apparence de lien. Q100, SHYREG, Socose, période de retour ne figurent pas :
+  les textes de Calage ne les emploient pas (Q100 seulement dans des exemples
+  de préfixe).
+- **Tri** : `table_suivi` devient `interface.TableauTriable` (repris de Rhoé,
+  `triable`) : double-clic sur un en-tête = croissant, décroissant, puis
+  retour à l'ordre du calage (amont → aval, sens imposé de la méthode) ;
+  vides et « — » en dernier ; virgule décimale ; indicateur de tri ; seul
+  l'en-tête vertical bouge. Le résumé des cibles (tableau HTML dans un
+  libellé, ordre amont → aval) n'est pas triable : pas d'en-tête cliquable.
+
+Tests : `src/test_lexique.py` (pytest, sans QGIS, ajouté à la CI) : 63
+réussis, 68 avec les autres tests pytest de la CI ; banc QGIS sans modèle :
+431 [OK], 0 [ECHEC] (415 avant ; contrôles de tri et de lexique ajoutés). La
+source du critère de forme ne nomme pas le KGE : le banc l'interdit dans
+l'aide. Non vu dans QGIS sur poste (rendu des liens, thème sombre).
+
 ## 27 octobre 2026 (soir) : pente absente ajoutée, pas encore publiée
 
 Constat (Ardanavy aval, poste lsso, plan p07) : le bloc unsteady

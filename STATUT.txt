@@ -22,6 +22,23 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+LEXIQUE ET TRI — 27 OCTOBRE 2026 (NUIT), VERSION 0.9.26 (NON PUBLIEE).
+  Repris de Rhoe et Hyetos (27/10). Aucun calcul ne change.
+  1. LEXIQUE (calage_apports/lexique.py, sans Qt, 23 termes) : textes d'aide,
+     lignes d'etat et mode operatoire lient chaque terme a son entree de la
+     section « Lexique » de l'aide (s12). Liens discrets : couleur du texte,
+     sans soulignement (demande Plemmyra du 26/10) ; survol = definition.
+     REGLES : un terme n'entre que si les textes du plugin l'emploient ; trois
+     phrases au plus, 25 mots au plus chacune ; une adresse n'est ecrite
+     qu'apres verification (HTTP 200, DOI relu sur Crossref).
+     src/test_lexique.py le garde. EtiquetteLexique.text() rend le texte BRUT :
+     le code et le banc le relisent tel quel.
+  2. TRI DU TABLEAU DU SUIVI (interface.TableauTriable, repris de Rhoe) :
+     double-clic sur un en-tete = croissant, decroissant, puis ordre du calage.
+     Seul l'en-tete vertical bouge ; _remplir_table_suivi reclasse a chaque
+     rafraichissement. Detail : CHECKPOINT.md.
+  Banc 431 [OK], 0 [ECHEC] ; pytest 68 OK. Non vu dans QGIS sur poste.
+
 ERGONOMIE A FOND — 23 OCTOBRE 2026, VERSION 0.9.20 (branche
   ergonomie-calage-1023 fusionnee dans main ; 0.9.20 PUBLIEE dans 00-depot_QGIS
   le 24/10/2026 a 08 h 40, publier.bat STATUT=OK ; 0.9.19 publiee le 23/10).

@@ -3,9 +3,11 @@
 
 import re
 
-from qgis.PyQt.QtCore import QEvent
+from qgis.PyQt.QtCore import QEvent, Qt
 from qgis.PyQt.QtGui import QColor, QPalette
-from qgis.PyQt.QtWidgets import QLabel, QTextBrowser
+from qgis.PyQt.QtWidgets import QLabel, QTableWidget, QTextBrowser
+
+from . import lexique
 
 
 COULEURS_SOMBRES = {
@@ -68,10 +70,118 @@ class Etiquette(QLabel):
             super().setText(texte_theme(texte, self))
 
 
+class EtiquetteLexique(Etiquette):
+    """
+    Texte d'aide ou ligne d'etat dont chaque terme du lexique est un lien
+    discret, a la couleur du texte et sans soulignement (27/10/2026, comme
+    Plemmyra, Hyetos et Rhoe) : le survol montre les definitions, le clic
+    emet linkActivated(« terme:<cle> »), que la fenetre suit vers l'aide.
+    text() rend le texte donne, sans les liens : le code et le banc le
+    relisent tel quel. Sans terme, le texte s'affiche comme avant.
+    """
+
+    _format = None       # format d'avant le texte riche, rendu sans terme
+    _definitions = ""
+
+    def text(self):
+        return getattr(self, "_texte_original", "")
+
+    def setText(self, texte):  # noqa: N802
+        self._texte_original = texte
+        self._afficher()
+
+    def changeEvent(self, evenement):  # noqa: N802
+        QLabel.changeEvent(self, evenement)
+        if evenement.type() in (QEvent.Type.PaletteChange, QEvent.Type.StyleChange):
+            self._afficher()
+
+    def _afficher(self):
+        texte = getattr(self, "_texte_original", "")
+        lie = lexique.lier(texte)
+        definitions = lexique.resume(texte) if f'href="{lexique.PREFIXE}' in lie else ""
+        # Une infobulle posee par l'appelant n'est pas remplacee.
+        if self.toolTip() in ("", self._definitions):
+            self.setToolTip(definitions)
+        self._definitions = definitions
+        self.setAccessibleDescription(definitions)
+        if definitions:
+            if self._format is None:
+                self._format = self.textFormat()
+            self.setTextFormat(Qt.TextFormat.RichText)
+            # La couleur du libelle, feuille de style comprise (role « aide »).
+            texte = lexique.liens_discrets(
+                lie, self.palette().color(QPalette.ColorRole.WindowText).name())
+        elif self._format is not None:
+            self.setTextFormat(self._format)
+            self._format = None
+        QLabel.setText(self, texte_theme(texte, self))
+
+
+class TableauTriable(QTableWidget):
+    """
+    Double-clic sur un en-tete : lignes classees par cette colonne, croissant,
+    puis decroissant, puis de nouveau dans leur ordre d'origine ; cellules
+    vides ou « — » en dernier ; cases cochees en tete ; « 98,5 % » lu comme un
+    nombre. Repris de Rhoe (rhoe/gui/tableau.py, triable), demande du
+    27/10/2026. Seul l'ordre AFFICHE change (en-tete vertical) : le rang d'une
+    ligne, que le code et le banc lisent, reste le meme. Appeler reclasser()
+    apres avoir reecrit les cellules.
+    """
+
+    _tri = None          # (colonne, croissant) ; None : ordre d'origine
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.horizontalHeader().sectionDoubleClicked.connect(self._trier)
+
+    def _trier(self, colonne):
+        self._tri = None if self._tri == (colonne, False) else (
+            colonne, self._tri != (colonne, True))
+        entete = self.horizontalHeader()
+        entete.setSortIndicatorShown(self._tri is not None)
+        if self._tri is not None:
+            entete.setSortIndicator(colonne, Qt.SortOrder.AscendingOrder if self._tri[1]
+                                    else Qt.SortOrder.DescendingOrder)
+        self.reclasser()
+
+    def _cle(self, rang, colonne):
+        """Cle de classement d'une cellule : sa case, son nombre, ou son texte ; None vide."""
+        cellule = self.item(rang, colonne)
+        if cellule is None:
+            return None
+        # Qt rend toute cellule « cochable » : seule une case posee a un etat.
+        if cellule.data(Qt.ItemDataRole.CheckStateRole) is not None:
+            return (0, 0 if cellule.checkState() == Qt.CheckState.Checked else 1)
+        texte = cellule.text().strip()
+        if texte in ("", "—"):
+            return None
+        try:
+            return (0, float(re.sub(r"[\s%]", "", texte).replace(",", ".").replace("−", "-")))
+        except ValueError:
+            return (1, texte.casefold())
+
+    def reclasser(self):
+        rangs = list(range(self.rowCount()))
+        if self._tri is not None:
+            colonne, croissant = self._tri
+            cles = {rang: self._cle(rang, colonne) for rang in rangs}
+            pleins = sorted((r for r in rangs if cles[r] is not None),
+                            key=cles.__getitem__, reverse=not croissant)
+            rangs = pleins + [r for r in rangs if cles[r] is None]
+        vertical = self.verticalHeader()
+        for position, rang in enumerate(rangs):
+            vertical.moveSection(vertical.visualIndex(rang), position)
+
+
+def _liens_discrets(texte, widget):
+    """Les liens du lexique et des sources a la couleur du texte du navigateur."""
+    return lexique.liens_discrets(texte, widget.palette().color(QPalette.ColorRole.Text).name())
+
+
 class Manuel(QTextBrowser):
     def setHtml(self, texte):  # noqa: N802
         self._html_original = texte
-        super().setHtml(texte_theme(texte, self))
+        super().setHtml(texte_theme(_liens_discrets(texte, self), self))
 
     def changeEvent(self, evenement):  # noqa: N802
         super().changeEvent(evenement)
@@ -79,7 +189,7 @@ class Manuel(QTextBrowser):
             texte = getattr(self, "_html_original", None)
             if texte is not None:
                 position = self.verticalScrollBar().value()
-                super().setHtml(texte_theme(texte, self))
+                super().setHtml(texte_theme(_liens_discrets(texte, self), self))
                 self.verticalScrollBar().setValue(position)
 
 

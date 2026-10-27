@@ -1492,6 +1492,77 @@ verifier("suivi : les hydrogrammes du calage precedent sont traces derriere",
          [c["apport"] for c in _anterieures] == ["A0"],
          str([c["apport"] for c in dlg.courbe_suivi.precedentes]))
 
+# TRI AU DOUBLE-CLIC SUR UN EN-TETE (27/10/2026, comme Rhoe). Seul l'ordre
+# AFFICHE change : item(rang, ...) lit toujours le meme apport.
+from qgis.PyQt.QtCore import Qt  # noqa: E402
+
+
+def _ordre_suivi():
+    _v = dlg.table_suivi.verticalHeader()
+    return [dlg.table_suivi.item(_v.logicalIndex(p), 0).text()
+            for p in range(dlg.table_suivi.rowCount())]
+
+
+def _apports_tri(volume_a2=None):
+    return [
+        {"apport": "A1", "section": "SC1", "statut": "validé", "essais": 2,
+         "volume_pct": 99.0, "pic_pct": 100.0},
+        {"apport": "A2", "section": "SC2", "statut": "en attente", "essais": None,
+         "volume_pct": volume_a2, "pic_pct": None},
+        {"apport": "A3", "section": "SC3", "statut": "validé", "essais": 3,
+         "volume_pct": 100.5, "pic_pct": 98.2},
+        {"apport": "A4", "section": "SC4", "statut": "échoué", "essais": 6,
+         "volume_pct": 9.5, "pic_pct": 50.0}]
+
+
+_entete_suivi = dlg.table_suivi.horizontalHeader()
+dlg._remplir_table_suivi(_apports_tri())
+_entete_suivi.sectionDoubleClicked.emit(4)
+verifier("suivi : double-clic sur « Volume » : croissant, « 9,5 % » avant "
+         "« 99,0 % », « — » en dernier, indicateur pose",
+         _ordre_suivi() == ["A4", "A1", "A3", "A2"]
+         and _entete_suivi.isSortIndicatorShown()
+         and _entete_suivi.sortIndicatorSection() == 4
+         and _entete_suivi.sortIndicatorOrder() == Qt.SortOrder.AscendingOrder,
+         str(_ordre_suivi()))
+_entete_suivi.sectionDoubleClicked.emit(4)
+verifier("suivi : second double-clic : decroissant, « — » toujours en dernier",
+         _ordre_suivi() == ["A3", "A1", "A4", "A2"]
+         and _entete_suivi.sortIndicatorOrder() == Qt.SortOrder.DescendingOrder,
+         str(_ordre_suivi()))
+dlg._remplir_table_suivi(_apports_tri(volume_a2=120.0))
+verifier("suivi : le rafraichissement reclasse, les rangs logiques ne bougent pas",
+         _ordre_suivi() == ["A2", "A3", "A1", "A4"]
+         and dlg.table_suivi.item(1, 0).text() == "A2",
+         str(_ordre_suivi()))
+_entete_suivi.sectionDoubleClicked.emit(4)
+verifier("suivi : troisieme double-clic : retour a l'ordre du calage",
+         _ordre_suivi() == ["A1", "A2", "A3", "A4"]
+         and not _entete_suivi.isSortIndicatorShown(),
+         str(_ordre_suivi()))
+# Les cases cochees en tete ; une cellule ordinaire n'est pas une case, bien
+# que Qt la dise « cochable » par defaut.
+from qgis.PyQt.QtWidgets import QTableWidgetItem as _QTWI  # noqa: E402
+_t_cases = mod_plugin.TableauTriable(3, 2)
+for _r, (_coche, _val) in enumerate(((False, "12"), (True, "3"), (False, "—"))):
+    _case = _QTWI("")
+    _case.setCheckState(Qt.CheckState.Checked if _coche else Qt.CheckState.Unchecked)
+    _t_cases.setItem(_r, 0, _case)
+    _t_cases.setItem(_r, 1, _QTWI(_val))
+
+
+def _ordre_cases():
+    return [_t_cases.verticalHeader().logicalIndex(p) for p in range(3)]
+
+
+_t_cases.horizontalHeader().sectionDoubleClicked.emit(0)
+verifier("tri : une case cochee passe en tete", _ordre_cases()[0] == 1,
+         str(_ordre_cases()))
+_t_cases.horizontalHeader().sectionDoubleClicked.emit(1)
+verifier("tri : une cellule ordinaire se classe comme un nombre, pas comme une case",
+         _ordre_cases() == [1, 0, 2], str(_ordre_cases()))
+_t_cases.deleteLater()
+
 (_dossier_etat() / "avancement_precedent.json").unlink()
 dlg._rafraichir_suivi()
 verifier("suivi : sans archive, le tableau ne parle que du calage en cours",
@@ -3902,6 +3973,62 @@ else:
     verifier("fil conducteur : Tab puis Entree ouvrent l'etape du lien",
              dlg.onglets.currentIndex() == _voulu,
              f"onglet {dlg.onglets.currentIndex()}, attendu {_voulu}")
+
+# --- LEXIQUE : LES TERMES RENVOIENT A L'AIDE (27/10/2026) ---------------------
+from qgis.PyQt.QtCore import QUrl as _QUrlLx  # noqa: E402
+from qgis.PyQt.QtGui import QPalette as _QPaletteLx  # noqa: E402
+from qgis.PyQt.QtWidgets import QLabel as _QLabelLx, QToolTip as _QToolTipLx  # noqa: E402
+dlg.show()
+QApplication.processEvents()
+_lx = next((e for e in dlg.findChildren(mod_plugin.EtiquetteLexique)
+            if "Δt de propagation" in e.text()), None)
+verifier("lexique : text() rend le texte donne, sans les liens",
+         _lx is not None and "<a" not in _lx.text(), _lx.text() if _lx else "absent")
+if _lx is not None:
+    _affiche = _QLabelLx.text(_lx)
+    _couleur_lx = _lx.palette().color(_QPaletteLx.ColorRole.WindowText).name()
+    verifier("lexique : les termes d'un texte d'aide sont des liens discrets, "
+             "a la couleur grise du texte d'aide",
+             'href="terme:section_controle"' in _affiche and 'href="terme:dt"' in _affiche
+             and f"color: {_couleur_lx}; text-decoration: none" in _affiche
+             and _couleur_lx == "#526b7a",
+             f"{_couleur_lx} | {_affiche[:140]}")
+    verifier("lexique : le survol d'un texte d'aide montre les definitions",
+             _lx.toolTip().startswith("Section de contrôle :")
+             and "Δt, décalage de propagation :" in _lx.toolTip(),
+             _lx.toolTip()[:80])
+    dlg.onglets.setCurrentIndex(mod_plugin.ONGLET_MODELE)
+    QApplication.processEvents()
+    _lx.linkActivated.emit("terme:dt")
+    QApplication.processEvents()
+    _defile = dlg.navigateur_aide.verticalScrollBar().value()
+    dlg.navigateur_aide.scrollToAnchor("terme_dt")
+    QApplication.processEvents()
+    verifier("lexique : un clic sur un terme ouvre l'aide a son entree",
+             dlg.onglets.currentIndex() == mod_plugin.ONGLET_AIDE and _defile > 0
+             and _defile == dlg.navigateur_aide.verticalScrollBar().value(),
+             f"onglet {dlg.onglets.currentIndex()}, defilement {_defile} / "
+             f"{dlg.navigateur_aide.verticalScrollBar().value()}")
+verifier("lexique : chaque renvoi de l'aide tombe sur une entree",
+         set(re.findall(r'href="#(terme_\w+)"', mod_plugin.AIDE_HTML))
+         <= set(re.findall(r'name="(terme_\w+)"', mod_plugin.AIDE_HTML))
+         and len(re.findall(r'name="terme_\w+"', mod_plugin.AIDE_HTML))
+         == len(mod_plugin.lexique.TERMES))
+verifier("lexique : les sources de l'aide s'ouvrent dans le navigateur",
+         dlg.navigateur_aide.openExternalLinks())
+dlg._survol_aide(_QUrlLx("#terme_pk"))
+verifier("lexique : le survol d'un terme de l'aide montre sa definition",
+         _QToolTipLx.text().startswith("PK : point kilométrique"), _QToolTipLx.text()[:60])
+_QToolTipLx.hideText()
+_etat_lx = mod_plugin.texte_etat("PK\nligne 2")
+_format_lx = _etat_lx.textFormat()
+_etat_lx.setText("ligne 1\nligne 2")
+verifier("lexique : une ligne d'etat sans terme retrouve son format d'origine",
+         _format_lx == Qt.TextFormat.RichText
+         and _etat_lx.textFormat() == Qt.TextFormat.AutoText
+         and _etat_lx.toolTip() == "",
+         f"{_format_lx} -> {_etat_lx.textFormat()}")
+_etat_lx.deleteLater()
 
 # --- LES WIDGETS PEINTS ONT UN NOM ET UNE DESCRIPTION ACCESSIBLES (C6) --------
 verifier("les widgets peints ont un nom accessible",

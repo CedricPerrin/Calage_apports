@@ -48,9 +48,9 @@ from qgis.gui import (QgsCollapsibleGroupBox, QgsFieldComboBox, QgsGui,
                       QgsMapLayerComboBox, QgsMessageBar)
 from qgis.PyQt.QtCore import (QEvent, QMetaType, QPointF, QRectF, QSettings,
                               QSizeF, Qt, QTimer)
-from qgis.PyQt.QtGui import (QColor, QFont, QFontDatabase, QFontMetrics, QIcon,
-                             QKeySequence, QPainter, QPalette, QPen, QPolygonF,
-                             QTextCursor)
+from qgis.PyQt.QtGui import (QColor, QCursor, QFont, QFontDatabase, QFontMetrics,
+                             QIcon, QKeySequence, QPainter, QPalette, QPen,
+                             QPolygonF, QTextCursor)
 from qgis.PyQt.QtWidgets import (
     QAbstractItemView,
     QAction,
@@ -78,19 +78,20 @@ from qgis.PyQt.QtWidgets import (
     QSizePolicy,
     QSpacerItem,
     QSpinBox,
-    QTableWidget,
     QTableWidgetItem,
     QTabWidget,
     QTextBrowser,
     QTextEdit,
+    QToolTip,
     QVBoxLayout,
     QWidget,
 )
 
-from . import cpn, materiel, noyau, registre
+from . import cpn, lexique, materiel, noyau, registre
 from .bande import Bande
 from .installation import TacheInstallation, TacheRecherchePython, installation_en_cours
-from .interface import Etiquette as QLabel, Manuel as QTextBrowser
+from .interface import Etiquette as QLabel, EtiquetteLexique, Manuel as QTextBrowser
+from .interface import TableauTriable
 from .interface import couleur as couleur_theme, sombre as fond_sombre
 from .interface import feuille as feuille_interface
 
@@ -1431,8 +1432,11 @@ class _SablierSuspendu:
 # ---------------------------------------------------------------------------
 
 def texte_aide(contenu, infobulle=None):
-    """Phrase d'accompagnement : grise, plus petite, jamais indispensable."""
-    label = QLabel(contenu)
+    """
+    Phrase d'accompagnement : grise, plus petite, jamais indispensable. Ses
+    termes techniques renvoient au lexique de l'aide (EtiquetteLexique).
+    """
+    label = EtiquetteLexique(contenu)
     label.setWordWrap(True)
     label.setProperty("role", ROLE_AIDE)
     if infobulle:
@@ -1445,12 +1449,14 @@ def texte_etat(contenu=""):
     Compte rendu d'une action, selectionnable a la souris.
 
     MASQUE tant qu'il n'a rien a dire : un cadre vide sous chaque bouton
-    donnait a croire qu'il manquait quelque chose.
+    donnait a croire qu'il manquait quelque chose. Ses termes techniques
+    renvoient au lexique de l'aide (EtiquetteLexique), d'ou les liens.
     """
-    label = QLabel(contenu)
+    label = EtiquetteLexique(contenu)
     label.setWordWrap(True)
     label.setProperty("role", ROLE_ETAT)
-    label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+    label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse
+                                  | Qt.TextInteractionFlag.LinksAccessibleByMouse)
     label.setVisible(bool(contenu))
     return label
 
@@ -1509,6 +1515,7 @@ de contrôle reproduise un hydrogramme cible.</p>
 <li><a href="#s9">Un apport créé part de zéro</a></li>
 <li><a href="#s10">Pièges à connaître</a></li>
 <li><a href="#s11">Ce que le calage laisse dans le modèle</a></li>
+<li><a href="#s12">Lexique</a></li>
 </ul>
 
 <h3><a name="s1"></a>Première utilisation — ce qu'il faut installer</h3>
@@ -1783,6 +1790,18 @@ Pilotage HEC-RAS par
 demandent d'être cités, ce que la note de synthèse produite par la chaîne fait
 d'office.</i></p>
 """
+
+# LE LEXIQUE (27/10/2026, comme Plemmyra, Hyetos et Rhoe). Chaque terme
+# technique de l'aide renvoie a son entree, en fin d'aide ; les textes d'aide
+# et les lignes d'etat des etapes y renvoient aussi (EtiquetteLexique). Les
+# liens sont discrets : couleur du texte, sans soulignement (interface.Manuel).
+AIDE_HTML = (
+    lexique.lier(AIDE_HTML).replace(f'href="{lexique.PREFIXE}', f'href="#{lexique.ANCRE}')
+    + '\n<h3><a name="s12"></a>Lexique</h3>\n'
+    "<p>Les termes techniques de l'aide et des étapes renvoient ici : le survol "
+    "montre leur définition, un clic ouvre leur entrée. Une source suivie de ↗ "
+    "s'ouvre dans le navigateur.</p>\n"
+    + "".join(f"<p>{lexique.entree(t)}</p>\n" for t in lexique.TERMES))
 
 
 # ---------------------------------------------------------------------------
@@ -2245,6 +2264,9 @@ class DialogueParametrage(QDialog):
         self._dire_reprise()
         self._maj_navigation()
         self._nommer_champs()
+        # Un terme clique dans un texte d'aide ou d'etat ouvre le lexique.
+        for label in self.findChildren(EtiquetteLexique):
+            label.linkActivated.connect(self._ouvrir_lexique)
         # Une action de fenêtre intercepte aussi les raccourcis lorsque le
         # bouton focalisé ou le navigateur d'aide consomme les touches.
         for libelle, raccourci, sens in (("Étape précédente", "Alt+Left", -1),
@@ -4954,10 +4976,15 @@ class DialogueParametrage(QDialog):
 
         groupe_detail = QGroupBox("Apports")
         vd = QVBoxLayout(groupe_detail)
-        self.table_suivi = QTableWidget(0, 6)
+        # TRIABLE (27/10/2026, comme Rhoe) : l'ordre du calage, de l'amont
+        # vers l'aval, revient au troisieme double-clic.
+        self.table_suivi = TableauTriable(0, 6)
         self.table_suivi.setHorizontalHeaderLabels(
             ["Apport", "Section", "Statut", "Essais", "Volume",
              "Pointe"])
+        self.table_suivi.horizontalHeader().setToolTip(
+            "Double-cliquer sur un en-tête pour classer, une deuxième fois "
+            "pour inverser, une troisième pour revenir à l'ordre du calage.")
         self.table_suivi.verticalHeader().setVisible(False)
         self.table_suivi.setEditTriggers(
             QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -5740,6 +5767,7 @@ class DialogueParametrage(QDialog):
                 if colonne >= 3:
                     cellule.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.table_suivi.setItem(ligne, colonne, cellule)
+        self.table_suivi.reclasser()
         self.table_suivi.resizeColumnsToContents()
 
     def _onglet_aide(self):
@@ -5753,7 +5781,12 @@ class DialogueParametrage(QDialog):
         v.setSpacing(10)
 
         texte = QTextBrowser()
-        texte.setOpenExternalLinks(False)
+        # Une ancre « #terme_… » defile jusqu'a l'entree du lexique ; une
+        # source s'ouvre dans le navigateur ; le survol d'un terme montre sa
+        # definition.
+        texte.setOpenExternalLinks(True)
+        texte.highlighted.connect(self._survol_aide)
+        self.navigateur_aide = texte
         # Le style de l'aide suit la charte, mais ne fixe aucun fond : le
         # QTextBrowser herite ainsi du theme clair ou sombre de QGIS.
         texte.setHtml(
@@ -5857,6 +5890,29 @@ class DialogueParametrage(QDialog):
         v.addWidget(texte, 1)
         self._maj_parametres_poste()
         return page
+
+    def _survol_aide(self, lien):
+        """Survol d'un terme dans l'aide : sa definition en infobulle."""
+        lien = lien.toString() if hasattr(lien, "toString") else str(lien)
+        t = lexique.terme(lien.partition("#" + lexique.ANCRE)[2])
+        if t is None:
+            QToolTip.hideText()
+        else:
+            QToolTip.showText(QCursor.pos(), lexique.definition(t), self.navigateur_aide)
+
+    def _ouvrir_lexique(self, lien):
+        """
+        Clic sur un terme d'un texte d'aide ou d'etat : l'aide s'ouvre a son
+        entree du lexique. Protege : une exception qui remonte d'un slot peut
+        fermer QGIS.
+        """
+        try:
+            if lien.startswith(lexique.PREFIXE):
+                self.onglets.setCurrentIndex(ONGLET_AIDE)
+                self.navigateur_aide.scrollToAnchor(
+                    lexique.ANCRE + lien[len(lexique.PREFIXE):])
+        except Exception as e:
+            journaliser("Lexique de l'aide", e)
 
     def _maj_parametres_poste(self):
         """
