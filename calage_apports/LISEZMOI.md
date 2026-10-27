@@ -2,7 +2,8 @@
 
 Préparation et contrôle du paquet de calage pour **HEC-RAS uniquement**.
 Voir `methodologie_calage_amont_aval.docx`, § 2.4.
-Version **0.9.20** : le préfixe propose le cours d'eau en tête
+Version **0.9.21** : un trait d'accent marque l'étape courante dans la bande
+des étapes. Avant, la **0.9.20** : le préfixe propose le cours d'eau en tête
 (« Riviere - Q100 »), une ligne sous le champ montre les titres des plans
 à la frappe, et les liens du fil mènent au champ à remplir. Avant, la
 **0.9.19** : le bouton « Calage apports » s'affiche dans la barre
@@ -128,7 +129,7 @@ propose ensuite les mises à jour. Le `LISEZMOI.md` du dépôt détaille la marc
 
 **Depuis l'archive**, pour un poste sans accès au dépôt.
 `calage_apports_<version>.zip` —
-`calage_apports_0.9.20.zip` pour cette version — est **à la racine du dépôt** : la télécharger
+`calage_apports_0.9.21.zip` pour cette version — est **à la racine du dépôt** : la télécharger
 suffit, il n'y a rien à reconstruire. Le nom porte la version pour qu'on
 sache, sur un poste distant, ce qu'on installe ; il n'y en a jamais qu'une
 dans le dépôt, la plus récente. Puis, dans QGIS :
