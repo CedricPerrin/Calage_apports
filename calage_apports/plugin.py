@@ -2904,7 +2904,12 @@ class DialogueParametrage(QDialog):
         # la recomposition automatique des 0.9.5 a 0.9.14 composait les
         # prefixes a demi tapes. Il ecrit, compose et controle ; ce qui change
         # ensuite porte un « ! » jusqu'au clic suivant.
-        bouton_composer = QPushButton(BOUTON_GEOMETRIE)
+        # DEUX LIGNES (27/10/2026) : sur une seule, le libelle faisait 752 px
+        # a 13 pt et l'etape Parametres defilait de cote. Le plancher de
+        # hauteur ci-dessous compte les deux lignes : c'est lui qui manquait
+        # le 08/09, quand la seconde sortait coupee.
+        bouton_composer = QPushButton(BOUTON_GEOMETRIE.replace(" et ", " et\n", 1))
+        bouton_composer.setAccessibleName(BOUTON_GEOMETRIE)
         self.bouton_composer = bouton_composer      # cible d'un lien du fil
         # Mise en avant par le STYLE, jamais par la touche Entree : ce bouton
         # ecrit dans la geometrie HEC-RAS. Voir keyPressEvent().
@@ -2924,7 +2929,7 @@ class DialogueParametrage(QDialog):
         # de la feuille de style (6 px en haut, 6 en bas, 1 de bordure) :
         # sizeHint() ne vaut rien ici, le bouton n'est pas encore habille.
         bouton_composer.setMinimumHeight(
-            bouton_composer.fontMetrics().height() + 2 * 6 + 2 * 1)
+            2 * bouton_composer.fontMetrics().height() + 2 * 6 + 2 * 1)
         return bouton_composer
 
     def _maj_bouton_controle(self):
@@ -4106,8 +4111,11 @@ class DialogueParametrage(QDialog):
             "Cibles que se saisissent les hydrogrammes, une colonne par "
             "section.")
         self.bouton_ouvrir_classeur.clicked.connect(self._ouvrir_classeur)
+        # Deux lignes : sur une, 625 px a 13 pt, l'etape defilait de cote.
         self.bouton_importer = QPushButton(
-            "&Importer des hydrogrammes d'un calcul précédent…")
+            "&Importer des hydrogrammes\nd'un calcul précédent…")
+        self.bouton_importer.setAccessibleName(
+            "Importer des hydrogrammes d'un calcul précédent")
         self.bouton_importer.setToolTip(
             "Recopie dans l'Excel de ce calcul, depuis l'Excel d'un calcul "
             "précédent, les hydrogrammes des sections de même nom (feuille "
@@ -4460,7 +4468,10 @@ class DialogueParametrage(QDialog):
         # le reste du parametrage, et c'est la CHAINE qui elague en fin de
         # calage — au moment ou le plan final existe, donc ou l'operation est
         # sure.
+        # Deux lignes : sur une, 609 px a 13 pt, l'etape Lancer defilait.
         self.case_elaguer = QCheckBox(
+            "Supprimer les plans d’étape\naprès un calage réussi")
+        self.case_elaguer.setAccessibleName(
             "Supprimer les plans d’étape après un calage réussi")
         self.case_elaguer.setToolTip(
             "Retire les plans d'étape du calage — eux seuls. Le plan de "
@@ -4536,9 +4547,11 @@ class DialogueParametrage(QDialog):
         plan = (self.combo_plan.currentData()
                 if hasattr(self, "combo_plan") else None)
         n = self.poste.suggestion
-        self.case_coeurs.setText(
-            f"Demander {n} cœur{'s' if n > 1 else ''} à HEC-RAS pour chaque "
-            f"calcul")
+        # Deux lignes : sur une, 606 px a 13 pt, l'etape Lancer defilait.
+        libelle = (f"Demander {n} cœur{'s' if n > 1 else ''} à HEC-RAS\n"
+                   f"pour chaque calcul")
+        self.case_coeurs.setText(libelle)
+        self.case_coeurs.setAccessibleName(libelle.replace("\n", " "))
         self.label_coeurs.setText(materiel.conseil(
             self.poste, (plan or {}).get("coeurs_2d"),
             f"p{plan['numero']}" if plan else None))

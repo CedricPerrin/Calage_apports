@@ -51,6 +51,15 @@ Puis « Élargis la bande puis fais une 0.9.24 » :
 - Version 0.9.24, zip conforme, poussée, copiée dans `V:\Perrin\TEST`, non
   publiée au dépôt PIO.
 
+Puis, sans nouvelle version : Paramètres et Lancer ne défilent plus de côté à
+13 pt. Quatre libellés passent sur deux lignes, mots inchangés, nom
+accessible sur une ligne : « Valider la géométrie et / générer le fichier des
+hydrogrammes » (plancher de hauteur à deux lignes), « Importer des
+hydrogrammes / d'un calcul précédent… », « Supprimer les plans d'étape /
+après un calage réussi », « Demander n cœurs à HEC-RAS / pour chaque
+calcul ». `BOUTON_GEOMETRIE` reste sur une ligne dans les messages. Banc
+QGIS sans modèle : 415 [OK], 0 [ECHEC].
+
 ## 23 octobre 2026 (nuit) : ergonomie à fond, version 0.9.20
 
 Branche `ergonomie-calage-1023` fusionnée dans `main` (avance rapide) à la

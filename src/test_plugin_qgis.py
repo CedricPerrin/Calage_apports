@@ -833,7 +833,7 @@ print("\n3. IMPORTER DES HYDROGRAMMES D'UN CALCUL PRECEDENT")
 import openpyxl as _openpyxl_i                               # noqa: E402
 _imp = mod_plugin.DialogueParametrage(iface)
 verifier("le bouton porte le libelle demande, et reste gris sans Excel",
-         _imp.bouton_importer.text()
+         _imp.bouton_importer.text().replace("\n", " ")
          == "&Importer des hydrogrammes d'un calcul précédent…"
          and not _imp.bouton_importer.isEnabled(),
          f"{_imp.bouton_importer.text()} | actif={_imp.bouton_importer.isEnabled()}")
@@ -2921,7 +2921,7 @@ verifier("le bouton de controle a quitte tous les onglets",
 # automatique renoncait en silence, et « Ouvrir dans Excel » restait gris
 # sans que rien ne dise pourquoi.
 verifier("il nomme les trois gestes et vit sous le prefixe, a l'etape Parametres",
-         dlg.bouton_controle.text()
+         dlg.bouton_controle.text().replace("\n", " ")
          == "Valider la géométrie et générer le fichier des hydrogrammes"
          and dlg.bouton_controle in dlg.onglets.widget(
              mod_plugin.ONGLET_OBJECTIFS).findChildren(_QPushButtonA)
