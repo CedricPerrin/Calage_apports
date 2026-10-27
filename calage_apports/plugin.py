@@ -39,6 +39,7 @@ from qgis.core import (
     QgsMessageLog,
     QgsPalLayerSettings,
     QgsProject,
+    QgsTextBackgroundSettings,
     QgsVectorLayer,
     QgsVectorLayerSimpleLabeling,
     QgsWkbTypes,
@@ -46,7 +47,7 @@ from qgis.core import (
 from qgis.gui import (QgsCollapsibleGroupBox, QgsFieldComboBox, QgsGui,
                       QgsMapLayerComboBox, QgsMessageBar)
 from qgis.PyQt.QtCore import (QEvent, QMetaType, QPointF, QRectF, QSettings,
-                              Qt, QTimer)
+                              QSizeF, Qt, QTimer)
 from qgis.PyQt.QtGui import (QColor, QFont, QFontDatabase, QFontMetrics, QIcon,
                              QKeySequence, QPainter, QPalette, QPen, QPolygonF,
                              QTextCursor)
@@ -252,6 +253,36 @@ def styler_emprise(couche):
     return True, ""
 
 
+def etiqueter(couche, expression):
+    """
+    Etiquette horizontale sur fond blanc : rectangle a angles arrondis
+    (rayon 3 mm), trait gris (27/10/2026, demande utilisateur). Le nom reste
+    lisible sur le maillage comme sur un fond de plan.
+    """
+    reglages = QgsPalLayerSettings()
+    reglages.fieldName = expression
+    reglages.isExpression = True
+    # HORIZONTALE : une section de controle est souvent tracee en travers
+    # du lit, donc presque verticale, et une etiquette parallele s'y
+    # lirait mal.
+    reglages.placement = Qgis.LabelPlacement.Horizontal
+    fond = QgsTextBackgroundSettings()
+    fond.setEnabled(True)
+    fond.setType(QgsTextBackgroundSettings.ShapeType.ShapeRectangle)
+    fond.setSizeType(QgsTextBackgroundSettings.SizeType.SizeBuffer)
+    fond.setSize(QSizeF(1.0, 0.5))
+    fond.setRadii(QSizeF(3.0, 3.0))
+    fond.setFillColor(QColor(255, 255, 255))
+    fond.setStrokeColor(QColor(128, 128, 128))
+    fond.setStrokeWidth(0.3)
+    texte = reglages.format()
+    texte.setBackground(fond)
+    reglages.setFormat(texte)
+    couche.setLabeling(QgsVectorLayerSimpleLabeling(reglages))
+    couche.setLabelsEnabled(True)
+    couche.triggerRepaint()
+
+
 def appliquer_styles(injections, sections, maillage, emprise=None):
     """Style de chacune des couches ; retourne les echecs eventuels."""
     echecs = []
@@ -266,6 +297,17 @@ def appliquer_styles(injections, sections, maillage, emprise=None):
         ok, message = appliquer_style(couche, nom)
         if not ok:
             echecs.append(f"{nom} : {message}")
+
+    # LE NOM PAR DEFAUT, des le chargement ; la composition y ajoute le PK
+    # (etiqueter_pk_sur_carte), avec le meme fond. APRES le .qml, qui sans
+    # cela effacerait les etiquettes.
+    for couche, nom in ((injections, "injections"), (sections, "sections")):
+        if couche is None:
+            continue
+        try:
+            etiqueter(couche, '"nom"')
+        except Exception as e:                              # noqa: BLE001
+            echecs.append(f"{nom} (étiquettes) : {type(e).__name__}: {e}")
 
     # AUCUN GROUPE DE DONNEES ACTIF sur le maillage : on veut le maillage nu.
     # Par defaut MDAL active le premier groupe trouve — souvent une altitude de
@@ -1884,18 +1926,9 @@ def etiqueter_pk_sur_carte(chemins, sens, bases):
         table = ", ".join(
             "'{}', {:.1f}".format(str(nom).replace("'", "''"), float(pk))
             for nom, pk in zip(gdf["nom"], gdf["pk_m"]))
-        reglages = QgsPalLayerSettings()
-        reglages.fieldName = (
-            "concat(\"nom\", ' — PK ' || format_number("
-            f"map_get(map({table}), \"nom\"), 0) || ' m')")
-        reglages.isExpression = True
-        # HORIZONTALE : une section de controle est souvent tracee en travers
-        # du lit, donc presque verticale, et une etiquette parallele s'y
-        # lirait mal.
-        reglages.placement = Qgis.LabelPlacement.Horizontal
-        couche.setLabeling(QgsVectorLayerSimpleLabeling(reglages))
-        couche.setLabelsEnabled(True)
-        couche.triggerRepaint()
+        etiqueter(couche,
+                  "concat(\"nom\", ' — PK ' || format_number("
+                  f"map_get(map({table}), \"nom\"), 0) || ' m')")
 
 
 # ---------------------------------------------------------------------------
@@ -2656,13 +2689,13 @@ class DialogueParametrage(QDialog):
             combo.currentTextChanged.connect(self._maj_resume_fichiers)
         self._maj_resume_fichiers()
 
+        # UNE SEULE ZONE 2D, PAS DE CHOIX (27/10/2026, demande utilisateur :
+        # « limité à 1 pour le moment »). Le combo n'est plus dans la fenetre :
+        # il garde seulement le nom de la zone, que le chargement renseigne et
+        # que le resume affiche. Un modele a plusieurs zones est refuse au
+        # chargement des couches.
         self.combo_zone_2d = QComboBox()
-        self.combo_zone_2d.setAccessibleName("Zone d'écoulement 2D")
-        self.combo_zone_2d.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
-        self.combo_zone_2d.setMinimumContentsLength(14)
         self.combo_zone_2d.currentIndexChanged.connect(self._maj_resume)
-        f2.addRow("Zone d'écoulement 2D :",
-                  self._avec_temoin(self.combo_zone_2d, "Nom_zone_2D"))
         # LA ZONE 2D ET LE CRS NE SONT PAS DES COMPTES RENDUS DATES : ce sont
         # des valeurs COURANTES, presentees comme telles au resume et
         # consommees a l'ecriture. Or changer de plan — ou la geometrie de
@@ -3656,22 +3689,18 @@ class DialogueParametrage(QDialog):
         ordonner_couches(projet, [self.couche_injections, self.couche_sections,
                                   self.couche_maillage, self.couche_perimetre])
 
+        # La zone 2D est indispensable : HEC-RAS y rattache sections et
+        # injections. Le plugin n'en gere qu'une : avec plusieurs, il n'en
+        # retient aucune, et « Composer » reste bloque sur « la zone 2D ».
+        zones = [p["zone"] for p in reponse["perimetres"]]
         self.combo_zone_2d.clear()
-        for p in reponse["perimetres"]:
-            self.combo_zone_2d.addItem(p["zone"])
-        # La zone 2D est indispensable — HEC-RAS y rattache sections et
-        # injections, et elle leve l'ambiguite quand un meme nom de condition
-        # limite existe dans plusieurs zones. Mais la plupart des modeles n'en
-        # comptent qu'une : proposer alors une liste a un seul element donne a
-        # croire qu'il y a un choix a faire. On la renseigne et on la verrouille.
-        seule = len(reponse["perimetres"]) == 1
-        self.combo_zone_2d.setEnabled(not seule)
-        self.combo_zone_2d.setToolTip(
-            "Ce modèle ne comporte qu'une zone d'écoulement 2D : elle est "
-            "renseignée automatiquement, rien à choisir."
-            if seule else
-            "Ce modèle comporte plusieurs zones 2D : choisir celle à laquelle "
-            "rattacher les sections et les injections.")
+        if len(zones) == 1:
+            self.combo_zone_2d.addItem(zones[0])
+        refus_zones = (
+            f"<b>Ce modèle comporte {len(zones)} zones d'écoulement 2D "
+            f"({', '.join(zones)}) : le plugin n'en gère qu'une pour le "
+            f"moment.</b> Le calage ne peut pas être lancé sur ce modèle.<br>"
+            if len(zones) > 1 else "")
 
         # Compte rendu volontairement telegraphique : ce qui est arrive sur la
         # carte se voit sur la carte. Seul ce qui NE se voit pas — un
@@ -3679,6 +3708,7 @@ class DialogueParametrage(QDialog):
         # phrase, parce que rien d'autre ne le dirait.
         pretraitee = reponse.get("geometrie_pretraitee", True)
         dire(self.label_couches,
+             refus_zones +
              f"<b>{compte(len(reponse['sections']), 'section')}</b>, "
              f"<b>{compte(len(reponse['injections']), 'injection')}</b> et "
              f"<b>{compte(len(reponse['perimetres']), 'emprise 2D', 'emprises 2D')}</b> ajoutées à "

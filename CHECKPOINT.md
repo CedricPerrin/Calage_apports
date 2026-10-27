@@ -19,8 +19,22 @@ Ensuite, demande « ne trace pas le profil en long en dehors du modèle » :
 `geometrie.profil_depuis_modele` met hors maillage tout point de l'axe hors du
 contour de la zone 2D (`Perimeter` du HDF), en plus de la distance de 250 m ;
 `livrables.figure_profil_en_long` coupe les bouts hors modèle de la figure.
-Bancs : geometrie 33, livrables 16, pilote 183 [OK]. Commité après la 0.9.22,
-pas encore dans un zip ; non vérifié sur un modèle réel.
+Bancs : geometrie 33, livrables 16, pilote 183 [OK]. Version 0.9.23
+(78bf747), poussée, zip copié dans `V:\Perrin\TEST` ; non vérifiée sur un
+modèle réel.
+
+Après la 0.9.23 (non versionné, non poussé) :
+- « Supprime le choix des zones d'écoulement 2D : limité à 1 » : la ligne
+  « Zone d'écoulement 2D » quitte l'étape Modèle ; `combo_zone_2d` reste hors
+  fenêtre et porte le nom de la zone. Plusieurs zones : aucune retenue,
+  message au chargement des couches, « Composer » bloqué sur « la zone 2D ».
+  La chaîne (classeur, `Nom_zone_2D`) n'a pas changé.
+- Étiquettes par défaut des injections et sections : nom sur fond blanc,
+  rectangle à angles arrondis (rayon 3 mm, lu dans « tampon d'angle de 3 »),
+  trait gris ; `etiqueter()` sert aussi aux étiquettes « nom — PK ». Posées
+  APRÈS le `.qml`, qui les effaçait.
+- Banc QGIS sans modèle : 408 [OK], 7 [ECHEC] ; les 7 (bande à 13 pt)
+  existent à l'identique sur 78bf747, à traiter à part.
 
 ## 23 octobre 2026 (nuit) : ergonomie à fond, version 0.9.20
 

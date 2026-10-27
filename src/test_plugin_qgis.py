@@ -983,14 +983,11 @@ else:
     verifier("zone 2D renseignee par le chargement",
              bool(dlg2.combo_zone_2d.currentText()),
              dlg2.combo_zone_2d.currentText())
-    # Une seule zone dans ce modele : le champ ne doit pas se presenter comme
-    # un choix a faire.
-    verifier("zone 2D verrouillee quand il n'y en a qu'une",
-             not dlg2.combo_zone_2d.isEnabled()
-             if dlg2.combo_zone_2d.count() == 1
-             else dlg2.combo_zone_2d.isEnabled(),
-             f"{dlg2.combo_zone_2d.count()} zone(s), "
-             f"active={dlg2.combo_zone_2d.isEnabled()}")
+    # Une seule zone 2D geree (27/10/2026) : aucun choix dans la fenetre.
+    verifier("aucun choix de zone 2D dans la fenetre",
+             dlg2.combo_zone_2d not in dlg2.findChildren(
+                 type(dlg2.combo_zone_2d)),
+             f"{dlg2.combo_zone_2d.count()} zone(s)")
     # Plus aucun champ de forme d'hydrogramme : un apport cree nait a zero,
     # et recoit la forme de la cible au premier essai du calage.
     verifier("aucun champ de forme d'hydrogramme dans l'interface",
@@ -2536,6 +2533,23 @@ _base_s = couche("Sections de contrôle (HEC-RAS)",
 _base_a = couche("Lignes d'injection (HEC-RAS)", [_en_travers(1500)], ["A1"])
 mod_plugin.appliquer_style(_base_s, "sections")
 mod_plugin.appliquer_style(_base_a, "injections")
+# LE NOM DES LE CHARGEMENT, sur fond blanc arrondi a trait gris (27/10/2026).
+_echecs_etiquettes = mod_plugin.appliquer_styles(_base_a, _base_s, None)
+
+
+def _fond(c):
+    if c.labeling() is None:
+        return None
+    f = c.labeling().settings().format().background()
+    return (f.enabled(), f.fillColor().name(), f.strokeColor().name(),
+            f.radii().width())
+
+
+verifier("le nom est affiche des le chargement, sur fond blanc arrondi",
+         _fond(_base_s) == (True, "#ffffff", "#808080", 3.0)
+         and _base_s.labelsEnabled() and _etiquettes(_base_s)["S1"] == "S1"
+         and _base_a.labelsEnabled() and _etiquettes(_base_a)["A1"] == "A1",
+         f"{_fond(_base_s)} {_echecs_etiquettes}")
 _homonyme = couche("Sections — PK", [_en_travers(100)], ["X"])
 # UNE COUCHE DE PK LAISSEE PAR LA 0.9.15 dans le projet : elle doit partir.
 _reliquat = couche("Injections — PK", [_en_travers(1500)], ["A1"])
@@ -2566,6 +2580,9 @@ _rendu_a = _etiquettes(_base_a)
 verifier("et celle des injections aussi",
          _base_a.labelsEnabled() and str(_rendu_a["A1"]).startswith("A1 — PK "),
          str(_rendu_a))
+verifier("le PK garde le fond des etiquettes du chargement",
+         _fond(_base_a) == (True, "#ffffff", "#808080", 3.0),
+         str(_fond(_base_a)))
 verifier("le symbole de la couche de base ne bouge pas",
          _base_s.renderer().symbol().color().name() == "#e31a1c",
          _base_s.renderer().symbol().color().name())
