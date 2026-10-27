@@ -133,16 +133,25 @@ class TableauTriable(QTableWidget):
     def __init__(self, *args):
         super().__init__(*args)
         self.horizontalHeader().sectionDoubleClicked.connect(self._trier)
+        # Qt retourne sa fleche a chaque simple clic sur un en-tete, sans rien classer.
+        self.horizontalHeader().sortIndicatorChanged.connect(self._garder_fleche)
 
     def _trier(self, colonne):
         self._tri = None if self._tri == (colonne, False) else (
             colonne, self._tri != (colonne, True))
-        entete = self.horizontalHeader()
-        entete.setSortIndicatorShown(self._tri is not None)
-        if self._tri is not None:
-            entete.setSortIndicator(colonne, Qt.SortOrder.AscendingOrder if self._tri[1]
-                                    else Qt.SortOrder.DescendingOrder)
+        self.horizontalHeader().setSortIndicatorShown(self._tri is not None)
+        self._garder_fleche()
         self.reclasser()
+
+    def _garder_fleche(self, *_signal):
+        """La fleche de l'en-tete montre le classement reel."""
+        if self._tri is None:
+            return
+        colonne, croissant = self._tri
+        ordre = Qt.SortOrder.AscendingOrder if croissant else Qt.SortOrder.DescendingOrder
+        entete = self.horizontalHeader()
+        if (entete.sortIndicatorSection(), entete.sortIndicatorOrder()) != (colonne, ordre):
+            entete.setSortIndicator(colonne, ordre)
 
     def _cle(self, rang, colonne):
         """Cle de classement d'une cellule : sa case, son nombre, ou son texte ; None vide."""

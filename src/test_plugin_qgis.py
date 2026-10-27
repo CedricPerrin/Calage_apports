@@ -1525,6 +1525,11 @@ verifier("suivi : double-clic sur « Volume » : croissant, « 9,5 % » avant "
          and _entete_suivi.sortIndicatorSection() == 4
          and _entete_suivi.sortIndicatorOrder() == Qt.SortOrder.AscendingOrder,
          str(_ordre_suivi()))
+# Un double-clic commence par un clic, qui retourne la fleche de Qt sans rien classer.
+_entete_suivi.setSortIndicator(4, Qt.SortOrder.DescendingOrder)
+verifier("suivi : un simple clic ne retourne pas la fleche",
+         _entete_suivi.sortIndicatorOrder() == Qt.SortOrder.AscendingOrder
+         and _ordre_suivi() == ["A4", "A1", "A3", "A2"], str(_ordre_suivi()))
 _entete_suivi.sectionDoubleClicked.emit(4)
 verifier("suivi : second double-clic : decroissant, « — » toujours en dernier",
          _ordre_suivi() == ["A3", "A1", "A4", "A2"]

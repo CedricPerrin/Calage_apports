@@ -30,7 +30,8 @@ changelog=0.9.26 — Lexique dans l'aide : les termes techniques des textes
     (couleur du texte, sans soulignement) ; le survol montre leur définition,
     le clic ouvre leur entrée, qui cite sa publication. Le tableau des apports
     du Suivi se classe par un double-clic sur un en-tête (croissant,
-    décroissant, puis ordre du calage).
+    décroissant, puis ordre du calage) ; la flèche de l'en-tête suit le
+    classement, même après un simple clic.
     0.9.25 — À grande police, les étapes Paramètres et Lancer ne
     défilent plus de côté : quatre libellés longs passent sur deux lignes.
     0.9.24 — Une seule zone d'écoulement 2D, sans choix dans la
