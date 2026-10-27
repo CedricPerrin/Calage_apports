@@ -299,6 +299,12 @@ def figure_profil_en_long(profil, sections_pk, chemin,
                   fournis, deux panneaux supplementaires sont traces.
     """
     profil = profil.sort_values("pk_m")
+    # Rien hors du modele : l'axe qui en deborde n'allonge pas la figure. Les
+    # trous interieurs restent des trous.
+    dedans = profil["z_fond"].notna().to_numpy()
+    if dedans.any():
+        rangs = np.flatnonzero(dedans)
+        profil = profil.iloc[rangs[0]:rangs[-1] + 1]
     pk_profil = profil["pk_m"].to_numpy(dtype=float)
     z_fond = profil["z_fond"].to_numpy(dtype=float)
     z_eau = (profil["z_eau_max"].to_numpy(dtype=float)

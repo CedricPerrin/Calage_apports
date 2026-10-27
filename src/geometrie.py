@@ -603,6 +603,19 @@ def maillage_du_modele(hdf, nom_zone_2d=None):
     return xy[reelles, 0], xy[reelles, 1], z[reelles], nom_zone_2d
 
 
+def contour_zone(hdf, nom_zone_2d):
+    """Polygone du contour de la zone 2D, ou None si le HDF ne le porte pas."""
+    import h5py
+    from shapely.geometry import Polygon
+
+    with h5py.File(Path(hdf), "r") as h:
+        points = h.get(f"Geometry/2D Flow Areas/{nom_zone_2d}/Perimeter")
+        if points is None or len(points) < 3:
+            return None
+        contour = Polygon(np.asarray(points[:], dtype=float))
+    return contour if contour.is_valid else contour.buffer(0)
+
+
 def profil_depuis_modele(hdf_plan, axe, nom_zone_2d=None, pas=25.0,
                          pk_origine=0.0, avec_ligne_eau=True,
                          distance_max_m=None):
@@ -621,6 +634,12 @@ def profil_depuis_modele(hdf_plan, axe, nom_zone_2d=None, pas=25.0,
         ou l'axe sort du domaine de calcul. Par defaut, dix fois le pas
         d'echantillonnage.
 
+    HORS DU CONTOUR = HORS MAILLAGE, quelle que soit la distance. La distance
+    seule laissait un point a 240 m hors de la zone 2D se rattacher a la maille
+    du bord : le profil se prolongeait par un fond plat fictif au-dela du
+    modele. Le contour (« Perimeter » du HDF) tranche net ; un HDF qui ne le
+    porte pas retombe sur la distance seule.
+
     Retourne un DataFrame (pk_m, z_fond, z_eau_max, h_max, distance_maille_m).
     """
     from scipy.spatial import cKDTree
@@ -635,6 +654,10 @@ def profil_depuis_modele(hdf_plan, axe, nom_zone_2d=None, pas=25.0,
     if distance_max_m is None:
         distance_max_m = 10.0 * pas
     hors_maillage = distance > distance_max_m
+    contour = contour_zone(hdf_plan, nom_zone_2d)
+    if contour is not None:
+        from shapely import contains_xy
+        hors_maillage |= ~contains_xy(contour, x, y)
 
     z_fond = z_c[indice].astype(float)
     z_fond[hors_maillage] = np.nan
@@ -1230,6 +1253,30 @@ if __name__ == "__main__":
               1000.0) is None)
     _ctrl("un profil absent ne leve pas d'erreur",
           pente_locale(None, 1000.0) is None)
+
+    # Axe qui deborde de 200 m de chaque cote d'une zone 2D carree de 1 km :
+    # a moins de 250 m des mailles du bord, la distance seule gardait ces
+    # points et prolongeait le profil hors du modele.
+    import h5py
+    _hdf_contour = dossier / "contour_test.p01.hdf"
+    _cx, _cy = np.meshgrid(np.arange(25.0, 1000.0, 50.0),
+                           np.arange(25.0, 1000.0, 50.0))
+    with h5py.File(_hdf_contour, "w") as _h:
+        _z = _h.create_group("Geometry/2D Flow Areas/Zone")
+        _z["Cells Center Coordinate"] = np.column_stack([_cx.ravel(),
+                                                         _cy.ravel()])
+        _z["Cells Minimum Elevation"] = 100.0 - _cx.ravel() / 1000.0
+        _z["Perimeter"] = np.array([[0.0, 0.0], [0.0, 1000.0],
+                                    [1000.0, 1000.0], [1000.0, 0.0]])
+    _pc = profil_depuis_modele(_hdf_contour, LineString([(-200, 500),
+                                                         (1200, 500)]),
+                               avec_ligne_eau=False)
+    _dans = _pc.dropna(subset=["z_fond"])["pk_m"]
+    _ctrl("le profil s'arrete au contour de la zone 2D",
+          _dans.min() >= 200.0 and _dans.max() <= 1200.0
+          and _pc["hors_maillage"].sum() == 18,
+          f"PK {_dans.min():.0f} a {_dans.max():.0f} m, "
+          f"{int(_pc['hors_maillage'].sum())} points hors")
 
     # --- 9. Lecture depuis un fichier geometrie texte (avant pretraitement)
     print("\n9. LECTURE DEPUIS LE FICHIER GEOMETRIE TEXTE (avant pretraitement)")

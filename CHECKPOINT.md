@@ -12,7 +12,15 @@ calcul avec débit a planté dans `RasUnsteady.exe` (SNETREAL2, code 157).
 Correction dans `src/pilote_hecras.py` : `definir_pente` ajoute la ligne
 après `Stage Hydrograph TW Check=` (sinon après la table), puis reconstruit
 `self.carte`, car les blocs suivants sont décalés d'une ligne. Banc
-`pilote_hecras.py` : 183 [OK]. Non versionnée, non publiée.
+`pilote_hecras.py` : 183 [OK]. Version 0.9.22 (7592df7), poussée, zip copié
+dans `V:\Perrin\TEST`, non publiée au dépôt PIO.
+
+Ensuite, demande « ne trace pas le profil en long en dehors du modèle » :
+`geometrie.profil_depuis_modele` met hors maillage tout point de l'axe hors du
+contour de la zone 2D (`Perimeter` du HDF), en plus de la distance de 250 m ;
+`livrables.figure_profil_en_long` coupe les bouts hors modèle de la figure.
+Bancs : geometrie 33, livrables 16, pilote 183 [OK]. Commité après la 0.9.22,
+pas encore dans un zip ; non vérifié sur un modèle réel.
 
 ## 23 octobre 2026 (nuit) : ergonomie à fond, version 0.9.20
 
