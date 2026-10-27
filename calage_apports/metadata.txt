@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont l'étape « Suivi » montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.9.21
+version=0.9.22
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,11 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.9.21 — Bande des étapes : un trait d'accent de 3 px marque l'étape
+changelog=0.9.22 — Pente d'apport : la pente du classeur est ajoutée quand le
+    bloc de l'apport n'a pas de ligne « Flow Hydrograph Slope= » (champ
+    « EG Slope » vide dans HEC-RAS). Avant, elle restait un avertissement, et
+    RasUnsteady.exe plantait dès que l'apport recevait du débit.
+    0.9.21 — Bande des étapes : un trait d'accent de 3 px marque l'étape
     courante, comme dans Hyétos, Rhoé et Plemmyra. Aucun calcul modifié.
     0.9.20 — Préfixe « cours d'eau - crue » ; liens du fil qui
     mènent au champ ; textes et états revus.

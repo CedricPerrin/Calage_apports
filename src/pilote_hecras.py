@@ -2220,7 +2220,7 @@ class PiloteHecRas(Modele):
         BLOC SANS LIGNE DE PENTE : HEC-RAS n'ecrit pas la ligne quand le champ
         « EG Slope » est reste vide dans l'editeur. L'apport tourne a debit
         nul, puis RasUnsteady.exe plante (SNETREAL2, code 157) des que le
-        calage y met du debit (Ardanavy, Affl_02__KOND, 27/10/2026). La ligne
+        calage y met du debit (constat du 27/10/2026). La ligne
         est donc ajoutee, a la place ou HEC-RAS l'ecrit.
         """
         self._verifier_connu(nom_apport)
@@ -2885,7 +2885,7 @@ if __name__ == "__main__":
 
     # Bloc saisi dans HEC-RAS sans « EG Slope » : pas de ligne de pente.
     # RasUnsteady.exe plantait des que le calage y mettait du debit
-    # (Ardanavy, Affl_02__KOND, 27/10/2026). La ligne doit etre AJOUTEE, et
+    # (constat du 27/10/2026). La ligne doit etre AJOUTEE, et
     # le bloc suivant rester lisible malgre le decalage d'une ligne.
     _sans_pente = Path(tempfile.gettempdir()) / "_essai_sans_pente.u01"
     _sans_pente.write_text(
