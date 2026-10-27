@@ -2210,11 +2210,18 @@ class PiloteHecRas(Modele):
 
     def definir_pente(self, nom_apport, pente):
         """
-        Remplace la « Flow Hydrograph Slope » d'un apport deja en place.
+        Remplace la « Flow Hydrograph Slope » d'un apport deja en place, ou
+        l'ajoute si le bloc n'en a pas.
 
         La pente est ecrite a la creation de l'injection, avant que le classeur
         existe : sans cette methode, une valeur saisie dans le classeur serait
         restee lettre morte.
+
+        BLOC SANS LIGNE DE PENTE : HEC-RAS n'ecrit pas la ligne quand le champ
+        « EG Slope » est reste vide dans l'editeur. L'apport tourne a debit
+        nul, puis RasUnsteady.exe plante (SNETREAL2, code 157) des que le
+        calage y met du debit (Ardanavy, Affl_02__KOND, 27/10/2026). La ligne
+        est donc ajoutee, a la place ou HEC-RAS l'ecrit.
         """
         self._verifier_connu(nom_apport)
         if not 1e-6 < float(pente) <= 1.0:
@@ -2224,16 +2231,26 @@ class PiloteHecRas(Modele):
         # On ne touche QUE le bloc de cet apport : le fichier en contient
         # d'autres, et « Flow Hydrograph Slope= » y apparait plusieurs fois.
         ecrit = False
-        for i in range(info["debut"], min(info["fin"] + 3, len(lignes))):
+        fenetre = range(info["debut"], min(info["fin"] + 3, len(lignes)))
+        for i in fenetre:
             if lignes[i].startswith("Flow Hydrograph Slope="):
                 fin = "\n" if lignes[i].endswith("\n") else ""
                 lignes[i] = f"Flow Hydrograph Slope= {pente} {fin}"
                 ecrit = True
         if not ecrit:
-            raise ValueError(
-                f"aucune ligne « Flow Hydrograph Slope= » dans le bloc de "
-                f"« {nom_apport} » : la pente ne peut pas y etre imposee.")
+            # Juste apres « Stage Hydrograph TW Check= », sinon juste apres
+            # la table : l'ordre qu'ecrit HEC-RAS.
+            place = next((i + 1 for i in fenetre if i >= info["fin"] and
+                          lignes[i].startswith("Stage Hydrograph TW Check=")),
+                         info["fin"])
+            lignes.insert(place, f"Flow Hydrograph Slope= {pente} \n")
         _ecrire_texte(self.fichier_unsteady, "".join(lignes))
+        if not ecrit:
+            # Une ligne de plus decale les blocs suivants : la carte doit
+            # suivre, sans quoi la prochaine ecriture tombe a cote.
+            self.carte = cartographier_hydrogrammes(self.fichier_unsteady,
+                                                    self.nom_zone_2d,
+                                                    self._bc_lines_connues())
 
     # --- menage de fin de calage -------------------------------------------
 
@@ -2865,6 +2882,42 @@ if __name__ == "__main__":
     _verifier("une pente deposee est bien ecrite dans le fichier unsteady",
               "Flow Hydrograph Slope= 0.037 " in _tampon.read_text(
                   encoding="utf-8"))
+
+    # Bloc saisi dans HEC-RAS sans « EG Slope » : pas de ligne de pente.
+    # RasUnsteady.exe plantait des que le calage y mettait du debit
+    # (Ardanavy, Affl_02__KOND, 27/10/2026). La ligne doit etre AJOUTEE, et
+    # le bloc suivant rester lisible malgre le decalage d'une ligne.
+    _sans_pente = Path(tempfile.gettempdir()) / "_essai_sans_pente.u01"
+    _sans_pente.write_text(
+        "Flow Title=Essai\n"
+        + ligne_localisation("SANS_PENTE", "Perimeter 1") + "\n"
+        "Interval=6MIN\n"
+        "Flow Hydrograph= 2 \n"
+        "    1.00    2.00\n"
+        "Stage Hydrograph TW Check=0\n"
+        "DSS Path=\n"
+        + ligne_localisation("SUIVANT", "Perimeter 1") + "\n"
+        "Interval=6MIN\n"
+        "Flow Hydrograph= 2 \n"
+        "    7.00    8.00\n"
+        "Stage Hydrograph TW Check=0\n"
+        "Flow Hydrograph Slope= 0.02 \n", encoding="utf-8")
+    _pilote_sp = PiloteHecRas(_sans_pente.parent, "_essai_sans_pente",
+                              plan_reference="01")
+    _pilote_sp.fichier_unsteady = _sans_pente
+    _pilote_sp.carte = cartographier_hydrogrammes(_sans_pente)
+    _pilote_sp.definir_pente("SANS_PENTE", 0.0044)
+    _lignes_sp = _sans_pente.read_text(encoding="utf-8").splitlines()
+    _verifier("une pente absente est ajoutee apres « Stage Hydrograph TW "
+              "Check= », dans le bloc de l'apport",
+              _lignes_sp[5:8] == ["Stage Hydrograph TW Check=0",
+                                  "Flow Hydrograph Slope= 0.0044 ",
+                                  "DSS Path="], _lignes_sp[5:8])
+    _info_sp = _pilote_sp.carte["SUIVANT"]
+    _verifier("la carte suit le decalage : le bloc suivant reste lisible",
+              list(lire_hydrogramme_unsteady(_sans_pente, _info_sp["debut"],
+                                             _info_sp["fin"])) == [7.0, 8.0])
+    _sans_pente.unlink()
 
     import ast as _ast
     import inspect as _inspect

@@ -1,5 +1,19 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 27 octobre 2026 (soir) : pente absente ajoutée, pas encore publiée
+
+Constat (Ardanavy aval, poste lsso, plan p07) : le bloc unsteady
+d'`Affl_02__KOND` n'avait pas de ligne `Flow Hydrograph Slope=` (champ
+« EG Slope » laissé vide dans HEC-RAS). `definir_pente` ne savait que
+remplacer la ligne : la pente du classeur (0,0044191 m/m) est restée un
+avertissement. Le calcul de référence (apports à zéro) a tourné ; le premier
+calcul avec débit a planté dans `RasUnsteady.exe` (SNETREAL2, code 157).
+
+Correction dans `src/pilote_hecras.py` : `definir_pente` ajoute la ligne
+après `Stage Hydrograph TW Check=` (sinon après la table), puis reconstruit
+`self.carte`, car les blocs suivants sont décalés d'une ligne. Banc
+`pilote_hecras.py` : 183 [OK]. Non versionnée, non publiée.
+
 ## 23 octobre 2026 (nuit) : ergonomie à fond, version 0.9.20
 
 Branche `ergonomie-calage-1023` fusionnée dans `main` (avance rapide) à la
