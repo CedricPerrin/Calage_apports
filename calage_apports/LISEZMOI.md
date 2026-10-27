@@ -2,8 +2,10 @@
 
 Préparation et contrôle du paquet de calage pour **HEC-RAS uniquement**.
 Voir `methodologie_calage_amont_aval.docx`, § 2.4.
-Version **0.9.23** : le profil en long s'arrête au contour de la zone 2D ;
-rien n'est tracé hors du modèle. Avant, la **0.9.22** : la pente du classeur
+Version **0.9.24** : une seule zone d'écoulement 2D, sans choix ; noms des
+injections et des lignes de référence sur fond blanc dès le chargement ; bande
+des étapes élargie. Avant, la **0.9.23** : le profil en long s'arrête au
+contour de la zone 2D ; rien n'est tracé hors du modèle. Avant, la **0.9.22** : la pente du classeur
 est ajoutée quand le bloc d'un apport n'a pas de ligne de pente (champ
 « EG Slope » vide dans HEC-RAS). Avant, la **0.9.21** : un trait d'accent marque l'étape courante dans la bande
 des étapes. Avant, la **0.9.20** : le préfixe propose le cours d'eau en tête
@@ -132,7 +134,7 @@ propose ensuite les mises à jour. Le `LISEZMOI.md` du dépôt détaille la marc
 
 **Depuis l'archive**, pour un poste sans accès au dépôt.
 `calage_apports_<version>.zip` —
-`calage_apports_0.9.23.zip` pour cette version — est **à la racine du dépôt** : la télécharger
+`calage_apports_0.9.24.zip` pour cette version — est **à la racine du dépôt** : la télécharger
 suffit, il n'y a rien à reconstruire. Le nom porte la version pour qu'on
 sache, sur un poste distant, ce qu'on installe ; il n'y en a jamais qu'une
 dans le dépôt, la plus récente. Puis, dans QGIS :

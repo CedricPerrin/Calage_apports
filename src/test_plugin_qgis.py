@@ -2540,7 +2540,12 @@ _echecs_etiquettes = mod_plugin.appliquer_styles(_base_a, _base_s, None)
 def _fond(c):
     if c.labeling() is None:
         return None
-    f = c.labeling().settings().format().background()
+    # CHAQUE OBJET TENU PAR UN NOM : settings() rend une copie, et format()
+    # une reference DANS cette copie. Enchaines, la copie meurt avant la
+    # lecture, et QGIS plante par violation d'acces (une fois sur deux).
+    reglages = c.labeling().settings()
+    texte = reglages.format()
+    f = texte.background()
     return (f.enabled(), f.fillColor().name(), f.strokeColor().name(),
             f.radii().width())
 

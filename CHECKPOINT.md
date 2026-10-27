@@ -36,6 +36,21 @@ Après la 0.9.23 (non versionné, non poussé) :
 - Banc QGIS sans modèle : 408 [OK], 7 [ECHEC] ; les 7 (bande à 13 pt)
   existent à l'identique sur 78bf747, à traiter à part.
 
+Puis « Élargis la bande puis fais une 0.9.24 » :
+- Bande : à 13 pt, les étapes ne tiennent plus en hauteur, l'ascenseur
+  vertical paraît et prenait 26 px aux entrées. La largeur réserve
+  désormais `verticalScrollBar().sizeHint().width()`. Effet : la page perd
+  26 px (572 → 546) ; l'étape Modèle défilait alors de côté, à cause de
+  « Choisir une autre géométrie ou un autre flux » (543 px), raccourci en
+  « Choisir la géométrie et le flux ».
+- Banc : le contrôle des étiquettes (`_fond`) faisait planter QGIS une fois
+  sur deux (référence dans une copie temporaire de `settings()`) ; corrigé.
+- Banc QGIS sans modèle : 413 [OK], 2 [ECHEC] : à 13 pt, Paramètres
+  (bouton « Valider la géométrie… », 752 px) et Lancer (cadres 653 px)
+  défilent de côté. Non traité.
+- Version 0.9.24, zip conforme, poussée, copiée dans `V:\Perrin\TEST`, non
+  publiée au dépôt PIO.
+
 ## 23 octobre 2026 (nuit) : ergonomie à fond, version 0.9.20
 
 Branche `ergonomie-calage-1023` fusionnée dans `main` (avance rapide) à la

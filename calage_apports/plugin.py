@@ -2305,7 +2305,12 @@ class DialogueParametrage(QDialog):
                             self.onglets.tabText(rang))
             bande.addItem(element)
         bande.ajuster(bande.hauteur_complete)
-        bande.setFixedWidth(largeur + 2 * bande.frameWidth())
+        # LA PLACE DE L'ASCENSEUR EST RESERVEE (27/10/2026). A 13 pt, les
+        # etapes ne tiennent plus en hauteur : l'ascenseur vertical paraissait
+        # et prenait 26 px aux entrees, dont le bord droit ne repondait plus
+        # au clic.
+        bande.setFixedWidth(largeur + 2 * bande.frameWidth()
+                            + bande.verticalScrollBar().sizeHint().width())
         # Trois etapes au moins : en deca, la bande defile.
         bande.setMinimumHeight(3 * bande.hauteur_courte + 2 * bande.frameWidth())
         return bande
@@ -2643,8 +2648,10 @@ class DialogueParametrage(QDialog):
 
         self.radio_du_plan = QRadioButton(
             "Reprendre les fichiers du plan")
+        # COURT : a 13 pt, l'ancien libelle (« Choisir une autre geometrie ou
+        # un autre flux », 543 px) faisait defiler l'etape Modele de cote.
         self.radio_override = QRadioButton(
-            "Choisir une autre géométrie ou un autre flux")
+            "Choisir la géométrie et le flux")
         self.radio_du_plan.setAccessibleDescription(
             "Utiliser la géométrie et le fichier Unsteady Flow du plan de référence.")
         self.radio_override.setAccessibleDescription(
