@@ -79,6 +79,12 @@ class NumeroGras(QStyledItemDelegate):
             return
         style = vue.widget.style() if vue.widget else QApplication.style()
         style.drawControl(QStyle.ControlElement.CE_ItemViewItem, vue, peintre, vue.widget)
+        if vue.state & QStyle.StateFlag.State_Selected:
+            # Repère de l'étape courante, comme la navigation de Windows 11 : sans le focus, le
+            # style natif la peint d'un gris que les lignes alternées ont aussi (27/10/2026).
+            repere = QRectF(vue.rect.left() + 1, vue.rect.top() + 4, 3, vue.rect.height() - 8)
+            accent = vue.palette.color(QPalette.ColorGroup.Active, QPalette.ColorRole.Highlight)
+            peintre.fillRect(repere, accent)
         # Les styles natifs de Windows peignent la sélection en clair et y écrivent le texte
         # ordinaire : leur « texte surligné » blanc s'y lirait mal (style de QGIS sous Windows,
         # enveloppé par QGIS dans un style mandataire ; constat du 23/10/2026).
