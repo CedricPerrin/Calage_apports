@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont l'étape « Suivi » montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.9.24
+version=0.9.25
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,9 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.9.24 — Une seule zone d'écoulement 2D, sans choix dans la
+changelog=0.9.25 — À grande police, les étapes Paramètres et Lancer ne
+    défilent plus de côté : quatre libellés longs passent sur deux lignes.
+    0.9.24 — Une seule zone d'écoulement 2D, sans choix dans la
     fenêtre ; un modèle qui en a plusieurs est refusé au chargement. Noms des
     injections et des lignes de référence affichés dès le chargement, sur un
     rectangle blanc à angles arrondis et trait gris. Bande des étapes élargie
