@@ -2560,11 +2560,11 @@ _emprise = QgsVectorLayer("Polygon?crs=EPSG:2154", "Emprise 2D (HEC-RAS)",
 _ok_emprise, _msg_emprise = mod_plugin.styler_emprise(_emprise)
 verifier("l'emprise 2D se style sans erreur", _ok_emprise, _msg_emprise)
 _symbole = _emprise.renderer().symbol()
-# int(brushStyle()) == 0, c'est Qt.NoBrush. Le chemin « Qt.BrushStyle.NoBrush »
-# n'existe pas dans le binding de ce QGIS : on compare la valeur, relevee.
+# Comparaison a l'enumeration, pas a int() : sous PyQt6 (QGIS 4), une
+# enumeration Qt n'est plus un entier (constat CI du 28/10/2026).
 verifier("l'emprise 2D n'a aucun remplissage",
-         int(_symbole.symbolLayer(0).brushStyle()) == 0,
-         str(int(_symbole.symbolLayer(0).brushStyle())))
+         _symbole.symbolLayer(0).brushStyle() == Qt.BrushStyle.NoBrush,
+         str(_symbole.symbolLayer(0).brushStyle()))
 _contour = _symbole.symbolLayer(0).strokeColor()
 verifier("son contour est rouge et opaque",
          _contour.red() > 200 and _contour.green() < 80
