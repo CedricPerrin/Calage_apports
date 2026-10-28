@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont l'étape « Suivi » montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.9.26
+version=0.9.27
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,11 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.9.26 — Lexique dans l'aide : les termes techniques des textes
+changelog=0.9.27 — QGIS 4 (Qt 6) : l'extension, qui se déclarait déjà
+    compatible Qt 6, s'y ouvre réellement ; énumérations Qt écrites en forme
+    qualifiée, filtre de la couche d'axe et type de géométrie lus dans Qgis.
+    Banc QGIS vert sous 3.44 et 4.2. Aucun calcul ne change.
+    0.9.26 — Lexique dans l'aide : les termes techniques des textes
     d'aide, des lignes d'état et du mode opératoire sont des liens discrets
     (couleur du texte, sans soulignement) ; le survol montre leur définition,
     le clic ouvre leur entrée, qui cite sa publication. Le tableau des apports

@@ -1,5 +1,13 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 28 octobre 2026 : QGIS 4 (Qt 6), version 0.9.27, non publiée
+
+Veille du 27/10, P7 : CI « UX QGIS » sous `qgis/qgis:3.44` et `qgis/qgis:4.2`.
+Énumérations Qt qualifiées (`QSettings.Format.IniFormat`, `QgsTask.Flag.CanCancel`…),
+`Qgis.GeometryType.Line`, `Qgis.LayerFilter.LineLayer`, `QFontDatabase` statique sous
+Qt 6, comparaisons à l'énumération plutôt qu'à `int()`. Le repli `QVariant.String`
+(QGIS < 3.38) garde sa forme plate. Banc 3.44 : 432 OK. Aucun calcul ne change.
+
 ## 27 octobre 2026 (nuit) : lexique et tri, version 0.9.26, non publiée
 
 Demande : « reparcourir Rhoé, Hyétos, Plemmyra, Sensi et Calage ; prendre le

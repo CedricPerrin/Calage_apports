@@ -22,6 +22,15 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+QGIS 4 (QT 6) — 28 OCTOBRE 2026, VERSION 0.9.27 (NON PUBLIEE).
+  Veille du 27/10, P7 : banc QGIS lance aussi sous qgis/qgis:4.2 dans la CI
+  (ux-qgis.yml). L'extension declarait supportsQt6=True mais levait
+  AttributeError sous PyQt6 : QSettings.IniFormat, QgsTask.CanCancel...
+  Enumerations Qt qualifiees ; Qgis.GeometryType.Line et
+  Qgis.LayerFilter.LineLayer (QGIS >= 3.34) ; QFontDatabase statique sous
+  Qt 6 ; le repli QVariant (QGIS < 3.38) reste en forme plate, voulue.
+  Banc local 3.44 : 432 OK, 0 ECHEC. Aucun calcul ne change.
+
 LEXIQUE ET TRI — 27 OCTOBRE 2026 (NUIT), VERSION 0.9.26 (NON PUBLIEE).
   Repris de Rhoe et Hyetos (27/10). Aucun calcul ne change.
   1. LEXIQUE (calage_apports/lexique.py, sans Qt, 23 termes) : textes d'aide,
