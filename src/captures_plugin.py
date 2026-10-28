@@ -99,7 +99,10 @@ from qgis.PyQt.QtWidgets import (QApplication, QMainWindow,      # noqa: E402
                                  QGroupBox, QToolBar)
 
 # La police d'interface du poste — voir l'entete.
-_familles = QFontDatabase().families()
+try:
+    _familles = QFontDatabase.families()          # Qt 6 : méthode statique
+except TypeError:
+    _familles = QFontDatabase().families()        # Qt 5
 _police = next((f for f in ("Segoe UI", "Noto Sans", "DejaVu Sans", "Arial")
                 if f in _familles), QApplication.font().family())
 # EN POINTS, PAS EN PIXELS : la feuille de style du plugin dimensionne ses

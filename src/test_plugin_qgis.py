@@ -140,7 +140,11 @@ from qgis.PyQt.QtGui import QFont, QFontDatabase, QFontInfo    # noqa: E402
 # Les metriques du greffon de plateforme « offscreen » peuvent utiliser une
 # police de remplacement sous Windows. Nommer la police disponible et dire
 # celle que Qt resout, au lieu de certifier une geometrie sur ce remplacement.
-if "Segoe UI" in QFontDatabase().families():
+try:
+    _familles = QFontDatabase.families()          # Qt 6 : methode statique
+except TypeError:
+    _familles = QFontDatabase().families()        # Qt 5
+if "Segoe UI" in _familles:
     qgs.setFont(QFont("Segoe UI", 9))
 else:
     # L'alias par défaut « DejaVu LGC Sans » peut être résolu en « DejaVu Sans ».
