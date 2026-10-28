@@ -33,16 +33,24 @@ jobs:
   qgis:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        # QGIS 3.44 LTR et QGIS 4.2, Qt 6 (veille du 27/10/2026, P7).
+        image: ["qgis/qgis:3.44", "qgis/qgis:4.2"]
     container:
-      # Image stable-noble déjà utilisée par Check HEC-RAS, figée le 20/09/2026.
-      image: qgis/qgis@sha256:a30b9a65df003c9977f9d30122496e824a8d8d1d1fd31aadbdb091d631f4ba49
+      image: ${{ matrix.image }}
     env:
       QT_QPA_PLATFORM: offscreen
       QGIS_PREFIX_PATH: /usr
     steps:
       - uses: actions/checkout@v4
       - name: Dépendances de test, sans h5py dans QGIS
-        run: python3 -m pip install --break-system-packages pytest -r requirements-dev.txt
+        # Les paquets Debian de l'image (pyproj…) ne se désinstallent pas : pip les garde tels
+        # quels et choisit des versions compatibles du reste (constat du 27/10/2026).
+        run: |
+          python3 -m pip freeze > /tmp/systeme.txt
+          python3 -m pip install --break-system-packages -c /tmp/systeme.txt pytest -r requirements-dev.txt
       - name: Version réellement éprouvée
         run: python3 -c "from qgis.core import Qgis; from qgis.PyQt.QtCore import QT_VERSION_STR; print('QGIS', Qgis.QGIS_VERSION, 'Qt', QT_VERSION_STR)"
       - name: Tâche native et cycle du dialogue
@@ -54,6 +62,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: recette-qgis-${{ github.sha }}
+          name: recette-qgis-${{ strategy.job-index }}-${{ github.sha }}
           path: artifacts/
           if-no-files-found: error
