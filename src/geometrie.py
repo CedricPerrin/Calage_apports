@@ -790,14 +790,19 @@ def _points_champs_fixes(lignes, depart):
     caracteres sans espace de remplissage, elle se retrouve collee a la
     precedente et un simple split() la fusionne avec elle.
 
+    CHAMP VIDE IGNORE : sous « Storage Area Surface Line= », HEC-RAS ecrit
+    chaque point sur trois champs, x, y et un troisieme de 16 espaces. Lu
+    comme un nombre, il faisait echouer tout le chargement d'une geometrie
+    sans .hdf (28/10/2026, signale par une collegue en 0.9.26).
+
     Retourne (points, index de la premiere ligne non lue).
     """
     points = []
     k = depart
     while k < len(lignes) and re.match(r"^\s*-?\d", lignes[k]):
         brut = lignes[k]
-        n = len(brut) // 16
-        valeurs = [float(brut[16 * m:16 * (m + 1)]) for m in range(n)]
+        champs = (brut[16 * m:16 * (m + 1)] for m in range(len(brut) // 16))
+        valeurs = [float(c) for c in champs if c.strip()]
         points += list(zip(valeurs[0::2], valeurs[1::2]))
         k += 1
     return points, k
@@ -1301,7 +1306,8 @@ if __name__ == "__main__":
         "",
         "Storage Area=Zone Test     ,,",
         f"Storage Area Surface Line= {len(perimetre_brut)} ",
-        *[_ligne_point(p) for p in perimetre_brut],
+        # Troisieme champ de 16 espaces, comme l'ecrit HEC-RAS.
+        *[_ligne_point(p) + " " * 16 for p in perimetre_brut],
         "Storage Area Type= 1 ",
         "Storage Area Is2D=-1",
         "",

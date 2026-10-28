@@ -22,6 +22,15 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+GEOMETRIE SANS .HDF — 28 OCTOBRE 2026, VERSION 0.9.28 (NON PUBLIEE).
+  Signalement d'une collegue en 0.9.26 : les reference lines ne
+  s'importent pas dans QGIS. Reproduit sur les geometries des cas de test
+  sans .gNN.hdf : « could not convert string to float: '                ' ».
+  Sous « Storage Area Surface Line= », HEC-RAS ecrit x, y et un troisieme
+  champ de 16 espaces ; geometrie._points_champs_fixes ignore desormais
+  les champs vides. Le banc ecrit le contour comme HEC-RAS. Defaut ancien,
+  pas une regression de la 0.9.26. ras-commander 0.110.1 essaye : sans effet.
+
 QGIS 4 (QT 6) — 28 OCTOBRE 2026, VERSION 0.9.27 (NON PUBLIEE).
   Veille du 27/10, P7 : banc QGIS lance aussi sous qgis/qgis:4.2 dans la CI
   (ux-qgis.yml). L'extension declarait supportsQt6=True mais levait

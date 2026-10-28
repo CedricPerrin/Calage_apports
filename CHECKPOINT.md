@@ -1,5 +1,15 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 28 octobre 2026 : géométrie sans .hdf, version 0.9.28, non publiée
+
+Signalement : « les référence lines ne s'importent pas sur qgis avec la 0.9.26 ».
+« Charger les couches du modèle » échouait sur toute géométrie sans `.gNN.hdf` :
+le contour de zone 2D du texte porte un troisième champ de 16 espaces par point,
+que `_points_champs_fixes` convertissait en nombre. Champs vides ignorés ; le banc
+de `geometrie.py` écrit le contour comme HEC-RAS. Défaut ancien (pas une régression
+de la 0.9.26). Le pont a été essayé sur les géométries des cas de test, avec
+ras-commander 0.99.2 et 0.110.1 (la plus récente) : toutes se chargent.
+
 ## 28 octobre 2026 : QGIS 4 (Qt 6), version 0.9.27, non publiée
 
 Veille du 27/10, P7 : CI « UX QGIS » sous `qgis/qgis:3.44` et `qgis/qgis:4.2`.
