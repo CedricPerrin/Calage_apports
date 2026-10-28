@@ -64,7 +64,7 @@ class TacheRecherchePython(QgsTask):
     resultat = pyqtSignal(object, str, str)
 
     def __init__(self, cible):
-        super().__init__("Recherche des interpréteurs Python", QgsTask.CanCancel)
+        super().__init__("Recherche des interpréteurs Python", QgsTask.Flag.CanCancel)
         self.setProperty("calageInstallation", True)
         self.cible = Path(cible)
         self.lignes = []

@@ -24,8 +24,8 @@ def qgis_app(tmp_path_factory):
     app.initQgis()
     app.setOrganizationName("ISL-UX-tests")
     app.setApplicationName("calage-test")
-    QSettings.setDefaultFormat(QSettings.IniFormat)
-    QSettings.setPath(QSettings.IniFormat, QSettings.UserScope,
+    QSettings.setDefaultFormat(QSettings.Format.IniFormat)
+    QSettings.setPath(QSettings.Format.IniFormat, QSettings.Scope.UserScope,
                       str(tmp_path_factory.mktemp("settings")))
     yield app
     app.processEvents()

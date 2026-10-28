@@ -2012,7 +2012,8 @@ except Exception as _e:                                      # noqa: BLE001
     _repli_tient = False
     _repli_motif = f"{type(_e).__name__}: {_e}"
 verifier("le repli QVariant, pris sous QGIS < 3.38, construit bien un champ",
-         _repli_tient, _repli_motif)
+         _repli_tient or not hasattr(QVariant, "String"),  # PyQt6 : QGIS >= 3.38, repli jamais pris
+         _repli_motif)
 
 _couche_essai = mod_plugin.construire_couche_lignes_depuis_wkt(
     "essai_types", [{"nom": "A1", "wkt": "LINESTRING(0 0, 10 10)"}],

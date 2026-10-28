@@ -34,7 +34,6 @@ from qgis.core import (
     QgsFillSymbol,
     QgsFields,
     QgsGeometry,
-    QgsMapLayerProxyModel,
     QgsMeshLayer,
     QgsMessageLog,
     QgsPalLayerSettings,
@@ -42,7 +41,6 @@ from qgis.core import (
     QgsTextBackgroundSettings,
     QgsVectorLayer,
     QgsVectorLayerSimpleLabeling,
-    QgsWkbTypes,
 )
 from qgis.gui import (QgsCollapsibleGroupBox, QgsFieldComboBox, QgsGui,
                       QgsMapLayerComboBox, QgsMessageBar)
@@ -376,7 +374,7 @@ def couche_vers_gdf(couche, champ_nom=None, selection_seule=False,
 
     if couche is None:
         raise ValueError("aucune couche designee")
-    if couche.geometryType() != QgsWkbTypes.LineGeometry:
+    if couche.geometryType() != Qgis.GeometryType.Line:
         raise ValueError(f"« {couche.name()} » n'est pas une couche de lignes")
 
     champs = [f.name() for f in couche.fields()]
@@ -3790,7 +3788,7 @@ class DialogueParametrage(QDialog):
         self.combo_axe.setAccessibleName("Couche de l'axe hydraulique")
         self.combo_axe.setMinimumContentsLength(14)
         self.combo_axe.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
-        self.combo_axe.setFilters(QgsMapLayerProxyModel.LineLayer)
+        self.combo_axe.setFilters(Qgis.LayerFilter.LineLayer)
         # UNE ENTREE VIDE, SANS QUOI L'AXE EST « CHOISI » SANS QUE PERSONNE
         # NE L'AIT CHOISI. Sans elle, currentLayer() n'est jamais None des
         # qu'une couche ligne existe dans le projet — et « Charger les couches
