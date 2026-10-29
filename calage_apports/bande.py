@@ -156,8 +156,9 @@ def _poser(peintre: QPainter, case: QRectF, lignes: list[tuple[QFont, str]]) -> 
     12,06 en MS Shell Dlg 2 à 7,47 pt. Posée seule, une ligne ne prend que la sienne."""
     pas = QFontMetricsF(lignes[-1][0]).lineSpacing()
     y = case.top() + (case.height() - pas * len(lignes)) / 2
-    centre = int(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
-    centre |= int(Qt.TextFlag.TextDontClip)
+    # ``value`` : sous PyQt6, un drapeau Qt n'est plus un entier (``int()`` lève TypeError).
+    drapeaux = (Qt.AlignmentFlag.AlignHCenter, Qt.AlignmentFlag.AlignTop, Qt.TextFlag.TextDontClip)
+    centre = sum(int(getattr(drapeau, "value", drapeau)) for drapeau in drapeaux)
     for rang, (police, ligne) in enumerate(lignes):
         peintre.setFont(police)
         peintre.drawText(QRectF(case.left(), y + rang * pas, case.width(), pas), centre, ligne)
