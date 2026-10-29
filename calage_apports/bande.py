@@ -8,8 +8,10 @@ Chaque extension qui l'emploie en garde une copie identique (liste : ``D:\\1-Dev
 
 from __future__ import annotations
 
+import math
+
 from qgis.PyQt.QtCore import QModelIndex, QRectF, QSize, Qt
-from qgis.PyQt.QtGui import QFont, QFontMetrics, QPainter, QPalette, QResizeEvent
+from qgis.PyQt.QtGui import QFont, QFontMetricsF, QPainter, QPalette, QResizeEvent
 from qgis.PyQt.QtWidgets import (
     QApplication,
     QListWidget,
@@ -34,7 +36,7 @@ class Bande(QListWidget):
         super().__init__()
         self._textes = (complets, courts)
         self._largeur = largeur
-        self._hauteurs = [int(ligne * (texte.count("\n") + 1.4)) for texte in complets]
+        self._ligne = ligne
         #: Hauteur d'une étape réduite à son numéro, en px.
         self.hauteur_courte = int(ligne * 1.4)
         self._complete: bool | None = None
@@ -43,7 +45,22 @@ class Bande(QListWidget):
     @property
     def hauteur_complete(self) -> int:
         """Hauteur de toutes les étapes avec leur nom, cadre compris, en px."""
-        return sum(self._hauteurs) + 2 * self.frameWidth()
+        return sum(self._hauteurs()) + 2 * self.frameWidth()
+
+    def _hauteurs(self) -> list[int]:
+        """Hauteur de chaque entrée avec son nom : ses lignes, plus 0,4 ligne. Un intitulé de
+        groupe compte ses lignes dans :func:`police_intitule`, plus haute de 15 % : comptées dans
+        la petite police, quatre lignes débordaient de leur case (Hyétos 0.6.0, 28/10/2026)."""
+        pas = QFontMetricsF(police_intitule(self.font())).lineSpacing()
+        hauteurs = []
+        for rang, texte in enumerate(self._textes[0]):
+            lignes = texte.count("\n") + 1
+            element = self.item(rang)
+            if element is not None and not element.flags() & Qt.ItemFlag.ItemIsSelectable:
+                hauteurs.append(math.ceil(lignes * pas + 0.4 * self._ligne))
+            else:
+                hauteurs.append(int(self._ligne * (lignes + 0.4)))
+        return hauteurs
 
     def resizeEvent(self, evenement: QResizeEvent) -> None:  # noqa: N802 — API Qt
         """Choisit la forme des étapes à chaque changement de hauteur."""
@@ -56,10 +73,11 @@ class Bande(QListWidget):
         if complete == self._complete:
             return
         self._complete = complete
+        hauteurs = self._hauteurs()
         for rang in range(self.count()):
             element = self.item(rang)
             element.setText(self._textes[0 if complete else 1][rang])
-            haut = self._hauteurs[rang] if complete else self.hauteur_courte
+            haut = hauteurs[rang] if complete else self.hauteur_courte
             element.setSizeHint(QSize(self._largeur, haut))
 
 
@@ -100,22 +118,12 @@ class NumeroGras(QStyledItemDelegate):
             if vue.state & QStyle.StateFlag.State_Active
             else QPalette.ColorGroup.Inactive
         )
-        # ``initStyleOption`` change les « \n » en séparateurs de ligne Unicode.
-        numero, _, nom = texte.replace(" ", "\n").partition("\n")
-        ligne = QFontMetrics(vue.font).lineSpacing()
-        bloc = ligne * (1 + (nom.count("\n") + 1 if nom else 0))
-        y = vue.rect.top() + (vue.rect.height() - bloc) / 2
+        numero, *noms = _lignes(texte)
         gras = QFont(vue.font)
         gras.setBold(True)
         peintre.save()
         peintre.setPen(vue.palette.color(groupe, role))
-        peintre.setFont(gras)
-        centre = int(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
-        peintre.drawText(QRectF(vue.rect.left(), y, vue.rect.width(), ligne), centre, numero)
-        if nom:
-            peintre.setFont(vue.font)
-            zone = QRectF(vue.rect.left(), y + ligne, vue.rect.width(), bloc - ligne)
-            peintre.drawText(zone, centre, nom)
+        _poser(peintre, QRectF(vue.rect), [(gras, numero)] + [(vue.font, nom) for nom in noms])
         peintre.restore()
 
     @staticmethod
@@ -129,9 +137,30 @@ class NumeroGras(QStyledItemDelegate):
         peintre.drawLine(vue.rect.left() + 3, haut, vue.rect.right() - 3, haut)
         actif = QPalette.ColorGroup.Active
         peintre.setPen(vue.palette.color(actif, QPalette.ColorRole.Text))
-        peintre.setFont(police_intitule(vue.font))
-        peintre.drawText(QRectF(vue.rect), int(Qt.AlignmentFlag.AlignCenter), texte)
+        police = police_intitule(vue.font)
+        _poser(peintre, QRectF(vue.rect), [(police, ligne) for ligne in _lignes(texte)])
         peintre.restore()
+
+
+def _lignes(texte: str) -> list[str]:
+    """Les lignes du texte d'une entrée (``initStyleOption`` change les sauts de ligne en
+    séparateurs de ligne Unicode)."""
+    return texte.replace("\u2028", "\n").split("\n")
+
+
+def _poser(peintre: QPainter, case: QRectF, lignes: list[tuple[QFont, str]]) -> None:
+    """Pose les ``lignes`` (police, texte) au centre de ``case``, une à une, au pas de la dernière
+    police, sans les couper (QGIS 3.44.14 à 150 %, 29/10/2026 : le « g » de « Hydro- / grammes »
+    était rogné). ``drawText`` coupe à son cadre un texte de plusieurs lignes qui le dépasse, et
+    une ligne close par un saut y prend la hauteur d'une police de secours : 13 px au lieu de
+    12,06 en MS Shell Dlg 2 à 7,47 pt. Posée seule, une ligne ne prend que la sienne."""
+    pas = QFontMetricsF(lignes[-1][0]).lineSpacing()
+    y = case.top() + (case.height() - pas * len(lignes)) / 2
+    centre = int(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+    centre |= int(Qt.TextFlag.TextDontClip)
+    for rang, (police, ligne) in enumerate(lignes):
+        peintre.setFont(police)
+        peintre.drawText(QRectF(case.left(), y + rang * pas, case.width(), pas), centre, ligne)
 
 
 def police_intitule(police: QFont) -> QFont:
