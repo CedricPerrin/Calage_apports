@@ -397,7 +397,7 @@ def commande_modele(args):
     pretraitee = chemin.exists()
     # LIGNES SANS GEOMETRIE DANS LE HDF : un .gXX.hdf peut nommer ses
     # reference lines sans en porter un seul point (« Polyline Points » vide —
-    # Ard_aval.g04.hdf, Ardanavy, 30/10/2026). ras-commander 0.99 les rend
+    # releve sur un modele reel le 30/10/2026). ras-commander 0.99 les rend
     # alors en « LINESTRING EMPTY » ; le repli texte ci-dessous les croyait
     # deja connues et ne les relisait pas : la couche des sections arrivait
     # avec des entites sans trace. On les ecarte ici pour que le texte les
@@ -460,7 +460,7 @@ def commande_modele(args):
     # dans le texte, absent du HDF, et dont le trace n'a pas ete reconnu,
     # disparaissait sans bruit : la couche restait vide et l'erreur ne
     # tombait qu'a la validation, sur « aucune entite exploitable »
-    # (30/10/2026, modele Ardanavy). On les nomme, pour que le compte rendu
+    # (30/10/2026, sur un modele reel). On les nomme, pour que le compte rendu
     # du chargement le dise.
     declares = geo.noms_objets_geometrie(texte)
     illisibles = (

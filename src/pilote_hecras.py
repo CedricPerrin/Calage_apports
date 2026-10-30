@@ -773,7 +773,7 @@ def lignes_reference_sans_trace(fichier_geometrie):
     Reference lines que le .gXX.hdf nomme sans en porter AUCUN POINT : [noms].
     Vide si toutes ont un trace, ou si le .gXX.hdf n'existe pas encore.
 
-    POURQUOI CE CONTROLE EXISTE. Le 27/10/2026, Ard_aval.g04.hdf (Ardanavy)
+    POURQUOI CE CONTROLE EXISTE. Le 27/10/2026, le .gXX.hdf d'un modele reel
     nommait ses trois reference lines avec un « Polyline Points » vide.
     HEC-RAS ne regenere le .gXX.hdf que si le .gXX est plus recent que lui :
     sinon il reprend ces lignes telles quelles, et RasUnsteady s'arrete des
@@ -1132,7 +1132,7 @@ def _erreur_ecriture_geometrie(hdf_resultats):
     Explication a donner si HEC-RAS n'a PAS pu reecrire le .gXX.hdf, "" sinon.
 
     UN AUTRE PROGRAMME TENAIT LE FICHIER OUVERT. Reproduit le 30/10/2026 sur
-    une copie d'Ard_aval : le .g04.hdf ouvert en lecture — ce que fait la
+    une copie de modele reel : le .gXX.hdf ouvert en lecture — ce que fait la
     couche « Maillage 2D » de QGIS, ou RAS Mapper —, HEC-RAS affiche « Error
     writing geometry file (hdf version) », le chien de garde de ras-commander
     ferme la boite, et le calcul tourne SUR L'ANCIEN HDF : une section ou une
@@ -3480,7 +3480,7 @@ if __name__ == "__main__":
     _msg_hdf.unlink(missing_ok=True)
 
     # --- LE .gXX.hdf N'A PAS PU ETRE REECRIT ------------------------------
-    # Reproduit le 30/10/2026 sur une copie d'Ard_aval : le .g04.hdf tenu
+    # Reproduit le 30/10/2026 sur une copie de modele reel : le .gXX.hdf tenu
     # ouvert par un autre programme, HEC-RAS calcule sur l'ancien HDF et ne le
     # dit qu'au milieu de son compte rendu, que la simulation prolonge ensuite
     # de dizaines de lignes. compute_plan rend pourtant un succes.
@@ -3530,7 +3530,7 @@ if __name__ == "__main__":
               lignes_reference_sans_trace(_geo) == ["SC_B"],
               f"{lignes_reference_sans_trace(_geo)}")
     _hdf_rl([], [[0, 0, 0, 1], [0, 0, 1, 1], [0, 0, 2, 1]])
-    _verifier("« Polyline Points » vide : toutes sont nommees (Ard_aval.g04)",
+    _verifier("« Polyline Points » vide : toutes sont nommees (cas du 27/10)",
               lignes_reference_sans_trace(_geo) == ["SC_A", "SC_B", "SC_C"],
               f"{lignes_reference_sans_trace(_geo)}")
     Path(str(_geo) + ".hdf").unlink()

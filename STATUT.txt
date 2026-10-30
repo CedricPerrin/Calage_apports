@@ -22,6 +22,19 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+REFERENCE LINES SANS POINT — 30 OCTOBRE 2026, VERSION 0.9.29 (NON PUBLIEE).
+  Ardanavy, Ard_aval.g04 : le .g04.hdf nommait ses trois reference lines
+  sans aucun point. Couche des sections vide dans le plugin ; RasUnsteady
+  arrete au demarrage (« access violation ... READ_UN_HDF_REF_P ») sur p11
+  le 27/10 et p15 le 28/10. Reproduit sur copies : le .g04 ecrit par le
+  plugin est sain ; un .gXX.hdf tenu ouvert (couche Maillage 2D de QGIS,
+  RAS Mapper) ne peut pas etre reecrit (« Error writing geometry file »),
+  le chien de garde de ras-commander ferme la boite, le calcul tourne sur
+  l'ancien HDF et compute_plan rend un succes. Corrige : repli sur le .gXX
+  au chargement, maillage affiche depuis une copie, calcul rejete sur ce
+  message, calage refuse sur des reference lines sans point. Non etabli :
+  quel programme a ecrit le HDF sans points le 27/10 vers 17:55.
+
 GEOMETRIE SANS .HDF — 28 OCTOBRE 2026, VERSION 0.9.28 (NON PUBLIEE).
   Signalement d'une collegue en 0.9.26 : les reference lines ne
   s'importent pas dans QGIS. Reproduit sur les geometries des cas de test

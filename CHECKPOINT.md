@@ -1,5 +1,19 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 30 octobre 2026 : reference lines sans point, version 0.9.29, non publiée
+
+Ardanavy, `Ard_aval.g04` : la couche « Sections de contrôle » arrivait vide, et
+HEC-RAS s'arrêtait au démarrage de p11 (27/10) et de p15 (28/10) sur « access
+violation … READ_UN_HDF_REF_P ». Le `.g04.hdf` nommait ses trois reference lines
+sans aucun point. Essais sur copies : le `.g04` écrit par le plugin est sain
+(HEC-RAS en tire les 12 points) ; un `.gXX.hdf` tenu ouvert (couche « Maillage 2D »
+de QGIS, RAS Mapper) ne peut pas être réécrit, le chien de garde de ras-commander
+ferme « Error writing geometry file », et le calcul tourne sur l'ancien HDF.
+Corrigé : repli sur le `.gXX` au chargement, maillage affiché depuis une copie du
+`.hdf`, calcul rejeté sur ce message, calage refusé sur des reference lines sans
+point. Le `g04.hdf` du modèle a été réparé (groupe `Reference Lines` seul). Non
+établi : quel programme a écrit le HDF sans points le 27/10 vers 17:55.
+
 ## 28 octobre 2026 : géométrie sans .hdf, version 0.9.28, non publiée
 
 Signalement : « les référence lines ne s'importent pas sur qgis avec la 0.9.26 ».

@@ -2041,7 +2041,7 @@ verifier("une couche d'emprise se construit et porte son champ",
 
 # LE MAILLAGE NE TIENT JAMAIS OUVERT LE .gXX.hdf DU PROJET. Une couche MDAL
 # sur l'original empechait HEC-RAS de le reecrire, et le calcul tournait sur
-# l'ancien pretraitement (Ard_aval.g04, 27/10/2026).
+# l'ancien pretraitement (modele reel, 27/10/2026).
 _bac_maillage = Path(tempfile.mkdtemp(prefix="copie_maillage_"))
 _original = _bac_maillage / "ESSAI.g01.hdf"
 _original.write_bytes(b"version 1")
