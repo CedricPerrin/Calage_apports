@@ -768,6 +768,42 @@ def pretraitement_perime(fichier_geometrie):
             "taille_hdf_mo": hdf.stat().st_size / (1024 * 1024)}
 
 
+def lignes_reference_sans_trace(fichier_geometrie):
+    """
+    Reference lines que le .gXX.hdf nomme sans en porter AUCUN POINT : [noms].
+    Vide si toutes ont un trace, ou si le .gXX.hdf n'existe pas encore.
+
+    POURQUOI CE CONTROLE EXISTE. Le 27/10/2026, Ard_aval.g04.hdf (Ardanavy)
+    nommait ses trois reference lines avec un « Polyline Points » vide.
+    HEC-RAS ne regenere le .gXX.hdf que si le .gXX est plus recent que lui :
+    sinon il reprend ces lignes telles quelles, et RasUnsteady s'arrete des
+    leur lecture (« forrtl: severe (157) ... READ_UN_HDF_REF_P »). Deux
+    calculs perdus, les 27 et 28/10, sans que rien n'en ait annonce la cause.
+
+    LU AVEC h5py ET NON PAR ras-commander : selon sa version, celui-ci rend
+    ces lignes en « LINESTRING EMPTY » (0.99.2) ou n'en rend aucune (0.105).
+    """
+    import h5py
+
+    g = Path(fichier_geometrie)
+    hdf = g.with_suffix(g.suffix + ".hdf")
+    if not hdf.is_file():
+        return []
+    with h5py.File(hdf, "r") as h:
+        groupe = h.get("Geometry/Reference Lines")
+        if groupe is None or "Attributes" not in groupe:
+            return []
+        noms = [n.decode("utf-8", "replace").strip() if isinstance(n, bytes)
+                else str(n).strip() for n in groupe["Attributes"]["Name"]]
+        if ("Polyline Info" not in groupe or "Polyline Points" not in groupe
+                or groupe["Polyline Points"].shape[0] == 0):
+            return noms
+        # « Polyline Info » : une ligne par objet — premier point, NOMBRE DE
+        # POINTS, premiere partie, nombre de parties.
+        points = groupe["Polyline Info"][()][:, 1]
+    return [nom for nom, n in zip(noms, points) if n == 0]
+
+
 def verifier_intervalle_apports(fichier_unsteady, nom_zone_2d=None,
                                 intervalle=INTERVALLE_APPORT,
                                 noms_connus=None):
@@ -1083,6 +1119,55 @@ def _messages_hecras(hdf_resultats):
             continue
     return ("Aucun message de HEC-RAS exploitable : ouvrir le plan dans "
             "HEC-RAS et lancer le calcul a la main pour voir ce qu'il refuse.")
+
+
+# Ce qu'ecrit HEC-RAS quand il n'a pas pu reecrire le .gXX.hdf : la premiere
+# phrase est celle de sa boite de dialogue, la seconde celle du compte rendu.
+MOTIFS_ECRITURE_GEOMETRIE = ("Error writing geometry file",
+                             "Error updating base geometry file")
+
+
+def _erreur_ecriture_geometrie(hdf_resultats):
+    """
+    Explication a donner si HEC-RAS n'a PAS pu reecrire le .gXX.hdf, "" sinon.
+
+    UN AUTRE PROGRAMME TENAIT LE FICHIER OUVERT. Reproduit le 30/10/2026 sur
+    une copie d'Ard_aval : le .g04.hdf ouvert en lecture — ce que fait la
+    couche « Maillage 2D » de QGIS, ou RAS Mapper —, HEC-RAS affiche « Error
+    writing geometry file (hdf version) », le chien de garde de ras-commander
+    ferme la boite, et le calcul tourne SUR L'ANCIEN HDF : une section ou une
+    injection ecrite depuis dans le .gXX n'existe pas pour lui. compute_plan
+    rend pourtant un succes. Seule trace : « Error updating base geometry file
+    with pre-processed tables » dans le compte rendu.
+
+    TOUT LE COMPTE RENDU EST LU, pas ses dernieres lignes comme dans
+    _messages_hecras() : la phrase suit le pretraitement, et la simulation
+    ecrit ensuite des dizaines de lignes.
+    """
+    try:
+        import h5py
+        with h5py.File(hdf_resultats, "r") as h:
+            cle = "Results/Summary/Compute Messages (text)"
+            if cle not in h:
+                return ""
+            brut = h[cle][()]
+    except Exception:                                        # noqa: BLE001
+        return ""
+    if isinstance(brut, bytes):
+        texte = brut.decode("utf-8", "replace")
+    else:
+        texte = "\n".join(x.decode("utf-8", "replace") if isinstance(x, bytes)
+                          else str(x) for x in np.ravel(brut))
+    ligne = next((l.strip() for l in texte.splitlines()
+                  if any(m in l for m in MOTIFS_ECRITURE_GEOMETRIE)), "")
+    if not ligne:
+        return ""
+    return (f"HEC-RAS n'a pas pu mettre a jour le pretraitement de la "
+            f"geometrie (« {ligne[:120]} ») : un autre programme tenait le "
+            f".gXX.hdf ouvert — QGIS (couche « Maillage 2D »), RAS Mapper ou "
+            f"l'interface HEC-RAS. Le calcul a tourne sur l'ANCIEN "
+            f"pretraitement, ou peuvent manquer des sections ou des injections "
+            f"ecrites depuis. Fermer ces programmes, puis relancer.")
 
 
 def pids_hecras():
@@ -1479,6 +1564,26 @@ class PiloteHecRas(Modele):
                   f"HEC-RAS, lancer le plan une fois a la main pour faire le "
                   f"pretraitement, puis relancer le calage SANS recomposer.",
                   flush=True)
+
+        # REFERENCE LINES SANS POINT DANS LE .gXX.hdf — ICI ON REFUSE. Voir
+        # lignes_reference_sans_trace() : tant que le .gXX n'est pas plus
+        # recent que lui, HEC-RAS reprend ce HDF tel quel et RasUnsteady
+        # s'arrete des le premier pas. Un pretraitement PERIME, lui, sera
+        # refait depuis le .gXX au premier calcul : on laisse faire HEC-RAS.
+        try:
+            sans_trace = lignes_reference_sans_trace(
+                self._geometrie_du_plan(self.plan_travail))
+        except Exception:                                    # noqa: BLE001
+            sans_trace = []
+        if sans_trace and not perime:
+            raise ValueError(
+                f"le pretraitement de la geometrie "
+                f"({self._geometrie_du_plan(self.plan_travail).name}.hdf) "
+                f"nomme {len(sans_trace)} reference line(s) SANS AUCUN POINT "
+                f": {', '.join(sans_trace)}. HEC-RAS s'arreterait au premier "
+                f"calcul (« READ_UN_HDF_REF_P »). Fermer QGIS, RAS Mapper et "
+                f"HEC-RAS, ouvrir la geometrie dans HEC-RAS et l'enregistrer, "
+                f"puis relancer le calage.")
 
         self.carte = cartographier_hydrogrammes(self.fichier_unsteady,
                                                 self.nom_zone_2d,
@@ -2676,12 +2781,20 @@ class PiloteHecRas(Modele):
         # ne contenant que « Results/Summary », et ras-commander a pourtant
         # rendu un succes. La boucle poursuivait alors jusqu'a echouer bien
         # plus loin, sur une erreur de lecture qui n'expliquait rien.
+        ecriture = _erreur_ecriture_geometrie(self.hdf_resultats)
         absents = _series_absentes(self.hdf_resultats)
         if absents:
             return ResultatCalcul(
                 reussi=False, duree_s=duree,
                 message=f"calcul annonce reussi mais SANS RESULTATS : "
-                        f"{absents}. {_messages_hecras(self.hdf_resultats)}")
+                        f"{absents}. " + (f"{ecriture} " if ecriture else "")
+                        + _messages_hecras(self.hdf_resultats))
+        # LE CALCUL A TOURNE — MAIS SUR QUELLE GEOMETRIE ? Voir
+        # _erreur_ecriture_geometrie() : HEC-RAS a pu calculer sur l'ancien
+        # pretraitement sans que rien d'autre ne le signale.
+        if ecriture:
+            return ResultatCalcul(reussi=False, duree_s=duree,
+                                  message=ecriture)
 
         bilan = float("nan")
         try:
@@ -3365,6 +3478,65 @@ if __name__ == "__main__":
     _verifier("l'en-tete de plan et les temps ne noient pas la cause",
               "Simulation started" not in _lu and "Computation Task" not in _lu)
     _msg_hdf.unlink(missing_ok=True)
+
+    # --- LE .gXX.hdf N'A PAS PU ETRE REECRIT ------------------------------
+    # Reproduit le 30/10/2026 sur une copie d'Ard_aval : le .g04.hdf tenu
+    # ouvert par un autre programme, HEC-RAS calcule sur l'ancien HDF et ne le
+    # dit qu'au milieu de son compte rendu, que la simulation prolonge ensuite
+    # de dizaines de lignes. compute_plan rend pourtant un succes.
+    print("\n--- pretraitement non reecrit, reference lines sans point ---")
+    _msg_hdf = Path(tempfile.gettempdir()) / "_essai_calage_ecriture.p01.hdf"
+    with _h5.File(_msg_hdf, "w") as _h:
+        _h.create_dataset(
+            "Results/Summary/Compute Messages (text)",
+            data=np.bytes_((
+                "Plan: 'sans apport' (ESSAI.p01)\n"
+                "Writing Geometry...\n"
+                "Completed Writing Geometry\n"
+                "Finished Processing Geometry\n"
+                "Error updating base geometry file with pre-processed tables "
+                "'C:\\essai\\ESSAI.g01.hdf' \n"
+                + "Performing Unsteady Flow Simulation\n" * 40
+                + "Computation Task\tTime\n").encode("utf-8")))
+    _lu = _erreur_ecriture_geometrie(_msg_hdf)
+    _verifier("l'echec de reecriture du .gXX.hdf est trouve, meme noye",
+              "Error updating base geometry file" in _lu and "QGIS" in _lu,
+              _lu[:110])
+    with _h5.File(_msg_hdf, "w") as _h:
+        _h.create_dataset(
+            "Results/Summary/Compute Messages (text)",
+            data=np.bytes_(b"Writing Geometry...\nFinished Processing Geometry\n"))
+    _verifier("un compte rendu sans cet echec ne dit rien",
+              _erreur_ecriture_geometrie(_msg_hdf) == "")
+    _msg_hdf.unlink(missing_ok=True)
+
+    _geo = Path(tempfile.gettempdir()) / "_essai_calage_rl.g01"
+    _geo.write_bytes(b"Geom Title=Essai\r\n")
+
+    def _hdf_rl(points, info):
+        with _h5.File(str(_geo) + ".hdf", "w") as _h:
+            _g = _h.create_group("Geometry/Reference Lines")
+            _g.create_dataset("Attributes", data=np.array(
+                [(b"SC_A", b"Perimeter 1"), (b"SC_B", b""),
+                 (b"SC_C", b"Perimeter 1")],
+                dtype=[("Name", "S32"), ("SA-2D", "S32")]))
+            _g.create_dataset("Polyline Info", data=np.array(info, dtype="i4"))
+            _g.create_dataset("Polyline Points", data=np.array(
+                points, dtype="f8").reshape(-1, 2))
+
+    _hdf_rl([[0, 0], [1, 1], [2, 2], [3, 3]],
+            [[0, 2, 0, 1], [2, 0, 1, 1], [2, 2, 2, 1]])
+    _verifier("une reference line sans point est nommee, les autres non",
+              lignes_reference_sans_trace(_geo) == ["SC_B"],
+              f"{lignes_reference_sans_trace(_geo)}")
+    _hdf_rl([], [[0, 0, 0, 1], [0, 0, 1, 1], [0, 0, 2, 1]])
+    _verifier("« Polyline Points » vide : toutes sont nommees (Ard_aval.g04)",
+              lignes_reference_sans_trace(_geo) == ["SC_A", "SC_B", "SC_C"],
+              f"{lignes_reference_sans_trace(_geo)}")
+    Path(str(_geo) + ".hdf").unlink()
+    _verifier("sans .gXX.hdf, rien a signaler",
+              lignes_reference_sans_trace(_geo) == [])
+    _geo.unlink(missing_ok=True)
 
     _verifier("verifier_intervalle_apports honore le meme filtre",
               "APPORT_B" in _sans_filtre and "APPORT_B" not in _avec_filtre,

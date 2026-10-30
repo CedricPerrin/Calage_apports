@@ -18,9 +18,12 @@ et figerait l'interface.
 """
 
 import functools
+import hashlib
 import html
 import inspect
 import os
+import shutil
+import tempfile
 import traceback
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -475,6 +478,50 @@ def construire_couche_polygones_depuis_wkt(nom_couche, entites, crs_authid):
     """Meme principe, pour l'emprise (perimetre de zone 2D)."""
     return _couche_memoire_depuis_wkt(nom_couche, entites, crs_authid,
                                       "Polygon", "zone")
+
+
+# LE MAILLAGE S'AFFICHE DEPUIS UNE COPIE DU .gXX.hdf, JAMAIS DEPUIS CELUI DU
+# PROJET. MDAL garde le fichier ouvert tant que la couche existe, et HEC-RAS
+# ne peut alors plus le reecrire : « Error writing geometry file (hdf
+# version) », boite que le chien de garde de ras-commander ferme, puis un
+# calcul sur l'ancien pretraitement. Reproduit le 30/10/2026 sur une copie
+# d'Ard_aval, dont le .g04.hdf avait perdu le trace de ses reference lines.
+DOSSIER_COPIES_MAILLAGE = Path(tempfile.gettempdir()) / "calage_apports_maillage"
+
+
+def copie_pour_maillage(chemin_hdf):
+    """
+    Copie du .gXX.hdf a donner a QgsMeshLayer, ou None : fichier absent
+    (geometrie jamais pretraitee) ou copie impossible. Le maillage n'est
+    qu'un fond de carte : sans copie, on s'en passe plutot que d'ouvrir
+    l'original.
+
+    UN NOM PAR DOSSIER ET PAR VERSION DU FICHIER. La copie precedente reste
+    peut-etre ouverte par une couche que QGIS n'a pas encore detruite, et
+    Windows refuse d'ecraser un fichier ouvert ; deux projets peuvent aussi
+    porter le meme nom de geometrie. Les copies perimees sont effacees des
+    qu'elles ne sont plus ouvertes.
+    """
+    chemin_hdf = Path(chemin_hdf)
+    if not chemin_hdf.is_file():
+        return None
+    etat = chemin_hdf.stat()
+    prefixe = (f"{chemin_hdf.stem}."
+               f"{hashlib.md5(str(chemin_hdf.parent).encode()).hexdigest()[:8]}")
+    copie = DOSSIER_COPIES_MAILLAGE / f"{prefixe}.{etat.st_mtime_ns}.hdf"
+    try:
+        DOSSIER_COPIES_MAILLAGE.mkdir(parents=True, exist_ok=True)
+        if not copie.is_file() or copie.stat().st_size != etat.st_size:
+            shutil.copyfile(chemin_hdf, copie)
+    except OSError:
+        return None
+    for perimee in DOSSIER_COPIES_MAILLAGE.glob(f"{prefixe}.*.hdf"):
+        if perimee != copie:
+            try:
+                perimee.unlink()
+            except OSError:
+                pass
+    return copie
 
 
 # ---------------------------------------------------------------------------
@@ -3702,7 +3749,10 @@ class DialogueParametrage(QDialog):
             except Exception:
                 pass
             self.couche_maillage = None
-        maillage = QgsMeshLayer(str(chemin_hdf), "Maillage 2D (HEC-RAS)", "mdal")
+        # Depuis une COPIE du .gXX.hdf : voir copie_pour_maillage().
+        copie = copie_pour_maillage(chemin_hdf)
+        maillage = QgsMeshLayer(str(copie) if copie else "",
+                                "Maillage 2D (HEC-RAS)", "mdal")
         if maillage.isValid():
             projet.addMapLayer(maillage, False)
             self.couche_maillage = maillage

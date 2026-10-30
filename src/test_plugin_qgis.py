@@ -2039,6 +2039,29 @@ verifier("une couche d'emprise se construit et porte son champ",
          f"valide={_emprise_essai.isValid()} "
          f"champs={[f.name() for f in _emprise_essai.fields()]}")
 
+# LE MAILLAGE NE TIENT JAMAIS OUVERT LE .gXX.hdf DU PROJET. Une couche MDAL
+# sur l'original empechait HEC-RAS de le reecrire, et le calcul tournait sur
+# l'ancien pretraitement (Ard_aval.g04, 27/10/2026).
+_bac_maillage = Path(tempfile.mkdtemp(prefix="copie_maillage_"))
+_original = _bac_maillage / "ESSAI.g01.hdf"
+_original.write_bytes(b"version 1")
+_copie_1 = mod_plugin.copie_pour_maillage(_original)
+verifier("la couche de maillage lit une copie, pas le fichier du projet",
+         _copie_1 is not None and _copie_1 != _original
+         and _copie_1.read_bytes() == b"version 1", f"{_copie_1}")
+_avant_ns = _original.stat().st_mtime_ns
+_original.write_bytes(b"version 2, plus longue")
+os.utime(_original, ns=(_avant_ns, _avant_ns + 10**9))
+_copie_2 = mod_plugin.copie_pour_maillage(_original)
+verifier("un .gXX.hdf reecrit donne une copie neuve, l'ancienne est effacee",
+         _copie_2 is not None and _copie_2 != _copie_1
+         and _copie_2.read_bytes() == b"version 2, plus longue"
+         and not _copie_1.exists(), f"{_copie_1.name} -> {_copie_2}")
+verifier("sans .gXX.hdf (geometrie jamais pretraitee), pas de copie",
+         mod_plugin.copie_pour_maillage(_bac_maillage / "ABSENT.g02.hdf") is None)
+_copie_2.unlink(missing_ok=True)
+shutil.rmtree(_bac_maillage, ignore_errors=True)
+
 # CONSTANTES Qt TOUTES QUALIFIEES.
 #
 # metadata.txt annonce supportsQt6=True. Sous PyQt6, une constante non
