@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont l'étape « Suivi » montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.9.28
+version=0.9.29
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,16 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.9.28 — « Charger les couches du modèle » échouait sur une
+changelog=0.9.29 — Calage : quand une section culmine bien avant sa
+    cible (cas réel : entrée à 2 h, cible à 4,5 h), la cible
+    décalée commençait avant le début de la simulation et la montée de
+    crue du premier apport était perdue. Le calage retarde désormais tout
+    l'axe temporel du modèle (entrées non calées, fin de simulation) du
+    retard nécessaire, puis refait le calcul de référence ; le retard est
+    dit au journal et dans les livrables. Chargement : les reference lines
+    sans tracé dans le .gXX.hdf sont relues dans le .gXX, les illisibles
+    sont nommées ; un .gXX.hdf périmé n'est plus réutilisé.
+    0.9.28 — « Charger les couches du modèle » échouait sur une
     géométrie sans fichier .hdf (jamais prétraitée, ou copiée sans lui) :
     le contour de la zone 2D porte un champ vide que le lecteur prenait pour
     un nombre. Les sections et injections s'affichent de nouveau.

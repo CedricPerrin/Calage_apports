@@ -485,7 +485,7 @@ def construire_couche_polygones_depuis_wkt(nom_couche, entites, crs_authid):
 # ne peut alors plus le reecrire : « Error writing geometry file (hdf
 # version) », boite que le chien de garde de ras-commander ferme, puis un
 # calcul sur l'ancien pretraitement. Reproduit le 30/10/2026 sur une copie
-# d'Ard_aval, dont le .g04.hdf avait perdu le trace de ses reference lines.
+# d'un cas reel, dont le .g04.hdf avait perdu le trace de ses reference lines.
 DOSSIER_COPIES_MAILLAGE = Path(tempfile.gettempdir()) / "calage_apports_maillage"
 
 

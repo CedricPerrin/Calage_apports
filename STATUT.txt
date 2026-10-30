@@ -22,6 +22,18 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+AXE TEMPOREL RETARDE — 30 OCTOBRE 2026, VERSION 0.9.29 (NON PUBLIEE).
+  25F193, Kondiztegi Q20 : entree a 2 h, cible du 1er apport a 4,5 h,
+  Dt = -2,4 h. La cible decalee commencait avant t = 0 ; l'apport injecte
+  partait a 4,19 m3/s. Apres le calcul de reference, caler() mesure
+  l'avance de chaque cible decalee (calage.avance_hors_simulation, debut a
+  1 % du pic), appelle Modele.retarder(max) puis refait la reference.
+  PiloteHecRas.retarder : 10 pas au moins, entrees non calees precedees de
+  leur 1re valeur, apports prolonges, fin de simulation repoussee. Retard
+  dans ResultatCalage.retard_axe_h et alertes_chaine. Seuls les
+  hydrogrammes de debit sont retardes. Auto-tests calage 142 OK, pilote
+  190 OK. A eprouver sur le modele 25F193 reel.
+
 GEOMETRIE SANS .HDF — 28 OCTOBRE 2026, VERSION 0.9.28 (NON PUBLIEE).
   Signalement d'une collegue en 0.9.26 : les reference lines ne
   s'importent pas dans QGIS. Reproduit sur les geometries des cas de test
