@@ -395,16 +395,30 @@ def commande_modele(args):
             f"geometrie choisi."))
 
     pretraitee = chemin.exists()
+    # LIGNES SANS GEOMETRIE DANS LE HDF : un .gXX.hdf peut nommer ses
+    # reference lines sans en porter un seul point (« Polyline Points » vide —
+    # Ard_aval.g04.hdf, Ardanavy, 30/10/2026). ras-commander 0.99 les rend
+    # alors en « LINESTRING EMPTY » ; le repli texte ci-dessous les croyait
+    # deja connues et ne les relisait pas : la couche des sections arrivait
+    # avec des entites sans trace. On les ecarte ici pour que le texte les
+    # fournisse.
+    vides_hdf = set()
 
     def lignes(gdf, prefixe):
         if gdf is None or len(gdf) == 0:
             return []
         colonne = next((c for c in gdf.columns
                         if c in ("Name", "name", "Nom", "NOM")), None)
-        return [{"nom": (str(gdf.iloc[i][colonne]) if colonne
-                        else f"{prefixe}_{i + 1:02d}"),
-                 "wkt": gdf.geometry.iloc[i].wkt}
-                for i in range(len(gdf))]
+        retenues = []
+        for i in range(len(gdf)):
+            nom = (str(gdf.iloc[i][colonne]).strip() if colonne
+                   else f"{prefixe}_{i + 1:02d}")
+            forme = gdf.geometry.iloc[i]
+            if forme is None or forme.is_empty:
+                vides_hdf.add(nom)
+                continue
+            retenues.append({"nom": nom, "wkt": forme.wkt})
+        return retenues
 
     crs, perimetres, sections, injections = None, [], [], []
     if pretraitee:
@@ -439,7 +453,7 @@ def commande_modele(args):
         for objet in du_texte[cle]:
             if objet["nom"] not in connus:
                 depuis_hdf.append({"nom": objet["nom"], "wkt": objet["wkt"]})
-                if pretraitee:
+                if pretraitee and objet["nom"] not in vides_hdf:
                     en_attente.append(objet["nom"])
 
     # OBJETS DECLARES MAIS ILLISIBLES. Un « Reference Line Name= » present
