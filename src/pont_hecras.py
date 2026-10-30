@@ -442,6 +442,19 @@ def commande_modele(args):
                 if pretraitee:
                     en_attente.append(objet["nom"])
 
+    # OBJETS DECLARES MAIS ILLISIBLES. Un « Reference Line Name= » present
+    # dans le texte, absent du HDF, et dont le trace n'a pas ete reconnu,
+    # disparaissait sans bruit : la couche restait vide et l'erreur ne
+    # tombait qu'a la validation, sur « aucune entite exploitable »
+    # (30/10/2026, modele Ardanavy). On les nomme, pour que le compte rendu
+    # du chargement le dise.
+    declares = geo.noms_objets_geometrie(texte)
+    illisibles = (
+        [n for n in declares["sections"]
+         if n not in {o["nom"] for o in sections}]
+        + [n for n in declares["apports"]
+           if n not in {o["nom"] for o in injections}])
+
     # PERIMETRE DEPUIS LE TEXTE en repli : le maillage HDF n'existe qu'apres
     # un pretraitement, mais le contour de la zone 2D est deja ecrit des sa
     # creation dans l'editeur de geometrie.
@@ -451,6 +464,7 @@ def commande_modele(args):
     return repondre(ok=True, crs=crs, sections=sections,
                     injections=injections, perimetres=perimetres,
                     en_attente_pretraitement=en_attente,
+                    objets_illisibles=illisibles,
                     geometrie_pretraitee=pretraitee)
 
 

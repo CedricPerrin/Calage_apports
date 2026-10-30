@@ -420,8 +420,11 @@ def couche_vers_gdf(couche, champ_nom=None, selection_seule=False,
         geometries.append(forme)
 
     if not geometries:
-        raise ValueError(f"« {couche.name()} » : aucune entite exploitable"
-                         + (" dans la selection" if selection_seule else ""))
+        raise ValueError(
+            f"« {couche.name()} » : aucune ligne tracée"
+            + (" dans la sélection" if selection_seule else "")
+            + ". Vérifier le compte rendu de « Charger les couches du "
+              "modèle », ou tracer les lignes dans cette couche.")
 
     return gpd.GeoDataFrame({"nom": noms}, geometry=geometries,
                             crs=couche.crs().authid() or None)
@@ -3762,7 +3765,13 @@ class DialogueParametrage(QDialog):
                 f"({', '.join(reponse['en_attente_pretraitement'][:5])}) : "
                 f"affichés d'après le fichier géométrie, pris en compte au "
                 f"prochain calcul."
-                if reponse.get("en_attente_pretraitement") else ""))
+                if reponse.get("en_attente_pretraitement") else "")
+             + (f"<br><b>{compte(len(reponse['objets_illisibles']), 'objet déclaré', 'objets déclarés')} "
+                f"dans {chemin_hdf.with_suffix('').name} mais illisible(s) "
+                f"({', '.join(reponse['objets_illisibles'][:5])}) :</b> tracé "
+                f"non reconnu, absent de la carte. Transmettre le bloc "
+                f"« Reference Line Name= » ou « BC Line Name= » correspondant."
+                if reponse.get("objets_illisibles") else ""))
         self._maj_resume()
 
     # --- Onglet 3 : Objectifs et precision -----------------------------------
