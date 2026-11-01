@@ -668,6 +668,49 @@ def imposer_intervalle_apport(fichier_unsteady, nom, nom_zone_2d=None,
             "pic_apres": float(np.max(nouvelles))}
 
 
+def retarder_hydrogrammes(fichier_unsteady, nb_pas, apports, nom_zone_2d=None,
+                          noms_connus=None):
+    """
+    Retarde de « nb_pas » pas les hydrogrammes de debit du fichier unsteady.
+
+    Hors « apports » (alimentation amont, apports non cales ici) : nb_pas
+    copies de la PREMIERE valeur sont posees en tete — le debit de base tenu
+    pendant le retard. Les « apports » a caler gardent leurs heures et sont
+    prolonges par leur derniere valeur : le calage les reecrit, ils n'ont
+    qu'a couvrir la fenetre allongee. Chaque tableau gagne nb_pas valeurs.
+
+    nb_pas EST UN MULTIPLE DE DIX, le nombre de valeurs par ligne : les
+    lignes ajoutees en tete repetent le premier champ tel qu'il est ecrit,
+    et les lignes d'origine restent intactes, sans arrondi.
+
+    Les blocs sont traites DU BAS VERS LE HAUT : les indices de la carte
+    restent justes pour ceux qui ne sont pas encore reecrits.
+
+    Retourne les noms retardes, hors apports.
+    """
+    if nb_pas <= 0 or nb_pas % 10:
+        raise ValueError(f"nb_pas = {nb_pas} : un multiple de dix est attendu")
+    chemin = Path(fichier_unsteady)
+    carte = cartographier_hydrogrammes(chemin, nom_zone_2d, noms_connus)
+    lignes = _lire_lignes(chemin)
+    retardes = []
+    for nom, info in sorted(carte.items(), key=lambda c: -c[1]["debut"]):
+        debut, fin = info["debut"], info["fin"]
+        entete = next(j for j in range(debut - 1, -1, -1)
+                      if lignes[j].startswith(MOTIF_HYDROGRAMME))
+        valeurs = lire_hydrogramme_unsteady(chemin, debut, fin)
+        if nom in apports:
+            prolonge = np.concatenate([valeurs, np.full(nb_pas, valeurs[-1])])
+            lignes[debut:fin] = [l + "\n" for l in _table_debits(prolonge)]
+        else:
+            premier = lignes[debut].rstrip("\n")[:8].rjust(8)
+            lignes[debut:debut] = [premier * 10 + "\n"] * (nb_pas // 10)
+            retardes.append(nom)
+        lignes[entete] = f"{MOTIF_HYDROGRAMME} {len(valeurs) + nb_pas} \n"
+    _ecrire_texte(chemin, "".join(lignes))
+    return sorted(retardes)
+
+
 def conditions_trop_courtes(fichier_unsteady, fichier_plan, nom_zone_2d=None,
                             noms_connus=None, apports_a_caler=None):
     """
@@ -2261,6 +2304,58 @@ class PiloteHecRas(Modele):
                 return voulue_min / 60.0
         return None
 
+    def retarder(self, heures, apports):
+        """
+        Retarde tout l'axe temporel du plan de travail — voir
+        calage.Modele.retarder et retarder_hydrogrammes().
+
+        LE RETARD EST ARRONDI AU-DESSUS a dix pas de travail (1 h au pas de
+        6 min) : les lignes des hydrogrammes non cales restent intactes. La
+        fin de simulation recule d'autant, et la borne de limiter_duree()
+        avec elle : la queue de l'evenement n'est pas perdue.
+
+        Retourne le retard applique, en heures.
+        """
+        pas = {round(i["intervalle_h"], 9) for i in self.carte.values()
+               if i["intervalle_h"]}
+        if len(pas) != 1:
+            raise ValueError(
+                f"pas de temps des hydrogrammes heterogenes ({sorted(pas)} h) "
+                f"dans {self.fichier_unsteady.name} : un retard commun ne "
+                f"s'y ecrit pas en un nombre entier de pas.")
+        pas = pas.pop()
+        nb_pas = 10 * int(math.ceil(float(heures) / (10 * pas) - 1e-9))
+        retard_h = nb_pas * pas
+        fenetre = fenetre_simulation_du_plan(
+            self.dossier / f"{self.nom_projet}.p{self.plan_travail}")
+        duree_h = (_en_minutes(instant_hecras(fenetre["fin"]))
+                   - _en_minutes(instant_hecras(fenetre["debut"]))) / 60.0
+
+        retardes = retarder_hydrogrammes(
+            self.fichier_unsteady, nb_pas, apports, self.nom_zone_2d,
+            self._bc_lines_connues())
+        for nom, valeurs in self.originaux.items():
+            self.originaux[nom] = (
+                np.concatenate([valeurs, np.full(nb_pas, valeurs[-1])])
+                if nom in apports
+                else np.concatenate([np.full(nb_pas, valeurs[0]), valeurs]))
+        self.carte = cartographier_hydrogrammes(self.fichier_unsteady,
+                                                self.nom_zone_2d,
+                                                self._bc_lines_connues())
+        if getattr(self, "duree_reference_h", None) is not None:
+            self.duree_reference_h += retard_h
+        self.limiter_duree(duree_h + retard_h)
+        autres = sorted({m.group(1) for m in (
+            re.match(r"(?!Flow )([A-Za-z ]+Hydrograph)= *\d", l)
+            for l in _lire_lignes(self.fichier_unsteady)) if m})
+        if autres:
+            print(f"   AVERTISSEMENT : {', '.join(autres)} NON retarde(s) — "
+                  f"seuls les hydrogrammes de debit le sont.", flush=True)
+        print(f"   entrees retardees de {retard_h:g} h : "
+              f"{', '.join(retardes) or 'aucune'} ; fin de simulation "
+              f"repoussee a {duree_h + retard_h:g} h", flush=True)
+        return retard_h
+
     def _unsteady_du_plan(self, numero_plan):
         """Fichier unsteady associe a un plan, lu dans le fichier de plan."""
         fichier_plan = self.dossier / f"{self.nom_projet}.p{numero_plan}"
@@ -3712,6 +3807,66 @@ if __name__ == "__main__":
                         "debut": "01JAN2022,06:00",
                         "fin": "03JAN2022,18:30"})._ecrire_fenetre_simulation,
                     "01"))
+    _plan.unlink(missing_ok=True)
+
+    # RETARD DE L'AXE TEMPOREL (cas reel du 30/10/2026) : l'entree non calee
+    # commence plus tard, l'apport a caler couvre la fenetre allongee.
+    _plan.write_text("Plan Title=Retard\n"
+                     "Simulation Date=01JAN2022,00:00,01JAN2022,01:06\n",
+                     encoding="utf-8")
+    _u_retard = Path(tempfile.gettempdir()) / "_essai_calage_plan.u01"
+    _amont = [0.5, 0.6, 1.0, 2.0, 3.5, 4.0, 3.0, 2.0, 1.5, 1.0, 0.8, 0.7]
+    _u_retard.write_text(
+        "Flow Title=Retard\n"
+        + ligne_localisation("AMONT", "Perimeter 1") + "\n"
+        "Interval=6MIN\n"
+        f"Flow Hydrograph= {len(_amont)} \n"
+        + "\n".join(_table_debits(_amont)) + "\n"
+        "Flow Hydrograph Slope= 0.01 \n"
+        + ligne_localisation("APPORT", "Perimeter 1") + "\n"
+        "Interval=6MIN\n"
+        "Flow Hydrograph= 12 \n"
+        + "\n".join(_table_debits([0.0] * 12)) + "\n"
+        "Flow Hydrograph Slope= 0.01 \n",
+        encoding="utf-8")
+
+    class _PiloteRetard(_PiloteMuet):
+        def _bc_lines_connues(self):
+            return None
+
+    _pr = _PiloteRetard(_plan.parent)
+    _pr.plan_travail, _pr.nom_zone_2d = "01", None
+    _pr.fichier_unsteady = _u_retard
+    _pr.duree_reference_h = 1.1
+    _pr.carte = cartographier_hydrogrammes(_u_retard)
+    _pr.originaux = {"AMONT": np.array(_amont), "APPORT": np.ones(12)}
+    _retard = _pr.retarder(0.25, ["APPORT"])
+    _cr = cartographier_hydrogrammes(_u_retard)
+    _va = lire_hydrogramme_unsteady(_u_retard, _cr["AMONT"]["debut"],
+                                    _cr["AMONT"]["fin"])
+    _vp = lire_hydrogramme_unsteady(_u_retard, _cr["APPORT"]["debut"],
+                                    _cr["APPORT"]["fin"])
+    _verifier("le retard est arrondi a dix pas", abs(_retard - 1.0) < 1e-9,
+              f"{_retard} h")
+    _verifier("l'entree non calee commence dix pas plus tard",
+              len(_va) == 22 and np.allclose(_va[:10], 0.5)
+              and np.allclose(_va[10:], _amont), str(_va[:12]))
+    _verifier("l'apport a caler garde ses heures et couvre la fenetre",
+              len(_vp) == 22, f"{len(_vp)} valeurs")
+    _verifier("les en-tetes annoncent les nouveaux comptes",
+              _u_retard.read_text(encoding="utf-8").count(
+                  "Flow Hydrograph= 22 ") == 2)
+    _verifier("la fin de simulation recule d'autant",
+              fenetre_simulation_du_plan(_plan)["fin"] == "01JAN2022,02:06"
+              and abs(_pr.duree_reference_h - 2.1) < 1e-9,
+              fenetre_simulation_du_plan(_plan)["fin"])
+    _verifier("les hydrogrammes retenus suivent le fichier",
+              np.allclose(_pr.originaux["AMONT"], _va)
+              and len(_pr.originaux["APPORT"]) == 22
+              and _pr.originaux["APPORT"][0] == 1.0)
+    _verifier("un nombre de pas hors multiple de dix est refuse",
+              _leve(ValueError, retarder_hydrogrammes, _u_retard, 5, []))
+    _u_retard.unlink(missing_ok=True)
     _plan.unlink(missing_ok=True)
 
     # -----------------------------------------------------------------------

@@ -32,6 +32,13 @@ changelog=0.9.29 — Reference lines sans tracé dans le .hdf de la géométrie 
     tient plus ouvert ; un calcul est rejeté quand HEC-RAS n'a pas pu
     réécrire la géométrie ; le calage refuse de partir sur des reference
     lines sans aucun point.
+    Calage : quand une section culmine bien avant sa
+    cible (cas réel : entrée à 2 h, cible à 4,5 h), la cible
+    décalée commençait avant le début de la simulation et la montée de
+    crue du premier apport était perdue. Le calage retarde désormais tout
+    l'axe temporel du modèle (entrées non calées, fin de simulation) du
+    retard nécessaire, puis refait le calcul de référence ; le retard est
+    dit au journal et dans les livrables.
     0.9.28 — « Charger les couches du modèle » échouait sur une
     géométrie sans fichier .hdf (jamais prétraitée, ou copiée sans lui) :
     le contour de la zone 2D porte un champ vide que le lecteur prenait pour

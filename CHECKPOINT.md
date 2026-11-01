@@ -14,6 +14,27 @@ Corrigé : repli sur le `.gXX` au chargement, maillage affiché depuis une copie
 point. Le `g04.hdf` du modèle a été réparé (groupe `Reference Lines` seul). Non
 établi : quel programme a écrit le HDF sans points le 27/10 vers 17:55.
 
+## 30 octobre 2026 : axe temporel retardé, version 0.9.29, non publiée
+
+Signalement sur 25F193, Kondiztegi Q20 : l'entrée amont culmine à 2 h, la cible
+du 1er apport à 4,5 h. Δt = -2,4 h : la cible décalée `cible(t - Δt)` commence
+à -2,4 h, hors simulation. L'apport injecté démarrait à 4,19 m3/s à t = 0, montée
+de crue perdue. Correctif :
+
+- `calage.avance_hors_simulation` mesure, par section, de combien la cible décalée
+  (à partir de 1 % de son pic) commence avant la simulation ;
+- après le calcul de référence, `caler()` appelle `Modele.retarder(max des avances)`,
+  puis refait le calcul de référence. Le retard va dans `ResultatCalage.retard_axe_h`
+  et dans `alertes_chaine` (livrables) ;
+- `PiloteHecRas.retarder` : retard arrondi à 10 pas (1 h à 6 min) ; tables de débit
+  non calées précédées de leur 1re valeur, lignes d'origine intactes ; apports à
+  caler prolongés ; fin de simulation et borne de `limiter_duree` repoussées ;
+- à chaque apport, une avance restante (Δt remesuré, amont calé) est dite au journal.
+
+Limites : seuls les hydrogrammes de débit sont retardés (avertissement sinon) ;
+pas de temps hétérogènes refusés (le calage continue sans retard, cause au journal).
+Auto-tests : calage 142 OK, pilote 190 OK. Non éprouvé sur HEC-RAS réel.
+
 ## 28 octobre 2026 : géométrie sans .hdf, version 0.9.28, non publiée
 
 Signalement : « les référence lines ne s'importent pas sur qgis avec la 0.9.26 ».
