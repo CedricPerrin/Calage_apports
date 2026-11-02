@@ -2,7 +2,7 @@
 
 Préparation et contrôle du paquet de calage pour **HEC-RAS uniquement**.
 Voir `methodologie_calage_amont_aval.docx`, § 2.4.
-Version **0.9.29** : les sections de contrôle s'affichent même quand le .hdf de la géométrie a perdu leur tracé, et un calcul sur une géométrie que HEC-RAS n'a pas pu réécrire est refusé ; quand la cible décalée d'un apport commencerait avant le début de la simulation, le calage retarde tout l'axe temporel du modèle, et la montée de crue est injectée. Avant, la **0.9.28** : les couches d'une géométrie jamais prétraitée se chargent de nouveau ; la **0.9.27** : s'ouvre sous QGIS 4 (Qt 6) ; la **0.9.26** : lexique dans l'aide, termes techniques liés à leur
+Version **0.9.30** : titres courts et homogènes des plans et des Unsteady Flow — `Q100-sans`, `Q100-A1`… et, à l'arrivée, le plan final `Q100`, le préfixe seul ; le plan source n'est jamais touché, et un autre plan du même nom n'est remplacé qu'après confirmation ; un calage commencé sous les anciens titres se relance depuis le début. Avant, la **0.9.29** : les sections de contrôle s'affichent même quand le .hdf de la géométrie a perdu leur tracé, et un calcul sur une géométrie que HEC-RAS n'a pas pu réécrire est refusé ; quand la cible décalée d'un apport commencerait avant le début de la simulation, le calage retarde tout l'axe temporel du modèle, et la montée de crue est injectée. Avant, la **0.9.28** : les couches d'une géométrie jamais prétraitée se chargent de nouveau ; la **0.9.27** : s'ouvre sous QGIS 4 (Qt 6) ; la **0.9.26** : lexique dans l'aide, termes techniques liés à leur
 définition ; tableau du Suivi classé au double-clic sur un en-tête. Avant, la
 **0.9.25** : à grande police, les étapes Paramètres et Lancer ne
 défilent plus de côté. Avant, la **0.9.24** : une seule zone d'écoulement 2D, sans choix ; noms des
@@ -137,7 +137,7 @@ propose ensuite les mises à jour. Le `LISEZMOI.md` du dépôt détaille la marc
 
 **Depuis l'archive**, pour un poste sans accès au dépôt.
 `calage_apports_<version>.zip` —
-`calage_apports_0.9.29.zip` pour cette version — est **à la racine du dépôt** : la télécharger
+`calage_apports_0.9.30.zip` pour cette version — est **à la racine du dépôt** : la télécharger
 suffit, il n'y a rien à reconstruire. Le nom porte la version pour qu'on
 sache, sur un poste distant, ce qu'on installe ; il n'y en a jamais qu'une
 dans le dépôt, la plus récente. Puis, dans QGIS :

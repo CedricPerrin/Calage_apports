@@ -1331,15 +1331,27 @@ def plan_par_titre(dossier_projet, nom_projet, titre):
     RECEMMENT modifie est rendu : c'est le seul depart defendable, et le seul
     qui corresponde a ce que l'utilisateur vient de faire.
     """
+    candidats = _chemins_plans_par_titre(dossier_projet, nom_projet, titre)
+    if not candidats:
+        return None
+    return max(candidats, key=lambda c: c.stat().st_mtime).suffix[2:]
+
+
+def _chemins_plans_par_titre(dossier_projet, nom_projet, titre):
+    """Tous les .pNN du projet dont le « Plan Title » vaut ce titre."""
     cherche = str(titre).strip()
     candidats = []
     for chemin in sorted(Path(dossier_projet).glob(f"{nom_projet}.p[0-9][0-9]")):
         trouve = re.search(r"^Plan Title=(.*)$", _lire_texte(chemin), re.M)
         if trouve and trouve.group(1).strip() == cherche:
             candidats.append(chemin)
-    if not candidats:
-        return None
-    return max(candidats, key=lambda c: c.stat().st_mtime).suffix[2:]
+    return candidats
+
+
+def plans_par_titre(dossier_projet, nom_projet, titre):
+    """Numeros (« 07 ») de tous les plans du projet qui portent ce titre."""
+    return [c.suffix[2:]
+            for c in _chemins_plans_par_titre(dossier_projet, nom_projet, titre)]
 
 
 class PiloteHecRas(Modele):
@@ -2527,7 +2539,7 @@ class PiloteHecRas(Modele):
             pass
         return rendu
 
-    def elaguer_etapes(self, prefixe="", simuler=True):
+    def elaguer_etapes(self, prefixe="", apports=(), simuler=True):
         """
         Retire les plans d'ETAPE d'un calage abouti — et rien d'autre.
 
@@ -2542,15 +2554,17 @@ class PiloteHecRas(Modele):
 
         TROIS GARDE-FOUS, ET LE PREMIER EST LE PLUS IMPORTANT :
 
-          - RIEN SANS PLAN FINAL. Si aucun plan ne porte
-            « <prefixe>_avec_apports », le calage n'a pas conclu : ses etapes
-            sont alors tout ce qui existe, et les retirer effacerait le
-            calage lui-meme. On refuse, et on le dit.
+          - RIEN SANS PLAN FINAL. Si aucun plan, hors plan de reference, ne
+            porte le titre final (le prefixe seul), le calage n'a pas conclu :
+            ses etapes sont alors tout ce qui existe, et les retirer
+            effacerait le calage lui-meme. On refuse, et on le dit.
           - LE PLAN DE REFERENCE ET LE PLAN COURANT SONT INTOUCHABLES, comme
             partout ailleurs dans cette classe.
-          - ON NE RECONNAIT QUE NOS PROPRES TITRES. Un plan dont le titre
-            n'est ni « <prefixe>_sans_apport » ni « <prefixe>_Apport_… »
-            appartient a l'utilisateur et reste, quel qu'il soit.
+          - ON NE RECONNAIT QUE NOS PROPRES TITRES, EXACTS. Un plan dont le
+            titre n'est ni « <prefixe>-sans » ni « <prefixe>-<apport> » pour
+            un apport de la liste reste, quel qu'il soit. PAS DE TEST SUR LE
+            DEBUT DU TITRE : « Q100-… » emporterait les plans du scenario
+            « Q100-V2 ».
 
         LE MENAGE DES DERIVES EST PLUS ETROIT QUE CELUI DE
         _remplacer_homonymes : on ne balaie pas tous les unsteady orphelins du
@@ -2568,14 +2582,16 @@ class PiloteHecRas(Modele):
         """
         final = titre_etape(ETAPE_AVEC_APPORTS, prefixe)
         depart = titre_etape(ETAPE_SANS_APPORT, prefixe)
-        marque = titre_etape(PREFIXE_ETAPE_APPORT, prefixe)
+        etapes = {depart} | {titre_etape(f"{PREFIXE_ETAPE_APPORT}{a}", prefixe)
+                             for a in apports}
 
         titres = {}
         for chemin in sorted(
                 self.dossier.glob(f"{self.nom_projet}.p[0-9][0-9]")):
             titres[chemin.suffix[2:]] = self._titre(chemin, "Plan Title") or ""
 
-        if final not in titres.values():
+        if not any(titre == final and numero != self.plan_reference
+                   for numero, titre in titres.items()):
             return {"refus": (f"aucun plan « {final} » dans ce projet : le "
                               f"calage n'a pas conclu, et ses etapes sont "
                               f"tout ce qu'il en reste. Rien n'est retire."),
@@ -2585,7 +2601,7 @@ class PiloteHecRas(Modele):
                    if self.plan_travail is not None else None)
         a_retirer = sorted(
             numero for numero, titre in titres.items()
-            if (titre == depart or titre.startswith(marque))
+            if titre in etapes
             and numero != self.plan_reference and numero != courant)
 
         # Ce que ces plans designent, RELEVE AVANT de les effacer : apres, le
@@ -4216,21 +4232,21 @@ if __name__ == "__main__":
             f"Geom File={geom}\nFlow File={flot}\n", encoding="utf-8")
 
     _batir_projet()
-    _titrer("10", "Q100_sans_apport", "g10", "u10")
-    _titrer("02", "Q100_Apport_A1", "g10", "u02")
-    _titrer("11", "Q100_avec_apports", "g11", "u11")
+    _titrer("10", "Q100-sans", "g10", "u10")
+    _titrer("02", "Q100-A1", "g10", "u02")
+    _titrer("11", "Q100", "g11", "u11")
     _p = _pilote_menage()
     _p.plan_travail = None          # le calage est fini : plus de plan courant
 
     _avant = _objets()
-    _simule = _p.elaguer_etapes("Q100", simuler=True)
+    _simule = _p.elaguer_etapes("Q100", ["A1"], simuler=True)
     _verifier("elagage : la simulation annonce les deux etapes",
               _simule["etapes"] == ["02", "10"], str(_simule))
     _verifier("elagage : la simulation ne retire RIEN",
               _objets() == _avant,
               f"{sorted(_avant - _objets())} manquant(s)")
 
-    _fait = _p.elaguer_etapes("Q100", simuler=False)
+    _fait = _p.elaguer_etapes("Q100", ["A1"], simuler=False)
     _verifier("elagage : les plans d'etape sont partis",
               not (_bac / f"{_NOM}.p10").exists()
               and not (_bac / f"{_NOM}.p02").exists(), str(_fait))
@@ -4249,14 +4265,15 @@ if __name__ == "__main__":
                   encoding="utf-8"))
 
     # LE GARDE-FOU QUI COMPTE : sans plan final, les etapes sont TOUT ce qui
-    # reste du calage. Les retirer l'effacerait.
+    # reste du calage. Les retirer l'effacerait. LE PLAN DE REFERENCE, TITRE ICI
+    # « Q100 », NE VAUT PAS PLAN FINAL.
     _batir_projet()
-    _titrer("10", "Q100_sans_apport", "g10", "u10")
-    _titrer("11", "Q100_Apport_A1", "g11", "u11")
+    _titrer("10", "Q100-sans", "g10", "u10")
+    _titrer("11", "Q100-A1", "g11", "u11")
     _p = _pilote_menage()
     _p.plan_travail = None
     _avant = _objets()
-    _refus = _p.elaguer_etapes("Q100", simuler=False)
+    _refus = _p.elaguer_etapes("Q100", ["A1"], simuler=False)
     _verifier("elagage : sans plan final, on REFUSE et l'on dit pourquoi",
               "refus" in _refus and "n'a pas conclu" in _refus["refus"],
               str(_refus)[:90])
@@ -4266,22 +4283,45 @@ if __name__ == "__main__":
 
     # UN PLAN QUI N'EST PAS DE NOUS RESTE, quel que soit son titre.
     _batir_projet()
-    _titrer("10", "Q100_sans_apport", "g10", "u10")
-    _titrer("11", "Q100_avec_apports", "g11", "u11")
+    _titrer("10", "Q100-sans", "g10", "u10")
+    _titrer("11", "Q100", "g11", "u11")
     _p = _pilote_menage()
     _p.plan_travail = None
-    _p.elaguer_etapes("Q100", simuler=False)
+    _p.elaguer_etapes("Q100", ["A1"], simuler=False)
     _verifier("elagage : le plan « Q100 copy » de l'utilisateur reste",
               (_bac / f"{_NOM}.p02").exists())
     # ET LE PREFIXE ISOLE LES SERIES : elaguer le Q10 ne touche pas au Q100.
     _batir_projet()
-    _titrer("10", "Q100_sans_apport", "g10", "u10")
-    _titrer("11", "Q10_avec_apports", "g11", "u11")
+    _titrer("10", "Q100-sans", "g10", "u10")
+    _titrer("11", "Q10", "g11", "u11")
     _p = _pilote_menage()
     _p.plan_travail = None
-    _p.elaguer_etapes("Q10", simuler=False)
+    _p.elaguer_etapes("Q10", ["A1"], simuler=False)
     _verifier("elagage : le prefixe isole les series — le Q100 est intact",
               (_bac / f"{_NOM}.p10").exists())
+    # UN SCENARIO DONT LE NOM COMMENCE PAR L'AUTRE : « Q100-V2 » et ses etapes
+    # ne sont pas des etapes de « Q100 ».
+    _batir_projet()
+    _titrer("10", "Q100-sans", "g10", "u10")
+    _titrer("11", "Q100", "g11", "u11")
+    _titrer("02", "Q100-V2", "g10", "u02")
+    _p = _pilote_menage()
+    _p.plan_travail = None
+    _simule = _p.elaguer_etapes("Q100", ["A1"], simuler=True)
+    _verifier("elagage : « Q100-V2 » n'est pas une etape de « Q100 »",
+              _simule["etapes"] == ["10"], str(_simule))
+    # LE PLAN DE REFERENCE PORTANT LE TITRE FINAL N'EST JAMAIS REMPLACE.
+    _batir_projet()
+    _titrer("11", "Q100", "g11", "u11")
+    _verifier("plans_par_titre rend tous les plans de ce titre",
+              plans_par_titre(_bac, _NOM, "Q100") == ["01", "11"],
+              str(plans_par_titre(_bac, _NOM, "Q100")))
+    _p = _pilote_menage()
+    _p.plan_travail = "10"
+    _efface = _p._remplacer_homonymes("Q100")
+    _verifier("plan final : le plan de reference homonyme reste, l'autre part",
+              (_bac / f"{_NOM}.p01").exists()
+              and not (_bac / f"{_NOM}.p11").exists(), str(_efface))
 
     _verifier("detection de HEC-RAS ouvert : repond sans lever",
               hecras_ouvert() in (True, False, None), str(hecras_ouvert()))

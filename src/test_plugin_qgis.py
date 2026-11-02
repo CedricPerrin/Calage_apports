@@ -2435,10 +2435,12 @@ verifier("un dossier saisi a la main n'est jamais remplace",
 # quand plusieurs cours d'eau »). Meme regle que calage.titre_etape.
 dlg.edit_dossier_sortie.setText("")
 dlg.edit_prefixe_scenario.setText("Riviere - Q100 - ")
-verifier("un prefixe a tirets espaces prend « - », tiret final ou non",
-         dlg._titre_etape("Apport_A1") == "Riviere - Q100 - Apport_A1"
+verifier("un seul separateur « - », tiret final ou non",
+         dlg._titre_etape("Apport_A1") == "Riviere - Q100-A1"
          and dlg.edit_prefixe_scenario.setText("Riviere - Q100") is None
-         and dlg._titre_etape("sans_apport") == "Riviere - Q100 - sans_apport",
+         and dlg._titre_etape("sans_apport") == "Riviere - Q100-sans"
+         and dlg._titre_etape("sans A3 et aval") == "Riviere - Q100-sans A3"
+         and dlg._titre_etape("avec_apports") == "Riviere - Q100",
          dlg._titre_etape("Apport_A1"))
 verifier("le dossier propose a un nom Windows (ni « - » ni espace final)",
          dlg.edit_dossier_sortie.text()
@@ -2449,17 +2451,17 @@ verifier("un caractere interdit dans un nom de dossier devient « _ »",
          dlg.edit_dossier_sortie.text().endswith("Q100_bis"),
          dlg.edit_dossier_sortie.text())
 dlg.edit_prefixe_scenario.setText("Q100")
-verifier("un prefixe sans tiret espace garde le souligne",
-         dlg._titre_etape("Apport_A1") == "Q100_Apport_A1", dlg._titre_etape("Apport_A1"))
+verifier("un prefixe sans tiret espace prend aussi « - »",
+         dlg._titre_etape("Apport_A1") == "Q100-A1", dlg._titre_etape("Apport_A1"))
 dlg.edit_prefixe_scenario.setText("")
 _ligne = dlg.label_titres_prefixe.text()
 verifier("prefixe vide : la ligne dit de commencer par le cours d'eau",
          "cours d’eau" in _ligne and "Q100" in _ligne, _ligne[:90])
-dlg.edit_prefixe_scenario.setText("Riviere - Q100")
+dlg.edit_prefixe_scenario.setText("Riviere-Q100")
 _ligne = dlg.label_titres_prefixe.text()
 verifier("la ligne montre les titres, l'Excel et le compte des caracteres",
-         "Riviere - Q100 - sans_apport" in _ligne
-         and "donnees_calage_Riviere_-_Q100.xlsx" in _ligne
+         "Riviere-Q100-sans" in _ligne
+         and "donnees_calage_Riviere-Q100.xlsx" in _ligne
          and "sur 32" in _ligne and "Trop long" not in _ligne,
          re.sub("<[^>]+>", " ", _ligne)[:140])
 dlg.edit_prefixe_scenario.setText("Riviere des Grandes Eaux - Q1000")
@@ -2991,7 +2993,7 @@ _recap_dlg._remplir_premier_apport()
 _recap_dlg.combo_premier_apport.setCurrentIndex(3)   # depart a « A3 »
 _recap = _recap_dlg.label_reprise.text()
 verifier("le recapitulatif nomme le plan de depart avec son prefixe",
-         "Q100_Apport_A2" in _recap, _recap)
+         "Q100-A2" in _recap, _recap)
 verifier("le recapitulatif nomme les apports tenus pour cales",
          "A1, A2" in _recap, _recap)
 verifier("le recapitulatif nomme les apports restant a calculer",
@@ -3001,8 +3003,38 @@ verifier("le recapitulatif previent si le plan de depart manque",
 _recap_dlg.combo_premier_apport.setCurrentIndex(0)   # « tous »
 verifier("sans depart choisi, le recapitulatif annonce le calage complet",
          "Calage complet" in _recap_dlg.label_reprise.text()
-         and "Q100_sans_apport" in _recap_dlg.label_reprise.text(),
+         and "Q100-sans" in _recap_dlg.label_reprise.text(),
          _recap_dlg.label_reprise.text())
+# UN PLAN PORTE DEJA LE NOM DU PLAN FINAL (0.9.30). Le plan final porte le
+# prefixe seul. Le plan source est refuse ; tout autre plan demande confirmation,
+# et le talon de boite ne clique rien : cela vaut « Annuler ».
+_recap_dlg.edit_projet_hecras.setText("")
+_recap_dlg.info_projet = {"plans": [{"numero": "01", "titre": "Q100"},
+                                    {"numero": "07", "titre": "Q100 "},
+                                    {"numero": "08", "titre": "Autre"}]}
+_recap_dlg.combo_plan.currentData = lambda: {"numero": "01"}
+verifier("plan final : le plan source et les autres plans du nom sont distingues",
+         _recap_dlg._plans_au_titre_final(_recap_dlg.info_projet) == ("01", ["07"]),
+         str(_recap_dlg._plans_au_titre_final(_recap_dlg.info_projet)))
+verifier("plan final : un plan source au nom du prefixe refuse le lancement",
+         _recap_dlg._accepter_plan_final() is False)
+_recap_dlg._dire_titres_prefixe()
+verifier("plan final : la ligne sous le prefixe dit que le lancement sera refuse",
+         "Nom déjà pris" in _recap_dlg.label_titres_prefixe.text()
+         and "sera refusé" in _recap_dlg.label_titres_prefixe.text(),
+         re.sub("<[^>]+>", " ", _recap_dlg.label_titres_prefixe.text())[:140])
+_recap_dlg.combo_plan.currentData = lambda: {"numero": "08"}
+verifier("plan final : un autre plan du nom demande, et sans clic rien ne part",
+         _recap_dlg._plans_au_titre_final(_recap_dlg.info_projet) == (None, ["01", "07"])
+         and _recap_dlg._accepter_plan_final() is False)
+_recap_dlg._dire_titres_prefixe()
+verifier("plan final : la ligne sous le prefixe nomme le plan remplace",
+         "p01, p07" in _recap_dlg.label_titres_prefixe.text(),
+         re.sub("<[^>]+>", " ", _recap_dlg.label_titres_prefixe.text())[:140])
+_recap_dlg.info_projet = {"plans": [{"numero": "08", "titre": "Autre"}]}
+verifier("plan final : sans plan de ce nom, le lancement ne demande rien",
+         _recap_dlg._accepter_plan_final() is True)
+del _recap_dlg.combo_plan.currentData
 _recap_dlg.close()
 _recap_dlg.deleteLater()
 

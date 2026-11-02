@@ -774,17 +774,17 @@ if __name__ == "__main__":
     afficher(controler_template(tmp), "Template fautif (8 anomalies attendues)")
 
     print("\n2 bis. Prefixe de scenario et longueur des titres de plan")
-    # « Riviere1-Q100 » (13) donne « Riviere1-Q100_Apport_APP06 » : 26
-    # caracteres, l'exemple exact de la demande — il doit PASSER.
+    # « Riviere1-Q100 » (13) donne « Riviere1-Q100-APP06 » : 19 caracteres —
+    # il doit PASSER.
     # Les trois premieres lignes prouvent que le controle ne crie pas a tort —
     # un garde-fou qui se declenche sans raison apprend a etre ignore.
     #
     # LE DERNIER EST LA REGRESSION DU 20 SEPTEMBRE 2026. Vingt-deux
-    # caracteres : tous les titres « <prefixe>_Apport_APP07 » tiennent (35),
-    # mais le titre de reprise « <prefixe>_sans APP07 et aval » fait 41 pour
-    # 40 tenables. Avant le correctif, ce classeur passait le controle avec
-    # « Premier_apport » vide — la valeur ne s'ecrit qu'au lancement — et le
-    # calage etait refuse ensuite, une fois lance.
+    # caracteres : tous les titres « <prefixe>-APP07 » tiennent (28), mais le
+    # titre de reprise « <prefixe>-sans APP07 » fait 33 pour 32 tenables. Avant
+    # le correctif, ce classeur passait le controle avec « Premier_apport »
+    # vide — la valeur ne s'ecrit qu'au lancement — et le calage etait refuse
+    # ensuite, une fois lance.
     tmp_prefixe = Path(tempfile.gettempdir()) / "template_prefixe.xlsx"
     _echecs_prefixe = []
     for prefixe, refus_attendu in (("", False), ("Q100", False),

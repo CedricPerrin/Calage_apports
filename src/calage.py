@@ -152,17 +152,26 @@ ETAPE_AVEC_APPORTS = "avec_apports"
 # On REFUSE, avant le premier calcul.
 LONGUEUR_MAX_TITRE_PLAN = 32
 
-# Separateur pose entre le prefixe de scenario et le nom d'etape.
-# Souligne comme les noms d'etape eux-memes (voir ETAPE_AVEC_APPORTS). Un
-# prefixe finissant deja par « - » ou « _ » garde le sien : on ne reecrit pas
-# ce que l'utilisateur a tape.
-SEPARATEUR_PREFIXE = "_"
-# SEPARATEUR D'UN PREFIXE A TIRETS ESPACES (23/10/2026, demande utilisateur :
-# « propose plutot "Cours-d'eau - Q100 - ..." sinon il y aura des doublons
-# quand plusieurs cours d'eau »). « Riviere - Q100 » donne
-# « Riviere - Q100 - Apport_A1 », et non « Riviere - Q100_Apport_A1 ». Il coute
-# deux caracteres de plus que le souligne sur les 32 du titre.
-SEPARATEUR_PREFIXE_ESPACE = " - "
+# TITRES COURTS ET HOMOGENES SOUS UN PREFIXE (02/11/2026, demande utilisateur :
+# « diminuer la longueur des plans et unsteady flow et homogeneiser le rendu »).
+# Un seul separateur, et l'etape ne porte plus que ce qui la distingue :
+#     « Q100-sans »   « Q100-A1 »   « Q100 » (plan final)   « Q100-sans A3 » (reprise)
+# Remplace le souligne du 08/09 et le « - » espace du 23/10. Les plans deja
+# ecrits sous ces formes ne sont plus reconnus par la reprise : decision de
+# l'utilisateur, un calage en cours se relance depuis le debut.
+SEPARATEUR_PREFIXE = "-"
+ETAPE_SANS_APPORT_COURTE = "sans"
+SUFFIXE_ETAPE_REPRISE = " et aval"
+
+
+def _nom_sous_prefixe(nom):
+    """Partie du titre qui suit le prefixe : ce qui distingue l'etape."""
+    nom = str(nom)
+    if nom == ETAPE_SANS_APPORT:
+        return ETAPE_SANS_APPORT_COURTE
+    if nom.startswith(PREFIXE_ETAPE_APPORT):
+        return nom[len(PREFIXE_ETAPE_APPORT):]
+    return nom.removesuffix(SUFFIXE_ETAPE_REPRISE)
 
 
 def titre_etape(nom, prefixe=""):
@@ -181,35 +190,28 @@ def titre_etape(nom, prefixe=""):
     plans du Q100 un par un, en silence, puisque les deux calages titrent
     leurs etapes pareil. Le prefixe rend les deux series etrangeres.
 
-    LE SEPARATEUR EST POSE ICI, PAS LAISSE A LA SAISIE : « Q100 » et « Q100_ »
-    doivent rendre le MEME titre. _remplacer_homonymes et plan_par_titre
-    comparent le « Plan Title » caractere pour caractere ; deux ecritures du
-    meme prefixe donneraient des plans non homonymes, que rien ne
-    remplacerait ni ne retrouverait — le doublon meme que le prefixe
-    supprime. Un prefixe finissant deja par « - » ou « _ » garde le sien : on
-    ne reecrit pas ce que l'utilisateur a tape.
+    LE SEPARATEUR EST POSE ICI, PAS LAISSE A LA SAISIE : « Q100 », « Q100- » et
+    « Q100_ » doivent rendre le MEME titre. _remplacer_homonymes et
+    plan_par_titre comparent le « Plan Title » caractere pour caractere ; deux
+    ecritures du meme prefixe donneraient des plans non homonymes, que rien ne
+    remplacerait ni ne retrouverait — le doublon meme que le prefixe supprime.
 
-    UN PREFIXE A TIRETS ESPACES — « Riviere - Q100 », le modele que la fenetre
-    propose — prend « - » (SEPARATEUR_PREFIXE_ESPACE). Tape avec son tiret
-    final, « Riviere - Q100 - », il rend le meme titre, pour la meme raison.
+    LE PLAN FINAL PORTE LE PREFIXE SEUL. Il perd le suffixe qui l'empechait de
+    rencontrer un plan de l'ingenieur : le pont refuse un plan source de ce
+    nom, et le plugin demande confirmation pour tout autre.
+
     COPIE dans calage_apports/plugin.py (_titre_etape), qui ne peut pas
     importer la chaine : changer l'une, c'est changer l'autre.
 
     PREFIXE VIDE = LE COMPORTEMENT D'AVANT, AU CARACTERE PRES.
     """
-    prefixe = str(prefixe or "").strip()
-    if prefixe.endswith(" -"):
-        prefixe = prefixe[:-2].rstrip()
+    prefixe = str(prefixe or "").strip().rstrip("-_ ")
     if not prefixe:
         titre = str(nom)
+    elif nom == ETAPE_AVEC_APPORTS:
+        titre = prefixe
     else:
-        if prefixe[-1] in "-_":
-            separateur = ""
-        elif SEPARATEUR_PREFIXE_ESPACE in prefixe:
-            separateur = SEPARATEUR_PREFIXE_ESPACE
-        else:
-            separateur = SEPARATEUR_PREFIXE
-        titre = f"{prefixe}{separateur}{nom}"
+        titre = f"{prefixe}{SEPARATEUR_PREFIXE}{_nom_sous_prefixe(nom)}"
     if len(titre) > LONGUEUR_MAX_TITRE_PLAN:
         raise ValueError(
             f"titre d'etape « {titre} » : {len(titre)} caracteres pour "
@@ -413,7 +415,7 @@ class Configuration:
     controle_amont: bool = True
     # PREFIXE DE SCENARIO POSE DEVANT CHAQUE TITRE D'ETAPE (voir titre_etape).
     # Vide = les titres d'avant : « sans_apport », « Apport_A1 ». « Q100 »
-    # donne « Q100_sans_apport », « Q100_Apport_A1 », « Q100_avec_apports ».
+    # donne « Q100-sans », « Q100-A1 » et, a l'arrivee, « Q100 ».
     # Sans lui, caler le Q10 apres le Q100 sur le meme modele efface les plans
     # du Q100 : jalonner() remplace les homonymes, et les deux calages titrent
     # leurs etapes pareil.
@@ -2754,36 +2756,30 @@ if __name__ == "__main__":
               and etape_apport("A1") == "Apport_A1"
               and etape_apport("A1", "") == "Apport_A1",
               f"{titre_etape(ETAPE_SANS_APPORT)!r} / {etape_apport('A1')!r}")
-    controler("prefixe renseigne : il precede le titre",
-              titre_etape(ETAPE_SANS_APPORT, "Q100") == "Q100_sans_apport"
-              and etape_apport("APP06", "Q100") == "Q100_Apport_APP06"
-              and titre_etape(ETAPE_AVEC_APPORTS, "Q100")
-              == "Q100_avec_apports",
+    controler("prefixe renseigne : etape au nom court, plan final au prefixe seul",
+              titre_etape(ETAPE_SANS_APPORT, "Q100") == "Q100-sans"
+              and etape_apport("APP06", "Q100") == "Q100-APP06"
+              and titre_etape("sans APP06 et aval", "Q100") == "Q100-sans APP06"
+              and titre_etape(ETAPE_AVEC_APPORTS, "Q100") == "Q100",
               etape_apport("APP06", "Q100"))
-    # « Q100 » et « Q100- » DOIVENT rendre le meme titre : _remplacer_homonymes
-    # et plan_par_titre comparent le Plan Title caractere pour caractere, et
-    # deux ecritures du meme prefixe fabriqueraient les plans en double que ce
-    # prefixe existe pour supprimer.
+    # « Q100 », « Q100- » et « Q100_ » DOIVENT rendre le meme titre :
+    # _remplacer_homonymes et plan_par_titre comparent le Plan Title caractere
+    # pour caractere, et deux ecritures du meme prefixe fabriqueraient les
+    # plans en double que ce prefixe existe pour supprimer.
     controler("le separateur n'est jamais double",
-              titre_etape("sans_apport", "Q100_")
-              == titre_etape("sans_apport", " Q100 ") == "Q100_sans_apport")
-    controler("un prefixe finissant par « _ » garde le sien",
-              etape_apport("A1", "Q100_") == "Q100_Apport_A1")
-    # LE CAS DE LA DEMANDE, MOT POUR MOT : 26 caracteres, refuses par une borne
-    # a 24 qui n'etait pas celle de HEC-RAS.
-    controler("« Riviere1-Q100 » donne « Riviere1-Q100_avec_apports »",
-              titre_etape(ETAPE_AVEC_APPORTS, "Riviere1-Q100")
-              == "Riviere1-Q100_avec_apports")
-    # LE MODELE PROPOSE DEPUIS LE 23/10/2026 : « Cours d'eau - Q100 - … ».
-    controler("« Riviere - Q100 » donne « Riviere - Q100 - Apport_A1 »",
-              etape_apport("A1", "Riviere - Q100") == "Riviere - Q100 - Apport_A1"
-              and titre_etape(ETAPE_SANS_APPORT, "Riviere - Q100")
-              == "Riviere - Q100 - sans_apport",
+              etape_apport("A1", "Q100_") == etape_apport("A1", " Q100 ")
+              == etape_apport("A1", "Q100-") == "Q100-A1"
+              and titre_etape(ETAPE_AVEC_APPORTS, "Q100 - ") == "Q100")
+    # UN SEUL SEPARATEUR, MEME SI LE PREFIXE PORTE DES TIRETS ESPACES.
+    controler("« Riviere - Q100 » donne « Riviere - Q100-A1 »",
+              etape_apport("A1", "Riviere - Q100") == "Riviere - Q100-A1"
+              and titre_etape(ETAPE_AVEC_APPORTS, "Riviere - Q100 - ")
+              == "Riviere - Q100",
               etape_apport("A1", "Riviere - Q100"))
-    controler("« Riviere - Q100 - » et « Riviere - Q100 » rendent le meme titre",
-              titre_etape(ETAPE_AVEC_APPORTS, "Riviere - Q100 - ")
-              == titre_etape(ETAPE_AVEC_APPORTS, "Riviere - Q100")
-              == "Riviere - Q100 - avec_apports")
+    controler("le modele propose rend « Riviere-Q100-A1 » et « Riviere-Q100 »",
+              etape_apport("A1", "Riviere-Q100") == "Riviere-Q100-A1"
+              and titre_etape(ETAPE_AVEC_APPORTS, "Riviere-Q100")
+              == "Riviere-Q100")
     # AU-DELA, ON REFUSE — jamais on ne tronque : deux titres rognes au meme
     # « Short Identifier » partagent le dossier de resultats que RAS Mapper
     # nomme d'apres ce champ. C'est le doublon que le prefixe supprime, et il
@@ -2791,9 +2787,9 @@ if __name__ == "__main__":
     # UN CARACTERE DE TROP, CALCULE DEPUIS LA BORNE : le banc suit la
     # constante. Fige en dur, il rouillait a chaque mesure du champ
     # « Short Identifier » — c'est ce qui est arrive le 20 septembre 2026.
-    _prefixe_trop = "P" * (LONGUEUR_MAX_TITRE_PLAN - 12)
+    _prefixe_trop = "P" * (LONGUEUR_MAX_TITRE_PLAN - 5)
     try:
-        etape_apport("APP06", _prefixe_trop)   # len + 1 + 12 = borne + 1
+        etape_apport("APP06", _prefixe_trop)   # len + 1 + 5 = borne + 1
         _refus = ""
     except ValueError as _e:
         _refus = str(_e)
@@ -2804,8 +2800,8 @@ if __name__ == "__main__":
               "1 caractere(s)" in _refus, _refus)
     # LE TITRE DE REPRISE EST LE PLUS LONG : c'est lui qui fixe la marge du
     # prefixe, et c'est lui qui a bute le 20 septembre 2026 sur la borne a 30.
-    controler("un prefixe de 12 laisse tenir un titre de reprise (31)",
-              len(titre_etape("sans APP07 et aval", "Riviere1-Q10")) == 31)
+    controler("un prefixe de 21 laisse tenir un titre de reprise (32)",
+              len(titre_etape("sans APP07 et aval", "P" * 21)) == 32)
 
     # LE CALAGE ENTIER SOUS PREFIXE. On rejoue caler() plutot que d'eprouver la
     # seule fonction : c'est caler() qui doit poser le prefixe PARTOUT, etat de
@@ -2815,9 +2811,9 @@ if __name__ == "__main__":
                 Configuration(nb_max_essais=8, prefixe_etape="Q100"),
                 journal=lambda *a, **k: None)
     controler("caler() prefixe TOUTES les etapes, plan final compris",
-              modele_p.etapes == ["Q100_sans_apport"]
-              + [f"Q100_Apport_{a}" for a in apports[:-1]]
-              + ["Q100_avec_apports"],
+              modele_p.etapes == ["Q100-sans"]
+              + [f"Q100-{a}" for a in apports[:-1]]
+              + ["Q100"],
               " | ".join(modele_p.etapes))
     controler("le prefixe ne change rien au resultat du calage",
               r_p.conforme, r_p.motif)

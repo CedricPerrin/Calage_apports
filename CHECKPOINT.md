@@ -1,5 +1,29 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 2 novembre 2026 : titres courts, version 0.9.30, non publiée
+
+Demande : « diminuer la longueur des plans et unsteady flow et homogénéiser le
+rendu » ; étapes « préfixe-injection », plan final « préfixe ». Décisions de
+l'utilisateur : `préfixe-sans` pour le calcul à zéro (`préfixe-sans A3` en
+reprise) ; « - » partout, modèle proposé `Riviere-Q100` ; confirmation si un
+plan porte déjà le nom du préfixe ; pas de lecture des anciens titres, un
+calage commencé se relance depuis le début.
+
+- `calage.titre_etape` et sa copie `plugin._titre_etape` rendent les nouveaux
+  titres. Préfixe vide : titres d'avant, inchangés.
+- `pilote.elaguer_etapes(prefixe, apports, simuler)` compare à la liste exacte
+  des titres : le test sur le début du titre aurait emporté `Q100-V2`. Le plan
+  de référence ne vaut plus plan final. `--apports` devient obligatoire sur
+  `pont_hecras.py elaguer-etapes`.
+- `pont_hecras` refuse un plan source au titre final, et avertit au journal
+  pour tout autre plan de ce titre. `plugin._accepter_plan_final` : même refus,
+  et question au lancement, « Annuler » par défaut. La ligne sous le préfixe le
+  dit à la frappe.
+
+Non vérifié : aucun calcul HEC-RAS, RAS Mapper non ouvert sur un plan final au
+préfixe seul. La note `methodologie_calage_amont_aval` cite encore les anciens
+titres.
+
 ## 30 octobre 2026 : reference lines sans point, version 0.9.29, non publiée
 
 Ardanavy, `Ard_aval.g04` : la couche « Sections de contrôle » arrivait vide, et

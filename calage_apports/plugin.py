@@ -1627,8 +1627,8 @@ admis sur le volume et sur le débit de pointe, et le nombre maximal d'essais.
 Puis le <b>dossier de sortie</b>, proposé tout seul, et le <b>préfixe de scénario</b>,
 qui est <b>obligatoire</b> — il nomme les plans de ce calage-ci comme le fichier
 Excel, et c'est lui qui empêche un second scénario d'effacer les plans du
-premier. Commencez-le par le cours d'eau : <tt>Riviere - Q100</tt> donne
-<tt>Riviere - Q100 - Apport_A1</tt> ; <tt>Q100</tt> seul donnerait les mêmes plans à
+premier. Commencez-le par le cours d'eau : <tt>Riviere-Q100</tt> donne
+<tt>Riviere-Q100-A1</tt> ; <tt>Q100</tt> seul donnerait les mêmes plans à
 deux cours d'eau calés pour la même crue. Le bouton <i>Valider la
 géométrie et générer le fichier des hydrogrammes</i>, sous le préfixe,
 <b>écrit, compose et contrôle</b> ; il crée alors l'Excel, et c'est dans sa
@@ -1801,13 +1801,14 @@ ne peuvent pas partager la même bibliothèque HDF5.</li>
 
 <h3><a name="s11"></a>Ce que le calage laisse dans le modèle</h3>
 <p>Un plan HEC-RAS par <b>étape</b>, et son Unsteady&nbsp;Flow :
-<tt>sans_apport</tt> d'abord — tous les apports à zéro —, puis
-<tt>Apport_A1</tt>, <tt>Apport_A2</tt>… et, à l'arrivée,
-<tt>avec_apports</tt>. Le préfixe de scénario les précède tous :
-<tt>Riviere - Q100 - sans_apport</tt>, <tt>Riviere - Q100 - avec_apports</tt>.
-Sans « - » dans le préfixe, un souligné les relie : <tt>Q100_sans_apport</tt>.
-Un titre compte au plus 32 caractères, préfixe compris : l'étape Paramètres
-montre le plus long à la frappe.</p>
+<tt>Riviere-Q100-sans</tt> d'abord — tous les apports à zéro —, puis
+<tt>Riviere-Q100-A1</tt>, <tt>Riviere-Q100-A2</tt>… et, à l'arrivée, le plan
+final <tt>Riviere-Q100</tt>, qui porte le préfixe seul. Un titre compte au plus
+32 caractères, préfixe compris : l'étape Paramètres montre le plus long à la
+frappe.</p>
+<p><b>Le plan source n'est jamais touché.</b> S'il porte déjà le nom du préfixe,
+le lancement est refusé. Si un autre plan porte ce nom, le lancement demande
+confirmation : ce plan et ses résultats seront remplacés à la fin du calage.</p>
 <p><b>Le plan final n'est pas un clone</b> : c'est le plan de la dernière
 étape, retitré. Il porte donc tous les apports calés <i>et</i> ses résultats
 de calcul — un clone n'emporterait pas son <tt>.hdf</tt> et serait muet dans
@@ -1822,10 +1823,10 @@ réussi</i> décide de leur sort,
 restent. L'encadré dit en toutes lettres ce qui va se passer. L'élagage ne
 touche qu'aux plans d'étape du préfixe indiqué : le plan de référence, le plan
 final et tout plan qui n'est pas de la chaîne restent. <b>Si le calage n'a pas
-conclu</b> — aucun plan <tt>…_avec_apports</tt> —, il est refusé : ses étapes
+conclu</b> — aucun plan final au nom du préfixe —, il est refusé : ses étapes
 sont alors tout ce qu'il en reste.</p>
 <p>Oublié de cocher ? <tt>pont_hecras.py elaguer-etapes --dossier … --projet …
---plan-reference … --prefixe …</tt> le fait encore après coup, depuis une
+--plan-reference … --prefixe … --apports …</tt> le fait encore après coup, depuis une
 console : sans <tt>--executer</tt>, il se contente de dire ce qui partirait.
 La relecture d'un hydrogramme déjà calculé a suivi le même chemin —
 <tt>pont_hecras.py hydrogramme</tt>.</p>
@@ -3436,7 +3437,7 @@ class DialogueParametrage(QDialog):
         self.combo_premier_apport.setToolTip(
             "Vide : tous les apports sont calés, de l'amont vers l'aval.\n"
             "Sinon, le calage démarre à cet apport et repart du plan "
-            "« Apport_<précédent> » : les apports situés en amont sont tenus "
+            "« <préfixe>-<précédent> » : les apports situés en amont sont tenus "
             "pour calés et ne sont pas retouchés.\n"
             "Utile pour reprendre un calage interrompu sans refaire ce qui "
             "était déjà bon.")
@@ -3620,6 +3621,7 @@ class DialogueParametrage(QDialog):
         self._remplir_fenetre_depuis_plan()
         self._maj_resume()
         self._dire_coeurs()
+        self._dire_titres_prefixe()
 
     def _remplir_fenetre_depuis_plan(self):
         """
@@ -4036,12 +4038,12 @@ class DialogueParametrage(QDialog):
         # donnait les memes plans, le meme Excel et le meme dossier a deux
         # cours d'eau cales pour la meme crue dans un modele.
         self.edit_prefixe_scenario.setPlaceholderText(
-            "Cours d'eau - Q100 (obligatoire)")
+            "Cours-d'eau-Q100 (obligatoire)")
         self.edit_prefixe_scenario.setToolTip(
             "Préfixe posé devant le titre de chaque plan créé par le "
-            "calage : « Riviere - Q100 » donne « Riviere - Q100 - sans_apport », "
-            "« Riviere - Q100 - Apport_A1 » et, à l'arrivée, "
-            "« Riviere - Q100 - avec_apports ».\n\n"
+            "calage : « Riviere-Q100 » donne « Riviere-Q100-sans », "
+            "« Riviere-Q100-A1 » et, à l'arrivée, le plan final "
+            "« Riviere-Q100 ».\n\n"
             "OBLIGATOIRE, et c'est pour cela : sans lui, le calage du Q10 "
             "REMPLACERAIT les plans du Q100, qui porteraient exactement les "
             "mêmes titres. Le cours d'eau en tête fait de même pour deux "
@@ -4049,9 +4051,8 @@ class DialogueParametrage(QDialog):
             "Il nomme aussi le fichier Excel des objectifs et le dossier de "
             "sortie proposé : deux scénarios ont donc deux classeurs, et "
             "composer l'un n'écrase pas l'autre.\n\n"
-            "Le séparateur est ajouté tout seul : « - » après un préfixe à "
-            "tirets espacés, « _ » sinon (« Q100 » donne « Q100_Apport_A1 »). "
-            "« Riviere - Q100 » et « Riviere - Q100 - » donnent le même titre.\n\n"
+            "Le séparateur « - » est ajouté tout seul : « Riviere-Q100 » et "
+            "« Riviere-Q100- » donnent le même titre.\n\n"
             "Titre complet limité à 32 caractères — la borne de "
             "ras-commander, qui refuse au-delà sur « Plan Title » et "
             "« Flow Title ». Au-delà, la composition REFUSE plutôt que de "
@@ -4091,9 +4092,8 @@ class DialogueParametrage(QDialog):
         """
         LES TITRES QUE LE PREFIXE DONNERA, SOUS LE CHAMP, A LA FRAPPE
         (23/10/2026). La borne de 32 caracteres n'etait jugee qu'a la
-        composition, apres l'ecriture dans la geometrie ; « Riviere - Q100 »
-        coute deux caracteres de separateur de plus que « Q100 ». Le controle
-        du classeur reste l'arbitre (controle_donnees) : ici, on previent.
+        composition, apres l'ecriture dans la geometrie. Le controle du
+        classeur reste l'arbitre (controle_donnees) : ici, on previent.
 
         Les apports viennent de la couche des injections chargee : avant
         qu'elle le soit, seuls les titres fixes se comptent, et la ligne le
@@ -4108,7 +4108,7 @@ class DialogueParametrage(QDialog):
         prefixe = self.edit_prefixe_scenario.text().strip()
         if not prefixe:
             label.setText(
-                "Commencez par le cours d’eau, puis la crue : « Riviere - Q100 ». "
+                "Commencez par le cours d’eau, puis la crue : « Riviere-Q100 ». "
                 "Deux cours d’eau calés pour la même crue dans un modèle "
                 "partageraient sinon leurs plans, leur Excel et leur dossier "
                 "de sortie.")
@@ -4141,7 +4141,30 @@ class DialogueParametrage(QDialog):
                 "<b>⚠ Accents :</b> HEC-RAS les "
                 "remplace par « ? » dans le titre des résultats qu’il "
                 "calcule. Écrivez le préfixe sans accent.")
+        source, autres = self._plans_au_titre_final(self.info_projet)
+        if source:
+            phrases.insert(0, (
+                f"<b style='color:{ISL_ROUGE}'>⚠ Nom déjà pris :</b> le plan de "
+                f"référence p{source} s’appelle déjà « {html.escape(prefixe)} », "
+                "le titre du plan final. Le lancement sera refusé : "
+                "choisissez un autre préfixe."))
+        elif autres:
+            phrases.append(
+                f"<b>⚠ Nom déjà pris :</b> le plan p{', p'.join(autres)} sera "
+                "remplacé à la fin du calage. Le lancement le redemandera.")
         label.setText("<br>".join(phrases))
+
+    def _plans_au_titre_final(self, info_projet):
+        """
+        Plans dont le titre est celui du plan final : (numero du plan de
+        reference s'il en fait partie, sinon None ; numeros des autres).
+        """
+        final = self._titre_etape("avec_apports").strip()
+        reference = (self.combo_plan.currentData() or {}).get("numero")
+        numeros = [p["numero"] for p in (info_projet or {}).get("plans", [])
+                   if p["titre"].strip() == final]
+        return (reference if reference in numeros else None,
+                [n for n in numeros if n != reference])
 
     def _groupe_classeur(self):
         # « EXCEL DES HYDROGRAMMES OBJECTIFS », ET NON « CLASSEUR ». Le mot
@@ -4539,7 +4562,7 @@ class DialogueParametrage(QDialog):
         fm = formulaire(groupe_menage)
         fm.addRow(texte_aide(
             "Les plans d’étape documentent le calage et permettent sa reprise : "
-            "un plan « … sans_apport », puis un par apport. Par exemple, trente "
+            "un plan « …-sans », puis un par apport. Par exemple, trente "
             "apports produisent trente et un jeux de résultats intermédiaires."))
         # UNE CASE, PAS UN BOUTON (0.7.22, demande utilisateur). Le bouton
         # elaguait APRES COUP : il fallait y penser une fois le calage fini,
@@ -4554,7 +4577,7 @@ class DialogueParametrage(QDialog):
             "Supprimer les plans d’étape après un calage réussi")
         self.case_elaguer.setToolTip(
             "Retire les plans d'étape du calage — eux seuls. Le plan de "
-            "référence, le plan final « …_avec_apports » et tout plan qui "
+            "référence, le plan final au nom du préfixe et tout plan qui "
             "n'est pas de la chaîne restent.\n\n"
             "N'a lieu QUE si le calage aboutit : sans plan final, ses étapes "
             "sont tout ce qu'il en reste, et l'élagage est refusé.\n\n"
@@ -4642,7 +4665,7 @@ class DialogueParametrage(QDialog):
             self.label_elagage.setText(
                 f"Plans d’étape <b style='color:{ISL_ROUGE}'>supprimés</b> "
                 "uniquement si le calage aboutit. Le plan de référence, le plan "
-                "final « …_avec_apports » et les plans hors chaîne sont conservés.")
+                "final au nom du préfixe et les plans hors chaîne sont conservés.")
         else:
             self.label_elagage.setText(
                 "<b>Plans d’étape conservés.</b> Vous pourrez consulter les résultats "
@@ -4778,8 +4801,8 @@ class DialogueParametrage(QDialog):
             return
         dossier = self._dossier_projet()
         # UN NOM DE DOSSIER WINDOWS : ni « <>:"/\|?* », ni espace ou point
-        # final, que Windows retire en silence (« Riviere - Q100 - » laissait
-        # « Riviere - Q100 »). Le reste du prefixe — espaces, apostrophe — y tient.
+        # final, que Windows retire en silence (« Riviere-Q100- » laissait
+        # « Riviere-Q100 »). Le reste du prefixe — espaces, apostrophe — y tient.
         prefixe = "".join("_" if c in '<>:"/\\|?*' else c
                           for c in prefixe_champ.text()).strip().rstrip("-_ .")
         if not dossier or not prefixe:
@@ -6448,14 +6471,14 @@ class DialogueParametrage(QDialog):
         prefixe = ""
         champ = getattr(self, "edit_prefixe_scenario", None)
         if champ is not None:
-            prefixe = champ.text().strip()
-        if prefixe.endswith(" -"):
-            prefixe = prefixe[:-2].rstrip()
+            prefixe = champ.text().strip().rstrip("-_ ")
         if not prefixe:
             return nom
-        if prefixe[-1] in "-_":
-            return f"{prefixe}{nom}"
-        return f"{prefixe}{' - ' if ' - ' in prefixe else '_'}{nom}"
+        if nom == "avec_apports":
+            return prefixe
+        if nom == "sans_apport":
+            return f"{prefixe}-sans"
+        return f"{prefixe}-{nom.removeprefix('Apport_').removesuffix(' et aval')}"
 
     def _dire_reprise(self, *_):
         """
@@ -6471,9 +6494,9 @@ class DialogueParametrage(QDialog):
         dans la page, avant le clic, et se relit apres ; une boite ne se
         relit pas.
 
-        IL NOMME LES PLANS AVEC LEUR PREFIXE. « Apport_ARA06 » ne se trouve
+        IL NOMME LES PLANS AVEC LEUR PREFIXE. « ARA06 » ne se trouve
         pas dans le gestionnaire de plans : ce qui s'y trouve est
-        « Aran-Q100-V1_Apport_ARA06 ». Un compte rendu qui nomme autrement
+        « Aran-Q100-V1-ARA06 ». Un compte rendu qui nomme autrement
         que le modele oblige a traduire.
         """
         label = getattr(self, "label_reprise", None)
@@ -6708,6 +6731,61 @@ class DialogueParametrage(QDialog):
             self.combo_premier_apport.setCurrentIndex(rang)
         return True
 
+    def _accepter_plan_final(self):
+        """
+        Le plan final porte le prefixe seul : un plan existant peut avoir ce
+        nom. Rend False si le lancement s'arrete.
+
+        LE PLAN DE REFERENCE : refus. Il n'est jamais remplace, et deux plans
+        auraient le meme titre et le meme Short Identifier.
+
+        UN AUTRE PLAN : question, car rien ne distingue le plan final d'une
+        relance d'un plan de l'ingenieur. LUE AU LANCEMENT, PAS A L'OUVERTURE :
+        un calage precedent a pu ecrire ce plan depuis. Une lecture qui rate
+        n'empeche pas de lancer : le pont refusera le plan de reference.
+        """
+        projet = self.edit_projet_hecras.text().strip()
+        try:
+            info = noyau.lister_projet_hecras(projet) if projet else self.info_projet
+        except Exception as e:                              # noqa: BLE001
+            journaliser("Plans du projet avant lancement", e)
+            info = self.info_projet
+        source, autres = self._plans_au_titre_final(info)
+        final = self._titre_etape("avec_apports")
+        if source:
+            self._signaler(
+                "Calage non lancé",
+                f"Le plan de référence p{source} s'appelle déjà « {final} », le "
+                "titre du plan final. Choisissez un autre préfixe (étape "
+                "Paramètres), ou renommez ce plan dans HEC-RAS.",
+                Qgis.MessageLevel.Warning, duree=15)
+            return False
+        if not autres:
+            return True
+        with sans_sablier(self):
+            boite = QMessageBox(self)
+            boite.setWindowTitle("Un plan porte déjà ce nom")
+            boite.setIcon(QMessageBox.Icon.Question)
+            boite.setText(
+                f"<b>Remplacer le plan p{', p'.join(autres)} « "
+                f"{html.escape(final)} » à la fin du calage ?</b><br><br>"
+                "<b>Perdu</b> : ce plan et ses résultats.<br>"
+                "<b>Gardé</b> : le plan de référence et tous les autres plans."
+                "<br><br>Pour garder ce plan, annulez, puis changez le préfixe "
+                "ou renommez le plan dans HEC-RAS.")
+            boite.addButton("Remplacer à la fin du calage",
+                            QMessageBox.ButtonRole.AcceptRole)
+            bouton_annuler = boite.addButton(
+                "Annuler", QMessageBox.ButtonRole.RejectRole)
+            boite.setDefaultButton(bouton_annuler)
+            boite.exec()
+            clique = boite.clickedButton()
+        # AUCUN BOUTON CLIQUE VAUT ANNULER, comme _confirmer_reprise.
+        if clique is None or clique is bouton_annuler:
+            dire(self.label_lancement, "Lancement annulé.")
+            return False
+        return True
+
     def _lancer_calage(self):
         """
         Lance la boucle de calage complete en arriere-plan. Ne bloque JAMAIS
@@ -6745,7 +6823,7 @@ class DialogueParametrage(QDialog):
         # pose que s'il y a quelque chose a perdre, et elle POSE le depart
         # quand on le lui demande : elle passe donc avant l'ecriture des
         # reglages, qui emporte « Premier_apport » dans le classeur.
-        if not self._confirmer_reprise():
+        if not self._accepter_plan_final() or not self._confirmer_reprise():
             return
         try:
             etat = noyau.etat_cibles(self.classeur)
@@ -7198,9 +7276,9 @@ class DialogueParametrage(QDialog):
                 raise ValueError(
                     "Étape Paramètres : renseigner le préfixe de scénario, cours "
                     "d'eau en tête. Il nomme les plans de CE calage — "
-                    "« Riviere - Q100 » donne « Riviere - Q100 - sans_apport », "
-                    "« Riviere - Q100 - avec_apports » —, il nomme aussi son "
-                    "Excel — « donnees_calage_Riviere_-_Q100.xlsx » —, et "
+                    "« Riviere-Q100 » donne « Riviere-Q100-sans », "
+                    "« Riviere-Q100-A1 » et « Riviere-Q100 » —, il nomme aussi "
+                    "son Excel — « donnees_calage_Riviere-Q100.xlsx » —, et "
                     "c'est lui qui empêche un second scénario d'effacer les "
                     "plans du premier.")
             c_sections = couche_vivante(self.couche_sections)

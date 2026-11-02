@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont l'étape « Suivi » montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.9.29
+version=0.9.30
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,14 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.9.29 — Reference lines sans tracé dans le .hdf de la géométrie :
+changelog=0.9.30 — Titres courts et homogènes des plans et des Unsteady Flow :
+    « Q100-sans », « Q100-A1 »… et, à l'arrivée, « Q100 », le préfixe seul.
+    Un seul séparateur, « - ». En reprise : « Q100-sans A3 ». Le préfixe
+    proposé devient « Riviere-Q100 ». Le lancement refuse un plan source qui
+    porte le nom du préfixe, et demande confirmation si un autre plan le
+    porte : ce plan serait remplacé à la fin du calage. Un calage commencé
+    sous les anciens titres se relance depuis le début.
+    0.9.29 — Reference lines sans tracé dans le .hdf de la géométrie :
     la couche des sections de contrôle arrivait vide, et HEC-RAS s'arrêtait
     au premier calcul. Le chargement relit ces lignes dans le fichier
     géométrie ; le maillage s'affiche depuis une copie du .hdf, que QGIS ne

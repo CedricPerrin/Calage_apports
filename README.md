@@ -14,7 +14,7 @@ extension installée depuis le dépôt.
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 
-Version des sources du plugin : **0.9.29**. La
+Version des sources du plugin : **0.9.30**. La
 [note d’ergonomie du 11 septembre 2026](docs/ergonomie_2026-09-11.md)
 décrit le parcours, les choix d’interface et les points de recette.
 
@@ -230,8 +230,14 @@ garde le dossier de sortie, un fichier HEC-RAS réécrit garde son encodage et
 ses octets (clones ras-commander compris), et le projet chargé est le `.prj`
 désigné, pas le premier du dossier.
 
+La **0.9.30** (2 novembre 2026) raccourcit les titres des plans et des
+Unsteady Flow : `Q100-sans`, `Q100-A1`… et, à l'arrivée, `Q100`, le préfixe
+seul. Le séparateur est toujours « - ». Le lancement refuse un plan source qui
+porte le nom du préfixe, et demande confirmation si un autre plan le porte.
+Un calage commencé sous les anciens titres se relance depuis le début.
+
 La **0.9.20** (23 octobre 2026) propose un préfixe qui commence par le
-cours d'eau, « Riviere - Q100 » : les étapes s'écrivent alors
+cours d'eau, « Riviere - Q100 » : les étapes s'écrivaient alors
 « Riviere - Q100 - sans_apport », et deux cours d'eau calés pour la même
 crue ne partagent plus leurs plans. Les liens du fil conducteur mènent au
 champ à remplir ; textes, nombres et dates sont revus. Aucun changement de
@@ -265,8 +271,8 @@ pour les modèles en cours. Les hypothèses de validité sont au § 1.2 de la
 note méthodologique.
 
 Le calage laisse dans le modèle **un plan HEC-RAS par étape** —
-`Q100_sans_apport`, `Q100_Apport_A1`… puis `Q100_avec_apports`, qui n'est pas un
-clone mais la dernière étape retitrée, avec ses résultats. Ils sont conservés :
+`Q100-sans`, `Q100-A1`… puis `Q100`, qui n'est pas un clone mais la dernière
+étape retitrée, avec ses résultats. Le plan source reste intact. Ils sont conservés :
 ils documentent le calage et permettent de reprendre une séquence interrompue.
 Dans **Lancer**, une case permet leur suppression **sur demande**,
 uniquement après un calage réussi.
@@ -409,14 +415,13 @@ masse HEC-RAS, et le nombre maximal d’essais y reste réglable. Puis le
 **dossier de sortie**, proposé tout seul, et les **hydrogrammes cibles** : le
 **préfixe de scénario** — **obligatoire** : sans lui, caler le Q10 après le
 Q100 sur le même modèle effacerait les plans du Q100. Il commence par le
-**cours d'eau**, puis la crue : « Riviere - Q100 » donne les plans
-« Riviere - Q100 - sans_apport », « Riviere - Q100 - Apport_A1 »… et
-`donnees_calage_Riviere_-_Q100.xlsx` ; deux cours d'eau calés pour la même
-crue ne partagent donc ni plans, ni Excel, ni dossier. Un préfixe sans « - »
-garde le souligné (« Q100_sans_apport »). Sous le champ, une ligne montre les
-titres à la frappe et prévient si le plus long dépasse 32 caractères (borne
-de ras-commander) ou porte un accent (HEC-RAS le remplace par « ? » dans ses
-résultats). Puis, sous lui, le bouton
+**cours d'eau**, puis la crue : « Riviere-Q100 » donne les plans
+« Riviere-Q100-sans », « Riviere-Q100-A1 »…, le plan final « Riviere-Q100 » et
+`donnees_calage_Riviere-Q100.xlsx` ; deux cours d'eau calés pour la même
+crue ne partagent donc ni plans, ni Excel, ni dossier. Sous le champ, une ligne
+montre les titres à la frappe et prévient si le plus long dépasse 32 caractères
+(borne de ras-commander), porte un accent (HEC-RAS le remplace par « ? » dans
+ses résultats) ou si un plan porte déjà ce nom. Puis, sous lui, le bouton
 qui compose l'Excel, décrit plus bas. L’**Excel des hydrogrammes objectifs**
 s'ouvre ou se reprend là. Enfin **ce que ces
 hydrogrammes portent** une fois l’Excel validé : débit de pointe, heure du pic

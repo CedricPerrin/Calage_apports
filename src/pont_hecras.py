@@ -1189,7 +1189,7 @@ def commande_elaguer_etapes(args):
     # Le calage est termine : il n'y a plus de plan courant a proteger, et le
     # plan final se reconnait a son titre, pas a un numero.
     pilote.plan_travail = None
-    rendu = pilote.elaguer_etapes(args.prefixe or "",
+    rendu = pilote.elaguer_etapes(args.prefixe or "", args.apports,
                                   simuler=not args.executer)
     return repondre(ok=True, **rendu)
 
@@ -1515,7 +1515,7 @@ def commande_caler(args):
                         caler, etape_apport, produire_livrables_finaux,
                         titre_etape)
     from criteres import pas_serie_h
-    from pilote_hecras import PiloteHecRas, plan_par_titre
+    from pilote_hecras import PiloteHecRas, plan_par_titre, plans_par_titre
     from suivi import Suivi
 
     chemin_template = Path(args.template)
@@ -1589,6 +1589,8 @@ def commande_caler(args):
     # il la lit sur son plan de travail, qui porte la fenetre imposee s'il y
     # en a une — voir PiloteHecRas._duree_borne_h().
     plan_fenetre_pleine = None
+    # Toute la serie : l'elagage retire aussi les etapes amont d'une reprise.
+    tous_apports = list(apports)
     if depart > 0:
         deja = apports[:depart]
         etape_precedente = etape_apport(apports[depart - 1], prefixe_etape)
@@ -1663,6 +1665,26 @@ def commande_caler(args):
             etape_apport(_a, prefixe_etape)
     except ValueError as e:
         return repondre(ok=False, erreur=f"Prefixe_scenario : {e}")
+
+    # LE PLAN FINAL PORTE LE PREFIXE SEUL : il peut rencontrer un plan existant.
+    # Le plan source n'est jamais remplace : deux plans porteraient le meme
+    # titre et le meme Short Identifier, donc le meme dossier sous RAS Mapper.
+    # On refuse avant le premier calcul. Tout autre plan de ce nom est remplace
+    # a la fin du calage : le plugin a demande confirmation, la ligne de
+    # commande ne le peut pas et le dit au journal.
+    titre_final = titre_etape(ETAPE_AVEC_APPORTS, prefixe_etape)
+    homonymes = plans_par_titre(texte("Dossier_projet_HECRAS"),
+                                texte("Nom_projet"), titre_final)
+    plan_source = str(plan_fenetre_pleine or plan_reference).lstrip("pP").zfill(2)
+    if plan_source in homonymes:
+        return repondre(ok=False, erreur=(
+            f"Prefixe_scenario : le plan source p{plan_source} s'appelle deja "
+            f"« {titre_final} », le titre du plan final. Choisir un autre "
+            f"prefixe, ou renommer ce plan dans HEC-RAS."))
+    if homonymes:
+        print(f"AVERTISSEMENT : le plan final remplacera a la fin du calage "
+              f"{', '.join(f'p{n}' for n in homonymes)} « {titre_final} », avec "
+              f"ses resultats.", flush=True)
 
     config = Configuration(
         nb_max_essais=int(nombre("Nb_max_iterations_par_apport", 6)),
@@ -1775,7 +1797,8 @@ def commande_caler(args):
         # calage reussi, ce qui est pire que garder des plans.
         if texte("Elaguer_plans_etape", "non").lower() in ("oui", "true", "1"):
             try:
-                elagage = pilote.elaguer_etapes(prefixe_etape, simuler=False)
+                elagage = pilote.elaguer_etapes(prefixe_etape, tous_apports,
+                                                simuler=False)
                 if elagage.get("refus"):
                     print(f"Elagage refuse : {elagage['refus']}", flush=True)
                 else:
@@ -1868,6 +1891,8 @@ def construire_analyseur():
     a.add_argument("--plan-reference", required=True, dest="plan_reference")
     a.add_argument("--prefixe", default="",
                    help="prefixe de scenario du calage a elaguer")
+    a.add_argument("--apports", nargs="+", required=True,
+                   help="noms de tous les apports du calage")
     a.add_argument("--executer", action="store_true",
                    help="sans lui, rien n'est efface : on ne rend que la "
                         "liste de ce qui partirait")

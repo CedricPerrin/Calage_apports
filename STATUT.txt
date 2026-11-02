@@ -22,6 +22,12 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+TITRES COURTS — 2 NOVEMBRE 2026, VERSION 0.9.30 (NON PUBLIEE).
+  Plans et unsteady : « Q100-sans », « Q100-A1 »..., final « Q100 », reprise
+  « Q100-sans A3 » (regle 2.5). Un calage commence sous les anciens titres se
+  relance depuis le debut (decision de l'utilisateur). Aucun calcul HEC-RAS
+  lance, RAS Mapper non ouvert sur un plan final au prefixe seul.
+
 REFERENCE LINES SANS POINT — 30 OCTOBRE 2026, VERSION 0.9.29 (NON PUBLIEE).
   Ardanavy, Ard_aval.g04 : le .g04.hdf nommait ses trois reference lines
   sans aucun point. Couche des sections vide dans le plugin ; RasUnsteady
@@ -2123,8 +2129,19 @@ chaque jalon). Une seule regle, jamais deux qui divergent.
 
 LE PREFIXE DE SCENARIO (parametre Prefixe_scenario du classeur, champ « Prefixe
 de scenario » du plugin a cote de « Premier apport ») :
-    prefixe vide       « sans apport »   « Apport_ARD06 »   « avec apports »
-    prefixe « Q100 »   « Q100-sans apport »  « Q100-Apport_ARD06 »  « Q100-avec apports »
+    prefixe vide       « sans_apport »   « Apport_ARD06 »   « avec_apports »
+    prefixe « Q100 »   « Q100-sans »     « Q100-ARD06 »     « Q100 »
+    reprise a ARD06    « Q100-sans ARD06 » (prefixe vide : « sans ARD06 et aval »)
+  DEPUIS LE 02/11/2026 (0.9.30, demande utilisateur : raccourcir et homogeneiser).
+  Un seul separateur, « - ». Remplace le souligne du 08/09 et le « - » espace du
+  23/10. PAS DE LECTURE DES ANCIENS TITRES : un calage commence sous eux se
+  relance depuis le debut (decision de l'utilisateur).
+  LE PLAN FINAL PORTE LE PREFIXE SEUL, il peut donc rencontrer un plan existant.
+  Plan source de ce nom : lancement refuse (pont_hecras et plugin). Autre plan
+  de ce nom : le plugin demande confirmation, la ligne de commande avertit au
+  journal, et ce plan est remplace a la fin du calage.
+  L'ELAGAGE COMPARE A LA LISTE EXACTE DES TITRES : un test sur le debut du titre
+  emporterait le scenario « Q100-V2 ». Le plan de reference ne vaut pas plan final.
   PREFIXE VIDE = LES TITRES D'AVANT, AU CARACTERE PRES : un classeur ou un
   modele d'avant le 03/09 rend exactement les memes fichiers.
   POURQUOI : jalonner() REMPLACE le plan homonyme d'un calage precedent —
@@ -2132,8 +2149,8 @@ de scenario » du plugin a cote de « Premier apport ») :
   fait foi. Consequence non voulue : caler le Q10 apres le Q100 sur le meme
   modele DETRUISAIT les plans du Q100 un par un, en silence. Le prefixe rend
   les deux series etrangeres.
-  LE SEPARATEUR EST POSE PAR LA CHAINE : « Q100 » et « Q100- » donnent le
-  meme titre — _remplacer_homonymes compare caractere pour caractere, et deux
+  LE SEPARATEUR EST POSE PAR LA CHAINE : « Q100 », « Q100- » et « Q100_ » donnent
+  le meme titre — _remplacer_homonymes compare caractere pour caractere, et deux
   ecritures du meme prefixe fabriqueraient le doublon que le prefixe supprime.
 
 LE PLAN FINAL « avec apports » EST LE PLAN DE LA DERNIERE ETAPE, RETITRE. Il
@@ -2143,9 +2160,6 @@ clone_plan copie le .pXX sans son .hdf, et un plan final muet dans RAS Mapper
 a cote d'un « Apport_<dernier> » qui a les resultats serait pire que rien.
 « Apport_<dernier> » disparait donc du gestionnaire de plans : meme jeu de
 fichiers, sous le nom qui le decrit. Aucune reprise ne le cherche.
-  « avec apports » ET NON « avec_apports » : il fait la paire avec « sans
-  apport », qui ne peut pas changer sans rendre etrangers les plans deja
-  faits. Choix par defaut, faute d'arbitrage : une constante a changer.
 
 LONGUEUR_MAX_TITRE_PLAN = 32, ET ON REFUSE AU-DELA — jamais on ne tronque.
   LE 32 EST LA BORNE DE ras-commander 0.99.1, qui leve ValueError au-dela

@@ -67,8 +67,8 @@ COMMENTAIRES = {
         "touche plus.",
     "Prefixe_scenario":
         "Prefixe pose devant le titre de chaque plan cree par le calage : "
-        "« Q100 » donne « Q100-sans apport », « Q100-Apport_<nom> » et, a "
-        "l'arrivee, « Q100-avec apports ». VIDE = titres sans prefixe, comme "
+        "« Q100 » donne « Q100-sans », « Q100-<nom> » et, a l'arrivee, "
+        "« Q100 ». VIDE = titres sans prefixe, comme "
         "avant. A RENSEIGNER des qu'on cale plusieurs crues sur le MEME "
         "modele : sans lui, le calage du Q10 EFFACE les plans du Q100, qu'il "
         "prend pour les homonymes d'une relance. Le tiret est ajoute tout "
@@ -162,7 +162,7 @@ COMMENTAIRES = {
         "Sous-dossier des sorties de suivi, reecrites a chaque apport valide.",
     "Nom_clone_geometrie": "Titre donne a la copie de travail de la geometrie. "
                            "Le plan et l'Unsteady Flow, eux, sont titres par "
-                           "etape : « sans_apport », puis « Apport_<nom> ».",
+                           "etape : « <prefixe>-sans », puis « <prefixe>-<nom> ».",
 }
 
 
