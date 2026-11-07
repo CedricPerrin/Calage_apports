@@ -88,7 +88,7 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
-from . import cpn, lexique, materiel, noyau, registre
+from . import cpn, lexique, materiel, noyau, registre, retour
 from .bande import Bande
 from .installation import TacheInstallation, TacheRecherchePython, installation_en_cours
 from .interface import Etiquette as QLabel, EtiquetteLexique, Manuel as QTextBrowser
@@ -2547,6 +2547,8 @@ class DialogueParametrage(QDialog):
         signature = QLabel(EDITEUR)
         signature.setProperty("role", ROLE_AIDE)
         ligne.addWidget(signature, 0, Qt.AlignmentFlag.AlignBottom)
+        # Retour de l'ingénieur, commun aux extensions (demande du 07/11/2026).
+        ligne.addWidget(retour.bouton(cadre), 0, Qt.AlignmentFlag.AlignTop)
 
         enveloppe = QWidget()
         v = QVBoxLayout(enveloppe)
