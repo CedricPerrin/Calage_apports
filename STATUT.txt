@@ -22,6 +22,16 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+ACCENTS DU PLAN AU CALCUL — 8 NOVEMBRE 2026 (SANS VERSION, NON PUBLIE).
+  compute_plan (ras-commander 0.99.2, RasCmdr.py l. 954) pose TOUJOURS
+  « Write Detailed= 1 » (BcoMonitor.enable_detailed_logging) avant de lancer
+  HEC-RAS : relecture UTF-8 errors="ignore", l'accent cp1252 DISPARAIT du plan
+  que HEC-RAS lit (« lit mineur à 40 » -> « lit mineur  40 »). calculer() le
+  pose desormais sous _par_ras_commander ; _retablir_octets reconnait les
+  formes errors="replace" et errors="ignore". src/test_calcul_accents.py :
+  vrai compute_plan sur une copie d'Aberou, Ras.exe jamais lance. Detail :
+  CHECKPOINT.md. Aucun calcul HEC-RAS reel lance.
+
 TITRES COURTS — 2 NOVEMBRE 2026, VERSION 0.9.30 (NON PUBLIEE).
   Plans et unsteady : « Q100-sans », « Q100-A1 »..., final « Q100 », reprise
   « Q100-sans A3 » (regle 2.5). Un calage commence sous les anciens titres se
@@ -2517,6 +2527,8 @@ du code n'y figure : si un nom manque ici, c'est qu'il n'existe plus.
     cp1252, .rasmap = UTF-8)                   _ecrire_texte
   Ce que ras-commander reecrit, rendu a son    pilote_hecras._retablir_octets,
     encodage et a ses octets                   PiloteHecRas._par_ras_commander
+  « Write Detailed= 1 » pose avant             PiloteHecRas.calculer
+    compute_plan, qui ne reecrit plus le plan
 
   Bloc « Reference Line » : ses attributs et   geometrie.
     ses coordonnees, RIEN d'autre              supprimer_lignes_reference

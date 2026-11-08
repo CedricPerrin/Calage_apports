@@ -32,7 +32,10 @@ changelog=0.9.30 — Titres courts et homogènes des plans et des Unsteady Flow 
     porte le nom du préfixe, et demande confirmation si un autre plan le
     porte : ce plan serait remplacé à la fin du calage. Un calage commencé
     sous les anciens titres se relance depuis le début.
-    0.9.29 — Reference lines sans tracé dans le .hdf de la géométrie :
+    Calcul : les accents du plan calculé (description, chemins) ne
+    disparaissent plus juste avant le lancement de HEC-RAS ; ras-commander
+    les effaçait en y posant « Write Detailed= 1 ».
+    0.9.29 —Reference lines sans tracé dans le .hdf de la géométrie :
     la couche des sections de contrôle arrivait vide, et HEC-RAS s'arrêtait
     au premier calcul. Le chargement relit ces lignes dans le fichier
     géométrie ; le maillage s'affiche depuis une copie du .hdf, que QGIS ne

@@ -1,5 +1,32 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 8 novembre 2026 : le plan que HEC-RAS lit garde ses accents, sans version
+
+Défaut trouvé sur Sensi le même jour (son commit `56ecafa`), présent ici.
+`RasCmdr.compute_plan` (ras-commander 0.99.2, `RasCmdr.py` l. 954) appelle
+toujours `BcoMonitor.enable_detailed_logging` avant de lancer HEC-RAS : il relit
+le plan en UTF-8 `errors="ignore"` et le réécrit dès que `Write Detailed=` n'y
+vaut pas 1. Un accent cp1252 y disparaît, sans U+FFFD :
+« lit mineur à 40 » devient `lit mineur  40`. `PiloteHecRas.calculer` appelait `compute_plan` hors de
+`_par_ras_commander`, et `_retablir_octets` ne reconnaissait que la forme
+`errors="replace"`. Le banc ne le voyait pas : il remplace `compute_plan` par un
+leurre.
+
+- `calculer` pose `Write Detailed= 1` par `enable_detailed_logging` sous
+  `_par_ras_commander`, puis appelle `compute_plan`, qui ne réécrit plus rien.
+- `_retablir_octets` compare les lignes sans leurs U+FFFD : la ligne d'origine
+  se confond avec ses formes `replace` et `ignore`. L'appariement reste dans
+  l'ordre des lignes : une ligne vide ajoutée par ras-commander ne prend pas
+  l'accent d'une ligne « é » seule.
+- `src/test_calcul_accents.py` (pytest, ajouté à la CI) : bouchon partout ; vrai
+  `compute_plan` sur une copie d'Aberou p07 (« à » cp1252, chemin DSS accentué
+  dans la copie), `subprocess` remplacé dans le seul `RasCmdr`, chien de garde
+  neutralisé, Ras.exe jamais lancé. 4 échecs sur l'ancien code, 4 réussis
+  après, avec 0.99.2 (venv-hecras) et 0.106.1.
+
+Aucune autre écriture de ras-commander hors garde dans la chaîne (0.99.2).
+Non vérifié : aucun calcul HEC-RAS réel.
+
 ## 2 novembre 2026 : titres courts, version 0.9.30, non publiée
 
 Demande : « diminuer la longueur des plans et unsteady flow et homogénéiser le

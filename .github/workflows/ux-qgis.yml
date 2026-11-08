@@ -28,7 +28,7 @@ jobs:
       - name: Identité ISL adoptée
         run: python tools/check_isl_identity.py
       - run: python calage_apports/noyau.py
-      - run: python -m pytest src/test_installation_cible.py src/test_recherche_python.py src/test_projet_hecras.py src/test_lexique.py -q
+      - run: python -m pytest src/test_installation_cible.py src/test_recherche_python.py src/test_projet_hecras.py src/test_lexique.py src/test_calcul_accents.py -q
 
   qgis:
     runs-on: ubuntu-latest

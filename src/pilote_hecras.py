@@ -361,9 +361,15 @@ def _retablir_octets(chemin, origine):
     du 11/10/2026 sur un projet fabrique : titre du projet, region LCMann
     « Forêt », et l'apport « Écluse », que la geometrie clonee et l'unsteady
     de l'etape suivante n'appariaient plus — l'apport sortait du calage.
+    BcoMonitor.enable_detailed_logging relit en errors="ignore" : l'accent
+    DISPARAIT (« lit mineur à 40 » -> « lit mineur  40 », 08/11/2026).
 
     UNE LIGNE QU'IL N'A PAS CHANGEE REPREND SES OCTETS, terminateur compris :
-    on la reconnait a ce qu'il en a lu. Une ligne ajoutee ou changee est
+    on la reconnait a ce qu'il en a lu, sous l'une ou l'autre forme : sans
+    ses U+FFFD, une ligne se confond avec les deux. L'appariement suit
+    l'ordre des lignes (difflib) : une vraie ligne vide ne prend pas l'accent
+    d'une ligne « é » seule, qui ne se lit plus qu'en ligne vide. Une ligne
+    ajoutee ou changee est
     encodee dans l'encodage d'origine, avec la fin de ligne qu'il lui a
     donnee ; un caractere que cet encodage ne sait pas ecrire leve
     ValueError, le fichier restant tel que ras-commander l'a laisse. Un
@@ -378,11 +384,14 @@ def _retablir_octets(chemin, origine):
     def lu(ligne):                         # ce qu'en a lu ras-commander
         return ligne.rstrip(b"\r\n").decode("utf-8", "replace")
 
+    def cle(ligne):                        # formes « replace » et « ignore »
+        return lu(ligne).replace("�", "")
+
     anciennes = origine.splitlines(keepends=True)
     nouvelles = apres.splitlines(keepends=True)
     sortie = []
     for op, i1, i2, j1, j2 in difflib.SequenceMatcher(
-            None, [lu(l) for l in anciennes], [lu(l) for l in nouvelles],
+            None, [cle(l) for l in anciennes], [cle(l) for l in nouvelles],
             autojunk=False).get_opcodes():
         if op == "equal":
             sortie += anciennes[i1:i2]
@@ -2831,6 +2840,7 @@ class PiloteHecRas(Modele):
     def calculer(self):
         """Lance le calcul et rapporte sa qualite numerique."""
         from ras_commander import HdfResultsPlan, RasCmdr, RasPlan
+        from ras_commander.RasBco import BcoMonitor
 
         debut = time.time()
         self.nb_calculs += 1
@@ -2845,7 +2855,15 @@ class PiloteHecRas(Modele):
         # surgi entre-temps et sera encore vivant apres est un orphelin de
         # NOTRE calcul, et de personne d'autre.
         processus_avant = pids_hecras() if self.fermer_orphelins else None
+        plan = self.dossier / f"{self.nom_projet}.p{self.plan_travail}"
         try:
+            # « Write Detailed= 1 » : compute_plan le pose TOUJOURS avant de
+            # lancer HEC-RAS (0.99.2, RasCmdr.py l. 954), en relisant le plan
+            # en UTF-8 errors="ignore" : un accent cp1252 y disparaissait du
+            # plan que HEC-RAS lit (mesure du 08/11/2026, copie d'Aberou). Pose
+            # ici, accents rendus ; compute_plan n'a plus rien a ecrire.
+            self._par_ras_commander(
+                lambda: BcoMonitor.enable_detailed_logging(plan), plan)
             # num_cores : ras-commander (RasPlan.set_num_cores, relu sur
             # GitHub le 22/09/2026, v0.99 a v0.102) reecrit AVANT le calcul
             # chaque ligne « UNET D1 Cores= », « UNET D2 Cores= » et
@@ -2858,8 +2876,7 @@ class PiloteHecRas(Modele):
             if self.coeurs:
                 self._par_ras_commander(
                     lambda: RasPlan.set_num_cores(self.plan_travail,
-                                                  self.coeurs),
-                    self.dossier / f"{self.nom_projet}.p{self.plan_travail}")
+                                                  self.coeurs), plan)
             reussi = RasCmdr.compute_plan(self.plan_travail,
                                           overwrite_dest=True)
         except Exception as e:
@@ -4464,7 +4481,8 @@ if __name__ == "__main__":
     # « Forêt » et la BC line « Écluse », que preparer() retirait alors de la
     # carte sans un mot ; l'unsteady de la 2e etape, « Écluse » a son tour.
     #   Le calage tourne ici pour de vrai, CALCUL EXCLU : RasCmdr.compute_plan
-    # est remplace par un leurre, et AUCUN HEC-RAS n'est lance.
+    # est remplace par un leurre, et AUCUN HEC-RAS n'est lance. Le vrai
+    # compute_plan, arrete au lancement de Ras.exe : src/test_calcul_accents.py.
     # -----------------------------------------------------------------------
     print("\n--- Encodage a travers ras-commander : clones, essais, calcul ---")
     from ras_commander import RasCmdr
