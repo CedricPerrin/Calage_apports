@@ -2164,6 +2164,10 @@ class DialogueParametrage(QDialog):
         # restent sont des DECISIONS (ecrire dans la geometrie, lancer,
         # designer) ou des erreurs a lire.
         self.barre_messages = QgsMessageBar(self)
+        # Ignored : un long message n'elargit pas le panneau (Plemmyra, A77).
+        self.barre_messages.setSizePolicy(
+            QSizePolicy.Policy.Ignored,
+            self.barre_messages.sizePolicy().verticalPolicy())
         self.barre_messages.setObjectName("barreMessages")
         self.barre_messages.hide()          # pushMessage() la fait apparaitre
         agencement.addWidget(self.barre_messages)
@@ -5338,7 +5342,9 @@ class DialogueParametrage(QDialog):
         filet = couleur_theme(couleur, self.label_suivi_banniere).name()
         self.label_suivi_banniere.setStyleSheet(
             f"background-color: palette(base);"
-            f"border-left: 5px solid {filet};"
+            # border: none d'abord : sous Qt 5.15, border-left seul ne dessine
+            # rien sur un QLabel (Arche, 13/10/2026 ; revu le 08/11/2026).
+            f"border: none; border-left: 5px solid {filet};"
             f"border-radius: 3px; padding: 12px 16px;")
         self.label_suivi_banniere.setText(
             f"<span style='font-size:13pt; font-weight:bold; color:{couleur}'>"
