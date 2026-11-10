@@ -141,6 +141,164 @@ def _lire(chemin):
     return feuilles
 
 
+# ---------------------------------------------------------------------------
+# Regles du classeur de saisie. Chacune rend ses anomalies (niveau, message) ;
+# controler_template les enchaine dans l'ordre ou l'ingenieur les lit.
+# ---------------------------------------------------------------------------
+
+def _regle_parametres_trouves(chemin, valeurs):
+    """Le JSON des parametres (ou la feuille heritee) accompagne le classeur."""
+    if valeurs:
+        return []
+    return [(ERREUR,
+             f"parametres du calage introuvables : ni "
+             f"« {parametres.chemin(chemin).name} » a cote du classeur, "
+             f"ni feuille « {parametres.FEUILLE_HERITEE} » dedans. Le "
+             f"JSON accompagne le classeur : deplacer l'un sans l'autre "
+             f"laisse un calage sans parametres.")]
+
+
+def _regle_parametres_requis(valeurs):
+    anomalies = []
+    for cle in PARAMETRES_REQUIS:
+        v = valeurs.get(cle)
+        if cle not in valeurs or v is None or (
+                isinstance(v, float) and pd.isna(v)):
+            anomalies.append((ERREUR, f"parametre manquant ou vide : {cle}"))
+    return anomalies
+
+
+def _regle_nb_max_iterations(valeurs):
+    nb_max = valeurs.get("Nb_max_iterations_par_apport")
+    if isinstance(nb_max, (int, float)) and nb_max < 3:
+        return [(ERREUR,
+                 f"Nb_max_iterations_par_apport = {nb_max} : au moins 3 essais "
+                 f"sont necessaires pour que la correction converge")]
+    return []
+
+
+def _regle_coeurs_par_calcul(valeurs):
+    # Cœurs demandes a HEC-RAS : facultatif ; 0 = plan inchange ; 64 est le
+    # plafond que Windows accorde a un Ras.exe (ras-commander, set_num_cores).
+    coeurs = valeurs.get("Coeurs_par_calcul")
+    if coeurs not in (None, "") and not (
+            isinstance(coeurs, (int, float)) and not pd.isna(coeurs)
+            and float(coeurs).is_integer() and 0 <= coeurs <= 64):
+        return [(ERREUR,
+                 f"Coeurs_par_calcul = {coeurs!r} : entier entre 0 (plan "
+                 f"inchange) et 64 attendu")]
+    return []
+
+
+def _colonnes_correspondance(corr):
+    """(Ordre, Nom_Apport, Nom_Section, Nom_Cible) de la feuille, ou None si
+    l'une manque."""
+    col_ordre = "Ordre"
+    col_apport = next((c for c in corr.columns if c.startswith("Nom_Apport")), None)
+    col_section = next((c for c in corr.columns if c.startswith("Nom_Section")), None)
+    col_cible = next((c for c in corr.columns if c.startswith("Nom_Cible")), None)
+    if not all([col_ordre in corr.columns, col_apport, col_section, col_cible]):
+        return None
+    return col_ordre, col_apport, col_section, col_cible
+
+
+def _regle_ordre_contigu(colonne_ordre):
+    n = len(colonne_ordre)
+    ordres = sorted(int(o) for o in colonne_ordre)
+    if ordres != list(range(1, n + 1)):
+        return [(ERREUR,
+                 f"colonne Ordre : doit etre la suite 1..{n} sans trou ni doublon "
+                 f"(valeurs lues : {ordres})")]
+    return []
+
+
+def _regle_noms_uniques(corr, col_apport, col_section):
+    anomalies = []
+    for col, libelle in [(col_apport, "apport"), (col_section, "section")]:
+        doublons = corr[col][corr[col].duplicated()].tolist()
+        if doublons:
+            anomalies.append((
+                ERREUR,
+                f"nom de {libelle} en doublon : {doublons}. Chaque "
+                f"{libelle} doit etre unique — une inconnue par contrainte."))
+    return anomalies
+
+
+def _regle_pas_de_temps(colonne_temps):
+    anomalies = []
+    temps = pd.to_numeric(colonne_temps, errors="coerce").dropna().to_numpy()
+    if len(temps) < 10:
+        anomalies.append((
+            AVERTISSEMENT,
+            f"feuille Cibles : seulement {len(temps)} pas de temps. "
+            f"Un hydrogramme trop grossier fausse le volume et le debit "
+            f"de pointe compares a la cible."))
+    if len(temps) > 1 and not np.all(np.diff(temps) > 0):
+        anomalies.append((
+            ERREUR,
+            "feuille Cibles : la colonne Temps_h doit etre strictement "
+            "croissante"))
+    return anomalies
+
+
+def _colonnes_cibles(cib):
+    """Les colonnes de la feuille Cibles qui sont des hydrogrammes."""
+    # Exclut l'apercu visuel que style_classeur ajoute sur cette meme feuille
+    # (graphique + tableau de debit de pointe, cf. ENTETE_PIC) : ses colonnes
+    # ne sont pas des cibles, et ne doivent pas se signaler comme telles.
+    # « Unnamed: » est le nom que pandas donne aux colonnes sans en-tete —
+    # celles du tableau, hors la premiere.
+    reserves = {"Temps_h"}
+    try:
+        import style_classeur
+        reserves.add(style_classeur.ENTETE_PIC)
+    except ImportError:
+        pass
+    return {c for c in cib.columns
+            if isinstance(c, str) and not c.startswith("Unnamed:")
+            } - reserves
+
+
+def _regle_cibles_declarees_presentes(cibles_declarees, cibles_presentes):
+    anomalies = []
+    absentes = cibles_declarees - cibles_presentes
+    if absentes:
+        anomalies.append((
+            ERREUR,
+            f"cibles declarees dans Correspondance mais absentes de la "
+            f"feuille Cibles : {sorted(absentes)}"))
+    inutilisees = cibles_presentes - cibles_declarees
+    if inutilisees:
+        anomalies.append((
+            AVERTISSEMENT,
+            f"colonnes de la feuille Cibles jamais utilisees : "
+            f"{sorted(inutilisees)}"))
+    return anomalies
+
+
+def _regle_hydrogramme_cible(nom, colonne):
+    serie = pd.to_numeric(colonne, errors="coerce")
+    valides = serie.dropna()
+    # Colonne entierement vide : le template n'est pas encore rempli, ce
+    # qui est un etat normal et non une donnee fautive.
+    if len(valides) == 0:
+        return [(AVERTISSEMENT,
+                 f"cible '{nom}' : colonne vide, a renseigner avant le calage")]
+    if len(valides) < 2:
+        return [(ERREUR,
+                 f"cible '{nom}' : pas assez de valeurs numeriques "
+                 f"({len(valides)} valeur exploitable)")]
+    anomalies = []
+    if (valides < 0).any():
+        anomalies.append((ERREUR, f"cible '{nom}' : contient des debits negatifs"))
+    if float(valides.max()) <= 0:
+        anomalies.append((ERREUR, f"cible '{nom}' : hydrogramme identiquement nul"))
+    if serie.isna().sum() > 0 and serie.dropna().index.max() < len(serie) - 1:
+        anomalies.append((AVERTISSEMENT,
+                          f"cible '{nom}' : valeurs manquantes intercalees"))
+    return anomalies
+
+
 def controler_template(chemin):
     """
     Valide le classeur de saisie. Retourne une liste de couples
@@ -152,9 +310,6 @@ def controler_template(chemin):
     def erreur(msg):
         anomalies.append((ERREUR, msg))
 
-    def avertir(msg):
-        anomalies.append((AVERTISSEMENT, msg))
-
     try:
         feuilles = _lire(chemin)
     except Exception as e:
@@ -162,32 +317,10 @@ def controler_template(chemin):
 
     # --- 1. Parametres -----------------------------------------------------
     valeurs = parametres.lire(chemin)
-    if not valeurs:
-        erreur(f"parametres du calage introuvables : ni "
-               f"« {parametres.chemin(chemin).name} » a cote du classeur, "
-               f"ni feuille « {parametres.FEUILLE_HERITEE} » dedans. Le "
-               f"JSON accompagne le classeur : deplacer l'un sans l'autre "
-               f"laisse un calage sans parametres.")
-
-    for cle in PARAMETRES_REQUIS:
-        v = valeurs.get(cle)
-        if cle not in valeurs or v is None or (
-                isinstance(v, float) and pd.isna(v)):
-            erreur(f"parametre manquant ou vide : {cle}")
-
-    nb_max = valeurs.get("Nb_max_iterations_par_apport")
-    if isinstance(nb_max, (int, float)) and nb_max < 3:
-        erreur(f"Nb_max_iterations_par_apport = {nb_max} : au moins 3 essais "
-               f"sont necessaires pour que la correction converge")
-
-    # Cœurs demandes a HEC-RAS : facultatif ; 0 = plan inchange ; 64 est le
-    # plafond que Windows accorde a un Ras.exe (ras-commander, set_num_cores).
-    coeurs = valeurs.get("Coeurs_par_calcul")
-    if coeurs not in (None, "") and not (
-            isinstance(coeurs, (int, float)) and not pd.isna(coeurs)
-            and float(coeurs).is_integer() and 0 <= coeurs <= 64):
-        erreur(f"Coeurs_par_calcul = {coeurs!r} : entier entre 0 (plan "
-               f"inchange) et 64 attendu")
+    anomalies += _regle_parametres_trouves(chemin, valeurs)
+    anomalies += _regle_parametres_requis(valeurs)
+    anomalies += _regle_nb_max_iterations(valeurs)
+    anomalies += _regle_coeurs_par_calcul(valeurs)
 
     # Fenetre de simulation : facultative, mais si elle est saisie elle doit
     # etre juste. Une date mal formee n'est pas refusee par HEC-RAS — elle est
@@ -198,32 +331,20 @@ def controler_template(chemin):
 
     # --- 2. Correspondance -------------------------------------------------
     corr = feuilles["Correspondance"]
-    col_ordre = "Ordre"
-    col_apport = next((c for c in corr.columns if c.startswith("Nom_Apport")), None)
-    col_section = next((c for c in corr.columns if c.startswith("Nom_Section")), None)
-    col_cible = next((c for c in corr.columns if c.startswith("Nom_Cible")), None)
-
-    if not all([col_ordre in corr.columns, col_apport, col_section, col_cible]):
+    colonnes = _colonnes_correspondance(corr)
+    if colonnes is None:
         erreur("feuille Correspondance : colonnes Ordre / Nom_Apport / "
                "Nom_Section / Nom_Cible attendues")
         return anomalies
+    col_ordre, col_apport, col_section, col_cible = colonnes
 
     corr = corr.dropna(subset=[col_ordre, col_apport, col_section, col_cible])
-    n = len(corr)
-    if n == 0:
+    if len(corr) == 0:
         erreur("feuille Correspondance : aucune station renseignee")
         return anomalies
 
-    ordres = sorted(int(o) for o in corr[col_ordre])
-    if ordres != list(range(1, n + 1)):
-        erreur(f"colonne Ordre : doit etre la suite 1..{n} sans trou ni doublon "
-               f"(valeurs lues : {ordres})")
-
-    for col, libelle in [(col_apport, "apport"), (col_section, "section")]:
-        doublons = corr[col][corr[col].duplicated()].tolist()
-        if doublons:
-            erreur(f"nom de {libelle} en doublon : {doublons}. Chaque "
-                   f"{libelle} doit etre unique — une inconnue par contrainte.")
+    anomalies += _regle_ordre_contigu(corr[col_ordre])
+    anomalies += _regle_noms_uniques(corr, col_apport, col_section)
 
     # LE PREFIXE SE JUGE SUR LES NOMS D'APPORT REELS : il est donc controle
     # ici, et non a la section 1, qui ne les connait pas encore.
@@ -241,57 +362,14 @@ def controler_template(chemin):
         erreur("feuille Cibles : colonne 'Temps_h' absente")
         return anomalies
 
-    temps = pd.to_numeric(cib["Temps_h"], errors="coerce").dropna().to_numpy()
-    if len(temps) < 10:
-        avertir(f"feuille Cibles : seulement {len(temps)} pas de temps. "
-                f"Un hydrogramme trop grossier fausse le volume et le debit "
-                f"de pointe compares a la cible.")
-    if len(temps) > 1 and not np.all(np.diff(temps) > 0):
-        erreur("feuille Cibles : la colonne Temps_h doit etre strictement "
-               "croissante")
+    anomalies += _regle_pas_de_temps(cib["Temps_h"])
 
     cibles_declarees = set(corr[col_cible].astype(str))
-    # Exclut l'apercu visuel que style_classeur ajoute sur cette meme feuille
-    # (graphique + tableau de debit de pointe, cf. ENTETE_PIC) : ses colonnes
-    # ne sont pas des cibles, et ne doivent pas se signaler comme telles.
-    # « Unnamed: » est le nom que pandas donne aux colonnes sans en-tete —
-    # celles du tableau, hors la premiere.
-    reserves = {"Temps_h"}
-    try:
-        import style_classeur
-        reserves.add(style_classeur.ENTETE_PIC)
-    except ImportError:
-        pass
-    cibles_presentes = {c for c in cib.columns
-                        if isinstance(c, str) and not c.startswith("Unnamed:")
-                        } - reserves
-    absentes = cibles_declarees - cibles_presentes
-    if absentes:
-        erreur(f"cibles declarees dans Correspondance mais absentes de la "
-               f"feuille Cibles : {sorted(absentes)}")
-    inutilisees = cibles_presentes - cibles_declarees
-    if inutilisees:
-        avertir(f"colonnes de la feuille Cibles jamais utilisees : "
-                f"{sorted(inutilisees)}")
-
+    cibles_presentes = _colonnes_cibles(cib)
+    anomalies += _regle_cibles_declarees_presentes(cibles_declarees,
+                                                   cibles_presentes)
     for nom in sorted(cibles_declarees & cibles_presentes):
-        serie = pd.to_numeric(cib[nom], errors="coerce")
-        valides = serie.dropna()
-        # Colonne entierement vide : le template n'est pas encore rempli, ce
-        # qui est un etat normal et non une donnee fautive.
-        if len(valides) == 0:
-            avertir(f"cible '{nom}' : colonne vide, a renseigner avant le calage")
-            continue
-        if len(valides) < 2:
-            erreur(f"cible '{nom}' : pas assez de valeurs numeriques "
-                   f"({len(valides)} valeur exploitable)")
-            continue
-        if (valides < 0).any():
-            erreur(f"cible '{nom}' : contient des debits negatifs")
-        if float(valides.max()) <= 0:
-            erreur(f"cible '{nom}' : hydrogramme identiquement nul")
-        if serie.isna().sum() > 0 and serie.dropna().index.max() < len(serie) - 1:
-            avertir(f"cible '{nom}' : valeurs manquantes intercalees")
+        anomalies += _regle_hydrogramme_cible(nom, cib[nom])
 
     return anomalies
 
@@ -307,6 +385,143 @@ def _correspondance(chemin_template):
     corr = corr.sort_values(col_ordre)
     return (corr[col_section].astype(str).tolist(),
             corr[col_apport].astype(str).tolist())
+
+
+# ---------------------------------------------------------------------------
+# Regles de la chaine SIG, enchainees par controler_geometrie.
+# ---------------------------------------------------------------------------
+
+def _chemin_declare(valeurs, cle):
+    """Chemin saisi pour ce parametre, ou None s'il est vide."""
+    v = valeurs.get(cle)
+    return None if v is None or pd.isna(v) or not str(v).strip() else Path(str(v))
+
+
+def _regle_fichiers_existent(chemins):
+    return [(ERREUR, f"{cle} : fichier introuvable -> {p}")
+            for cle, p in chemins if p is not None and not p.exists()]
+
+
+def _regle_source_modele(p_sections, p_apports):
+    anomalies = []
+    if p_sections is not None or p_apports is not None:
+        anomalies.append((
+            AVERTISSEMENT,
+            "Source_geometrie = MODELE, mais des shapefiles sont declares : "
+            "ils seront ignores. Passer a SHP pour les utiliser."))
+    anomalies.append((
+        AVERTISSEMENT,
+        "Source_geometrie = MODELE : les sections et les injections sont "
+        "supposees deja tracees et nommees dans la geometrie. Leur "
+        "existence reelle est verifiee par le controle contre le modele."))
+    return anomalies
+
+
+def _champ_nom(valeurs):
+    """Champ_nom_SHP : vide ou absent = detection automatique du champ de nom."""
+    champ_nom = valeurs.get("Champ_nom_SHP")
+    return (str(champ_nom).strip()
+            if champ_nom is not None and not pd.isna(champ_nom)
+            and str(champ_nom).strip() else None)
+
+
+def _lire_axe(p_axe, g_sec):
+    """(axe, crs_reference, anomalies). Sans axe, la reference est la
+    projection des sections."""
+    import geometrie as geo
+
+    if p_axe is None:
+        return None, g_sec.crs, [(
+            AVERTISSEMENT,
+            f"{PARAMETRE_AXE} non renseigne : pas de PK, donc ni verification "
+            f"de l'ordre declare ni profil en long. Fournir l'axe hydraulique "
+            f"en polyligne est vivement recommande.")]
+    try:
+        axe, crs_ref = geo.lire_axe(p_axe)
+    except Exception as e:
+        return None, None, [(ERREUR, f"lecture de l'axe hydraulique : {e}")]
+    return axe, crs_ref, []
+
+
+def _regle_noms_dans_shp(noms_sections, noms_apports, g_sec, g_app):
+    """(noms_absents, anomalies) : les noms declares absents des shapefiles."""
+    noms_absents, anomalies = [], []
+    for declares, presents, libelle in [
+        (noms_sections, set(g_sec["nom"]), "section de controle"),
+        (noms_apports, set(g_app["nom"]), "ligne d'injection"),
+    ]:
+        absents = [n for n in declares if n not in presents]
+        if absents:
+            noms_absents += absents
+            anomalies.append((
+                ERREUR,
+                f"{libelle}(s) declaree(s) dans le template mais absente(s) du "
+                f"shapefile : {absents} (presentes : {sorted(presents)})"))
+    return noms_absents, anomalies
+
+
+def _regle_pk_calculables(axe, noms_absents, g_sec, g_app):
+    """Rien si les PK sont calculables ; sinon l'avertissement qui dit
+    pourquoi."""
+    # CE QUI EMPECHE UN PK, DIT EN CLAIR — et non plus deduit de la gravite
+    # GENERALE du controle SIG. Un PK est une projection metrique sur l'axe,
+    # indexee par le nom : il lui faut l'axe, une projection metrique, et tous
+    # les noms declares presents UNE SEULE FOIS. Rien d'autre.
+    #   LA SORTIE PRECEDENTE — « des qu'une anomalie ERREUR traine, quelle
+    #   qu'elle soit » — supprimait le tableau pour des defauts qui ne
+    #   deplacent aucun PK. Mesure en production : sur un calage CONFORME de
+    #   douze apports, une ligne d'injection de 94 cm, signalee « de longueur
+    #   quasi nulle », a fait disparaitre le profil en long ET les pentes
+    #   locales deduites, derriere un « PK indisponibles » qui ne nommait
+    #   rien. L'anomalie reste dite, au meme niveau ; elle n'efface plus les PK.
+    #   UN NOM EN DOUBLON, LUI, BLOQUE VRAIMENT : dict(zip(...)) garderait la
+    #   derniere occurrence en silence, et le profil placerait la section au
+    #   mauvais PK.
+    doublons = sorted({n for g in (g_sec, g_app)
+                       for n in g["nom"][g["nom"].duplicated()]})
+    if not (axe is None or noms_absents or doublons):
+        return []
+    raisons = ["axe hydraulique indisponible"] if axe is None else []
+    if noms_absents:
+        raisons.append(f"noms declares absents des shapefiles : "
+                       f"{noms_absents}")
+    if doublons:
+        raisons.append(f"noms en doublon dans les shapefiles : {doublons}")
+    return [(
+        AVERTISSEMENT,
+        f"PK non calculables ({' ; '.join(raisons)}) : ni ordre declare "
+        f"verifie, ni profil en long, ni pente locale deduite.")]
+
+
+def _regle_sens_axe(sens):
+    if sens not in ("amont_aval", "aval_amont"):
+        return [(ERREUR,
+                 f"Sens_axe = '{sens}' : valeurs admises ['amont_aval', "
+                 f"'aval_amont'].")]
+    return []
+
+
+def _pk_origine(valeurs):
+    """(pk_origine, anomalies) : PK_origine_m en nombre, 0 s'il est vide."""
+    pk_origine = valeurs.get("PK_origine_m", 0)
+    try:
+        return (0.0 if pd.isna(pk_origine) else float(pk_origine)), []
+    except (TypeError, ValueError):
+        return None, [(
+            ERREUR, f"PK_origine_m = '{pk_origine}' : un nombre est attendu.")]
+
+
+def _tableau_pk(noms_sections, noms_apports, pk_sec, pk_app):
+    tableau = pd.DataFrame({
+        "Ordre": range(1, len(noms_sections) + 1),
+        "Section": noms_sections,
+        "PK section (m)": [round(pk_sec[n], 1) for n in noms_sections],
+        "Apport": noms_apports,
+        "PK apport (m)": [round(pk_app[n], 1) for n in noms_apports],
+    })
+    tableau["Distance apport-section (m)"] = (
+        tableau["PK section (m)"] - tableau["PK apport (m)"]).round(1)
+    return tableau
 
 
 def controler_geometrie(chemin_template):
@@ -325,24 +540,18 @@ def controler_geometrie(chemin_template):
     """
     import geometrie as geo
 
-    anomalies, tableau = [], None
     try:
         valeurs = parametres.lire(chemin_template)
     except Exception as e:
         return [(ERREUR, f"parametres du calage illisibles : {e}")], None
 
-    def chemin(cle):
-        v = valeurs.get(cle)
-        return None if v is None or pd.isna(v) or not str(v).strip() else Path(str(v))
+    p_sections = _chemin_declare(valeurs, "Fichier_SHP_Sections")
+    p_apports = _chemin_declare(valeurs, "Fichier_SHP_Apports")
+    p_axe = _chemin_declare(valeurs, PARAMETRE_AXE)
 
-    p_sections, p_apports = chemin("Fichier_SHP_Sections"), chemin("Fichier_SHP_Apports")
-    p_axe = chemin(PARAMETRE_AXE)
-
-    for cle, p in [("Fichier_SHP_Sections", p_sections),
-                   ("Fichier_SHP_Apports", p_apports),
-                   (PARAMETRE_AXE, p_axe)]:
-        if p is not None and not p.exists():
-            anomalies.append((ERREUR, f"{cle} : fichier introuvable -> {p}"))
+    anomalies = _regle_fichiers_existent([("Fichier_SHP_Sections", p_sections),
+                                          ("Fichier_SHP_Apports", p_apports),
+                                          (PARAMETRE_AXE, p_axe)])
 
     # Source_geometrie declare l'intention ; les chemins declarent le fait.
     # Une contradiction entre les deux doit etre dite, pas devinee.
@@ -356,17 +565,7 @@ def controler_geometrie(chemin_template):
         return anomalies, None
 
     if source_geometrie == "MODELE":
-        if p_sections is not None or p_apports is not None:
-            anomalies.append((
-                AVERTISSEMENT,
-                "Source_geometrie = MODELE, mais des shapefiles sont declares : "
-                "ils seront ignores. Passer a SHP pour les utiliser."))
-        anomalies.append((
-            AVERTISSEMENT,
-            "Source_geometrie = MODELE : les sections et les injections sont "
-            "supposees deja tracees et nommees dans la geometrie. Leur "
-            "existence reelle est verifiee par le controle contre le modele."))
-        return anomalies, None
+        return anomalies + _regle_source_modele(p_sections, p_apports), None
 
     if p_sections is None or p_apports is None:
         anomalies.append((
@@ -380,11 +579,7 @@ def controler_geometrie(chemin_template):
         return anomalies, None
 
     # --- lecture ----------------------------------------------------------
-    # Champ_nom_SHP : vide ou absent = detection automatique du champ de nom.
-    champ_nom = valeurs.get("Champ_nom_SHP")
-    champ_nom = (str(champ_nom).strip()
-                 if champ_nom is not None and not pd.isna(champ_nom)
-                 and str(champ_nom).strip() else None)
+    champ_nom = _champ_nom(valeurs)
     try:
         g_sec = geo.lire_lignes(p_sections, colonne_nom=champ_nom,
                                 prefixe_defaut="Section")
@@ -394,19 +589,8 @@ def controler_geometrie(chemin_template):
         anomalies.append((ERREUR, f"lecture des shapefiles : {e}"))
         return anomalies, None
 
-    axe = crs_ref = None
-    if p_axe is not None:
-        try:
-            axe, crs_ref = geo.lire_axe(p_axe)
-        except Exception as e:
-            anomalies.append((ERREUR, f"lecture de l'axe hydraulique : {e}"))
-    else:
-        anomalies.append((
-            AVERTISSEMENT,
-            f"{PARAMETRE_AXE} non renseigne : pas de PK, donc ni verification "
-            f"de l'ordre declare ni profil en long. Fournir l'axe hydraulique "
-            f"en polyligne est vivement recommande."))
-        crs_ref = g_sec.crs
+    axe, crs_ref, lues = _lire_axe(p_axe, g_sec)
+    anomalies += lues
 
     # --- controles SIG ----------------------------------------------------
     anomalies += geo.controler_shp(g_sec, "sections de controle", crs_ref,
@@ -420,64 +604,23 @@ def controler_geometrie(chemin_template):
         anomalies.append((ERREUR, f"feuille Correspondance illisible : {e}"))
         return anomalies, None
 
-    noms_absents = []
-    for declares, presents, libelle in [
-        (noms_sections, set(g_sec["nom"]), "section de controle"),
-        (noms_apports, set(g_app["nom"]), "ligne d'injection"),
-    ]:
-        absents = [n for n in declares if n not in presents]
-        if absents:
-            noms_absents += absents
-            anomalies.append((
-                ERREUR,
-                f"{libelle}(s) declaree(s) dans le template mais absente(s) du "
-                f"shapefile : {absents} (presentes : {sorted(presents)})"))
+    noms_absents, absences = _regle_noms_dans_shp(noms_sections, noms_apports,
+                                                  g_sec, g_app)
+    anomalies += absences
 
-    # CE QUI EMPECHE UN PK, DIT EN CLAIR — et non plus deduit de la gravite
-    # GENERALE du controle SIG. Un PK est une projection metrique sur l'axe,
-    # indexee par le nom : il lui faut l'axe, une projection metrique, et tous
-    # les noms declares presents UNE SEULE FOIS. Rien d'autre.
-    #   LA SORTIE PRECEDENTE — « des qu'une anomalie ERREUR traine, quelle
-    #   qu'elle soit » — supprimait le tableau pour des defauts qui ne
-    #   deplacent aucun PK. Mesure en production : sur un calage CONFORME de
-    #   douze apports, une ligne d'injection de 94 cm, signalee « de longueur
-    #   quasi nulle », a fait disparaitre le profil en long ET les pentes
-    #   locales deduites, derriere un « PK indisponibles » qui ne nommait
-    #   rien. L'anomalie reste dite, au meme niveau ; elle n'efface plus les PK.
-    #   UN NOM EN DOUBLON, LUI, BLOQUE VRAIMENT : dict(zip(...)) garderait la
-    #   derniere occurrence en silence, et le profil placerait la section au
-    #   mauvais PK.
-    doublons = sorted({n for g in (g_sec, g_app)
-                       for n in g["nom"][g["nom"].duplicated()]})
-    if axe is None or noms_absents or doublons:
-        raisons = ["axe hydraulique indisponible"] if axe is None else []
-        if noms_absents:
-            raisons.append(f"noms declares absents des shapefiles : "
-                           f"{noms_absents}")
-        if doublons:
-            raisons.append(f"noms en doublon dans les shapefiles : {doublons}")
-        anomalies.append((
-            AVERTISSEMENT,
-            f"PK non calculables ({' ; '.join(raisons)}) : ni ordre declare "
-            f"verifie, ni profil en long, ni pente locale deduite."))
-        return anomalies, None
+    empechements = _regle_pk_calculables(axe, noms_absents, g_sec, g_app)
+    if empechements:
+        return anomalies + empechements, None
 
     # --- PK et coherence geographique -------------------------------------
     sens = str(valeurs.get("Sens_axe", "amont_aval")).strip() or "amont_aval"
-    if sens not in ("amont_aval", "aval_amont"):
-        anomalies.append((
-            ERREUR,
-            f"Sens_axe = '{sens}' : valeurs admises ['amont_aval', "
-            f"'aval_amont']."))
-        return anomalies, None
+    refus = _regle_sens_axe(sens)
+    if refus:
+        return anomalies + refus, None
 
-    pk_origine = valeurs.get("PK_origine_m", 0)
-    try:
-        pk_origine = 0.0 if pd.isna(pk_origine) else float(pk_origine)
-    except (TypeError, ValueError):
-        anomalies.append((
-            ERREUR, f"PK_origine_m = '{pk_origine}' : un nombre est attendu."))
-        return anomalies, None
+    pk_origine, refus = _pk_origine(valeurs)
+    if refus:
+        return anomalies + refus, None
 
     g_sec = geo.calculer_pk(g_sec, axe, pk_origine=pk_origine, sens=sens)
     g_app = geo.calculer_pk(g_app, axe, pk_origine=pk_origine, sens=sens)
@@ -488,16 +631,7 @@ def controler_geometrie(chemin_template):
     anomalies += geo.verifier_position_apports(
         list(zip(noms_apports, noms_sections)), pk_app, pk_sec)
 
-    tableau = pd.DataFrame({
-        "Ordre": range(1, len(noms_sections) + 1),
-        "Section": noms_sections,
-        "PK section (m)": [round(pk_sec[n], 1) for n in noms_sections],
-        "Apport": noms_apports,
-        "PK apport (m)": [round(pk_app[n], 1) for n in noms_apports],
-    })
-    tableau["Distance apport-section (m)"] = (
-        tableau["PK section (m)"] - tableau["PK apport (m)"]).round(1)
-    return anomalies, tableau
+    return anomalies, _tableau_pk(noms_sections, noms_apports, pk_sec, pk_app)
 
 
 def geometrie_hdf(chemin_template):
@@ -535,6 +669,179 @@ def geometrie_hdf(chemin_template):
     return chemin, anomalies
 
 
+# ---------------------------------------------------------------------------
+# Regles du controle contre le modele, enchainees par controler_contre_modele.
+# ---------------------------------------------------------------------------
+
+def _regle_zone_2d(chemin_template, chemin_geometrie_hdf):
+    """
+    (zone_declaree, anomalies) : la zone 2D declaree existe-t-elle ? Une zone
+    absente est rendue None, pour que le perimetre ne soit pas filtre sur
+    elle.
+    """
+    import geometrie as geo
+
+    valeurs = parametres.lire(chemin_template)
+    zone_declaree = valeurs.get("Nom_zone_2D")
+    zone_declaree = (str(zone_declaree).strip()
+                     if zone_declaree is not None and not pd.isna(zone_declaree)
+                     else None)
+
+    zones_presentes = geo.zones_2d(chemin_geometrie_hdf)
+    if zone_declaree and zone_declaree not in zones_presentes:
+        return None, [(
+            ERREUR,
+            f"zone d'ecoulement 2D '{zone_declaree}' absente de la geometrie "
+            f"(presentes : {zones_presentes})")]
+    if not zone_declaree and len(zones_presentes) > 1:
+        return zone_declaree, [(
+            AVERTISSEMENT,
+            f"Nom_zone_2D non renseigne et le modele en comporte plusieurs "
+            f"{zones_presentes} : la premiere est retenue par defaut.")]
+    return zone_declaree, []
+
+
+def _noms_des_lignes(gdf):
+    """Noms portes par une couche de lignes lue dans le HDF."""
+    import geometrie as geo
+
+    if gdf is None or len(gdf) == 0:
+        return set()
+    colonne = next((c for c in gdf.columns if c in geo.COLONNES_NOM), None)
+    return set(gdf[colonne].astype(str)) if colonne else set()
+
+
+def _ajouter_noms_du_texte(chemin_geometrie_hdf, presents):
+    """
+    Complete « presents » par les objets du fichier texte .gXX, et rend ceux
+    qui n'y figuraient pas encore (ecrits, pas encore pretraites).
+    """
+    import geometrie as geo
+
+    # LE FICHIER TEXTE FAIT FOI. Le .gXX.hdf lu ci-dessus est le produit d'un
+    # PRETRAITEMENT : un objet qu'on vient d'ecrire dans le .gXX n'y figure
+    # pas tant que HEC-RAS n'a pas repretraite la geometrie. S'en tenir au
+    # HDF revenait a declarer absents des objets qui viennent d'etre crees,
+    # et a bloquer un paquet parfaitement valide.
+    texte = Path(chemin_geometrie_hdf).with_suffix("")   # .gXX.hdf -> .gXX
+    en_attente = set()
+    if texte.exists():
+        du_texte = geo.objets_depuis_texte(texte)
+        for libelle, cle in (("ligne d'injection", "apports"),
+                             ("section de controle", "sections")):
+            noms_texte = {o["nom"] for o in du_texte[cle]}
+            en_attente |= noms_texte - presents[libelle]
+            presents[libelle] |= noms_texte
+    return en_attente
+
+
+def _regle_noms_dans_modele(presents, noms_sections, noms_apports):
+    anomalies = []
+    for libelle, declares in [("ligne d'injection", noms_apports),
+                              ("section de controle", noms_sections)]:
+        disponibles = presents[libelle]
+        for nom in declares:
+            if nom not in disponibles:
+                anomalies.append((
+                    ERREUR,
+                    f"{libelle} '{nom}' absente de la geometrie. "
+                    + (f"Presentes : {sorted(disponibles)}." if disponibles
+                       else "La geometrie n'en contient aucune — les creer "
+                            "avant de lancer le calage.")))
+    return anomalies
+
+
+def _regle_en_attente_de_pretraitement(en_attente, noms_sections, noms_apports):
+    # Signale, sans bloquer, ce qui est ecrit mais pas encore pretraite : le
+    # premier calcul s'en chargera, mais il vaut mieux que l'utilisateur le
+    # sache que de le laisser s'interroger.
+    declares_tous = set(noms_sections) | set(noms_apports)
+    concernes = sorted(en_attente & declares_tous)
+    if concernes:
+        return [(
+            INFO,
+            f"ecrits dans la geometrie mais pas encore pretraites par "
+            f"HEC-RAS : {concernes}. Ils seront pris en compte au prochain "
+            f"calcul ; rien a faire.")]
+    return []
+
+
+def _perimetre_zone(zones, zone_declaree):
+    """
+    (perimetre, anomalies) du maillage lu dans le HDF. Une anomalie rendue
+    signifie que le perimetre manque : l'implantation n'est pas controlee.
+    """
+    if zones is None or len(zones) == 0:
+        return None, [(AVERTISSEMENT, "aucune zone 2D dans la geometrie")]
+
+    # Sur un modele multi-zones, ne retenir que celle qui est declaree :
+    # unir tous les perimetres donnerait une emprise qui n'existe pas.
+    if zone_declaree and "mesh_name" in zones.columns:
+        zones = zones[zones["mesh_name"].astype(str) == zone_declaree]
+        if len(zones) == 0:
+            return None, [(AVERTISSEMENT,
+                           f"perimetre de la zone '{zone_declaree}' introuvable")]
+
+    perimetre = zones.geometry.union_all() if hasattr(zones.geometry, "union_all") \
+        else zones.geometry.unary_union
+    return perimetre, []
+
+
+def _tolerance_locale(chemin_geometrie_hdf, zone_declaree):
+    """Ecart admis au perimetre, fonction de la geometrie ; None si la taille
+    de maille est illisible."""
+    import geometrie as geo
+
+    # La tolerance geometrique se mesure en tailles de maille, jamais en
+    # metres absolus, et LOCALEMENT : sur un maillage raffine par zones, le lit
+    # peut etre a 3 m et la plaine a 25 m. Une tolerance batie sur la mediane
+    # globale serait beaucoup trop severe en bordure de domaine, ou se
+    # trouvent precisement les conditions limites.
+    try:
+        # SONDE, ET NON UNE VALEUR : son resultat ne sert a rien, son ECHEC
+        # si. Elle etablit que la taille de maille est lisible pour cette zone
+        # AVANT qu'on ne confie « tolerance » a
+        # geo.controler_contre_maillage, qui l'appelle par geometrie et SANS
+        # protection (« admis = tolerance_m(g) »). Sans elle, un
+        # maillage illisible ne donnerait plus tolerance=None — le repli
+        # prevu, ou le controle se contente de RAPPORTER la distance — mais
+        # une exception remontee au milieu du controle.
+        #   Elle portait un nom, « maille_globale », que personne ne lisait :
+        # ruff le signalait en F841 et l'effacer aurait emporte la sonde avec.
+        geo.taille_maille(chemin_geometrie_hdf, zone_declaree)
+
+        def tolerance(g):
+            return TOLERANCE_EN_MAILLES * geo.taille_maille(
+                chemin_geometrie_hdf, zone_declaree, geometrie=g)
+    except Exception:
+        tolerance = None
+    return tolerance
+
+
+def _regle_bc_externes_au_perimetre(bc, perimetre, tolerance):
+    # Seules les conditions limites EXTERNES doivent longer le perimetre ;
+    # une condition interne est par definition ailleurs.
+    if bc is None or not len(bc) or "Type" not in bc.columns:
+        return []
+    externes = bc[bc["Type"].astype(str).str.strip().str.lower() == "external"]
+    if not len(externes):
+        return []
+
+    import geopandas as gpd
+
+    import geometrie as geo
+
+    colonne = next((c for c in externes.columns if c in geo.COLONNES_NOM),
+                   None)
+    g_ext = gpd.GeoDataFrame(
+        {"nom": externes[colonne].astype(str) if colonne
+                else [f"BC_{i}" for i in range(len(externes))]},
+        geometry=list(externes.geometry), crs=externes.crs)
+    return geo.controler_contre_maillage(
+        g_ext, "lignes d'injection externes", perimetre,
+        doit_etre_interieur=False, tolerance_m=tolerance)
+
+
 def controler_contre_modele(chemin_template, chemin_geometrie_hdf=None):
     """
     Confronte la saisie a la geometrie REELLE du modele. Deux controles que
@@ -562,77 +869,23 @@ def controler_contre_modele(chemin_template, chemin_geometrie_hdf=None):
             return anomalies
 
     # --- 0. la zone 2D declaree existe-t-elle ? ---------------------------
-    valeurs = parametres.lire(chemin_template)
-    zone_declaree = valeurs.get("Nom_zone_2D")
-    zone_declaree = (str(zone_declaree).strip()
-                     if zone_declaree is not None and not pd.isna(zone_declaree)
-                     else None)
-
-    zones_presentes = geo.zones_2d(chemin_geometrie_hdf)
-    if zone_declaree and zone_declaree not in zones_presentes:
-        anomalies.append((
-            ERREUR,
-            f"zone d'ecoulement 2D '{zone_declaree}' absente de la geometrie "
-            f"(presentes : {zones_presentes})"))
-        zone_declaree = None
-    elif not zone_declaree and len(zones_presentes) > 1:
-        anomalies.append((
-            AVERTISSEMENT,
-            f"Nom_zone_2D non renseigne et le modele en comporte plusieurs "
-            f"{zones_presentes} : la premiere est retenue par defaut."))
+    zone_declaree, constats = _regle_zone_2d(chemin_template,
+                                             chemin_geometrie_hdf)
+    anomalies += constats
 
     # --- 1. existence des noms declares -----------------------------------
-    def noms_de(gdf):
-        if gdf is None or len(gdf) == 0:
-            return set()
-        colonne = next((c for c in gdf.columns if c in geo.COLONNES_NOM), None)
-        return set(gdf[colonne].astype(str)) if colonne else set()
-
     presents = {
-        "ligne d'injection": noms_de(HdfBndry.get_bc_lines(chemin_geometrie_hdf)),
-        "section de controle": noms_de(
+        "ligne d'injection": _noms_des_lignes(
+            HdfBndry.get_bc_lines(chemin_geometrie_hdf)),
+        "section de controle": _noms_des_lignes(
             HdfBndry.get_reference_lines(chemin_geometrie_hdf)),
     }
-
-    # LE FICHIER TEXTE FAIT FOI. Le .gXX.hdf lu ci-dessus est le produit d'un
-    # PRETRAITEMENT : un objet qu'on vient d'ecrire dans le .gXX n'y figure
-    # pas tant que HEC-RAS n'a pas repretraite la geometrie. S'en tenir au
-    # HDF revenait a declarer absents des objets qui viennent d'etre crees,
-    # et a bloquer un paquet parfaitement valide.
-    texte = Path(chemin_geometrie_hdf).with_suffix("")   # .gXX.hdf -> .gXX
-    en_attente = set()
-    if texte.exists():
-        du_texte = geo.objets_depuis_texte(texte)
-        for libelle, cle in (("ligne d'injection", "apports"),
-                             ("section de controle", "sections")):
-            noms_texte = {o["nom"] for o in du_texte[cle]}
-            en_attente |= noms_texte - presents[libelle]
-            presents[libelle] |= noms_texte
+    en_attente = _ajouter_noms_du_texte(chemin_geometrie_hdf, presents)
 
     noms_sections, noms_apports = _correspondance(chemin_template)
-    for libelle, declares in [("ligne d'injection", noms_apports),
-                              ("section de controle", noms_sections)]:
-        disponibles = presents[libelle]
-        for nom in declares:
-            if nom not in disponibles:
-                anomalies.append((
-                    ERREUR,
-                    f"{libelle} '{nom}' absente de la geometrie. "
-                    + (f"Presentes : {sorted(disponibles)}." if disponibles
-                       else "La geometrie n'en contient aucune — les creer "
-                            "avant de lancer le calage.")))
-
-    # Signale, sans bloquer, ce qui est ecrit mais pas encore pretraite : le
-    # premier calcul s'en chargera, mais il vaut mieux que l'utilisateur le
-    # sache que de le laisser s'interroger.
-    declares_tous = set(noms_sections) | set(noms_apports)
-    concernes = sorted(en_attente & declares_tous)
-    if concernes:
-        anomalies.append((
-            INFO,
-            f"ecrits dans la geometrie mais pas encore pretraites par "
-            f"HEC-RAS : {concernes}. Ils seront pris en compte au prochain "
-            f"calcul ; rien a faire."))
+    anomalies += _regle_noms_dans_modele(presents, noms_sections, noms_apports)
+    anomalies += _regle_en_attente_de_pretraitement(en_attente, noms_sections,
+                                                    noms_apports)
 
     # --- 2. implantation vis-a-vis du maillage ----------------------------
     try:
@@ -641,68 +894,19 @@ def controler_contre_modele(chemin_template, chemin_geometrie_hdf=None):
         anomalies.append((AVERTISSEMENT,
                           f"perimetre de la zone 2D illisible : {e}"))
         return anomalies
-    if zones is None or len(zones) == 0:
-        anomalies.append((AVERTISSEMENT, "aucune zone 2D dans la geometrie"))
-        return anomalies
+    perimetre, manques = _perimetre_zone(zones, zone_declaree)
+    if manques:
+        return anomalies + manques
 
-    # Sur un modele multi-zones, ne retenir que celle qui est declaree :
-    # unir tous les perimetres donnerait une emprise qui n'existe pas.
-    if zone_declaree and "mesh_name" in zones.columns:
-        zones = zones[zones["mesh_name"].astype(str) == zone_declaree]
-        if len(zones) == 0:
-            anomalies.append((AVERTISSEMENT,
-                              f"perimetre de la zone '{zone_declaree}' introuvable"))
-            return anomalies
-
-    perimetre = zones.geometry.union_all() if hasattr(zones.geometry, "union_all") \
-        else zones.geometry.unary_union
-
-    # La tolerance geometrique se mesure en tailles de maille, jamais en
-    # metres absolus, et LOCALEMENT : sur un maillage raffine par zones, le lit
-    # peut etre a 3 m et la plaine a 25 m. Une tolerance batie sur la mediane
-    # globale serait beaucoup trop severe en bordure de domaine, ou se
-    # trouvent precisement les conditions limites.
-    try:
-        # SONDE, ET NON UNE VALEUR : son resultat ne sert a rien, son ECHEC
-        # si. Elle etablit que la taille de maille est lisible pour cette zone
-        # AVANT qu'on ne confie « tolerance » a
-        # geo.controler_contre_maillage, qui l'appelle par geometrie et SANS
-        # protection (« admis = tolerance_m(g) »). Sans elle, un
-        # maillage illisible ne donnerait plus tolerance=None — le repli
-        # prevu, ou le controle se contente de RAPPORTER la distance — mais
-        # une exception remontee au milieu du controle.
-        #   Elle portait un nom, « maille_globale », que personne ne lisait :
-        # ruff le signalait en F841 et l'effacer aurait emporte la sonde avec.
-        geo.taille_maille(chemin_geometrie_hdf, zone_declaree)
-
-        def tolerance(g):
-            return TOLERANCE_EN_MAILLES * geo.taille_maille(
-                chemin_geometrie_hdf, zone_declaree, geometrie=g)
-    except Exception:
-        tolerance = None
+    tolerance = _tolerance_locale(chemin_geometrie_hdf, zone_declaree)
 
     g_sec, _ = geo.lignes_depuis_modele(chemin_geometrie_hdf)
     if len(g_sec):
         anomalies += geo.controler_contre_maillage(
             g_sec, "sections de controle", perimetre, doit_etre_interieur=True)
 
-    # Seules les conditions limites EXTERNES doivent longer le perimetre ;
-    # une condition interne est par definition ailleurs.
-    bc = HdfBndry.get_bc_lines(chemin_geometrie_hdf)
-    if bc is not None and len(bc) and "Type" in bc.columns:
-        externes = bc[bc["Type"].astype(str).str.strip().str.lower() == "external"]
-        if len(externes):
-            import geopandas as gpd
-
-            colonne = next((c for c in externes.columns if c in geo.COLONNES_NOM),
-                           None)
-            g_ext = gpd.GeoDataFrame(
-                {"nom": externes[colonne].astype(str) if colonne
-                        else [f"BC_{i}" for i in range(len(externes))]},
-                geometry=list(externes.geometry), crs=externes.crs)
-            anomalies += geo.controler_contre_maillage(
-                g_ext, "lignes d'injection externes", perimetre,
-                doit_etre_interieur=False, tolerance_m=tolerance)
+    anomalies += _regle_bc_externes_au_perimetre(
+        HdfBndry.get_bc_lines(chemin_geometrie_hdf), perimetre, tolerance)
 
     return anomalies
 
