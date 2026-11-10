@@ -1469,68 +1469,15 @@ def parametres_calage(dossier_projet, nom_projet, version_hecras, nom_zone_2d,
     return parametres
 
 
-def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
-                      pentes=None):
+def _saisie_a_preserver(chemin):
     """
-    Ecrit le classeur de saisie, PRE-REMPLI a partir de ce qui a ete designe
-    dans QGIS : la feuille Correspondance contient deja les noms reels et
-    l'ordre, la feuille Cibles deja une colonne par section.
-
-    C'est le point ou le plugin fait gagner le plus de temps : recopier vingt
-    noms a la main est long et fautif, alors qu'ils sont deja connus.
-
-    paires : [(nom_apport, nom_section), ...] de l'amont vers l'aval, tel que
-        le produit geometrie.apparier_amont_aval(). Ce n'est PLUS deux listes
-        de meme longueur : les lignes d'injection d'un modele ne sont pas
-        toutes des apports a caler — s'y trouvent aussi les debits d'entree
-        permanents et les conditions limites aval. Exiger autant de sections
-        que d'injections revenait a compter ces dernieres comme des apports,
-        et refusait de composer un paquet pourtant valide.
-
-    Si le classeur EXISTE DEJA, les hydrogrammes cibles deja saisis a la main
-    dans la feuille Cibles sont PRESERVES pour les sections qui persistent
-    d'une composition a l'autre : recomposer ne doit jamais effacer un
-    travail de saisie deja fait. Seules les colonnes des sections retirees
-    disparaissent, et les sections nouvelles arrivent vides. La meme regle
-    vaut pour la pente saisie par apport (Pente_m_par_m, feuille
-    Correspondance) : preservee pour les couples apport/section qui
-    persistent, retrouvee par leur NOM (l'ordre peut changer d'une
-    composition a l'autre).
-
-    pentes : {nom_apport: pente} deduit du profil en long
-        (pentes_locales_apports). Sert a PRE-REMPLIR la colonne
-        Pente_m_par_m des apports qui n'en ont pas deja une. Ordre de
-        priorite, du plus fort au plus faible : valeur deja saisie dans le
-        classeur precedent > pente deduite du profil > case vide. Une saisie
-        de l'utilisateur n'est donc JAMAIS ecrasee par une recomposition, et
-        une case vide reste possible — c'est le cas ou le profil ne couvre
-        pas l'apport, et le calage deduira la pente comme avant.
-
-    Le nom du fichier porte le PREFIXE DE SCENARIO — « donnees_calage_Q100
-    .xlsx » : deux scenarios d'un meme dossier de sortie ont deux classeurs,
-    et composer l'un n'ecrase pas l'autre. Voir nom_classeur.
-
-    Retourne le chemin du classeur.
+    Ce qui a deja ete saisi dans le classeur a recomposer : (cibles, pentes).
+    cibles : la feuille Cibles telle que pandas la lit, None si le classeur
+    n'existe pas ou si elle est illisible. pentes : {(apport, section):
+    pente}, vide si rien n'est relisible.
     """
     import pandas as pd
 
-    paires = [(str(a), str(s)) for a, s in paires]
-    if not paires:
-        raise ValueError(
-            "aucun apport à caler : aucune section de contrôle n'a de ligne "
-            "d'injection en amont d'elle. Vérifier le tracé de l'axe "
-            "hydraulique et la position des objets.")
-    noms_apports = [a for a, _ in paires]
-    noms_sections = [s for _, s in paires]
-
-    dossier = Path(dossier_sortie)
-    dossier.mkdir(parents=True, exist_ok=True)
-    # LE NOM PORTE LE PREFIXE DE SCENARIO (0.8.4) — voir nom_classeur. Le
-    # prefixe est lu dans les parametres, la ou le lancement le relira : un
-    # second argument le laisserait diverger de ce que le classeur declare.
-    chemin = dossier / nom_classeur((parametres or {}).get("Prefixe_scenario"))
-
-    # Cibles et pentes deja saisies dans un classeur precedent, a preserver.
     cibles_existantes = None
     pentes_existantes = {}
     if chemin.exists():
@@ -1549,7 +1496,11 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
                         pentes_existantes[cle] = valeur
         except Exception:
             pentes_existantes = {}
+    return cibles_existantes, pentes_existantes
 
+
+def _parametres_du_classeur(chemins_shp, parametres):
+    """Les parametres ecrits dans le JSON voisin : defauts, puis ceux transmis."""
     valeurs = {
         "Dossier_projet_HECRAS": "",
         "Nom_projet": "",
@@ -1612,9 +1563,15 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
         "Distance_max_axe_maillage_m": "",
     }
     valeurs.update(parametres or {})
+    return valeurs
+
+
+def _feuille_correspondance(noms_apports, noms_sections, noms_cibles,
+                            pentes_existantes, pentes):
+    """La feuille Correspondance, pentes reportees ou pre-remplies."""
+    import pandas as pd
 
     n = len(noms_sections)
-    noms_cibles = [f"Cible_{s}" for s in noms_sections]
     # Priorite : saisie precedente, puis pente deduite du profil en long,
     # puis vide. Le pre-remplissage ne doit jamais ecraser une saisie.
     deduites = {str(k): v for k, v in (pentes or {}).items()}
@@ -1633,7 +1590,12 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
         # PRESERVEE au lieu d'etre effacee par une recomposition.
         "Pente_m_par_m": colonne_pente,
     })
+    return correspondance
 
+
+def _refuser_cibles_illisibles(chemin, cibles_existantes, noms_cibles):
+    """Leve ValueError si la feuille Cibles porte une saisie qu'on ne sait
+    pas relire : la recomposer l'effacerait."""
     # UNE SAISIE QU'ON NE SAIT PAS RELIRE NE S'EFFACE PAS. Les cibles deja
     # collees sont retrouvees sous l'en-tete « Temps_h » ; sans lui, la
     # branche suivante reecrivait la feuille VIDE, sans un mot — le geste
@@ -1659,6 +1621,12 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
                 f"n'est pas touche, mais la geometrie et les couches viennent "
                 f"d'etre reecrites, et la composition s'arrete ici.")
 
+
+def _feuille_cibles(cibles_existantes, noms_cibles):
+    """La feuille Cibles : la saisie precedente reconciliee avec les sections
+    courantes, ou une feuille vide."""
+    import pandas as pd
+
     if cibles_existantes is not None and "Temps_h" in cibles_existantes.columns:
         # Meme grille de temps qu'auparavant ; seules les colonnes de section
         # sont reconciliees avec la liste courante.
@@ -1671,7 +1639,12 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
         cibles = pd.DataFrame({"Temps_h": []})
         for nom_cible in noms_cibles:
             cibles[nom_cible] = []
+    return cibles
 
+
+def _mettre_de_cote(chemin):
+    """Renomme l'ancien classeur en « .precedent.xlsx » ; rend ce nom, ou
+    None s'il n'y avait rien a mettre de cote ou si le renommage est refuse."""
     # APRES LE GARDE-FOU Temps_h, PAS AVANT (23/09/2026) : la 0.9.2 mettait
     # l'ancien classeur de cote en tete de fonction ; sur un refus, le
     # fichier canonique avait donc disparu alors que le message promettait
@@ -1705,6 +1678,12 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
             # Windows. On ne fait pas echouer la composition pour cela : le
             # geste suivant — l'ecriture — dira lui-meme qu'il ne peut pas.
             sauvegarde = None
+    return sauvegarde
+
+
+def _ecrire_classeur(chemin, correspondance, cibles, valeurs):
+    """Ecrit le classeur, puis le JSON des parametres, puis l'habille."""
+    import pandas as pd
 
     # LE CLASSEUR NE PORTE PLUS QUE CE QU'ON Y ECRIT (20 septembre 2026,
     # demande utilisateur) : la correspondance et les cibles. Les parametres
@@ -1725,6 +1704,82 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
         style_classeur.mettre_en_forme(chemin)
     except Exception:                                       # noqa: BLE001
         pass
+
+
+def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
+                      pentes=None):
+    """
+    Ecrit le classeur de saisie, PRE-REMPLI a partir de ce qui a ete designe
+    dans QGIS : la feuille Correspondance contient deja les noms reels et
+    l'ordre, la feuille Cibles deja une colonne par section.
+
+    C'est le point ou le plugin fait gagner le plus de temps : recopier vingt
+    noms a la main est long et fautif, alors qu'ils sont deja connus.
+
+    paires : [(nom_apport, nom_section), ...] de l'amont vers l'aval, tel que
+        le produit geometrie.apparier_amont_aval(). Ce n'est PLUS deux listes
+        de meme longueur : les lignes d'injection d'un modele ne sont pas
+        toutes des apports a caler — s'y trouvent aussi les debits d'entree
+        permanents et les conditions limites aval. Exiger autant de sections
+        que d'injections revenait a compter ces dernieres comme des apports,
+        et refusait de composer un paquet pourtant valide.
+
+    Si le classeur EXISTE DEJA, les hydrogrammes cibles deja saisis a la main
+    dans la feuille Cibles sont PRESERVES pour les sections qui persistent
+    d'une composition a l'autre : recomposer ne doit jamais effacer un
+    travail de saisie deja fait. Seules les colonnes des sections retirees
+    disparaissent, et les sections nouvelles arrivent vides. La meme regle
+    vaut pour la pente saisie par apport (Pente_m_par_m, feuille
+    Correspondance) : preservee pour les couples apport/section qui
+    persistent, retrouvee par leur NOM (l'ordre peut changer d'une
+    composition a l'autre).
+
+    pentes : {nom_apport: pente} deduit du profil en long
+        (pentes_locales_apports). Sert a PRE-REMPLIR la colonne
+        Pente_m_par_m des apports qui n'en ont pas deja une. Ordre de
+        priorite, du plus fort au plus faible : valeur deja saisie dans le
+        classeur precedent > pente deduite du profil > case vide. Une saisie
+        de l'utilisateur n'est donc JAMAIS ecrasee par une recomposition, et
+        une case vide reste possible — c'est le cas ou le profil ne couvre
+        pas l'apport, et le calage deduira la pente comme avant.
+
+    Le nom du fichier porte le PREFIXE DE SCENARIO — « donnees_calage_Q100
+    .xlsx » : deux scenarios d'un meme dossier de sortie ont deux classeurs,
+    et composer l'un n'ecrase pas l'autre. Voir nom_classeur.
+
+    Retourne le chemin du classeur.
+    """
+    paires = [(str(a), str(s)) for a, s in paires]
+    if not paires:
+        raise ValueError(
+            "aucun apport à caler : aucune section de contrôle n'a de ligne "
+            "d'injection en amont d'elle. Vérifier le tracé de l'axe "
+            "hydraulique et la position des objets.")
+    noms_apports = [a for a, _ in paires]
+    noms_sections = [s for _, s in paires]
+
+    dossier = Path(dossier_sortie)
+    dossier.mkdir(parents=True, exist_ok=True)
+    # LE NOM PORTE LE PREFIXE DE SCENARIO (0.8.4) — voir nom_classeur. Le
+    # prefixe est lu dans les parametres, la ou le lancement le relira : un
+    # second argument le laisserait diverger de ce que le classeur declare.
+    chemin = dossier / nom_classeur((parametres or {}).get("Prefixe_scenario"))
+
+    # Cibles et pentes deja saisies dans un classeur precedent, a preserver.
+    cibles_existantes, pentes_existantes = _saisie_a_preserver(chemin)
+    valeurs = _parametres_du_classeur(chemins_shp, parametres)
+
+    noms_cibles = [f"Cible_{s}" for s in noms_sections]
+    correspondance = _feuille_correspondance(
+        noms_apports, noms_sections, noms_cibles, pentes_existantes, pentes)
+
+    # LE GARDE-FOU D'ABORD, LA MISE DE COTE ENSUITE, L'ECRITURE ENFIN : un
+    # refus ne doit rien avoir deplace (defaut de la 0.9.2, corrige en
+    # 0.9.12 — voir _mettre_de_cote).
+    _refuser_cibles_illisibles(chemin, cibles_existantes, noms_cibles)
+    cibles = _feuille_cibles(cibles_existantes, noms_cibles)
+    _mettre_de_cote(chemin)
+    _ecrire_classeur(chemin, correspondance, cibles, valeurs)
     return chemin
 
 
@@ -2104,6 +2159,109 @@ def prolonger_cibles(chemin_classeur, duree_h):
             "colonnes": [entetes[c - 1] for c in colonnes]}
 
 
+def _colonnes_entete(feuille):
+    """{en-tete: numero de colonne} de la ligne 1 d'une feuille."""
+    # JUSQU'AU PREMIER EN-TETE VIDE : au-dela vivent le tableau des pics
+    # et le graphique (style_classeur._ajouter_apercu_cibles).
+    rangs = {}
+    for cellule in feuille[1]:
+        if cellule.value is None or str(cellule.value).strip() == "":
+            break
+        rangs[str(cellule.value).strip()] = cellule.column
+    return rangs
+
+
+def _valeurs_colonne(feuille, colonne):
+    """Les valeurs d'une colonne sous l'en-tete, sans les vides de fin."""
+    serie = [feuille.cell(row=ligne, column=colonne).value
+             for ligne in range(2, feuille.max_row + 1)]
+    while serie and serie[-1] in (None, ""):
+        serie.pop()
+    return serie
+
+
+def _verifier_excels_objectifs(source, lu, cible, ecrit):
+    """Leve ValueError si l'un des deux classeurs n'a pas les feuilles d'un
+    Excel des objectifs."""
+    for fichier, classeur in ((source, lu), (cible, ecrit)):
+        absentes = [f for f in ("Correspondance", "Cibles")
+                    if f not in classeur.sheetnames]
+        if absentes:
+            raise ValueError(
+                f"{fichier.name} n’a pas de feuille « "
+                f"{' » ni « '.join(absentes)} » : ce n’est pas un Excel des "
+                f"hydrogrammes objectifs.")
+
+
+def _verifier_temps_h(source, cols_src, cible, cols_dst):
+    """Leve ValueError si une feuille Cibles n'a pas de colonne Temps_h."""
+    for fichier, cols in ((source, cols_src), (cible, cols_dst)):
+        if "Temps_h" not in cols:
+            raise ValueError(f"la feuille Cibles de {fichier.name} n’a pas de "
+                             f"colonne « Temps_h ».")
+
+
+def _cibles_communes(source, src, cols_src, cols_dst):
+    """(attendues, portees, importees) ; leve ValueError si aucune cible de
+    ce calcul n'est renseignee dans la source."""
+    attendues = [e for e in cols_dst if e.startswith("Cible_")]
+    portees = [e for e in cols_src
+               if e.startswith("Cible_") and _valeurs_colonne(src, cols_src[e])]
+    importees = [e for e in attendues if e in portees]
+    if not importees:
+        raise ValueError(
+            f"aucun hydrogramme de {source.name} ne correspond aux cibles de "
+            f"ce calcul. Attendues : {_entetes_dits(attendues)}. Dans l’Excel "
+            f"importé : " + (_entetes_dits(portees) if portees else
+                             "aucune colonne « Cible_… » renseignée") + ".")
+    return attendues, portees, importees
+
+
+def _refuser_autre_base_de_temps(source, gardees, temps, dst, cols_dst):
+    """Leve ValueError si des colonnes deja saisies dans ce calcul le sont
+    sur une autre base de temps : l'import changerait Temps_h sous elles."""
+    if gardees and _valeurs_colonne(dst, cols_dst["Temps_h"]) != temps:
+        raise ValueError(
+            f"{', '.join(gardees)} {'porte' if len(gardees) < 2 else 'portent'} déjà des valeurs, sur une autre "
+            f"base de temps que {source.name} : l’import changerait la colonne "
+            f"Temps_h sous elles. Les vider dans l’Excel de ce calcul, ou les "
+            f"ajouter à l’Excel importé, puis recommencer.")
+
+
+def _recopier_cibles(src, dst, cols_src, cols_dst, temps, importees):
+    """Ecrit Temps_h et les cibles importees, SUR PLACE ; les lignes de la
+    cible au-dela de la source sont videes."""
+    hauteur = max(len(temps), dst.max_row - 1)
+    for entete in ["Temps_h"] + importees:
+        serie = (temps if entete == "Temps_h"
+                 else _valeurs_colonne(src, cols_src[entete]))
+        for i in range(hauteur):
+            dst.cell(row=i + 2, column=cols_dst[entete],
+                     value=serie[i] if i < len(serie) else None)
+
+
+def _recopier_pentes(f_src, f_dst):
+    """Reporte, par nom d'apport, les pentes de la source ; rend les apports
+    servis."""
+    pentes = []
+    apport, pente = "Nom_Apport (BC line)", "Pente_m_par_m"
+    c_src, c_dst = _colonnes_entete(f_src), _colonnes_entete(f_dst)
+    if {apport, pente} <= set(c_src) and {apport, pente} <= set(c_dst):
+        lues = {}
+        for ligne in range(2, f_src.max_row + 1):
+            nom = f_src.cell(row=ligne, column=c_src[apport]).value
+            valeur = f_src.cell(row=ligne, column=c_src[pente]).value
+            if nom not in (None, "") and valeur not in (None, ""):
+                lues[str(nom).strip()] = valeur
+        for ligne in range(2, f_dst.max_row + 1):
+            nom = str(f_dst.cell(row=ligne, column=c_dst[apport]).value
+                      or "").strip()
+            if nom in lues:
+                f_dst.cell(row=ligne, column=c_dst[pente], value=lues[nom])
+                pentes.append(nom)
+    return pentes
+
+
 def importer_hydrogrammes(source, cible):
     """
     Recopie dans l'Excel de CE calcul (`cible`) les hydrogrammes cibles et les
@@ -2137,84 +2295,24 @@ def importer_hydrogrammes(source, cible):
         raise ValueError(f"{source.name} est déjà l’Excel de ce calcul.")
     lu = openpyxl.load_workbook(source, data_only=True)
     ecrit = openpyxl.load_workbook(cible)
-    for fichier, classeur in ((source, lu), (cible, ecrit)):
-        absentes = [f for f in ("Correspondance", "Cibles")
-                    if f not in classeur.sheetnames]
-        if absentes:
-            raise ValueError(
-                f"{fichier.name} n’a pas de feuille « "
-                f"{' » ni « '.join(absentes)} » : ce n’est pas un Excel des "
-                f"hydrogrammes objectifs.")
-
-    def colonnes(feuille):
-        # JUSQU'AU PREMIER EN-TETE VIDE : au-dela vivent le tableau des pics
-        # et le graphique (style_classeur._ajouter_apercu_cibles).
-        rangs = {}
-        for cellule in feuille[1]:
-            if cellule.value is None or str(cellule.value).strip() == "":
-                break
-            rangs[str(cellule.value).strip()] = cellule.column
-        return rangs
-
-    def valeurs(feuille, colonne):
-        serie = [feuille.cell(row=ligne, column=colonne).value
-                 for ligne in range(2, feuille.max_row + 1)]
-        while serie and serie[-1] in (None, ""):
-            serie.pop()
-        return serie
+    _verifier_excels_objectifs(source, lu, cible, ecrit)
 
     src, dst = lu["Cibles"], ecrit["Cibles"]
-    cols_src, cols_dst = colonnes(src), colonnes(dst)
-    for fichier, cols in ((source, cols_src), (cible, cols_dst)):
-        if "Temps_h" not in cols:
-            raise ValueError(f"la feuille Cibles de {fichier.name} n’a pas de "
-                             f"colonne « Temps_h ».")
-    attendues = [e for e in cols_dst if e.startswith("Cible_")]
-    portees = [e for e in cols_src
-               if e.startswith("Cible_") and valeurs(src, cols_src[e])]
-    importees = [e for e in attendues if e in portees]
-    if not importees:
-        raise ValueError(
-            f"aucun hydrogramme de {source.name} ne correspond aux cibles de "
-            f"ce calcul. Attendues : {_entetes_dits(attendues)}. Dans l’Excel "
-            f"importé : " + (_entetes_dits(portees) if portees else
-                             "aucune colonne « Cible_… » renseignée") + ".")
+    cols_src, cols_dst = _colonnes_entete(src), _colonnes_entete(dst)
+    _verifier_temps_h(source, cols_src, cible, cols_dst)
+    attendues, portees, importees = _cibles_communes(source, src, cols_src,
+                                                     cols_dst)
     restantes = [e for e in attendues if e not in importees]
-    gardees = [e for e in restantes if valeurs(dst, cols_dst[e])]
-    temps = valeurs(src, cols_src["Temps_h"])
-    if gardees and valeurs(dst, cols_dst["Temps_h"]) != temps:
-        raise ValueError(
-            f"{', '.join(gardees)} {'porte' if len(gardees) < 2 else 'portent'} déjà des valeurs, sur une autre "
-            f"base de temps que {source.name} : l’import changerait la colonne "
-            f"Temps_h sous elles. Les vider dans l’Excel de ce calcul, ou les "
-            f"ajouter à l’Excel importé, puis recommencer.")
+    gardees = [e for e in restantes if _valeurs_colonne(dst, cols_dst[e])]
+    temps = _valeurs_colonne(src, cols_src["Temps_h"])
+    _refuser_autre_base_de_temps(source, gardees, temps, dst, cols_dst)
 
+    # L'EXCEL D'AVANT EST MIS DE COTE AVANT TOUTE ECRITURE, apres le dernier
+    # refus : un refus ne laisse aucune copie.
     sauvegarde = cible.with_name(cible.stem + ".precedent" + cible.suffix)
     shutil.copy2(cible, sauvegarde)
-    hauteur = max(len(temps), dst.max_row - 1)
-    for entete in ["Temps_h"] + importees:
-        serie = temps if entete == "Temps_h" else valeurs(src, cols_src[entete])
-        for i in range(hauteur):
-            dst.cell(row=i + 2, column=cols_dst[entete],
-                     value=serie[i] if i < len(serie) else None)
-
-    pentes = []
-    apport, pente = "Nom_Apport (BC line)", "Pente_m_par_m"
-    f_src, f_dst = lu["Correspondance"], ecrit["Correspondance"]
-    c_src, c_dst = colonnes(f_src), colonnes(f_dst)
-    if {apport, pente} <= set(c_src) and {apport, pente} <= set(c_dst):
-        lues = {}
-        for ligne in range(2, f_src.max_row + 1):
-            nom = f_src.cell(row=ligne, column=c_src[apport]).value
-            valeur = f_src.cell(row=ligne, column=c_src[pente]).value
-            if nom not in (None, "") and valeur not in (None, ""):
-                lues[str(nom).strip()] = valeur
-        for ligne in range(2, f_dst.max_row + 1):
-            nom = str(f_dst.cell(row=ligne, column=c_dst[apport]).value
-                      or "").strip()
-            if nom in lues:
-                f_dst.cell(row=ligne, column=c_dst[pente], value=lues[nom])
-                pentes.append(nom)
+    _recopier_cibles(src, dst, cols_src, cols_dst, temps, importees)
+    pentes = _recopier_pentes(lu["Correspondance"], ecrit["Correspondance"])
     ecrit.save(cible)
     return {"importees": importees,
             "vides": [e for e in restantes if e not in gardees],
