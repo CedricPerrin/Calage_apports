@@ -4025,6 +4025,892 @@
     }
    }
   },
+  "importer/colonne_de_travail_non_cible": {
+   "rendu": [
+    "dict",
+    {
+     "importees": [
+      "Cible_S1"
+     ],
+     "vides": [],
+     "gardees": [],
+     "ignorees": [],
+     "pentes": [],
+     "sauvegarde": "<TMP>/ce_calcul/donnees_calage.precedent.xlsx"
+    }
+   ],
+   "intacts": [
+    "precedent/donnees_calage_Q100.xlsx"
+   ],
+   "dossier": {
+    "ce_calcul/donnees_calage.precedent.xlsx": {
+     "xlsx": {
+      "active": "Correspondance",
+      "feuilles": [
+       {
+        "nom": "Correspondance",
+        "dimensions": "A1:E4",
+        "cellules": [
+         [
+          "A1",
+          "str",
+          "Ordre",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B1",
+          "str",
+          "Nom_Apport (BC line)",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C1",
+          "str",
+          "Nom_Section (reference line)",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D1",
+          "str",
+          "Nom_Cible",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "E1",
+          "str",
+          "Pente_m_par_m",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A2",
+          "int",
+          1,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B2",
+          "str",
+          "A1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C2",
+          "str",
+          "S1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D2",
+          "str",
+          "Cible_S1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A3",
+          "int",
+          2,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B3",
+          "str",
+          "A2",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C3",
+          "str",
+          "S2",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D3",
+          "str",
+          "Cible_S2",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A4",
+          "int",
+          3,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B4",
+          "str",
+          "A3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C4",
+          "str",
+          "S3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D4",
+          "str",
+          "Cible_S3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ]
+        ],
+        "largeurs": {},
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "graphiques": 0,
+        "validations": 0,
+        "mises_en_forme_conditionnelles": 0
+       },
+       {
+        "nom": "Cibles",
+        "dimensions": "A1:C1",
+        "cellules": [
+         [
+          "A1",
+          "str",
+          "Temps_h",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B1",
+          "str",
+          "Cible_S1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C1",
+          "str",
+          "Notes",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ]
+        ],
+        "largeurs": {},
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "graphiques": 0,
+        "validations": 0,
+        "mises_en_forme_conditionnelles": 0
+       }
+      ]
+     }
+    },
+    "ce_calcul/donnees_calage.xlsx": {
+     "xlsx": {
+      "active": "Correspondance",
+      "feuilles": [
+       {
+        "nom": "Correspondance",
+        "dimensions": "A1:E4",
+        "cellules": [
+         [
+          "A1",
+          "str",
+          "Ordre",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B1",
+          "str",
+          "Nom_Apport (BC line)",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C1",
+          "str",
+          "Nom_Section (reference line)",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D1",
+          "str",
+          "Nom_Cible",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "E1",
+          "str",
+          "Pente_m_par_m",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A2",
+          "int",
+          1,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B2",
+          "str",
+          "A1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C2",
+          "str",
+          "S1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D2",
+          "str",
+          "Cible_S1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A3",
+          "int",
+          2,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B3",
+          "str",
+          "A2",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C3",
+          "str",
+          "S2",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D3",
+          "str",
+          "Cible_S2",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A4",
+          "int",
+          3,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B4",
+          "str",
+          "A3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C4",
+          "str",
+          "S3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D4",
+          "str",
+          "Cible_S3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ]
+        ],
+        "largeurs": {},
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "graphiques": 0,
+        "validations": 0,
+        "mises_en_forme_conditionnelles": 0
+       },
+       {
+        "nom": "Cibles",
+        "dimensions": "A1:C3",
+        "cellules": [
+         [
+          "A1",
+          "str",
+          "Temps_h",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B1",
+          "str",
+          "Cible_S1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C1",
+          "str",
+          "Notes",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A2",
+          "int",
+          0,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B2",
+          "int",
+          1,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A3",
+          "int",
+          1,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B3",
+          "int",
+          2,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ]
+        ],
+        "largeurs": {},
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "graphiques": 0,
+        "validations": 0,
+        "mises_en_forme_conditionnelles": 0
+       }
+      ]
+     }
+    },
+    "precedent/donnees_calage_Q100.xlsx": {
+     "xlsx": {
+      "active": "Correspondance",
+      "feuilles": [
+       {
+        "nom": "Correspondance",
+        "dimensions": "A1:E2",
+        "cellules": [
+         [
+          "A1",
+          "str",
+          "Ordre",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B1",
+          "str",
+          "Nom_Apport (BC line)",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C1",
+          "str",
+          "Nom_Section (reference line)",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D1",
+          "str",
+          "Nom_Cible",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "E1",
+          "str",
+          "Pente_m_par_m",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A2",
+          "int",
+          1,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B2",
+          "str",
+          "A1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C2",
+          "str",
+          "S1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D2",
+          "str",
+          "Cible_S1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ]
+        ],
+        "largeurs": {},
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "graphiques": 0,
+        "validations": 0,
+        "mises_en_forme_conditionnelles": 0
+       },
+       {
+        "nom": "Cibles",
+        "dimensions": "A1:B3",
+        "cellules": [
+         [
+          "A1",
+          "str",
+          "Temps_h",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B1",
+          "str",
+          "Cible_S1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A2",
+          "int",
+          0,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B2",
+          "int",
+          1,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A3",
+          "int",
+          1,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B3",
+          "int",
+          2,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ]
+        ],
+        "largeurs": {},
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "graphiques": 0,
+        "validations": 0,
+        "mises_en_forme_conditionnelles": 0
+       }
+      ]
+     }
+    }
+   }
+  },
   "importer/colonnes_apres_entete_vide_ignorees": {
    "rendu": [
     "dict",
@@ -5137,6 +6023,1063 @@
           "D3",
           "int",
           5,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ]
+        ],
+        "largeurs": {},
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "graphiques": 0,
+        "validations": 0,
+        "mises_en_forme_conditionnelles": 0
+       }
+      ]
+     }
+    }
+   }
+  },
+  "importer/entete_blanc_arrete_les_colonnes": {
+   "rendu": [
+    "dict",
+    {
+     "importees": [
+      "Cible_S1"
+     ],
+     "vides": [],
+     "gardees": [],
+     "ignorees": [
+      "Cible_S2"
+     ],
+     "pentes": [],
+     "sauvegarde": "<TMP>/c.precedent.xlsx"
+    }
+   ],
+   "intacts": [
+    "s.xlsx"
+   ],
+   "dossier": {
+    "c.precedent.xlsx": {
+     "xlsx": {
+      "active": "Correspondance",
+      "feuilles": [
+       {
+        "nom": "Correspondance",
+        "dimensions": "A1:E4",
+        "cellules": [
+         [
+          "A1",
+          "str",
+          "Ordre",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B1",
+          "str",
+          "Nom_Apport (BC line)",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C1",
+          "str",
+          "Nom_Section (reference line)",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D1",
+          "str",
+          "Nom_Cible",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "E1",
+          "str",
+          "Pente_m_par_m",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A2",
+          "int",
+          1,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B2",
+          "str",
+          "A1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C2",
+          "str",
+          "S1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D2",
+          "str",
+          "Cible_S1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A3",
+          "int",
+          2,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B3",
+          "str",
+          "A2",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C3",
+          "str",
+          "S2",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D3",
+          "str",
+          "Cible_S2",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A4",
+          "int",
+          3,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B4",
+          "str",
+          "A3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C4",
+          "str",
+          "S3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D4",
+          "str",
+          "Cible_S3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ]
+        ],
+        "largeurs": {},
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "graphiques": 0,
+        "validations": 0,
+        "mises_en_forme_conditionnelles": 0
+       },
+       {
+        "nom": "Cibles",
+        "dimensions": "A1:D1",
+        "cellules": [
+         [
+          "A1",
+          "str",
+          "Temps_h",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B1",
+          "str",
+          "Cible_S1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C1",
+          "str",
+          "   ",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D1",
+          "str",
+          "Cible_S2",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ]
+        ],
+        "largeurs": {},
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "graphiques": 0,
+        "validations": 0,
+        "mises_en_forme_conditionnelles": 0
+       }
+      ]
+     }
+    },
+    "c.xlsx": {
+     "xlsx": {
+      "active": "Correspondance",
+      "feuilles": [
+       {
+        "nom": "Correspondance",
+        "dimensions": "A1:E4",
+        "cellules": [
+         [
+          "A1",
+          "str",
+          "Ordre",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B1",
+          "str",
+          "Nom_Apport (BC line)",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C1",
+          "str",
+          "Nom_Section (reference line)",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D1",
+          "str",
+          "Nom_Cible",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "E1",
+          "str",
+          "Pente_m_par_m",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A2",
+          "int",
+          1,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B2",
+          "str",
+          "A1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C2",
+          "str",
+          "S1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D2",
+          "str",
+          "Cible_S1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A3",
+          "int",
+          2,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B3",
+          "str",
+          "A2",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C3",
+          "str",
+          "S2",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D3",
+          "str",
+          "Cible_S2",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A4",
+          "int",
+          3,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B4",
+          "str",
+          "A3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C4",
+          "str",
+          "S3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D4",
+          "str",
+          "Cible_S3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ]
+        ],
+        "largeurs": {},
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "graphiques": 0,
+        "validations": 0,
+        "mises_en_forme_conditionnelles": 0
+       },
+       {
+        "nom": "Cibles",
+        "dimensions": "A1:D3",
+        "cellules": [
+         [
+          "A1",
+          "str",
+          "Temps_h",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B1",
+          "str",
+          "Cible_S1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C1",
+          "str",
+          "   ",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D1",
+          "str",
+          "Cible_S2",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A2",
+          "int",
+          0,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B2",
+          "int",
+          1,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A3",
+          "int",
+          1,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B3",
+          "int",
+          2,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ]
+        ],
+        "largeurs": {},
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "graphiques": 0,
+        "validations": 0,
+        "mises_en_forme_conditionnelles": 0
+       }
+      ]
+     }
+    },
+    "s.xlsx": {
+     "xlsx": {
+      "active": "Correspondance",
+      "feuilles": [
+       {
+        "nom": "Correspondance",
+        "dimensions": "A1:E4",
+        "cellules": [
+         [
+          "A1",
+          "str",
+          "Ordre",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B1",
+          "str",
+          "Nom_Apport (BC line)",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C1",
+          "str",
+          "Nom_Section (reference line)",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D1",
+          "str",
+          "Nom_Cible",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "E1",
+          "str",
+          "Pente_m_par_m",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A2",
+          "int",
+          1,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B2",
+          "str",
+          "A1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C2",
+          "str",
+          "S1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D2",
+          "str",
+          "Cible_S1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A3",
+          "int",
+          2,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B3",
+          "str",
+          "A2",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C3",
+          "str",
+          "S2",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D3",
+          "str",
+          "Cible_S2",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A4",
+          "int",
+          3,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B4",
+          "str",
+          "A3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C4",
+          "str",
+          "S3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D4",
+          "str",
+          "Cible_S3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ]
+        ],
+        "largeurs": {},
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "graphiques": 0,
+        "validations": 0,
+        "mises_en_forme_conditionnelles": 0
+       },
+       {
+        "nom": "Cibles",
+        "dimensions": "A1:C3",
+        "cellules": [
+         [
+          "A1",
+          "str",
+          "Temps_h",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B1",
+          "str",
+          "Cible_S1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C1",
+          "str",
+          "Cible_S2",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A2",
+          "int",
+          0,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B2",
+          "int",
+          1,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C2",
+          "int",
+          3,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A3",
+          "int",
+          1,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B3",
+          "int",
+          2,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C3",
+          "int",
+          4,
           [
            "General",
            false,
@@ -10912,6 +12855,869 @@
           "B4",
           "int",
           3,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ]
+        ],
+        "largeurs": {},
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "graphiques": 0,
+        "validations": 0,
+        "mises_en_forme_conditionnelles": 0
+       }
+      ]
+     }
+    }
+   }
+  },
+  "importer/pente_nom_avec_espaces_sans_homonyme": {
+   "rendu": [
+    "dict",
+    {
+     "importees": [
+      "Cible_S1"
+     ],
+     "vides": [],
+     "gardees": [],
+     "ignorees": [],
+     "pentes": [
+      "A5",
+      "A3"
+     ],
+     "sauvegarde": "<TMP>/c.precedent.xlsx"
+    }
+   ],
+   "intacts": [
+    "s.xlsx"
+   ],
+   "dossier": {
+    "c.precedent.xlsx": {
+     "xlsx": {
+      "active": "Correspondance",
+      "feuilles": [
+       {
+        "nom": "Correspondance",
+        "dimensions": "A1:E3",
+        "cellules": [
+         [
+          "A1",
+          "str",
+          "Ordre",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B1",
+          "str",
+          "Nom_Apport (BC line)",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C1",
+          "str",
+          "Nom_Section (reference line)",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D1",
+          "str",
+          "Nom_Cible",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "E1",
+          "str",
+          "Pente_m_par_m",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A2",
+          "int",
+          1,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B2",
+          "str",
+          "A5",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C2",
+          "str",
+          "S5",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D2",
+          "str",
+          "Cible_S5",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A3",
+          "int",
+          2,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B3",
+          "str",
+          " A3 ",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C3",
+          "str",
+          "S3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D3",
+          "str",
+          "Cible_S3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ]
+        ],
+        "largeurs": {},
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "graphiques": 0,
+        "validations": 0,
+        "mises_en_forme_conditionnelles": 0
+       },
+       {
+        "nom": "Cibles",
+        "dimensions": "A1:B1",
+        "cellules": [
+         [
+          "A1",
+          "str",
+          "Temps_h",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B1",
+          "str",
+          "Cible_S1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ]
+        ],
+        "largeurs": {},
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "graphiques": 0,
+        "validations": 0,
+        "mises_en_forme_conditionnelles": 0
+       }
+      ]
+     }
+    },
+    "c.xlsx": {
+     "xlsx": {
+      "active": "Correspondance",
+      "feuilles": [
+       {
+        "nom": "Correspondance",
+        "dimensions": "A1:E3",
+        "cellules": [
+         [
+          "A1",
+          "str",
+          "Ordre",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B1",
+          "str",
+          "Nom_Apport (BC line)",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C1",
+          "str",
+          "Nom_Section (reference line)",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D1",
+          "str",
+          "Nom_Cible",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "E1",
+          "str",
+          "Pente_m_par_m",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A2",
+          "int",
+          1,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B2",
+          "str",
+          "A5",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C2",
+          "str",
+          "S5",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D2",
+          "str",
+          "Cible_S5",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "E2",
+          "float",
+          0.05,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A3",
+          "int",
+          2,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B3",
+          "str",
+          " A3 ",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C3",
+          "str",
+          "S3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D3",
+          "str",
+          "Cible_S3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "E3",
+          "float",
+          0.03,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ]
+        ],
+        "largeurs": {},
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "graphiques": 0,
+        "validations": 0,
+        "mises_en_forme_conditionnelles": 0
+       },
+       {
+        "nom": "Cibles",
+        "dimensions": "A1:B3",
+        "cellules": [
+         [
+          "A1",
+          "str",
+          "Temps_h",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B1",
+          "str",
+          "Cible_S1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A2",
+          "int",
+          0,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B2",
+          "int",
+          1,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A3",
+          "int",
+          1,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B3",
+          "int",
+          2,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ]
+        ],
+        "largeurs": {},
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "graphiques": 0,
+        "validations": 0,
+        "mises_en_forme_conditionnelles": 0
+       }
+      ]
+     }
+    },
+    "s.xlsx": {
+     "xlsx": {
+      "active": "Correspondance",
+      "feuilles": [
+       {
+        "nom": "Correspondance",
+        "dimensions": "A1:E3",
+        "cellules": [
+         [
+          "A1",
+          "str",
+          "Ordre",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B1",
+          "str",
+          "Nom_Apport (BC line)",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C1",
+          "str",
+          "Nom_Section (reference line)",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D1",
+          "str",
+          "Nom_Cible",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "E1",
+          "str",
+          "Pente_m_par_m",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A2",
+          "int",
+          1,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B2",
+          "str",
+          " A5 ",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C2",
+          "str",
+          "S5",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D2",
+          "str",
+          "Cible_S5",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "E2",
+          "float",
+          0.05,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A3",
+          "int",
+          2,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B3",
+          "str",
+          "A3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C3",
+          "str",
+          "S3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D3",
+          "str",
+          "Cible_S3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "E3",
+          "float",
+          0.03,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ]
+        ],
+        "largeurs": {},
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "graphiques": 0,
+        "validations": 0,
+        "mises_en_forme_conditionnelles": 0
+       },
+       {
+        "nom": "Cibles",
+        "dimensions": "A1:B3",
+        "cellules": [
+         [
+          "A1",
+          "str",
+          "Temps_h",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B1",
+          "str",
+          "Cible_S1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A2",
+          "int",
+          0,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B2",
+          "int",
+          1,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A3",
+          "int",
+          1,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B3",
+          "int",
+          2,
           [
            "General",
            false,
@@ -28827,6 +31633,332 @@
     }
    ]
   },
+  "preparer/cle_de_pente_deduite_numerique": {
+   "rendu": [
+    "Path",
+    "<TMP>/sortie/donnees_calage.xlsx"
+   ],
+   "intacts": [],
+   "dossier": {
+    "sortie/donnees_calage.json": {
+     "json": {
+      "Dossier_projet_HECRAS": "",
+      "Nom_projet": "",
+      "Version_HECRAS": "7.0.1",
+      "Nom_zone_2D": "",
+      "Geometrie_reference": "g01",
+      "Unsteady_reference": "u01",
+      "Plan_reference": "p01",
+      "Simulation_debut": "",
+      "Simulation_fin": "",
+      "Intervalle_calcul": "",
+      "Intervalle_sortie": "",
+      "Intervalle_instantane": "",
+      "Intervalle_mapping": "",
+      "Pente_apport_creee_m_par_m": "",
+      "Tolerance_volume_pct": 5.0,
+      "Tolerance_pic_pct": 2.0,
+      "Fenetre_active": "",
+      "Fenetre_seuil_bas_pct": 0.5,
+      "Fenetre_seuil_haut_pct": 99.0,
+      "Fenetre_t0_h": "",
+      "Fenetre_tf_h": "",
+      "Premier_apport": "",
+      "Prefixe_scenario": "",
+      "Remplacer_plan_source": "non",
+      "Coeurs_par_calcul": 0,
+      "Nb_max_iterations_par_apport": 6,
+      "Bilan_masse_max_pct": 5.0,
+      "Source_geometrie": "SHP",
+      "Fichier_SHP_Sections": "D:/calage/sections.shp",
+      "Fichier_SHP_Apports": "D:/calage/apports.shp",
+      "Fichier_SHP_Axe": "D:/calage/axe.shp",
+      "Sens_axe": "amont_aval",
+      "Champ_nom_SHP": "nom",
+      "PK_origine_m": 0,
+      "Pas_profil_m": 25,
+      "Distance_max_axe_maillage_m": ""
+     }
+    },
+    "sortie/donnees_calage.xlsx": {
+     "xlsx": {
+      "active": "Correspondance",
+      "feuilles": [
+       {
+        "nom": "Correspondance",
+        "dimensions": "A1:E3",
+        "cellules": [
+         [
+          "A1",
+          "str",
+          "Ordre",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B1",
+          "str",
+          "Nom_Apport (BC line)",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C1",
+          "str",
+          "Nom_Section (reference line)",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D1",
+          "str",
+          "Nom_Cible",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "E1",
+          "str",
+          "Pente_m_par_m",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A2",
+          "int",
+          1,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B2",
+          "str",
+          "7",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C2",
+          "str",
+          "S7",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D2",
+          "str",
+          "Cible_S7",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "E2",
+          "float",
+          0.3,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A3",
+          "int",
+          2,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B3",
+          "str",
+          "A8",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C3",
+          "str",
+          "S8",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D3",
+          "str",
+          "Cible_S8",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "E3",
+          "float",
+          0.4,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ]
+        ],
+        "largeurs": {},
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "graphiques": 0,
+        "validations": 0,
+        "mises_en_forme_conditionnelles": 0
+       },
+       {
+        "nom": "Cibles",
+        "dimensions": "A1:C1",
+        "cellules": [
+         [
+          "A1",
+          "str",
+          "Temps_h",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B1",
+          "str",
+          "Cible_S7",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C1",
+          "str",
+          "Cible_S8",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ]
+        ],
+        "largeurs": {},
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "graphiques": 0,
+        "validations": 0,
+        "mises_en_forme_conditionnelles": 0
+       }
+      ]
+     }
+    }
+   },
+   "journal_style": [
+    {
+     "appel": "mettre_en_forme",
+     "chemin": "<TMP>/sortie/donnees_calage.xlsx",
+     "dossier_a_cet_instant": [
+      "sortie/donnees_calage.json",
+      "sortie/donnees_calage.xlsx"
+     ]
+    }
+   ]
+  },
   "preparer/deja_saisi_preserve": {
    "rendu": [
     "Path",
@@ -39706,6 +42838,691 @@
     }
    ]
   },
+  "preparer/pente_vide_cede_a_la_deduite": {
+   "rendu": [
+    "Path",
+    "<TMP>/sortie/donnees_calage.xlsx"
+   ],
+   "intacts": [],
+   "dossier": {
+    "sortie/donnees_calage.json": {
+     "json": {
+      "Dossier_projet_HECRAS": "",
+      "Nom_projet": "",
+      "Version_HECRAS": "7.0.1",
+      "Nom_zone_2D": "",
+      "Geometrie_reference": "g01",
+      "Unsteady_reference": "u01",
+      "Plan_reference": "p01",
+      "Simulation_debut": "",
+      "Simulation_fin": "",
+      "Intervalle_calcul": "",
+      "Intervalle_sortie": "",
+      "Intervalle_instantane": "",
+      "Intervalle_mapping": "",
+      "Pente_apport_creee_m_par_m": "",
+      "Tolerance_volume_pct": 5.0,
+      "Tolerance_pic_pct": 2.0,
+      "Fenetre_active": "",
+      "Fenetre_seuil_bas_pct": 0.5,
+      "Fenetre_seuil_haut_pct": 99.0,
+      "Fenetre_t0_h": "",
+      "Fenetre_tf_h": "",
+      "Premier_apport": "",
+      "Prefixe_scenario": "",
+      "Remplacer_plan_source": "non",
+      "Coeurs_par_calcul": 0,
+      "Nb_max_iterations_par_apport": 6,
+      "Bilan_masse_max_pct": 5.0,
+      "Source_geometrie": "SHP",
+      "Fichier_SHP_Sections": "D:/calage/sections.shp",
+      "Fichier_SHP_Apports": "D:/calage/apports.shp",
+      "Fichier_SHP_Axe": "D:/calage/axe.shp",
+      "Sens_axe": "amont_aval",
+      "Champ_nom_SHP": "nom",
+      "PK_origine_m": 0,
+      "Pas_profil_m": 25,
+      "Distance_max_axe_maillage_m": ""
+     }
+    },
+    "sortie/donnees_calage.precedent.xlsx": {
+     "xlsx": {
+      "active": "Correspondance",
+      "feuilles": [
+       {
+        "nom": "Correspondance",
+        "dimensions": "A1:E4",
+        "cellules": [
+         [
+          "A1",
+          "str",
+          "Ordre",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B1",
+          "str",
+          "Nom_Apport (BC line)",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C1",
+          "str",
+          "Nom_Section (reference line)",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D1",
+          "str",
+          "Nom_Cible",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "E1",
+          "str",
+          "Pente_m_par_m",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A2",
+          "int",
+          1,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B2",
+          "str",
+          "A1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C2",
+          "str",
+          "S1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D2",
+          "str",
+          "Cible_S1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A3",
+          "int",
+          2,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B3",
+          "str",
+          "A2",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C3",
+          "str",
+          "S2",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D3",
+          "str",
+          "Cible_S2",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A4",
+          "int",
+          3,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B4",
+          "str",
+          "A3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C4",
+          "str",
+          "S3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D4",
+          "str",
+          "Cible_S3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ]
+        ],
+        "largeurs": {},
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "graphiques": 0,
+        "validations": 0,
+        "mises_en_forme_conditionnelles": 0
+       },
+       {
+        "nom": "Cibles",
+        "dimensions": "A1:D1",
+        "cellules": [
+         [
+          "A1",
+          "str",
+          "Temps_h",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B1",
+          "str",
+          "Cible_S1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C1",
+          "str",
+          "Cible_S2",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D1",
+          "str",
+          "Cible_S3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ]
+        ],
+        "largeurs": {},
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "graphiques": 0,
+        "validations": 0,
+        "mises_en_forme_conditionnelles": 0
+       }
+      ]
+     }
+    },
+    "sortie/donnees_calage.xlsx": {
+     "xlsx": {
+      "active": "Correspondance",
+      "feuilles": [
+       {
+        "nom": "Correspondance",
+        "dimensions": "A1:E4",
+        "cellules": [
+         [
+          "A1",
+          "str",
+          "Ordre",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B1",
+          "str",
+          "Nom_Apport (BC line)",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C1",
+          "str",
+          "Nom_Section (reference line)",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D1",
+          "str",
+          "Nom_Cible",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "E1",
+          "str",
+          "Pente_m_par_m",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A2",
+          "int",
+          1,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B2",
+          "str",
+          "A1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C2",
+          "str",
+          "S1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D2",
+          "str",
+          "Cible_S1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A3",
+          "int",
+          2,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B3",
+          "str",
+          "A2",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C3",
+          "str",
+          "S2",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D3",
+          "str",
+          "Cible_S2",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "E3",
+          "float",
+          0.5,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "A4",
+          "int",
+          3,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B4",
+          "str",
+          "A3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C4",
+          "str",
+          "S3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D4",
+          "str",
+          "Cible_S3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ]
+        ],
+        "largeurs": {},
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "graphiques": 0,
+        "validations": 0,
+        "mises_en_forme_conditionnelles": 0
+       },
+       {
+        "nom": "Cibles",
+        "dimensions": "A1:D1",
+        "cellules": [
+         [
+          "A1",
+          "str",
+          "Temps_h",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B1",
+          "str",
+          "Cible_S1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C1",
+          "str",
+          "Cible_S2",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "D1",
+          "str",
+          "Cible_S3",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ]
+        ],
+        "largeurs": {},
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "graphiques": 0,
+        "validations": 0,
+        "mises_en_forme_conditionnelles": 0
+       }
+      ]
+     }
+    }
+   },
+   "journal_style": [
+    {
+     "appel": "mettre_en_forme",
+     "chemin": "<TMP>/sortie/donnees_calage.xlsx",
+     "dossier_a_cet_instant": [
+      "sortie/donnees_calage.json",
+      "sortie/donnees_calage.precedent.xlsx",
+      "sortie/donnees_calage.xlsx"
+     ]
+    }
+   ]
+  },
   "preparer/pentes_deduites": {
    "rendu": [
     "Path",
@@ -42695,6 +46512,101 @@
    },
    "journal_style": []
   },
+  "preparer/refus_saisie_dans_la_derniere_cible_seule": {
+   "exception": "ValueError",
+   "message": "la feuille Cibles de donnees_calage.xlsx porte des valeurs saisies, mais pas de colonne « Temps_h » (en-tete A1) : ['x', 'Cible_S1', 'Cible_S2']. Recomposer les effacerait. Retablir la ligne d'en-tete — « Temps_h », puis une colonne par section — puis RELANCER LA COMPOSITION : le classeur n'est pas touche, mais la geometrie et les couches viennent d'etre reecrites, et la composition s'arrete ici.",
+   "intacts": [
+    "sortie/donnees_calage.xlsx"
+   ],
+   "dossier": {
+    "sortie/donnees_calage.xlsx": {
+     "xlsx": {
+      "active": "Cibles",
+      "feuilles": [
+       {
+        "nom": "Cibles",
+        "dimensions": "A1:C3",
+        "cellules": [
+         [
+          "A1",
+          "str",
+          "x",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B1",
+          "str",
+          "Cible_S1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C1",
+          "str",
+          "Cible_S2",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C2",
+          "int",
+          4,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C3",
+          "int",
+          5,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ]
+        ],
+        "largeurs": {},
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "graphiques": 0,
+        "validations": 0,
+        "mises_en_forme_conditionnelles": 0
+       }
+      ]
+     }
+    }
+   },
+   "journal_style": []
+  },
   "preparer/refus_sans_temps_h": {
    "exception": "ValueError",
    "message": "la feuille Cibles de donnees_calage.xlsx porte des valeurs saisies, mais pas de colonne « Temps_h » (en-tete A1) : ['¶', 'Cible_S1', 'Cible_S2']. Recomposer les effacerait. Retablir la ligne d'en-tete — « Temps_h », puis une colonne par section — puis RELANCER LA COMPOSITION : le classeur n'est pas touche, mais la geometrie et les couches viennent d'etre reecrites, et la composition s'arrete ici.",
@@ -43078,6 +46990,88 @@
           "C7",
           "int",
           25,
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ]
+        ],
+        "largeurs": {},
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "graphiques": 0,
+        "validations": 0,
+        "mises_en_forme_conditionnelles": 0
+       }
+      ]
+     }
+    }
+   },
+   "journal_style": []
+  },
+  "preparer/refus_une_seule_valeur": {
+   "exception": "ValueError",
+   "message": "la feuille Cibles de donnees_calage.xlsx porte des valeurs saisies, mais pas de colonne « Temps_h » (en-tete A1) : ['x', 'Cible_S1', 'Cible_S2']. Recomposer les effacerait. Retablir la ligne d'en-tete — « Temps_h », puis une colonne par section — puis RELANCER LA COMPOSITION : le classeur n'est pas touche, mais la geometrie et les couches viennent d'etre reecrites, et la composition s'arrete ici.",
+   "intacts": [
+    "sortie/donnees_calage.xlsx"
+   ],
+   "dossier": {
+    "sortie/donnees_calage.xlsx": {
+     "xlsx": {
+      "active": "Cibles",
+      "feuilles": [
+       {
+        "nom": "Cibles",
+        "dimensions": "A1:C2",
+        "cellules": [
+         [
+          "A1",
+          "str",
+          "x",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B1",
+          "str",
+          "Cible_S1",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "C1",
+          "str",
+          "Cible_S2",
+          [
+           "General",
+           false,
+           null,
+           null,
+           null,
+           null
+          ]
+         ],
+         [
+          "B2",
+          "int",
+          4,
           [
            "General",
            false,
