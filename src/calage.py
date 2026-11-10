@@ -1351,55 +1351,7 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
 
         _restituer_meilleur(modele, etat, dire)
 
-        duree_apport = time.time() - etat.debut_apport
-        valide = etat.issue == "converge"
-        if not valide and not etat.motif:
-            etat.motif = "concordance volume / pointe / forme non atteinte"
-
-        # LE CLIQUET EST LA PREMIERE CAUSE A CITER QUAND IL JOUE.
-        #
-        # L'annonce de l'iteration 0 partait au journal, et le VERDICT, lui,
-        # disait autre chose : mesure au banc, « le modele repond de facon
-        # trop non lineaire a cet apport » pour un volume bloque a 109,6 %
-        # quand le plancher valait 109,8 %. Le modele n'y etait pour rien.
-        # Un motif qui designe la mauvaise cause envoie corriger la mauvaise
-        # chose — ici le maillage ou le pas de calcul, quand ce sont les
-        # apports amont ou la cible qu'il faut reprendre.
-        if (not valide and etat.cliquet > 1.0 + config.tolerance_volume
-                and etat.diag is not None
-                and etat.diag.rapport_volume > 1.0 + config.tolerance_volume):
-            etat.motif += (
-                f" LE VOLUME NE POUVAIT PAS DESCENDRE PLUS BAS : la "
-                f"section donne deja plus que la cible sans cet apport, "
-                f"et un apport ne sait qu'ajouter du debit — plancher "
-                f"estime a {100 * etat.cliquet:.1f} %, atteint "
-                f"{100 * etat.diag.rapport_volume:.1f} %. Reprendre les "
-                f"apports amont deja cales, ou la cible, avant de "
-                f"mettre en cause la reponse du modele.")
-
-        resultat.apports.append(ResultatApport(
-            nom_apport=etat.apport, nom_section=etat.section, valide=valide,
-            # Le facteur decrit l'essai RETENU. Apres un retour au meilleur
-            # essai, prendre le dernier de l'historique decrirait un apport
-            # qui n'est plus en place.
-            facteur=_facteur_retenu(etat.historique_rapport, etat.essai_en_place),
-            diagnostic=etat.diag, essais=etat.essais,
-            duree_s=duree_apport, motif="" if valide else etat.motif,
-            historique=etat.historique_rapport,
-            fenetre_principale=etat.bornes_fenetre,
-            part_apport=etat.part_apport,
-            decalage_fenetre_h=etat.decalage_zero))
-
-        if suivi is not None:
-            series = ((etat.temps_cible, etat.debit_cible,
-                       etat.temps_calcule, etat.debit_calcule)
-                      if valide and etat.diag is not None else None)
-            if valide:
-                _sans_interrompre(suivi.valider_apport, etat.i, etat.diag,
-                                  duree_apport, series)
-            else:
-                _sans_interrompre(suivi.echouer_apport, etat.i, etat.motif,
-                                  etat.diag, duree_apport)
+        valide = _retenir_apport(etat, config, suivi, resultat)
 
         if not valide:
             dire(f"    ARRET sur cet apport : {etat.motif}")
@@ -1782,6 +1734,66 @@ def _restituer_meilleur(modele, etat, dire):
              f"de la concordance (volume "
              f"{100 * etat.diag.rapport_volume:.1f} %, pointe "
              f"{100 * etat.diag.rapport_pic:.1f} %)")
+
+
+def _retenir_apport(etat, config, suivi, resultat):
+    """
+    Clot la recherche d'un apport : prononce sa validite, complete le motif
+    d'un echec, inscrit le ResultatApport dans resultat et previent le suivi.
+
+    Rend True si l'apport est valide. Sinon etat.motif dit pourquoi, et c'est
+    a caler() d'arreter la sequence.
+    """
+    duree_apport = time.time() - etat.debut_apport
+    valide = etat.issue == "converge"
+    if not valide and not etat.motif:
+        etat.motif = "concordance volume / pointe / forme non atteinte"
+
+    # LE CLIQUET EST LA PREMIERE CAUSE A CITER QUAND IL JOUE.
+    #
+    # L'annonce de l'iteration 0 partait au journal, et le VERDICT, lui,
+    # disait autre chose : mesure au banc, « le modele repond de facon
+    # trop non lineaire a cet apport » pour un volume bloque a 109,6 %
+    # quand le plancher valait 109,8 %. Le modele n'y etait pour rien.
+    # Un motif qui designe la mauvaise cause envoie corriger la mauvaise
+    # chose — ici le maillage ou le pas de calcul, quand ce sont les
+    # apports amont ou la cible qu'il faut reprendre.
+    if (not valide and etat.cliquet > 1.0 + config.tolerance_volume
+            and etat.diag is not None
+            and etat.diag.rapport_volume > 1.0 + config.tolerance_volume):
+        etat.motif += (
+            f" LE VOLUME NE POUVAIT PAS DESCENDRE PLUS BAS : la "
+            f"section donne deja plus que la cible sans cet apport, "
+            f"et un apport ne sait qu'ajouter du debit — plancher "
+            f"estime a {100 * etat.cliquet:.1f} %, atteint "
+            f"{100 * etat.diag.rapport_volume:.1f} %. Reprendre les "
+            f"apports amont deja cales, ou la cible, avant de "
+            f"mettre en cause la reponse du modele.")
+
+    resultat.apports.append(ResultatApport(
+        nom_apport=etat.apport, nom_section=etat.section, valide=valide,
+        # Le facteur decrit l'essai RETENU. Apres un retour au meilleur
+        # essai, prendre le dernier de l'historique decrirait un apport
+        # qui n'est plus en place.
+        facteur=_facteur_retenu(etat.historique_rapport, etat.essai_en_place),
+        diagnostic=etat.diag, essais=etat.essais,
+        duree_s=duree_apport, motif="" if valide else etat.motif,
+        historique=etat.historique_rapport,
+        fenetre_principale=etat.bornes_fenetre,
+        part_apport=etat.part_apport,
+        decalage_fenetre_h=etat.decalage_zero))
+
+    if suivi is not None:
+        series = ((etat.temps_cible, etat.debit_cible,
+                   etat.temps_calcule, etat.debit_calcule)
+                  if valide and etat.diag is not None else None)
+        if valide:
+            _sans_interrompre(suivi.valider_apport, etat.i, etat.diag,
+                              duree_apport, series)
+        else:
+            _sans_interrompre(suivi.echouer_apport, etat.i, etat.motif,
+                              etat.diag, duree_apport)
+    return valide
         # UN APPORT REMIS EN PLACE N'EST JAMAIS VALIDE : tout essai
         # concordant fait deja sortir la boucle sur « converge » — les
         # essais encore candidats au titre de meilleur ont donc TOUS
