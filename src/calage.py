@@ -3480,6 +3480,12 @@ if __name__ == "__main__":
     # aurait rendu zero — et, pire, une seconde chance glissee dans une etape
     # serait passee sans etre vue. On compte donc dans caler() ET, de proche
     # en proche, dans toute fonction de ce module qu'il nomme.
+    #   « CE MODULE » EST CELUI DE caler(), pas celui ou ce controle est
+    # ecrit : le jour ou le banc vit dans un autre fichier, ses globales ne
+    # sont plus celles de la boucle, et un compte fait sur elles ne suivrait
+    # plus rien.
+    _module_de_caler = vars(sys.modules[caler.__module__])
+
     def _appels_a(nom, fonction, vues):
         if fonction in vues:
             return 0
@@ -3491,9 +3497,9 @@ if __name__ == "__main__":
                     and n.func.id == nom):
                 total += 1
             elif isinstance(n, ast.Name) and n.id != nom:
-                nommee = globals().get(n.id)
+                nommee = _module_de_caler.get(n.id)
                 if (inspect.isfunction(nommee)
-                        and nommee.__module__ == __name__):
+                        and nommee.__module__ == caler.__module__):
                     total += _appels_a(nom, nommee, vues)
         return total
 
