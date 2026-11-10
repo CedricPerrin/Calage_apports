@@ -1679,27 +1679,7 @@ def _essayer_apport(modele, etat, config, suivi, resultat, dire):
 
         if etat.essais >= config.nb_max_essais:
             etat.issue = "arret"
-            etat.motif = (
-                f"{etat.essais} essais sans concordance simultanee : volume "
-                f"{100 * etat.diag.rapport_volume:.1f} %, pointe "
-                f"{100 * etat.diag.rapport_pic:.1f} %, forme "
-                f"{100 * etat.diag.r:.1f} % de la cible.")
-            # PROGRESSAIT-ON ENCORE ? Une recherche qui plafonne ne
-            # gagnera rien a plus d'essais ; une recherche qui avance
-            # encore, si.
-            pas = _progression_pic(etat.historique_rapport)
-            if pas is not None and pas > 1e-5:
-                reste = (1.0 - config.tolerance_pic) - etat.diag.rapport_pic
-                if reste > 0:
-                    etat.motif += (
-                        f" La pointe PROGRESSAIT ENCORE de "
-                        f"{100 * pas:+.2f} point au dernier essai ; il lui "
-                        f"manquait {100 * reste:.1f} point(s), soit "
-                        f"environ {reste / pas:.0f} essai(s) de plus. "
-                        f"Augmenter Nb_max_iterations_par_apport avant de "
-                        f"mettre en cause la methode.")
-            if etat.diag.alertes:
-                etat.motif += " Alertes : " + " ; ".join(etat.diag.alertes)
+            _motiver_essais_epuises(etat, config)
             break
 
         # --- correction ------------------------------------------------
@@ -1722,6 +1702,35 @@ def _essayer_apport(modele, etat, config, suivi, resultat, dire):
                 f"{100 * etat.diag.rapport_pic:.1f} %) : le modele ne repond "
                 f"plus a cet apport.")
             break
+
+
+def _motiver_essais_epuises(etat, config):
+    """
+    Ecrit dans l'etat le motif d'une recherche arretee faute d'essais : ou
+    elle en etait, si elle avancait encore, et ce que le dernier diagnostic
+    signalait.
+    """
+    etat.motif = (
+        f"{etat.essais} essais sans concordance simultanee : volume "
+        f"{100 * etat.diag.rapport_volume:.1f} %, pointe "
+        f"{100 * etat.diag.rapport_pic:.1f} %, forme "
+        f"{100 * etat.diag.r:.1f} % de la cible.")
+    # PROGRESSAIT-ON ENCORE ? Une recherche qui plafonne ne
+    # gagnera rien a plus d'essais ; une recherche qui avance
+    # encore, si.
+    pas = _progression_pic(etat.historique_rapport)
+    if pas is not None and pas > 1e-5:
+        reste = (1.0 - config.tolerance_pic) - etat.diag.rapport_pic
+        if reste > 0:
+            etat.motif += (
+                f" La pointe PROGRESSAIT ENCORE de "
+                f"{100 * pas:+.2f} point au dernier essai ; il lui "
+                f"manquait {100 * reste:.1f} point(s), soit "
+                f"environ {reste / pas:.0f} essai(s) de plus. "
+                f"Augmenter Nb_max_iterations_par_apport avant de "
+                f"mettre en cause la methode.")
+    if etat.diag.alertes:
+        etat.motif += " Alertes : " + " ; ".join(etat.diag.alertes)
 
 
 def _restituer_meilleur(modele, etat, dire):
