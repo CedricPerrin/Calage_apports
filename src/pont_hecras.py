@@ -962,6 +962,84 @@ def _controler_durees_avant_calcul(chemin_template):
 FACTEUR_DUREE_ABERRANTE = 10
 
 
+def _pretraitement_perime_du_plan(fichier_plan):
+    """
+    Avertissement si le pretraitement 2D de la geometrie du plan est plus
+    ancien qu'elle : [] ou [(AVERTISSEMENT, message)]. Ne leve jamais.
+    """
+    import controle_donnees as cd
+    from pilote_hecras import pretraitement_perime
+
+    anomalies = []
+    try:
+        for ligne in Path(fichier_plan).read_text(
+                encoding="utf-8", errors="replace").splitlines():
+            if ligne.startswith("Geom File="):
+                g = Path(fichier_plan).with_suffix(
+                    "." + ligne.split("=", 1)[1].strip())
+                perime = pretraitement_perime(g)
+                if perime:
+                    anomalies.append((
+                        cd.AVERTISSEMENT,
+                        f"le pretraitement 2D de {g.name} est PERIME : le "
+                        f"fichier texte a ete modifie il y a "
+                        f"{perime['geometrie_h']:.1f} h, son .hdf date de "
+                        f"{perime['hdf_h']:.1f} h. C'est NORMAL apres une "
+                        f"composition — ecrire les sections et les injections "
+                        f"perime les tables 2D. HEC-RAS les refera au premier "
+                        f"calcul ; sur un modele lourd (gros terrain, projet "
+                        f"sur un partage reseau) cela peut echouer sur "
+                        f"« Geometry Writer Failed », et le calage s'arretera "
+                        f"avant tout resultat. Dans le doute : ouvrir le "
+                        f"modele dans HEC-RAS et lancer le plan une fois a la "
+                        f"main, puis lancer le calage SANS recomposer."))
+                break
+    except Exception:                                        # noqa: BLE001
+        pass
+    return anomalies
+
+
+def _series_aberrantes(fichier, fichier_plan, retenus):
+    """
+    Avertissement pour les series bien plus longues que la simulation du
+    plan, ou None : rien a dire, ou fenetre de simulation illisible.
+    """
+    import controle_donnees as cd
+    from pilote_hecras import (fenetre_simulation_du_plan, instant_hecras,
+                               lire_hydrogramme_unsteady, _en_minutes)
+
+    try:
+        fenetre = fenetre_simulation_du_plan(fichier_plan)
+        simulation_h = (_en_minutes(instant_hecras(fenetre["fin"]))
+                        - _en_minutes(instant_hecras(fenetre["debut"]))) / 60.0
+    except Exception:                                        # noqa: BLE001
+        return None
+    if simulation_h <= 0:
+        return None
+
+    aberrantes = []
+    for nom, info in retenus.items():
+        pas = info["intervalle_h"]
+        if not pas:
+            continue
+        try:
+            valeurs = lire_hydrogramme_unsteady(fichier, info["debut"],
+                                                   info["fin"])
+        except Exception:                                    # noqa: BLE001
+            continue
+        duree_h = (len(valeurs) - 1) * pas
+        if duree_h > FACTEUR_DUREE_ABERRANTE * simulation_h:
+            aberrantes.append(f"« {nom} » {duree_h:.0f} h")
+    if not aberrantes:
+        return None
+    return (cd.AVERTISSEMENT,
+            f"serie(s) beaucoup plus longues que la simulation "
+            f"({simulation_h:.2f} h) : {', '.join(aberrantes)}. "
+            f"Verifier qu'il ne s'agit pas d'un hydrogramme "
+            f"herite d'un autre evenement : seul le debut sera "
+            f"lu, et rien ne le signalera.")
+
+
 def _controler_residus_unsteady(chemin_template):
     """
     Signale ce qui, dans le fichier Unsteady, trahit un historique d'edition.
@@ -982,10 +1060,7 @@ def _controler_residus_unsteady(chemin_template):
         24 est un residu, pas une donnee. Seul son debut sera lu.
     """
     import controle_donnees as cd
-    from pilote_hecras import (cartographier_hydrogrammes,
-                               fenetre_simulation_du_plan, instant_hecras,
-                               lire_hydrogramme_unsteady, pretraitement_perime,
-                               _en_minutes)
+    from pilote_hecras import cartographier_hydrogrammes
 
     try:
         contexte = _contexte_modele(chemin_template)
@@ -995,32 +1070,7 @@ def _controler_residus_unsteady(chemin_template):
         return []
     fichier, fichier_plan, zone, noms_connus, _ = contexte
 
-    anomalies_pretraitement = []
-    try:
-        for ligne in Path(fichier_plan).read_text(
-                encoding="utf-8", errors="replace").splitlines():
-            if ligne.startswith("Geom File="):
-                g = Path(fichier_plan).with_suffix(
-                    "." + ligne.split("=", 1)[1].strip())
-                perime = pretraitement_perime(g)
-                if perime:
-                    anomalies_pretraitement.append((
-                        cd.AVERTISSEMENT,
-                        f"le pretraitement 2D de {g.name} est PERIME : le "
-                        f"fichier texte a ete modifie il y a "
-                        f"{perime['geometrie_h']:.1f} h, son .hdf date de "
-                        f"{perime['hdf_h']:.1f} h. C'est NORMAL apres une "
-                        f"composition — ecrire les sections et les injections "
-                        f"perime les tables 2D. HEC-RAS les refera au premier "
-                        f"calcul ; sur un modele lourd (gros terrain, projet "
-                        f"sur un partage reseau) cela peut echouer sur "
-                        f"« Geometry Writer Failed », et le calage s'arretera "
-                        f"avant tout resultat. Dans le doute : ouvrir le "
-                        f"modele dans HEC-RAS et lancer le plan une fois a la "
-                        f"main, puis lancer le calage SANS recomposer."))
-                break
-    except Exception:                                        # noqa: BLE001
-        pass
+    anomalies_pretraitement = _pretraitement_perime_du_plan(fichier_plan)
 
     try:
         dans_zone = cartographier_hydrogrammes(fichier, zone)
@@ -1054,35 +1104,9 @@ def _controler_residus_unsteady(chemin_template):
                               f"n'aurait aucun effet et la boucle tournerait "
                               f"sans jamais progresser."))
 
-    try:
-        fenetre = fenetre_simulation_du_plan(fichier_plan)
-        simulation_h = (_en_minutes(instant_hecras(fenetre["fin"]))
-                        - _en_minutes(instant_hecras(fenetre["debut"]))) / 60.0
-    except Exception:                                        # noqa: BLE001
-        return anomalies
-    if simulation_h <= 0:
-        return anomalies
-
-    aberrantes = []
-    for nom, info in retenus.items():
-        pas = info["intervalle_h"]
-        if not pas:
-            continue
-        try:
-            valeurs = lire_hydrogramme_unsteady(fichier, info["debut"],
-                                                   info["fin"])
-        except Exception:                                    # noqa: BLE001
-            continue
-        duree_h = (len(valeurs) - 1) * pas
-        if duree_h > FACTEUR_DUREE_ABERRANTE * simulation_h:
-            aberrantes.append(f"« {nom} » {duree_h:.0f} h")
+    aberrantes = _series_aberrantes(fichier, fichier_plan, retenus)
     if aberrantes:
-        anomalies.append((cd.AVERTISSEMENT,
-                          f"serie(s) beaucoup plus longues que la simulation "
-                          f"({simulation_h:.2f} h) : {', '.join(aberrantes)}. "
-                          f"Verifier qu'il ne s'agit pas d'un hydrogramme "
-                          f"herite d'un autre evenement : seul le debut sera "
-                          f"lu, et rien ne le signalera."))
+        anomalies.append(aberrantes)
     return anomalies
 
 
