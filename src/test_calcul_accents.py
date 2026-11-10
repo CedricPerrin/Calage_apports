@@ -76,7 +76,12 @@ def _calcul_bouchonne(monkeypatch, espace, lus):
         "Plan Title=Q100", "Program Version=7.01", "Geom File=g01", "Flow File=u01",
         "BEGIN DESCRIPTION:", "Strickler du lit mineur à 40", "END DESCRIPTION:",
         "UNET D2 Cores= 0 ", "DSS File=Données – crues.dss", "Write Detailed= 0 "))
-    (espace / "Essai.prj").write_bytes(_cp1252("Proj Title=Étude", "Plan File=p01"))
+    # La géométrie et le flux du plan, déclarés et présents : calculer() ne lance plus un
+    # plan que le projet ne peut pas calculer (10/11/2026).
+    (espace / "Essai.prj").write_bytes(_cp1252(
+        "Proj Title=Étude", "Geom File=g01", "Unsteady File=u01", "Plan File=p01"))
+    (espace / "Essai.g01").write_bytes(_cp1252("Geom Title=Essai"))
+    (espace / "Essai.u01").write_bytes(_cp1252("Flow Title=Essai"))
 
     def coeurs(_numero, nombre, ras_object=None):     # RasPlan.set_num_cores, errors="replace"
         texte = plan.read_text(encoding="utf-8", errors="replace")
