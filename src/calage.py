@@ -1030,6 +1030,54 @@ def concordance(diag, config):
 # ---------------------------------------------------------------------------
 
 
+@dataclass
+class _EtatApport:
+    """
+    Ce que les etapes du calage d'UN apport se passent de l'une a l'autre.
+
+    caler() en construit un par apport ; chaque etape y lit ce que les
+    precedentes ont etabli et y ecrit ce qu'elle etablit a son tour. Tant que
+    ces valeurs etaient des variables locales de caler(), aucune etape ne
+    pouvait en sortir sans emporter une quinzaine d'arguments — c'est ce qui
+    tenait la fonction a pres de 700 lignes (P1-4 de AUDIT.md).
+
+    UN ETAT NEUF A CHAQUE APPORT : rien n'y vient du tour precedent. Une
+    variable locale qu'une branche oubliait de poser, elle, gardait sans
+    bruit la valeur de l'apport d'avant.
+    """
+    # --- l'apport, sa section, sa cible ---------------------------------
+    i: int                          # rang dans la liste des apports, de 0
+    apport: str
+    section: str
+    temps_cible: object
+    debit_cible: object
+    # --- etape 1 : estimation initiale, apport a zero --------------------
+    temps_residuel: object = None
+    residuel: object = None         # None = la section n'a pas pu etre lue
+    manquant: object = None         # cible(t - Dt) - residuel(t)
+    decalage_zero: float = None     # Dt : mesure une fois, puis fige
+    bornes_fenetre: tuple = None    # fenetre jugee ; None = toute la serie
+    cliquet: float = None           # rapport de volume minimal atteignable
+    part_apport: float = None       # part de l'apport dans le debit de pointe
+    # --- boucle d'essais -------------------------------------------------
+    debut_apport: float = None      # horloge, a l'entree de la recherche
+    # « poursuivre » tant que la recherche court, puis « converge » ou
+    # « arret » ; le motif dit pourquoi elle s'est arretee.
+    issue: str = "poursuivre"
+    motif: str = ""
+    courant: object = None          # hydrogramme d'apport de l'essai en cours
+    volume_initial: float = 0.0
+    essais: int = 0
+    historique_rapport: list = field(default_factory=list)
+    diag: object = None             # diagnostic du dernier essai, ou du retenu
+    temps_calcule: object = None
+    debit_calcule: object = None
+    meilleur: dict = None           # le meilleur essai rencontre
+    degradations: int = 0           # essais consecutifs qui s'en eloignent
+    # --- restitution -----------------------------------------------------
+    essai_en_place: int = 0         # rang de l'essai laisse dans le modele
+
+
 def caler(modele, apports, sections, cibles, config=None, suivi=None,
           journal=None, etape_reference=ETAPE_SANS_APPORT):
     """
@@ -1110,6 +1158,7 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
 
     for i, (apport, section) in enumerate(zip(apports, sections)):
         temps_cible, debit_cible = cibles[i]
+        etat = _EtatApport(i, apport, section, temps_cible, debit_cible)
         if suivi is not None:
             _sans_interrompre(suivi.commencer_apport, i)
         dire(f"\n=== Apport {i + 1}/{len(apports)} : {apport} -> {section} ===")
@@ -1126,40 +1175,43 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
         # pas encore de fichier de resultats. Lire apres le jalon revenait
         # donc a chercher l'etat de reference dans un .hdf qui n'existe pas.
         try:
-            temps_residuel, residuel = modele.lire_section(section)
+            etat.temps_residuel, etat.residuel = modele.lire_section(etat.section)
             echec_lecture = ""
         except Exception as e:                              # noqa: BLE001
-            temps_residuel, residuel = None, None
+            etat.temps_residuel, etat.residuel = None, None
             echec_lecture = f"{type(e).__name__}: {e}"
 
         # NOUVELLE ETAPE AVANT LA PREMIERE ECRITURE de cet apport : ce qui
         # precede — etat de reference ou apport precedent valide — reste ainsi
         # fige dans ses propres fichiers, relisible tel quel.
-        _jalonner(modele, etape_apport(apport, config.prefixe_etape), dire)
+        _jalonner(modele, etape_apport(etat.apport, config.prefixe_etape), dire)
 
         # --- premiere estimation : CE QUI MANQUE, apport a zero -----------
         #
         # Pas un facteur applique a une forme supposee, mais l'ecart mesure
         # lui-meme. C'est deja la bonne forme au premier ordre : le deficit
         # porte l'information de volume, de pointe ET d'allure.
-        if residuel is None:
+        if etat.residuel is None:
             # LA CAUSE EST DITE. Le message ne portait que le symptome, et
             # une lecture qui echoue a dix raisons possibles — section absente
             # du modele, nom mal orthographie, resultats non ecrits. Sans la
             # phrase de l'exception, chaque diagnostic repartait de zero.
-            etat_apport, motif = "arret", (
-                f"impossible de lire le debit a la section « {section} » avec "
-                f"l'apport a zero : sans cet etat de reference, aucune "
+            etat.issue, etat.motif = "arret", (
+                f"impossible de lire le debit a la section « {etat.section} » "
+                f"avec l'apport a zero : sans cet etat de reference, aucune "
                 f"estimation n'est possible."
                 + (f" Cause : {echec_lecture}" if echec_lecture else ""))
-            manquant = None
-            decalage_zero = 0.0
-            bornes_fenetre = None
+            etat.manquant = None
+            etat.decalage_zero = 0.0
+            etat.bornes_fenetre = None
             # DEFINI DANS LES DEUX BRANCHES. Sans cela il garderait la valeur
             # de l'apport PRECEDENT — la boucle porte sur les apports, et une
             # variable laissee de cote y traverse les tours sans bruit.
-            cliquet = 1.0
-            part_apport = None
+            # (Ecrit quand c'etait une variable locale de caler(). L'etat est
+            # desormais NEUF a chaque apport — voir _EtatApport : une branche
+            # qui l'oublierait laisserait None, et cela se verrait.)
+            etat.cliquet = 1.0
+            etat.part_apport = None
         else:
             # Meme raisonnement que pour les corrections suivantes : le
             # residuel arrive decale, et le soustraire tel quel melerait un
@@ -1169,19 +1221,21 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
             # suivants (voir decalage_minimisant_ecart). C'est exactement le
             # geste manuel : lire l'heure du pic dans le calcul a apport nul,
             # la comparer a celle du pic cible, une fois pour toutes.
-            decalage_zero = decalage_minimisant_ecart(
-                temps_cible, debit_cible, temps_residuel, residuel)
-            manquant = ecart_a_la_cible(temps_cible, debit_cible,
-                                        temps_residuel, residuel,
-                                        decalage_zero)
+            etat.decalage_zero = decalage_minimisant_ecart(
+                etat.temps_cible, etat.debit_cible,
+                etat.temps_residuel, etat.residuel)
+            etat.manquant = ecart_a_la_cible(etat.temps_cible, etat.debit_cible,
+                                             etat.temps_residuel, etat.residuel,
+                                             etat.decalage_zero)
             dire(f"    la section recoit deja "
-                 f"{float(np.max(residuel)):.1f} m3/s sans cet apport, "
-                 f"pour une cible a {float(np.max(debit_cible)):.1f} "
-                 f"(decalage retenu {decalage_zero:+.2f} h)")
+                 f"{float(np.max(etat.residuel)):.1f} m3/s sans cet apport, "
+                 f"pour une cible a {float(np.max(etat.debit_cible)):.1f} "
+                 f"(decalage retenu {etat.decalage_zero:+.2f} h)")
             # CE QUE LE RETARD DE L'AXE N'A PAS COUVERT : il a ete mesure a
             # apports nuls, et Δt se remesure ici, l'amont cale.
-            avance = avance_hors_simulation(temps_cible, debit_cible,
-                                            decalage_zero, temps_residuel[0])
+            avance = avance_hors_simulation(
+                etat.temps_cible, etat.debit_cible,
+                etat.decalage_zero, etat.temps_residuel[0])
             if avance > 1e-6:
                 dire(f"    ATTENTION — la cible decalee commence "
                      f"{avance:.2f} h avant le debut de la simulation : sa "
@@ -1194,11 +1248,11 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
             # l'annonce au journal avant tout essai, et on la passe a chaque
             # diagnostic : c'est lui qui la porte jusqu'au classeur, a la
             # note de synthese et au suivi (07/09/2026).
-            pic_cible = float(np.max(debit_cible))
-            pic_residuel = float(np.max(residuel))
-            part_apport = ((pic_cible - pic_residuel) / pic_cible
-                           if pic_cible else 0.0)
-            _reserve = reserve_identifiabilite(part_apport,
+            pic_cible = float(np.max(etat.debit_cible))
+            pic_residuel = float(np.max(etat.residuel))
+            etat.part_apport = ((pic_cible - pic_residuel) / pic_cible
+                                if pic_cible else 0.0)
+            _reserve = reserve_identifiabilite(etat.part_apport,
                                                config.tolerance_volume)
             if _reserve:
                 dire(f"    ATTENTION — {_reserve}")
@@ -1207,34 +1261,38 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
             # Configuration. Restreint le jugement et la presentation des
             # resultats, pas l'apport injecte.
             if _fenetre_demandee(config):
-                bornes_fenetre = fenetre_injection(
-                    temps_cible, manquant,
+                etat.bornes_fenetre = fenetre_injection(
+                    etat.temps_cible, etat.manquant,
                     seuil_bas=config.fenetre_seuil_bas,
                     seuil_haut=config.fenetre_seuil_haut,
                     t0_impose=config.fenetre_t0_h,
                     tf_impose=config.fenetre_tf_h,
-                    volume_reference=_volume(temps_cible, debit_cible),
+                    volume_reference=_volume(etat.temps_cible, etat.debit_cible),
                     perte_max=config.tolerance_volume)
                 if config.fenetre_marge_h:
-                    t_min, t_max = float(temps_cible[0]), float(temps_cible[-1])
-                    bornes_fenetre = (
-                        max(bornes_fenetre[0] - config.fenetre_marge_h, t_min),
-                        min(bornes_fenetre[1] + config.fenetre_marge_h, t_max))
-                dire(f"    hydrogramme principal {bornes_fenetre[0]:.2f} h -> "
-                     f"{bornes_fenetre[1]:.2f} h — seule cette fenetre est "
+                    t_min, t_max = (float(etat.temps_cible[0]),
+                                    float(etat.temps_cible[-1]))
+                    etat.bornes_fenetre = (
+                        max(etat.bornes_fenetre[0] - config.fenetre_marge_h,
+                            t_min),
+                        min(etat.bornes_fenetre[1] + config.fenetre_marge_h,
+                            t_max))
+                dire(f"    hydrogramme principal "
+                     f"{etat.bornes_fenetre[0]:.2f} h -> "
+                     f"{etat.bornes_fenetre[1]:.2f} h — seule cette fenetre est "
                      f"jugee et presentee ; l'apport reste calcule sur toute "
                      f"la serie")
             else:
-                bornes_fenetre = None
+                etat.bornes_fenetre = None
 
             # POUR LA COHERENCE DU DECALAGE LE LONG DE L'AXE, jugee a la fin
             # du calage : le Dt RETENU et la fenetre jugee, tels que la
             # correction les emploie — voir _coherence_points.
-            if bornes_fenetre is not None:
+            if etat.bornes_fenetre is not None:
                 points_axe.append((
-                    float(temps_cible[int(np.nanargmax(debit_cible))]),
-                    float(decalage_zero),
-                    float(bornes_fenetre[1]) - float(bornes_fenetre[0])))
+                    float(etat.temps_cible[int(np.nanargmax(etat.debit_cible))]),
+                    float(etat.decalage_zero),
+                    float(etat.bornes_fenetre[1]) - float(etat.bornes_fenetre[0])))
 
             # LE CLIQUET : JUSQU'OU CE CALAGE PEUT-IL DESCENDRE ?
             #
@@ -1246,14 +1304,15 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
             # en forme, et c'est a l'operateur de decider si un volume plancher
             # a 107 % lui convient. Ce qui n'etait pas admissible, c'est de le
             # lui apprendre apres six essais et autant de simulations.
-            cliquet = cliquet_volume(temps_cible, debit_cible, manquant,
-                                     decalage_zero, bornes_fenetre)
-            if cliquet > 1.0 + config.tolerance_volume:
+            etat.cliquet = cliquet_volume(
+                etat.temps_cible, etat.debit_cible, etat.manquant,
+                etat.decalage_zero, etat.bornes_fenetre)
+            if etat.cliquet > 1.0 + config.tolerance_volume:
                 dire(f"    ATTENTION — VOLUME PLANCHER : la section donne "
                      f"deja plus que la cible sur une partie de la fenetre, "
                      f"et un apport ne sait qu'ajouter du debit. Le rapport "
                      f"de volume ne descendra pas au-dessous d'environ "
-                     f"{100 * cliquet:.1f} %, pour une tolerance de "
+                     f"{100 * etat.cliquet:.1f} %, pour une tolerance de "
                      f"{100 * config.tolerance_volume:.1f} %. Aucun essai n'y "
                      f"changera rien : c'est le residuel qu'il faut reprendre "
                      f"— apports amont deja cales, ou la cible elle-meme.")
@@ -1267,36 +1326,30 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
         duree_en_vigueur = _ajuster_duree_simulee(
             modele, durees_simulees, i, duree_en_vigueur, config, dire)
 
-        historique_rapport, essais = [], 0
-        debut_apport = time.time()
-        etat_apport = locals().get("etat_apport", "poursuivre")
-        motif = locals().get("motif", "")
-        diag = None
-        courant = None
-        volume_initial = 0.0
-        meilleur, degradations = None, 0
+        etat.debut_apport = time.time()
 
         # La section recoit-elle DEJA plus que la cible ? On ne peut pas
         # RETIRER du debit avec un apport : le dire tout de suite vaut mieux
         # que d'iterer vers un apport nul en degradant le diagnostic.
-        if manquant is not None and float(np.max(manquant)) <= 0.0:
-            modele.appliquer_facteur(apport, 0.0)
-            etat_apport, motif = "arret", (
+        if etat.manquant is not None and float(np.max(etat.manquant)) <= 0.0:
+            modele.appliquer_facteur(etat.apport, 0.0)
+            etat.issue, etat.motif = "arret", (
                 f"la section recoit deja au moins autant que la cible sans "
                 f"cet apport (pointe residuelle "
-                f"{float(np.max(residuel)):.1f} m3/s pour une cible a "
-                f"{float(np.max(debit_cible)):.1f}). Un apport ne peut "
+                f"{float(np.max(etat.residuel)):.1f} m3/s pour une cible a "
+                f"{float(np.max(etat.debit_cible)):.1f}). Un apport ne peut "
                 f"qu'ajouter du debit : la cible est hors d'atteinte par ce "
                 f"levier. Verifier les apports amont deja cales, ou la cible "
                 f"elle-meme.")
-        elif manquant is not None:
-            courant = np.maximum(manquant, 0.0)
-            volume_initial = max(_volume(temps_cible, courant), 1e-9)
+        elif etat.manquant is not None:
+            etat.courant = np.maximum(etat.manquant, 0.0)
+            etat.volume_initial = max(
+                _volume(etat.temps_cible, etat.courant), 1e-9)
 
-        while courant is not None:
+        while etat.courant is not None:
             # --- calcul, puis qualite numerique --------------------------
-            modele.definir_forme(apport, temps_cible, courant)
-            modele.appliquer_facteur(apport, 1.0)
+            modele.definir_forme(etat.apport, etat.temps_cible, etat.courant)
+            modele.appliquer_facteur(etat.apport, 1.0)
             calcul = modele.calculer()
             resultat.nb_calculs += 1
             _noter_bilan(suivi, calcul, config)
@@ -1305,28 +1358,30 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
             if not acceptable:
                 # Un essai rejete n'entre PAS dans l'historique : il n'apprend
                 # rien sur la relation apport -> reponse.
-                dire(f"    essai {essais + 1} REJETE — {motif_qualite}")
-                etat_apport, motif = "arret", (
+                dire(f"    essai {etat.essais + 1} REJETE — {motif_qualite}")
+                etat.issue, etat.motif = "arret", (
                     f"calcul rejete pour qualite numerique : {motif_qualite}")
                 break
 
             # --- diagnostic ----------------------------------------------
-            temps_calcule, debit_calcule = modele.lire_section(section)
-            diag = diagnostiquer(temps_cible, debit_cible,
-                                 temps_calcule, debit_calcule,
-                                 tolerance_volume=config.tolerance_volume,
-                                 tolerance_pic=config.tolerance_pic,
-                                 r_min=config.r_min,
-                                 fenetre=bornes_fenetre,
-                                 part_apport=part_apport,
-                                 decalage_fenetre_h=decalage_zero)
-            essais += 1
+            etat.temps_calcule, etat.debit_calcule = modele.lire_section(
+                etat.section)
+            etat.diag = diagnostiquer(etat.temps_cible, etat.debit_cible,
+                                      etat.temps_calcule, etat.debit_calcule,
+                                      tolerance_volume=config.tolerance_volume,
+                                      tolerance_pic=config.tolerance_pic,
+                                      r_min=config.r_min,
+                                      fenetre=etat.bornes_fenetre,
+                                      part_apport=etat.part_apport,
+                                      decalage_fenetre_h=etat.decalage_zero)
+            etat.essais += 1
 
-            historique_rapport.append({
-                "essai": essais,
-                "facteur": _volume(temps_cible, courant) / volume_initial,
-                "volume": diag.rapport_volume,
-                "pic": diag.rapport_pic, "r": diag.r})
+            etat.historique_rapport.append({
+                "essai": etat.essais,
+                "facteur": (_volume(etat.temps_cible, etat.courant)
+                            / etat.volume_initial),
+                "volume": etat.diag.rapport_volume,
+                "pic": etat.diag.rapport_pic, "r": etat.diag.r})
 
             # MEMORISER LE MEILLEUR. La reponse du modele n'est pas lineaire :
             # la recherche peut passer pres de la concordance puis s'en
@@ -1336,49 +1391,52 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
             # qui tient les trois seuils passe devant tous les autres, et
             # entre deux essais de meme admissibilite c'est celui qui est le
             # plus proche des trois cibles A LA FOIS qui est retenu.
-            if meilleur is None or rang_essai(diag, config) < meilleur["rang"]:
-                meilleur = {"rang": rang_essai(diag, config),
-                            "apport": courant.copy(),
-                            "diag": diag, "essai": essais,
-                            "series": (temps_cible, debit_cible,
-                                       temps_calcule, debit_calcule)}
-                degradations = 0
+            if (etat.meilleur is None
+                    or rang_essai(etat.diag, config) < etat.meilleur["rang"]):
+                etat.meilleur = {
+                    "rang": rang_essai(etat.diag, config),
+                    "apport": etat.courant.copy(),
+                    "diag": etat.diag, "essai": etat.essais,
+                    "series": (etat.temps_cible, etat.debit_cible,
+                               etat.temps_calcule, etat.debit_calcule)}
+                etat.degradations = 0
             else:
-                degradations += 1
+                etat.degradations += 1
 
-            atteint = concordance(diag, config)
-            dire(f"    essai {essais} : "
-                 f"volume {100 * diag.rapport_volume:5.1f} %  "
-                 f"pointe {100 * diag.rapport_pic:5.1f} %  "
-                 f"forme {100 * diag.r:5.1f} %"
+            atteint = concordance(etat.diag, config)
+            dire(f"    essai {etat.essais} : "
+                 f"volume {100 * etat.diag.rapport_volume:5.1f} %  "
+                 f"pointe {100 * etat.diag.rapport_pic:5.1f} %  "
+                 f"forme {100 * etat.diag.r:5.1f} %"
                  + ("  -> concordance atteinte" if atteint else ""))
             if suivi is not None:
-                if essais == 1:
-                    _sans_interrompre(suivi.enregistrer_residuel, i,
-                                      (temps_cible, debit_cible),
-                                      (temps_residuel, residuel),
-                                      decalage_zero)
+                if etat.essais == 1:
+                    _sans_interrompre(suivi.enregistrer_residuel, etat.i,
+                                      (etat.temps_cible, etat.debit_cible),
+                                      (etat.temps_residuel, etat.residuel),
+                                      etat.decalage_zero)
                 # rapport_volume : c'est la grandeur que la boucle teste et
                 # que le journal affiche.
-                _sans_interrompre(suivi.enregistrer_essai, i,
-                                  _volume(temps_cible, courant) / volume_initial,
-                                  diag.rapport_volume,
-                                  diag.rapport_pic, diag.r, diag.decalage_h,
-                                  (temps_cible, debit_cible,
-                                   temps_calcule, debit_calcule),
-                                  (temps_cible, courant),
-                                  decalage_zero)
+                _sans_interrompre(
+                    suivi.enregistrer_essai, etat.i,
+                    _volume(etat.temps_cible, etat.courant) / etat.volume_initial,
+                    etat.diag.rapport_volume,
+                    etat.diag.rapport_pic, etat.diag.r, etat.diag.decalage_h,
+                    (etat.temps_cible, etat.debit_cible,
+                     etat.temps_calcule, etat.debit_calcule),
+                    (etat.temps_cible, etat.courant),
+                    etat.decalage_zero)
 
             if atteint:
-                etat_apport = "converge"
+                etat.issue = "converge"
                 break
 
             # VOLUME EXCEDENTAIRE ET POINTE DEFICITAIRE : les deux exigences
             # se contredisent, car un apport ne sait qu'AJOUTER du debit — il
             # remplit un hydrogramme trop maigre, il n'affute pas un
             # hydrogramme trop plat. On le DIT, sans arreter.
-            if (diag.rapport_volume > 1.0 + config.tolerance_volume
-                    and diag.rapport_pic < 1.0 - config.tolerance_pic):
+            if (etat.diag.rapport_volume > 1.0 + config.tolerance_volume
+                    and etat.diag.rapport_pic < 1.0 - config.tolerance_pic):
                 dire(f"      volume DEJA excedentaire alors que la pointe "
                      f"manque : l'hydrogramme calcule est trop ETALE, pas "
                      f"trop faible. Rehausser la pointe aggravera le volume. "
@@ -1388,37 +1446,37 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
 
             # Deux essais consecutifs qui s'eloignent : insister ne fera
             # qu'empirer. On s'arrete et on retient le meilleur.
-            if degradations >= 2:
-                etat_apport, motif = "arret", (
+            if etat.degradations >= 2:
+                etat.issue, etat.motif = "arret", (
                     f"la recherche s'eloigne de la concordance depuis "
-                    f"l'essai {meilleur['essai']} : le modele repond de "
+                    f"l'essai {etat.meilleur['essai']} : le modele repond de "
                     f"facon trop non lineaire a cet apport pour aller plus "
                     f"loin.")
                 break
 
-            if essais >= config.nb_max_essais:
-                etat_apport = "arret"
-                motif = (
-                    f"{essais} essais sans concordance simultanee : volume "
-                    f"{100 * diag.rapport_volume:.1f} %, pointe "
-                    f"{100 * diag.rapport_pic:.1f} %, forme "
-                    f"{100 * diag.r:.1f} % de la cible.")
+            if etat.essais >= config.nb_max_essais:
+                etat.issue = "arret"
+                etat.motif = (
+                    f"{etat.essais} essais sans concordance simultanee : volume "
+                    f"{100 * etat.diag.rapport_volume:.1f} %, pointe "
+                    f"{100 * etat.diag.rapport_pic:.1f} %, forme "
+                    f"{100 * etat.diag.r:.1f} % de la cible.")
                 # PROGRESSAIT-ON ENCORE ? Une recherche qui plafonne ne
                 # gagnera rien a plus d'essais ; une recherche qui avance
                 # encore, si.
-                pas = _progression_pic(historique_rapport)
+                pas = _progression_pic(etat.historique_rapport)
                 if pas is not None and pas > 1e-5:
-                    reste = (1.0 - config.tolerance_pic) - diag.rapport_pic
+                    reste = (1.0 - config.tolerance_pic) - etat.diag.rapport_pic
                     if reste > 0:
-                        motif += (
+                        etat.motif += (
                             f" La pointe PROGRESSAIT ENCORE de "
                             f"{100 * pas:+.2f} point au dernier essai ; il lui "
                             f"manquait {100 * reste:.1f} point(s), soit "
                             f"environ {reste / pas:.0f} essai(s) de plus. "
                             f"Augmenter Nb_max_iterations_par_apport avant de "
                             f"mettre en cause la methode.")
-                if diag.alertes:
-                    motif += " Alertes : " + " ; ".join(diag.alertes)
+                if etat.diag.alertes:
+                    etat.motif += " Alertes : " + " ; ".join(etat.diag.alertes)
                 break
 
             # --- correction ------------------------------------------------
@@ -1426,19 +1484,19 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
             # FIGE a l'itération 0 (jamais remesure) : sans cela, la
             # correction combat le temps de propagation au lieu du defaut
             # d'apport, et le debit de pointe s'emballe.
-            manque = ecart_a_la_cible(temps_cible, debit_cible,
-                                      temps_calcule, debit_calcule,
-                                      decalage_zero)
-            precedent = courant
-            courant = corriger_apport(courant, manque)
+            manque = ecart_a_la_cible(etat.temps_cible, etat.debit_cible,
+                                      etat.temps_calcule, etat.debit_calcule,
+                                      etat.decalage_zero)
+            precedent = etat.courant
+            etat.courant = corriger_apport(etat.courant, manque)
             dire(f"      correction au pic "
-                 f"{float(np.max(courant - precedent)):+.1f} m3/s")
-            if float(np.max(np.abs(courant - precedent))) <= 1e-6:
-                etat_apport, motif = "arret", (
+                 f"{float(np.max(etat.courant - precedent)):+.1f} m3/s")
+            if float(np.max(np.abs(etat.courant - precedent))) <= 1e-6:
+                etat.issue, etat.motif = "arret", (
                     f"la correction n'a plus d'effet alors que la "
                     f"concordance n'est pas atteinte (volume "
-                    f"{100 * diag.rapport_volume:.1f} %, pointe "
-                    f"{100 * diag.rapport_pic:.1f} %) : le modele ne repond "
+                    f"{100 * etat.diag.rapport_volume:.1f} %, pointe "
+                    f"{100 * etat.diag.rapport_pic:.1f} %) : le modele ne repond "
                     f"plus a cet apport.")
                 break
 
@@ -1447,29 +1505,30 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
         # proche de la concordance, c'est lui qu'il faut remettre en place,
         # sans quoi le calage laisserait derriere lui un apport moins bon que
         # celui qu'il a su trouver.
-        essai_en_place = essais
-        if (meilleur is not None and etat_apport != "converge"
-                and meilleur["essai"] != essais):
-            modele.definir_forme(apport, temps_cible, meilleur["apport"])
-            modele.appliquer_facteur(apport, 1.0)
-            essai_en_place = meilleur["essai"]
-            diag = meilleur["diag"]
-            temps_cible, debit_cible, temps_calcule, debit_calcule = \
-                meilleur["series"]
-            dire(f"    retour a l'essai {meilleur['essai']}, le plus proche "
+        etat.essai_en_place = etat.essais
+        if (etat.meilleur is not None and etat.issue != "converge"
+                and etat.meilleur["essai"] != etat.essais):
+            modele.definir_forme(etat.apport, etat.temps_cible,
+                                 etat.meilleur["apport"])
+            modele.appliquer_facteur(etat.apport, 1.0)
+            etat.essai_en_place = etat.meilleur["essai"]
+            etat.diag = etat.meilleur["diag"]
+            (etat.temps_cible, etat.debit_cible,
+             etat.temps_calcule, etat.debit_calcule) = etat.meilleur["series"]
+            dire(f"    retour a l'essai {etat.meilleur['essai']}, le plus proche "
                  f"de la concordance (volume "
-                 f"{100 * diag.rapport_volume:.1f} %, pointe "
-                 f"{100 * diag.rapport_pic:.1f} %)")
+                 f"{100 * etat.diag.rapport_volume:.1f} %, pointe "
+                 f"{100 * etat.diag.rapport_pic:.1f} %)")
             # UN APPORT REMIS EN PLACE N'EST JAMAIS VALIDE : tout essai
             # concordant fait deja sortir la boucle sur « converge » — les
             # essais encore candidats au titre de meilleur ont donc TOUS
             # echoue au meme test, sur le meme diagnostic. Rejouer ce test
             # ici ne pourrait jamais rattraper un essai qui a deja echoue.
 
-        duree_apport = time.time() - debut_apport
-        valide = etat_apport == "converge"
-        if not valide and not motif:
-            motif = "concordance volume / pointe / forme non atteinte"
+        duree_apport = time.time() - etat.debut_apport
+        valide = etat.issue == "converge"
+        if not valide and not etat.motif:
+            etat.motif = "concordance volume / pointe / forme non atteinte"
 
         # LE CLIQUET EST LA PREMIERE CAUSE A CITER QUAND IL JOUE.
         #
@@ -1480,43 +1539,45 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
         # Un motif qui designe la mauvaise cause envoie corriger la mauvaise
         # chose — ici le maillage ou le pas de calcul, quand ce sont les
         # apports amont ou la cible qu'il faut reprendre.
-        if (not valide and cliquet > 1.0 + config.tolerance_volume
-                and diag is not None
-                and diag.rapport_volume > 1.0 + config.tolerance_volume):
-            motif += (f" LE VOLUME NE POUVAIT PAS DESCENDRE PLUS BAS : la "
-                      f"section donne deja plus que la cible sans cet apport, "
-                      f"et un apport ne sait qu'ajouter du debit — plancher "
-                      f"estime a {100 * cliquet:.1f} %, atteint "
-                      f"{100 * diag.rapport_volume:.1f} %. Reprendre les "
-                      f"apports amont deja cales, ou la cible, avant de "
-                      f"mettre en cause la reponse du modele.")
+        if (not valide and etat.cliquet > 1.0 + config.tolerance_volume
+                and etat.diag is not None
+                and etat.diag.rapport_volume > 1.0 + config.tolerance_volume):
+            etat.motif += (
+                f" LE VOLUME NE POUVAIT PAS DESCENDRE PLUS BAS : la "
+                f"section donne deja plus que la cible sans cet apport, "
+                f"et un apport ne sait qu'ajouter du debit — plancher "
+                f"estime a {100 * etat.cliquet:.1f} %, atteint "
+                f"{100 * etat.diag.rapport_volume:.1f} %. Reprendre les "
+                f"apports amont deja cales, ou la cible, avant de "
+                f"mettre en cause la reponse du modele.")
 
         resultat.apports.append(ResultatApport(
-            nom_apport=apport, nom_section=section, valide=valide,
+            nom_apport=etat.apport, nom_section=etat.section, valide=valide,
             # Le facteur decrit l'essai RETENU. Apres un retour au meilleur
             # essai, prendre le dernier de l'historique decrirait un apport
             # qui n'est plus en place.
-            facteur=_facteur_retenu(historique_rapport, essai_en_place),
-            diagnostic=diag, essais=essais,
-            duree_s=duree_apport, motif="" if valide else motif,
-            historique=historique_rapport,
-            fenetre_principale=bornes_fenetre,
-            part_apport=part_apport,
-            decalage_fenetre_h=decalage_zero))
+            facteur=_facteur_retenu(etat.historique_rapport, etat.essai_en_place),
+            diagnostic=etat.diag, essais=etat.essais,
+            duree_s=duree_apport, motif="" if valide else etat.motif,
+            historique=etat.historique_rapport,
+            fenetre_principale=etat.bornes_fenetre,
+            part_apport=etat.part_apport,
+            decalage_fenetre_h=etat.decalage_zero))
 
         if suivi is not None:
-            series = ((temps_cible, debit_cible, temps_calcule, debit_calcule)
-                      if valide and diag is not None else None)
+            series = ((etat.temps_cible, etat.debit_cible,
+                       etat.temps_calcule, etat.debit_calcule)
+                      if valide and etat.diag is not None else None)
             if valide:
-                _sans_interrompre(suivi.valider_apport, i, diag,
+                _sans_interrompre(suivi.valider_apport, etat.i, etat.diag,
                                   duree_apport, series)
             else:
-                _sans_interrompre(suivi.echouer_apport, i, motif, diag,
-                                  duree_apport)
+                _sans_interrompre(suivi.echouer_apport, etat.i, etat.motif,
+                                  etat.diag, duree_apport)
 
         if not valide:
-            dire(f"    ARRET sur cet apport : {motif}")
-            resultat.motif = (f"apport {apport} non cale : {motif}. "
+            dire(f"    ARRET sur cet apport : {etat.motif}")
+            resultat.motif = (f"apport {apport} non cale : {etat.motif}. "
                               f"Les apports suivants ne sont pas traites : la "
                               f"resolution sequentielle suppose l'amont fige.")
             break
