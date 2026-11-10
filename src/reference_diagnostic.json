@@ -92,7 +92,12 @@
   "cible_vide": {"leve": {"exception": "IndexError", "message": "index 0 is out of bounds for axis 0 with size 0"}, "entrees_intactes": true},
   "calcul_vide": {"leve": {"exception": "IndexError", "message": "index 0 is out of bounds for axis 0 with size 0"}, "entrees_intactes": true},
   "longueurs_incoherentes": {"leve": {"exception": "ValueError", "message": "fp and xp are not of the same length."}, "entrees_intactes": true},
-  "pas_de_recalage_nul": {"leve": {"exception": "ValueError", "message": "Maximum allowed size exceeded"}, "entrees_intactes": true}
+  "pas_de_recalage_nul": {"leve": {"exception": "ValueError", "message": "Maximum allowed size exceeded"}, "entrees_intactes": true},
+  "fenetre_illisible": {"leve": {"exception": "ValueError", "message": "could not convert string to float: 'a'"}, "entrees_intactes": true},
+  "fenetre_a_une_seule_borne": {"leve": {"exception": "IndexError", "message": "tuple index out of range"}, "entrees_intactes": true},
+  "fenetre_dont_une_borne_manque": {"leve": {"exception": "TypeError", "message": "float() argument must be a string or a real number, not 'NoneType'"}, "entrees_intactes": true},
+  "dt_de_fenetre_illisible": {"leve": {"exception": "ValueError", "message": "could not convert string to float: 'x'"}, "entrees_intactes": true},
+  "debits_illisibles": {"leve": {"exception": "ValueError", "message": "could not convert string to float: 'a'"}, "entrees_intactes": true}
  },
  "lot": [
   {"nombres": ["f:0x1.fff2aa713438ap-1", "f:0x0.0p+0", "f:0x1.55cf0ea22abcep+0", "f:0x1.58fe0df5e664cp+0", "f:0x1.33e28c0adf96ap+0", "f:0x1.7db17f9936733p-3"], "converge": false, "alertes": 1, "bloquantes": 0, "textes": "0f8344b995682845dc1e0000", "recopie": "823e200424c61d3560b66307", "intactes": true},

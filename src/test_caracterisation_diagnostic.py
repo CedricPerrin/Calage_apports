@@ -383,6 +383,16 @@ SCENARIOS = {
     "calcul_vide": lambda: _cas(T, CIBLE, [], []),
     "longueurs_incoherentes": lambda: _cas(T, CIBLE[:-3], T, CIBLE),
     "pas_de_recalage_nul": lambda: _cas(T, CIBLE, T, CIBLE, 0.0),
+
+    # --- arguments illisibles : QUELLE exception, et d'ou -------------------
+    "fenetre_illisible": lambda: _cas(T, CIBLE, T, CIBLE, fenetre=("a", "b")),
+    "fenetre_a_une_seule_borne": lambda: _cas(
+        T, CIBLE, T, CIBLE, fenetre=(5.0,)),
+    "fenetre_dont_une_borne_manque": lambda: _cas(
+        T, CIBLE, T, CIBLE, fenetre=(None, 20.0)),
+    "dt_de_fenetre_illisible": lambda: _cas(
+        T, CIBLE, T, CIBLE, fenetre=(2.0, 20.0), decalage_fenetre_h="x"),
+    "debits_illisibles": lambda: _cas(T, ["a"] * T.size, T, CIBLE),
 }
 
 
