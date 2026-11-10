@@ -1123,6 +1123,17 @@ def _messages_hecras(hdf_resultats):
     quand le HDF portait « Computing 2D Flow Area tables: Associated terrain
     has been updated / Geometry Writer Failed / Error Processing Geometry ».
     """
+    return (_messages_du_hdf(hdf_resultats)
+            or _messages_des_journaux(hdf_resultats)
+            or "Aucun message de HEC-RAS exploitable : ouvrir le plan dans "
+            "HEC-RAS et lancer le calcul a la main pour voir ce qu'il refuse.")
+
+
+def _messages_du_hdf(hdf_resultats):
+    """
+    Messages lus dans le fichier de resultats, ou None — voir
+    _messages_hecras(), qui l'interroge EN PREMIER.
+    """
     try:
         import h5py
         with h5py.File(hdf_resultats, "r") as h:
@@ -1149,7 +1160,13 @@ def _messages_hecras(hdf_resultats):
                             + " | ".join(retenues[-4:]))
     except Exception:                                        # noqa: BLE001
         pass
+    return None
 
+
+def _messages_des_journaux(hdf_resultats):
+    """
+    Messages lus dans les _compute_pXX.log, celui du plan d'abord, ou None.
+    """
     journal = Path(hdf_resultats).with_name(
         f"_compute_p{Path(hdf_resultats).suffixes[0].lstrip('.p')}.log")
     candidats = [journal] + sorted(
@@ -1170,8 +1187,7 @@ def _messages_hecras(hdf_resultats):
                         + " | ".join(interessantes[-3:]))
         except OSError:
             continue
-    return ("Aucun message de HEC-RAS exploitable : ouvrir le plan dans "
-            "HEC-RAS et lancer le calcul a la main pour voir ce qu'il refuse.")
+    return None
 
 
 # Ce qu'ecrit HEC-RAS quand il n'a pas pu reecrire le .gXX.hdf : la premiere
