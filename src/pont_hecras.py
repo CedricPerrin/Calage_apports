@@ -368,6 +368,56 @@ def _normaliser(brut, nom_section):
     return None
 
 
+def _objets_du_hdf(chemin):
+    """
+    Ce que le .gXX.hdf PRETRAITE porte deja : (crs, perimetres, sections,
+    injections, vides_hdf), vides_hdf etant les noms des lignes que le HDF
+    nomme sans en porter le trace.
+    """
+    from ras_commander import HdfBndry, HdfMesh
+
+    # LIGNES SANS GEOMETRIE DANS LE HDF : un .gXX.hdf peut nommer ses
+    # reference lines sans en porter un seul point (« Polyline Points » vide —
+    # releve sur un modele reel le 30/10/2026). ras-commander 0.99 les rend
+    # alors en « LINESTRING EMPTY » ; le repli texte ci-dessous les croyait
+    # deja connues et ne les relisait pas : la couche des sections arrivait
+    # avec des entites sans trace. On les ecarte ici pour que le texte les
+    # fournisse.
+    vides_hdf = set()
+
+    def lignes(gdf, prefixe):
+        if gdf is None or len(gdf) == 0:
+            return []
+        colonne = next((c for c in gdf.columns
+                        if c in ("Name", "name", "Nom", "NOM")), None)
+        retenues = []
+        for i in range(len(gdf)):
+            nom = (str(gdf.iloc[i][colonne]).strip() if colonne
+                   else f"{prefixe}_{i + 1:02d}")
+            forme = gdf.geometry.iloc[i]
+            if forme is None or forme.is_empty:
+                vides_hdf.add(nom)
+                continue
+            retenues.append({"nom": nom, "wkt": forme.wkt})
+        return retenues
+
+    crs = None
+    bc = HdfBndry.get_bc_lines(chemin)
+    ref = HdfBndry.get_reference_lines(chemin)
+    zones = HdfMesh.get_mesh_areas(chemin)
+
+    for gdf in (ref, bc, zones):
+        if gdf is not None and len(gdf) and gdf.crs is not None:
+            crs = gdf.crs.to_string()
+            break
+
+    perimetres = ([{"zone": str(r["mesh_name"]), "wkt": r.geometry.wkt}
+                  for _, r in zones.iterrows()]
+                 if zones is not None and len(zones) else [])
+    sections, injections = lignes(ref, "Section"), lignes(bc, "Apport")
+    return crs, perimetres, sections, injections, vides_hdf
+
+
 def commande_modele(args):
     """
     Couches geometriques EXISTANTES dans une geometrie HEC-RAS : perimetre(s)
@@ -395,48 +445,11 @@ def commande_modele(args):
             f"geometrie choisi."))
 
     pretraitee = chemin.exists()
-    # LIGNES SANS GEOMETRIE DANS LE HDF : un .gXX.hdf peut nommer ses
-    # reference lines sans en porter un seul point (« Polyline Points » vide —
-    # releve sur un modele reel le 30/10/2026). ras-commander 0.99 les rend
-    # alors en « LINESTRING EMPTY » ; le repli texte ci-dessous les croyait
-    # deja connues et ne les relisait pas : la couche des sections arrivait
-    # avec des entites sans trace. On les ecarte ici pour que le texte les
-    # fournisse.
-    vides_hdf = set()
-
-    def lignes(gdf, prefixe):
-        if gdf is None or len(gdf) == 0:
-            return []
-        colonne = next((c for c in gdf.columns
-                        if c in ("Name", "name", "Nom", "NOM")), None)
-        retenues = []
-        for i in range(len(gdf)):
-            nom = (str(gdf.iloc[i][colonne]).strip() if colonne
-                   else f"{prefixe}_{i + 1:02d}")
-            forme = gdf.geometry.iloc[i]
-            if forme is None or forme.is_empty:
-                vides_hdf.add(nom)
-                continue
-            retenues.append({"nom": nom, "wkt": forme.wkt})
-        return retenues
-
     crs, perimetres, sections, injections = None, [], [], []
+    vides_hdf = set()
     if pretraitee:
-        from ras_commander import HdfBndry, HdfMesh
-
-        bc = HdfBndry.get_bc_lines(chemin)
-        ref = HdfBndry.get_reference_lines(chemin)
-        zones = HdfMesh.get_mesh_areas(chemin)
-
-        for gdf in (ref, bc, zones):
-            if gdf is not None and len(gdf) and gdf.crs is not None:
-                crs = gdf.crs.to_string()
-                break
-
-        perimetres = ([{"zone": str(r["mesh_name"]), "wkt": r.geometry.wkt}
-                      for _, r in zones.iterrows()]
-                     if zones is not None and len(zones) else [])
-        sections, injections = lignes(ref, "Section"), lignes(bc, "Apport")
+        crs, perimetres, sections, injections, vides_hdf = _objets_du_hdf(
+            chemin)
 
     # LE FICHIER TEXTE FAIT FOI POUR LES OBJETS. Le .gXX.hdf lu ci-dessus est
     # le produit d'un PRETRAITEMENT : un objet qu'on vient d'ecrire dans le
