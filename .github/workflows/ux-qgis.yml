@@ -40,9 +40,10 @@ jobs:
       # Filet des trois contrôles de controle_donnees.py : 143 cas figés dans
       # src/reference_controle_donnees.json (chantier B, 10/11/2026).
       - run: python -m pytest src/test_controle_donnees.py -q
-      # Filet de caler() : 57 scénarios ModeleFictif (chantier C, 10/11/2026). Hors du socle
-      # où la référence a été figée, il compare le journal, les appels et le bilan, et le dit.
-      - run: python -m pytest src/test_caracterisation_caler.py -q
+      # Filets de caler() (57 scénarios ModeleFictif) et de diagnostiquer() (94 scénarios et un
+      # lot de 400 entrées), figés au bit près les 10 et 11/11/2026. Hors du socle où la
+      # référence a été figée, ils comparent en mode de repli, et le disent.
+      - run: python -m pytest src/test_caracterisation_caler.py src/test_caracterisation_diagnostic.py -q
       # Filets de la vague 3 (11/11/2026) : les deux fonctions de classeur du noyau (57 cas)
       # et commande_caler du pont (98 cas, pilote et caler() doublés).
       - run: python -m pytest src/test_noyau_classeur.py src/test_pont_caler.py -q
