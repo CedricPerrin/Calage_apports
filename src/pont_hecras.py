@@ -1391,6 +1391,17 @@ def _texte_parametre(valeurs, cle, defaut=""):
     return defaut if v is None or pd.isna(v) else str(v).strip()
 
 
+def _nombre_parametre(valeurs, cle, defaut):
+    """Valeur numerique d'un parametre du classeur, defaut si vide ou illisible."""
+    import pandas as pd
+
+    v = valeurs.get(cle)
+    try:
+        return float(v) if v is not None and not pd.isna(v) else defaut
+    except (TypeError, ValueError):
+        return defaut
+
+
 def _dire_horodate(*morceaux):
     """
     Ecrit une ligne du journal, PRECEDEE DE L'HEURE.
@@ -1497,6 +1508,332 @@ def _cibles_depuis_classeur(chemin_template, journal=None):
     return apports, sections, cibles, manquantes
 
 
+def _depart_du_calage(valeurs, apports, sections, prefixe_etape):
+    """
+    D'ou part le calage : rend (erreur, depart, etape_reference,
+    plan_reference, plan_fenetre_pleine). « depart » est l'indice du premier
+    apport a caler ; « erreur », si elle n'est pas None, est le refus a
+    rendre tel quel.
+    """
+    from calage import ETAPE_SANS_APPORT, etape_apport
+    from pilote_hecras import plan_par_titre
+
+    def texte(cle, defaut=""):
+        return _texte_parametre(valeurs, cle, defaut)
+
+    # REPRISE A UN APPORT DONNE. Les apports situes en amont de celui-ci sont
+    # tenus pour cales : ils ne sont ni remis a zero, ni retouches. On repart
+    # du plan de l'etape precedente, qui les porte deja — repartir du plan de
+    # reference les perdrait tous, en silence.
+    depart, etape_reference, reprise = 0, ETAPE_SANS_APPORT, ""
+    premier = texte("Premier_apport")
+    if premier:
+        # Le nom de la condition limite d'abord, celui de la section de
+        # controle ensuite : les deux designent la meme ligne du tableau de
+        # correspondance, et l'utilisateur emploie couramment l'un pour l'autre.
+        for liste in (apports, sections):
+            if premier in liste:
+                depart = liste.index(premier)
+                break
+        else:
+            return (f"« Premier_apport » vaut « {premier} », qui ne figure ni "
+                    f"parmi les apports {apports} ni parmi les sections "
+                    f"{sections} de la feuille Correspondance.",
+                    None, None, None, None)
+
+    plan_reference = texte("Plan_reference", "p01")
+    # EN REPRISE SEULEMENT : « plan_reference » devient alors le plan de
+    # l'etape precedente, deja raccourci par le calage d'avant, et le pilote
+    # doit savoir sur quel plan lire la fenetre pleine. En calage ordinaire
+    # il la lit sur son plan de travail, qui porte la fenetre imposee s'il y
+    # en a une — voir PiloteHecRas._duree_borne_h().
+    plan_fenetre_pleine = None
+    if depart > 0:
+        deja = apports[:depart]
+        etape_precedente = etape_apport(apports[depart - 1], prefixe_etape)
+        # « sans apport X et aval » NE TENAIT PAS : 25 caracteres pour un nom
+        # de section a cinq lettres, et il etait deja rogne en silence — un
+        # plan de reprise du depot porte « sans apport XXX et ava », le « l »
+        # perdu. La forme courte dit la meme chose, tient, et laisse onze
+        # caracteres au prefixe de scenario.
+        etape_reference = f"sans {apports[depart]} et aval"
+        trouve = plan_par_titre(texte("Dossier_projet_HECRAS"),
+                                texte("Nom_projet"), etape_precedente)
+        if trouve:
+            plan_fenetre_pleine = plan_reference
+            plan_reference = f"p{trouve}"
+            reprise = (f"Reprise a l'apport {apports[depart]} : {len(deja)} "
+                       f"apport(s) amont {deja} tenus pour cales, depart du "
+                       f"plan p{trouve} « {etape_precedente} ».")
+        else:
+            reprise = (
+                f"AVERTISSEMENT : reprise demandee a l'apport "
+                f"{apports[depart]}, mais aucun plan « {etape_precedente} » "
+                f"dans le projet. Le calage part du plan de reference "
+                f"{plan_reference} : les apports amont {deja} y valent ce "
+                f"qu'ils y valent, et ne seront pas verifies. Si ce plan ne "
+                f"les porte pas deja cales, le resultat sera faux.")
+        print(reprise, flush=True)
+    return None, depart, etape_reference, plan_reference, plan_fenetre_pleine
+
+
+def _refus_titres_etape(etape_reference, prefixe_etape, apports):
+    """Le refus a rendre si un titre d'etape est trop long, sinon None."""
+    from calage import ETAPE_AVEC_APPORTS, etape_apport, titre_etape
+
+    # LES TITRES D'ETAPE SONT VERIFIES AVANT LE PREMIER CLONAGE. Au-dela de la
+    # longueur admise, HEC-RAS ne refuse pas : la chaine rognait en silence,
+    # et deux etapes rognees au meme « Short Identifier » partagent le dossier
+    # de resultats que RAS Mapper nomme d'apres ce champ. Le dire ici coute
+    # une seconde ; s'en apercevoir apres coup coute une campagne de calculs.
+    try:
+        titre_etape(etape_reference, prefixe_etape)
+        titre_etape(ETAPE_AVEC_APPORTS, prefixe_etape)
+        for _a in apports:
+            etape_apport(_a, prefixe_etape)
+    except ValueError as e:
+        return f"Prefixe_scenario : {e}"
+    return None
+
+
+def _accord_plan_final(pilote, valeurs, prefixe_etape, plan_reference,
+                      plan_fenetre_pleine):
+    """
+    Le plan final peut-il prendre son titre ? Rend (erreur, remplacer_source) :
+    « erreur », si elle n'est pas None, est le refus a rendre tel quel. Pose
+    sur le pilote le plan source a remplacer, et dit au journal ce qui le
+    sera.
+    """
+    from calage import ETAPE_AVEC_APPORTS, titre_etape
+    from pilote_hecras import plans_par_titre
+
+    def texte(cle, defaut=""):
+        return _texte_parametre(valeurs, cle, defaut)
+
+    # LE PLAN FINAL PORTE LE PREFIXE SEUL : il peut rencontrer un plan existant.
+    # Deux plans ne gardent jamais ce titre : ils auraient le meme Short
+    # Identifier, donc le meme dossier sous RAS Mapper.
+    #   LE PLAN SOURCE n'est remplace que si l'ingenieur l'a accepte au
+    # lancement (« Remplacer_plan_source = oui », recalage d'un plan valide
+    # qui garde son nom, 10/11/2026), et seulement sur un calage conforme.
+    # Sans ce oui, on refuse avant le premier calcul.
+    #   TOUT AUTRE PLAN de ce nom est remplace a la fin du calage : le plugin
+    # a demande confirmation, la ligne de commande ne le peut pas et le dit
+    # au journal.
+    titre_final = titre_etape(ETAPE_AVEC_APPORTS, prefixe_etape)
+    homonymes = plans_par_titre(texte("Dossier_projet_HECRAS"),
+                                texte("Nom_projet"), titre_final)
+    plan_source = str(plan_fenetre_pleine or plan_reference).lstrip("pP").zfill(2)
+    remplacer_source = (
+        plan_source in homonymes
+        and texte("Remplacer_plan_source", "non").lower() in ("oui", "true", "1"))
+    if plan_source in homonymes and not remplacer_source:
+        return (f"Prefixe_scenario : le plan source p{plan_source} s'appelle "
+                f"deja « {titre_final} », le titre du plan final. Choisir un "
+                f"autre prefixe, renommer ce plan dans HEC-RAS, ou accepter son "
+                f"remplacement (Remplacer_plan_source = oui).", False)
+    if remplacer_source:
+        pilote.plan_a_remplacer = plan_source
+        print(f"AVERTISSEMENT : le plan source p{plan_source} « {titre_final} » "
+              f"sera remplace par le plan final si le calage est conforme. "
+              f"Sinon il reste intact.", flush=True)
+    autres = [n for n in homonymes if n != plan_source]
+    if autres:
+        print(f"AVERTISSEMENT : le plan final remplacera a la fin du calage "
+              f"{', '.join(f'p{n}' for n in autres)} « {titre_final} », avec "
+              f"ses resultats.", flush=True)
+    return None, remplacer_source
+
+
+def _configuration(valeurs, prefixe_etape, remplacer_source):
+    """La Configuration de caler(), lue dans les parametres du calage."""
+    from calage import Configuration
+
+    def texte(cle, defaut=""):
+        return _texte_parametre(valeurs, cle, defaut)
+
+    def nombre(cle, defaut):
+        return _nombre_parametre(valeurs, cle, defaut)
+
+    # La precision est saisie en POURCENTAGE, la chaine raisonne en rapports.
+    return Configuration(
+        nb_max_essais=int(nombre("Nb_max_iterations_par_apport", 6)),
+        tolerance_volume=nombre("Tolerance_volume_pct", 5.0) / 100.0,
+        tolerance_pic=nombre("Tolerance_pic_pct", 2.0) / 100.0,
+        # DEJA EN POURCENTAGE des deux cotes — pas de « / 100 » ici : c'est
+        # une erreur de conservation du solveur, pas un rapport a la cible.
+        bilan_masse_max_pct=nombre("Bilan_masse_max_pct", 5.0),
+        # FENETRE DE JUGEMENT. Les deux seuils sont donnes en POURCENTAGE du
+        # volume cumule du deficit. La methodologie les declare explicitement
+        # « a confirmer sur les premiers cas d'application » : ils doivent
+        # donc rester saisissables, et non figes dans le code.
+        fenetre_seuil_bas=nombre("Fenetre_seuil_bas_pct", 0.5) / 100.0,
+        fenetre_seuil_haut=nombre("Fenetre_seuil_haut_pct", 99.0) / 100.0,
+        # Bornes imposees a la main, en heures depuis le debut de la cible.
+        # Vides = detection automatique, qui n'est qu'une proposition.
+        fenetre_t0_h=nombre("Fenetre_t0_h", None),
+        fenetre_tf_h=nombre("Fenetre_tf_h", None),
+        # Vide = active, le defaut. « non » juge sur toute la duree simulee.
+        fenetre_active=_oui_non_ou_defaut(texte("Fenetre_active", "")),
+        # Prefixe pose devant chaque titre d'etape. Vide = comportement
+        # d'avant. C'est ce qui separe les plans du Q10 de ceux du Q100.
+        prefixe_etape=prefixe_etape,
+        remplacer_plan_source=remplacer_source)
+
+
+def _construire_pilote(valeurs, plan_reference, version, pas_travail_h,
+                       apports_a_caler, plan_fenetre_pleine):
+    """Le PiloteHecRas du calage, regle par les parametres du classeur."""
+    from pilote_hecras import PiloteHecRas
+
+    def texte(cle, defaut=""):
+        return _texte_parametre(valeurs, cle, defaut)
+
+    def nombre(cle, defaut):
+        return _nombre_parametre(valeurs, cle, defaut)
+
+    surcharge = texte("Mode_selection_modele", "plan").lower() == "override"
+
+    # La fenetre de simulation n'est imposee que si elle a ete saisie. Sans
+    # cela, celle du plan de reference s'applique — ce qui est le bon defaut
+    # tant qu'on ne substitue pas un unsteady flow d'une autre periode.
+    fenetre = {cle: texte(param)
+               for cle, param in (("debut", "Simulation_debut"),
+                                  ("fin", "Simulation_fin"),
+                                  ("intervalle_calcul", "Intervalle_calcul"),
+                                  ("intervalle_sortie", "Intervalle_sortie"),
+                                  ("intervalle_instantane",
+                                   "Intervalle_instantane"),
+                                  ("intervalle_mapping", "Intervalle_mapping"))
+               if texte(param)}
+
+    return PiloteHecRas(
+        dossier_projet=texte("Dossier_projet_HECRAS"),
+        nom_projet=texte("Nom_projet"),
+        plan_reference=plan_reference,
+        version=version,
+        nom_zone_2d=texte("Nom_zone_2D") or None,
+        geometrie_override=texte("Geometrie_reference") if surcharge else None,
+        unsteady_override=texte("Unsteady_reference") if surcharge else None,
+        nom_clone_geometrie=texte("Nom_clone_geometrie") or None,
+        fenetre_simulation=fenetre or None,
+        pas_travail_h=pas_travail_h,
+        apports_a_caler=apports_a_caler,
+        plan_fenetre_pleine=plan_fenetre_pleine,
+        # 0 ou vide = le plan garde ce qu'il demande (voir PiloteHecRas).
+        coeurs=int(nombre("Coeurs_par_calcul", 0)) or None,
+    )
+
+
+def _consigner_verdict(suivi, resultat):
+    """
+    Ecrit le verdict du calage au suivi ; un echec n'est qu'un avertissement.
+    """
+    # VERDICT DANS LE SUIVI, avant meme les livrables. Sans lui, celui qui
+    # regarde l'avancement voit les fichiers cesser d'etre reecrits sans
+    # savoir si le calage a abouti, echoue, ou s'il est mort en chemin.
+    # Consigne aussi si l'assemblage du rapport echoue ensuite : le calage,
+    # lui, est bien termine.
+    try:
+        suivi.conclure(resultat.conforme, resultat.motif, resultat.nb_calculs)
+    except Exception as e:                                  # noqa: BLE001
+        print(f"AVERTISSEMENT : verdict non consigne au suivi : {e}",
+              flush=True)
+
+
+def _produire_rapport(pilote, chemin_template, resultat, dossier_resultats):
+    """
+    Livrables finaux du calage, dans dossier_resultats. Rend ce que
+    produire_livrables_finaux() rend, ou None : rien a livrer, ou echec dit
+    au journal.
+    """
+    from calage import produire_livrables_finaux
+
+    rapport = None
+    if resultat.diagnostics_finaux:
+        # PROFIL EN LONG DE SYNTHESE. Ces trois valeurs sont FACULTATIVES pour
+        # produire_livrables_finaux(), qui saute la figure d'ensemble sans rien
+        # dire quand elles manquent. Ne pas les passer suffisait donc a rendre
+        # la figure introuvable dans les livrables de n'importe quel calage —
+        # celle-la meme que reprend la note methodologique.
+        profil, pk_sections, pk_apports = _profil_pour_livrables(
+            pilote, chemin_template, resultat)
+        try:
+            rapport = produire_livrables_finaux(
+                resultat, pilote, dossier_resultats,
+                profil=profil, pk_sections=pk_sections,
+                pk_apports=pk_apports)
+        except Exception as e:
+            print(f"AVERTISSEMENT : rapport final non produit : {e}", flush=True)
+    return rapport
+
+
+def _ranger_plans(pilote, resultat, prefixe_etape, tous_apports, elaguer):
+    """
+    Menage des traces de preparation puis, si « elaguer », elagage des plans
+    d'etape — sur un calage conforme seulement. Rend le bilan du menage, ou
+    None s'il n'a pas eu lieu.
+    """
+    # MENAGE. LES PLANS D'ETAPE SONT CONSERVES — « sans_apport », puis un par
+    # apport : ils documentent le calage et permettent de le reprendre sans
+    # repartir du premier apport. Ne partent que les traces de preparation, et
+    # seulement si le calage a abouti : tant qu'il n'a pas abouti, les
+    # sauvegardes horodatees sont le seul retour en arriere sur le modele.
+    menage = None
+    if resultat.conforme:
+        try:
+            menage = pilote.nettoyer_reliquats()
+            if menage["reliquats"]:
+                print(f"Menage : {len(menage['reliquats'])} reliquat(s) de "
+                      f"preparation retire(s) — "
+                      f"{', '.join(menage['reliquats'])}", flush=True)
+            print(f"Plans conserves : {', '.join(menage['etapes'])}",
+                  flush=True)
+        except Exception as e:
+            # Le menage est un confort : son echec ne doit pas faire perdre un
+            # calage qui a abouti.
+            print(f"AVERTISSEMENT : menage non effectue : {e}", flush=True)
+
+        # ELAGAGE DES PLANS D'ETAPE, SI LA CASE ETAIT COCHEE. Ici et pas
+        # ailleurs : le plan final vient d'etre titre, c'est le seul moment ou
+        # l'operation a un sens ET ou elle est sure — elaguer_etapes refuse de
+        # toute facon s'il n'existe pas.
+        #   APRES LES LIVRABLES, JAMAIS AVANT : ils relisent les plans
+        # d'etape. Les retirer d'abord rendrait un rapport ampute sur un
+        # calage reussi, ce qui est pire que garder des plans.
+        if elaguer:
+            _elaguer_plans_etape(pilote, prefixe_etape, tous_apports)
+    elif elaguer:
+        # La case etait cochee : dire pourquoi rien n'est retire, sinon
+        # l'utilisateur croit l'option cassee (modele reel, 28/09/2026).
+        print("AVERTISSEMENT : elagage non fait — le calage n'est pas "
+              "conforme, et ses plans d'etape sont ce qui permet de le "
+              "reprendre.", flush=True)
+    return menage
+
+
+def _elaguer_plans_etape(pilote, prefixe_etape, tous_apports):
+    """
+    Retire les plans d'etape d'un calage conforme ; un echec n'est qu'un
+    avertissement.
+    """
+    try:
+        elagage = pilote.elaguer_etapes(prefixe_etape, tous_apports,
+                                        simuler=False)
+        if elagage.get("refus"):
+            print(f"Elagage refuse : {elagage['refus']}", flush=True)
+        else:
+            print(f"Elagage : {len(elagage['supprimes'])} objet(s) "
+                  f"retire(s) — "
+                  f"{', '.join(elagage['supprimes'])}. Le plan "
+                  f"« {elagage['final']} » est conserve.", flush=True)
+    except Exception as e:
+        # Comme le menage : un calage abouti ne se perd pas sur un
+        # confort de rangement.
+        print(f"AVERTISSEMENT : elagage non effectue : {e}",
+              flush=True)
+
+
 def commande_caler(args):
     """
     Lance la boucle de calage sequentielle COMPLETE, a partir d'un classeur
@@ -1509,14 +1846,9 @@ def commande_caler(args):
     Sous_dossier_suivi) est le seul moyen de savoir ou en est le calcul
     pendant qu'il tourne.
     """
-    import pandas as pd
-
-    from calage import (ETAPE_AVEC_APPORTS, ETAPE_SANS_APPORT, Configuration,
-                        caler, etape_apport, produire_livrables_finaux,
-                        titre_etape)
+    from calage import caler
     from criteres import pas_serie_h
-    from pilote_hecras import (PiloteHecRas, plan_par_titre, plans_par_titre,
-                               symbole_decimal)
+    from pilote_hecras import symbole_decimal
     from suivi import Suivi
 
     # AVANT TOUT : HEC-RAS peut-il seulement demarrer ? Voir symbole_decimal().
@@ -1534,13 +1866,6 @@ def commande_caler(args):
 
     def texte(cle, defaut=""):
         return _texte_parametre(valeurs, cle, defaut)
-
-    def nombre(cle, defaut):
-        v = valeurs.get(cle)
-        try:
-            return float(v) if v is not None and not pd.isna(v) else defaut
-        except (TypeError, ValueError):
-            return defaut
 
     apports, sections, cibles, manquantes = _cibles_depuis_classeur(
         chemin_template, journal=_dire_horodate)
@@ -1568,83 +1893,20 @@ def commande_caler(args):
     pas_travail_h = min(
         (pas_serie_h(t) for t, _ in cibles if len(t) > 1), default=None)
 
-    # REPRISE A UN APPORT DONNE. Les apports situes en amont de celui-ci sont
-    # tenus pour cales : ils ne sont ni remis a zero, ni retouches. On repart
-    # du plan de l'etape precedente, qui les porte deja — repartir du plan de
-    # reference les perdrait tous, en silence.
     # PREFIXE DE SCENARIO. Vide = les titres d'avant. Renseigne, il rend les
     # plans du Q10 etrangers a ceux du Q100 : jalonner() remplace les
     # homonymes, et sans lui le second calage efface le premier.
     prefixe_etape = texte("Prefixe_scenario")
 
-    depart, etape_reference, reprise = 0, ETAPE_SANS_APPORT, ""
-    premier = texte("Premier_apport")
-    if premier:
-        # Le nom de la condition limite d'abord, celui de la section de
-        # controle ensuite : les deux designent la meme ligne du tableau de
-        # correspondance, et l'utilisateur emploie couramment l'un pour l'autre.
-        for liste in (apports, sections):
-            if premier in liste:
-                depart = liste.index(premier)
-                break
-        else:
-            return repondre(ok=False, erreur=(
-                f"« Premier_apport » vaut « {premier} », qui ne figure ni "
-                f"parmi les apports {apports} ni parmi les sections "
-                f"{sections} de la feuille Correspondance."))
-
-    plan_reference = texte("Plan_reference", "p01")
-    # EN REPRISE SEULEMENT : « plan_reference » devient alors le plan de
-    # l'etape precedente, deja raccourci par le calage d'avant, et le pilote
-    # doit savoir sur quel plan lire la fenetre pleine. En calage ordinaire
-    # il la lit sur son plan de travail, qui porte la fenetre imposee s'il y
-    # en a une — voir PiloteHecRas._duree_borne_h().
-    plan_fenetre_pleine = None
+    erreur, depart, etape_reference, plan_reference, plan_fenetre_pleine = (
+        _depart_du_calage(valeurs, apports, sections, prefixe_etape))
+    if erreur:
+        return repondre(ok=False, erreur=erreur)
     # Toute la serie : l'elagage retire aussi les etapes amont d'une reprise.
     tous_apports = list(apports)
     if depart > 0:
-        deja = apports[:depart]
-        etape_precedente = etape_apport(apports[depart - 1], prefixe_etape)
-        # « sans apport X et aval » NE TENAIT PAS : 25 caracteres pour un nom
-        # de section a cinq lettres, et il etait deja rogne en silence — un
-        # plan de reprise du depot porte « sans apport XXX et ava », le « l »
-        # perdu. La forme courte dit la meme chose, tient, et laisse onze
-        # caracteres au prefixe de scenario.
-        etape_reference = f"sans {apports[depart]} et aval"
-        trouve = plan_par_titre(texte("Dossier_projet_HECRAS"),
-                                texte("Nom_projet"), etape_precedente)
-        if trouve:
-            plan_fenetre_pleine = plan_reference
-            plan_reference = f"p{trouve}"
-            reprise = (f"Reprise a l'apport {apports[depart]} : {len(deja)} "
-                       f"apport(s) amont {deja} tenus pour cales, depart du "
-                       f"plan p{trouve} « {etape_precedente} ».")
-        else:
-            reprise = (
-                f"AVERTISSEMENT : reprise demandee a l'apport "
-                f"{apports[depart]}, mais aucun plan « {etape_precedente} » "
-                f"dans le projet. Le calage part du plan de reference "
-                f"{plan_reference} : les apports amont {deja} y valent ce "
-                f"qu'ils y valent, et ne seront pas verifies. Si ce plan ne "
-                f"les porte pas deja cales, le resultat sera faux.")
-        print(reprise, flush=True)
         apports, sections, cibles = (apports[depart:], sections[depart:],
                                      cibles[depart:])
-
-    surcharge = texte("Mode_selection_modele", "plan").lower() == "override"
-
-    # La fenetre de simulation n'est imposee que si elle a ete saisie. Sans
-    # cela, celle du plan de reference s'applique — ce qui est le bon defaut
-    # tant qu'on ne substitue pas un unsteady flow d'une autre periode.
-    fenetre = {cle: texte(param)
-               for cle, param in (("debut", "Simulation_debut"),
-                                  ("fin", "Simulation_fin"),
-                                  ("intervalle_calcul", "Intervalle_calcul"),
-                                  ("intervalle_sortie", "Intervalle_sortie"),
-                                  ("intervalle_instantane",
-                                   "Intervalle_instantane"),
-                                  ("intervalle_mapping", "Intervalle_mapping"))
-               if texte(param)}
 
     # VERSION DE HEC-RAS : le plugin la lit dans les fichiers du modele. Une
     # cellule VIDE (version illisible) partait telle quelle a ras-commander.
@@ -1655,94 +1917,20 @@ def commande_caler(args):
             "lue dans les fichiers du modele. La renseigner dans le classeur, "
             "par exemple 7.0.1."))
 
-    pilote = PiloteHecRas(
-        dossier_projet=texte("Dossier_projet_HECRAS"),
-        nom_projet=texte("Nom_projet"),
-        plan_reference=plan_reference,
-        version=version,
-        nom_zone_2d=texte("Nom_zone_2D") or None,
-        geometrie_override=texte("Geometrie_reference") if surcharge else None,
-        unsteady_override=texte("Unsteady_reference") if surcharge else None,
-        nom_clone_geometrie=texte("Nom_clone_geometrie") or None,
-        fenetre_simulation=fenetre or None,
-        pas_travail_h=pas_travail_h,
-        apports_a_caler=apports_a_caler,
-        plan_fenetre_pleine=plan_fenetre_pleine,
-        # 0 ou vide = le plan garde ce qu'il demande (voir PiloteHecRas).
-        coeurs=int(nombre("Coeurs_par_calcul", 0)) or None,
-    )
+    pilote = _construire_pilote(valeurs, plan_reference, version,
+                                pas_travail_h, apports_a_caler,
+                                plan_fenetre_pleine)
 
-    # La precision est saisie en POURCENTAGE, la chaine raisonne en rapports.
-    # LES TITRES D'ETAPE SONT VERIFIES AVANT LE PREMIER CLONAGE. Au-dela de la
-    # longueur admise, HEC-RAS ne refuse pas : la chaine rognait en silence,
-    # et deux etapes rognees au meme « Short Identifier » partagent le dossier
-    # de resultats que RAS Mapper nomme d'apres ce champ. Le dire ici coute
-    # une seconde ; s'en apercevoir apres coup coute une campagne de calculs.
-    try:
-        titre_etape(etape_reference, prefixe_etape)
-        titre_etape(ETAPE_AVEC_APPORTS, prefixe_etape)
-        for _a in apports:
-            etape_apport(_a, prefixe_etape)
-    except ValueError as e:
-        return repondre(ok=False, erreur=f"Prefixe_scenario : {e}")
+    erreur = _refus_titres_etape(etape_reference, prefixe_etape, apports)
+    if erreur:
+        return repondre(ok=False, erreur=erreur)
 
-    # LE PLAN FINAL PORTE LE PREFIXE SEUL : il peut rencontrer un plan existant.
-    # Deux plans ne gardent jamais ce titre : ils auraient le meme Short
-    # Identifier, donc le meme dossier sous RAS Mapper.
-    #   LE PLAN SOURCE n'est remplace que si l'ingenieur l'a accepte au
-    # lancement (« Remplacer_plan_source = oui », recalage d'un plan valide
-    # qui garde son nom, 10/11/2026), et seulement sur un calage conforme.
-    # Sans ce oui, on refuse avant le premier calcul.
-    #   TOUT AUTRE PLAN de ce nom est remplace a la fin du calage : le plugin
-    # a demande confirmation, la ligne de commande ne le peut pas et le dit
-    # au journal.
-    titre_final = titre_etape(ETAPE_AVEC_APPORTS, prefixe_etape)
-    homonymes = plans_par_titre(texte("Dossier_projet_HECRAS"),
-                                texte("Nom_projet"), titre_final)
-    plan_source = str(plan_fenetre_pleine or plan_reference).lstrip("pP").zfill(2)
-    remplacer_source = (
-        plan_source in homonymes
-        and texte("Remplacer_plan_source", "non").lower() in ("oui", "true", "1"))
-    if plan_source in homonymes and not remplacer_source:
-        return repondre(ok=False, erreur=(
-            f"Prefixe_scenario : le plan source p{plan_source} s'appelle deja "
-            f"« {titre_final} », le titre du plan final. Choisir un autre "
-            f"prefixe, renommer ce plan dans HEC-RAS, ou accepter son "
-            f"remplacement (Remplacer_plan_source = oui)."))
-    if remplacer_source:
-        pilote.plan_a_remplacer = plan_source
-        print(f"AVERTISSEMENT : le plan source p{plan_source} « {titre_final} » "
-              f"sera remplace par le plan final si le calage est conforme. "
-              f"Sinon il reste intact.", flush=True)
-    autres = [n for n in homonymes if n != plan_source]
-    if autres:
-        print(f"AVERTISSEMENT : le plan final remplacera a la fin du calage "
-              f"{', '.join(f'p{n}' for n in autres)} « {titre_final} », avec "
-              f"ses resultats.", flush=True)
+    erreur, remplacer_source = _accord_plan_final(
+        pilote, valeurs, prefixe_etape, plan_reference, plan_fenetre_pleine)
+    if erreur:
+        return repondre(ok=False, erreur=erreur)
 
-    config = Configuration(
-        nb_max_essais=int(nombre("Nb_max_iterations_par_apport", 6)),
-        tolerance_volume=nombre("Tolerance_volume_pct", 5.0) / 100.0,
-        tolerance_pic=nombre("Tolerance_pic_pct", 2.0) / 100.0,
-        # DEJA EN POURCENTAGE des deux cotes — pas de « / 100 » ici : c'est
-        # une erreur de conservation du solveur, pas un rapport a la cible.
-        bilan_masse_max_pct=nombre("Bilan_masse_max_pct", 5.0),
-        # FENETRE DE JUGEMENT. Les deux seuils sont donnes en POURCENTAGE du
-        # volume cumule du deficit. La methodologie les declare explicitement
-        # « a confirmer sur les premiers cas d'application » : ils doivent
-        # donc rester saisissables, et non figes dans le code.
-        fenetre_seuil_bas=nombre("Fenetre_seuil_bas_pct", 0.5) / 100.0,
-        fenetre_seuil_haut=nombre("Fenetre_seuil_haut_pct", 99.0) / 100.0,
-        # Bornes imposees a la main, en heures depuis le debut de la cible.
-        # Vides = detection automatique, qui n'est qu'une proposition.
-        fenetre_t0_h=nombre("Fenetre_t0_h", None),
-        fenetre_tf_h=nombre("Fenetre_tf_h", None),
-        # Vide = active, le defaut. « non » juge sur toute la duree simulee.
-        fenetre_active=_oui_non_ou_defaut(texte("Fenetre_active", "")),
-        # Prefixe pose devant chaque titre d'etape. Vide = comportement
-        # d'avant. C'est ce qui separe les plans du Q10 de ceux du Q100.
-        prefixe_etape=prefixe_etape,
-        remplacer_plan_source=remplacer_source)
+    config = _configuration(valeurs, prefixe_etape, remplacer_source)
 
     dossier_sortie = Path(texte("Dossier_sortie") or chemin_template.parent)
     sous_suivi = texte("Sous_dossier_suivi", "suivi")
@@ -1779,83 +1967,12 @@ def commande_caler(args):
                      journal=_dire_horodate,
                      etape_reference=etape_reference)
 
-    # VERDICT DANS LE SUIVI, avant meme les livrables. Sans lui, celui qui
-    # regarde l'avancement voit les fichiers cesser d'etre reecrits sans
-    # savoir si le calage a abouti, echoue, ou s'il est mort en chemin.
-    # Consigne aussi si l'assemblage du rapport echoue ensuite : le calage,
-    # lui, est bien termine.
-    try:
-        suivi.conclure(resultat.conforme, resultat.motif, resultat.nb_calculs)
-    except Exception as e:                                  # noqa: BLE001
-        print(f"AVERTISSEMENT : verdict non consigne au suivi : {e}",
-              flush=True)
-
-    rapport = None
-    if resultat.diagnostics_finaux:
-        # PROFIL EN LONG DE SYNTHESE. Ces trois valeurs sont FACULTATIVES pour
-        # produire_livrables_finaux(), qui saute la figure d'ensemble sans rien
-        # dire quand elles manquent. Ne pas les passer suffisait donc a rendre
-        # la figure introuvable dans les livrables de n'importe quel calage —
-        # celle-la meme que reprend la note methodologique.
-        profil, pk_sections, pk_apports = _profil_pour_livrables(
-            pilote, chemin_template, resultat)
-        try:
-            rapport = produire_livrables_finaux(
-                resultat, pilote, dossier_sortie / sous_resultats,
-                profil=profil, pk_sections=pk_sections,
-                pk_apports=pk_apports)
-        except Exception as e:
-            print(f"AVERTISSEMENT : rapport final non produit : {e}", flush=True)
-
-    # MENAGE. LES PLANS D'ETAPE SONT CONSERVES — « sans_apport », puis un par
-    # apport : ils documentent le calage et permettent de le reprendre sans
-    # repartir du premier apport. Ne partent que les traces de preparation, et
-    # seulement si le calage a abouti : tant qu'il n'a pas abouti, les
-    # sauvegardes horodatees sont le seul retour en arriere sur le modele.
-    menage = None
-    if resultat.conforme:
-        try:
-            menage = pilote.nettoyer_reliquats()
-            if menage["reliquats"]:
-                print(f"Menage : {len(menage['reliquats'])} reliquat(s) de "
-                      f"preparation retire(s) — "
-                      f"{', '.join(menage['reliquats'])}", flush=True)
-            print(f"Plans conserves : {', '.join(menage['etapes'])}",
-                  flush=True)
-        except Exception as e:
-            # Le menage est un confort : son echec ne doit pas faire perdre un
-            # calage qui a abouti.
-            print(f"AVERTISSEMENT : menage non effectue : {e}", flush=True)
-
-        # ELAGAGE DES PLANS D'ETAPE, SI LA CASE ETAIT COCHEE. Ici et pas
-        # ailleurs : le plan final vient d'etre titre, c'est le seul moment ou
-        # l'operation a un sens ET ou elle est sure — elaguer_etapes refuse de
-        # toute facon s'il n'existe pas.
-        #   APRES LES LIVRABLES, JAMAIS AVANT : ils relisent les plans
-        # d'etape. Les retirer d'abord rendrait un rapport ampute sur un
-        # calage reussi, ce qui est pire que garder des plans.
-        if texte("Elaguer_plans_etape", "non").lower() in ("oui", "true", "1"):
-            try:
-                elagage = pilote.elaguer_etapes(prefixe_etape, tous_apports,
-                                                simuler=False)
-                if elagage.get("refus"):
-                    print(f"Elagage refuse : {elagage['refus']}", flush=True)
-                else:
-                    print(f"Elagage : {len(elagage['supprimes'])} objet(s) "
-                          f"retire(s) — "
-                          f"{', '.join(elagage['supprimes'])}. Le plan "
-                          f"« {elagage['final']} » est conserve.", flush=True)
-            except Exception as e:
-                # Comme le menage : un calage abouti ne se perd pas sur un
-                # confort de rangement.
-                print(f"AVERTISSEMENT : elagage non effectue : {e}",
-                      flush=True)
-    elif texte("Elaguer_plans_etape", "non").lower() in ("oui", "true", "1"):
-        # La case etait cochee : dire pourquoi rien n'est retire, sinon
-        # l'utilisateur croit l'option cassee (modele reel, 28/09/2026).
-        print("AVERTISSEMENT : elagage non fait — le calage n'est pas "
-              "conforme, et ses plans d'etape sont ce qui permet de le "
-              "reprendre.", flush=True)
+    _consigner_verdict(suivi, resultat)
+    rapport = _produire_rapport(pilote, chemin_template, resultat,
+                                dossier_sortie / sous_resultats)
+    elaguer = texte("Elaguer_plans_etape", "non").lower() in ("oui", "true", "1")
+    menage = _ranger_plans(pilote, resultat, prefixe_etape, tous_apports,
+                           elaguer)
 
     return repondre(
         ok=True, conforme=resultat.conforme, motif=resultat.motif,
