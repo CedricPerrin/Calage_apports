@@ -3311,14 +3311,35 @@ if __name__ == "__main__":
     import ast
     import inspect
     import textwrap
-    _arbre = ast.parse(textwrap.dedent(inspect.getsource(caler)))
-    _appels = sum(1 for n in ast.walk(_arbre)
-                  if isinstance(n, ast.Call)
-                  and isinstance(n.func, ast.Name)
-                  and n.func.id == "concordance")
+
+    # LE COMPTE SUIT caler() DANS SES ETAPES. Il se faisait sur la seule
+    # source de caler() : la boucle d'essais sortie dans une fonction, il
+    # aurait rendu zero — et, pire, une seconde chance glissee dans une etape
+    # serait passee sans etre vue. On compte donc dans caler() ET, de proche
+    # en proche, dans toute fonction de ce module qu'il nomme.
+    def _appels_a(nom, fonction, vues):
+        if fonction in vues:
+            return 0
+        vues.add(fonction)
+        total = 0
+        for n in ast.walk(ast.parse(textwrap.dedent(
+                inspect.getsource(fonction)))):
+            if (isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                    and n.func.id == nom):
+                total += 1
+            elif isinstance(n, ast.Name) and n.id != nom:
+                nommee = globals().get(n.id)
+                if (inspect.isfunction(nommee)
+                        and nommee.__module__ == __name__):
+                    total += _appels_a(nom, nommee, vues)
+        return total
+
+    _etapes_de_caler = set()
+    _appels = _appels_a("concordance", caler, _etapes_de_caler)
     controler("aucune seconde chance d'acceptation apres le retour au meilleur",
               _appels == 1,
-              f"{_appels} appel(s) reel(s) a concordance() dans caler() — "
+              f"{_appels} appel(s) reel(s) a concordance() dans caler() et les "
+              f"{len(_etapes_de_caler) - 1} fonctions du module qu'il nomme — "
               f"un seul, dans la boucle d'essais")
 
     # -----------------------------------------------------------------------
