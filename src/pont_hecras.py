@@ -146,6 +146,72 @@ def _orienter(debit):
     return debit, False, reversible
 
 
+def _debit_matriciel(h, chemin, nom, vise, groupe, objets):
+    """
+    Disposition MATRICIELLE (« Reference Lines ») de lire_serie_hdf : rend
+    (debit, nom apparie), le debit tel que stocke, non oriente.
+    """
+    import numpy as np
+
+    noms = [_texte(v) for v in np.asarray(h[f"{chemin}/Name"][:])]
+    # Chaque entree vaut « <nom>|<zone 2D> » : on apparie sur la
+    # partie qui precede la barre, en tolerant qu'elle soit absente.
+    courts = [n.split("|")[0].strip() for n in noms]
+    indice = next((i for i, n in enumerate(courts) if n == str(nom)),
+                  None)
+    if indice is None:
+        indice = next((i for i, n in enumerate(courts)
+                       if n.lower() == vise), None)
+    if indice is None:
+        raise KeyError(
+            f"« {nom} » absent des resultats de type « {groupe} ». "
+            f"Presents : {courts}")
+    if "Flow" not in objets:
+        raise KeyError(
+            f"les resultats « {groupe} » ne comportent pas de jeu "
+            f"« Flow ». Presents : {objets}")
+    matrice = np.asarray(h[f"{chemin}/Flow"][:], dtype=float)
+    if matrice.ndim != 2 or indice >= matrice.shape[1]:
+        raise ValueError(
+            f"le jeu « Flow » a la forme {matrice.shape}, "
+            f"incompatible avec {len(courts)} objet(s) nommes.")
+    debit = matrice[:, indice]
+    correspondance = noms[indice]
+    return debit, correspondance
+
+
+def _debit_par_objet(h, chemin, nom, vise, objets):
+    """
+    Disposition PAR OBJET (« Boundary Conditions ») de lire_serie_hdf : rend
+    (debit, nom apparie), le debit tel que stocke, non oriente.
+    """
+    import numpy as np
+
+    correspondance = next(
+        (o for o in objets if o == nom), None) or next(
+        (o for o in objets if o.strip().lower() == vise), None)
+    if correspondance is None:
+        raise KeyError(
+            f"« {nom} » absent des resultats. Presents : {objets}")
+
+    jeu = h[f"{chemin}/{correspondance}"]
+    donnees = np.asarray(jeu[:], dtype=float)
+    colonnes = [_texte(c) for c in jeu.attrs.get("Columns", [])]
+
+    if donnees.ndim == 1:
+        debit = donnees
+    elif colonnes and "Flow" in colonnes:
+        debit = donnees[:, colonnes.index("Flow")]
+    elif donnees.shape[1] == 1:
+        debit = donnees[:, 0]
+    else:
+        raise ValueError(
+            f"« {correspondance} » : {donnees.shape[1]} colonnes "
+            f"{colonnes or 'sans attribut Columns'} — impossible "
+            f"d'identifier le debit sans deviner.")
+    return debit, correspondance
+
+
 def lire_serie_hdf(plan, nom, groupe="Reference Lines"):
     """
     Lit une serie de debit DIRECTEMENT dans le fichier de resultats.
@@ -192,55 +258,11 @@ def lire_serie_hdf(plan, nom, groupe="Reference Lines"):
         vise = str(nom).strip().lower()
 
         if "Name" in objets:
-            # --- disposition matricielle ---------------------------------
-            noms = [_texte(v) for v in np.asarray(h[f"{chemin}/Name"][:])]
-            # Chaque entree vaut « <nom>|<zone 2D> » : on apparie sur la
-            # partie qui precede la barre, en tolerant qu'elle soit absente.
-            courts = [n.split("|")[0].strip() for n in noms]
-            indice = next((i for i, n in enumerate(courts) if n == str(nom)),
-                          None)
-            if indice is None:
-                indice = next((i for i, n in enumerate(courts)
-                               if n.lower() == vise), None)
-            if indice is None:
-                raise KeyError(
-                    f"« {nom} » absent des resultats de type « {groupe} ». "
-                    f"Presents : {courts}")
-            if "Flow" not in objets:
-                raise KeyError(
-                    f"les resultats « {groupe} » ne comportent pas de jeu "
-                    f"« Flow ». Presents : {objets}")
-            matrice = np.asarray(h[f"{chemin}/Flow"][:], dtype=float)
-            if matrice.ndim != 2 or indice >= matrice.shape[1]:
-                raise ValueError(
-                    f"le jeu « Flow » a la forme {matrice.shape}, "
-                    f"incompatible avec {len(courts)} objet(s) nommes.")
-            debit = matrice[:, indice]
-            correspondance = noms[indice]
+            debit, correspondance = _debit_matriciel(h, chemin, nom, vise,
+                                                     groupe, objets)
         else:
-            # --- disposition par objet -----------------------------------
-            correspondance = next(
-                (o for o in objets if o == nom), None) or next(
-                (o for o in objets if o.strip().lower() == vise), None)
-            if correspondance is None:
-                raise KeyError(
-                    f"« {nom} » absent des resultats. Presents : {objets}")
-
-            jeu = h[f"{chemin}/{correspondance}"]
-            donnees = np.asarray(jeu[:], dtype=float)
-            colonnes = [_texte(c) for c in jeu.attrs.get("Columns", [])]
-
-            if donnees.ndim == 1:
-                debit = donnees
-            elif colonnes and "Flow" in colonnes:
-                debit = donnees[:, colonnes.index("Flow")]
-            elif donnees.shape[1] == 1:
-                debit = donnees[:, 0]
-            else:
-                raise ValueError(
-                    f"« {correspondance} » : {donnees.shape[1]} colonnes "
-                    f"{colonnes or 'sans attribut Columns'} — impossible "
-                    f"d'identifier le debit sans deviner.")
+            debit, correspondance = _debit_par_objet(h, chemin, nom, vise,
+                                                     objets)
 
         temps_jours = np.asarray(h[f"{CHEMIN_SERIES_HDF}/Time"][:], dtype=float)
         unite = h[f"{CHEMIN_SERIES_HDF}/Time"].attrs.get("Time", b"days")
