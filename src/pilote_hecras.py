@@ -1333,11 +1333,13 @@ def plan_detourne(dossier, nom_projet, plan, depuis):
     quatre par-dessus leurs resultats ; p14 n'a jamais ete ouvert. La chaine
     n'en a rien su pendant 4 h 53 : compute_plan ne rend la main qu'a la fin.
 
-    DEUX CONDITIONS, ENSEMBLE : un .pMM.tmp.hdf d'un autre plan CREE depuis
-    le lancement, et aucun signe de vie du notre (.bNN, .pNN.tmp.hdf ou
-    .pNN.hdf ecrits depuis). La seconde epargne notre calcul quand un
+    DEUX CONDITIONS, ENSEMBLE : un .pMM.tmp.hdf d'un autre plan CREE ET ECRIT
+    depuis le lancement, et aucun signe de vie du notre (.bNN, .pNN.tmp.hdf
+    ou .pNN.hdf ecrits depuis). La seconde epargne notre calcul quand un
     collegue calcule un autre plan du meme projet depuis son poste ; la date
-    de CREATION ecarte son calcul deja en cours au lancement.
+    de CREATION ecarte son calcul deja en cours au lancement ; la date
+    d'ECRITURE ecarte un reste de calcul que HEC-RAS 7.0.2 ou RAS Mapper
+    recree en l'ouvrant, en lui rendant sa date d'ecriture d'origine.
     """
     dossier, plan = Path(dossier), str(plan).zfill(2)
 
@@ -1354,7 +1356,8 @@ def plan_detourne(dossier, nom_projet, plan, depuis):
         return None
     for chemin in sorted(dossier.glob(f"{nom_projet}.p[0-9][0-9].tmp.hdf")):
         numero = chemin.name[len(nom_projet) + 2:len(nom_projet) + 4]
-        if numero != plan and depuis_le_lancement(chemin, creation=True):
+        if (numero != plan and depuis_le_lancement(chemin, creation=True)
+                and depuis_le_lancement(chemin)):
             return numero
     return None
 
@@ -4892,6 +4895,13 @@ if __name__ == "__main__":
     (_bac / "ESSAI.p05.tmp.hdf").write_bytes(b"xx")          # il ecrit toujours
     _verifier("un calcul deja en cours au lancement n'arrete pas le notre",
               plan_detourne(_bac, "ESSAI", "03", _t0) is None)
+    # Un reste de calcul recree a l'ouverture du projet garde sa vieille date
+    # d'ecriture : HEC-RAS 7.0.2 et RAS Mapper le font (releve du 10/11/2026).
+    import os as _os
+    (_bac / "ESSAI.p07.tmp.hdf").write_bytes(b"x")
+    _os.utime(_bac / "ESSAI.p07.tmp.hdf", (_t0 - 3600, _t0 - 3600))
+    _verifier("un reste de calcul recree avec sa vieille date n'arrete pas le "
+              "notre", plan_detourne(_bac, "ESSAI", "03", _t0) is None)
     (_bac / "ESSAI.p02.tmp.hdf").write_bytes(b"x")
     _verifier("un autre plan commence depuis le lancement, sans signe du "
               "notre : detournement",

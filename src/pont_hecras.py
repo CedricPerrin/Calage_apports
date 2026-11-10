@@ -1771,9 +1771,9 @@ def commande_caler(args):
     # 0.99.2 au journal, 0.99.1 dans le venv du projet — et rien dans le
     # journal ne disait lequel. Une ligne, et l'on sait quoi corriger.
     print(f"Interpreteur : {sys.executable}", flush=True)
-    # AVEC QUEL HEC-RAS. Le 10/11/2026, un calage est passe de 7.0.1 a 7.0.2
-    # parce qu'une geometrie venait d'etre enregistree en 7.0.2 : personne ne
-    # l'avait choisi, et le journal ne le disait qu'en anglais, plus haut.
+    # AVEC QUEL HEC-RAS. La version suit le modele : l'ingenieur la choisit en
+    # enregistrant son modele dans cette version. Le journal ne la disait
+    # qu'en anglais, plus haut, dans les lignes de ras-commander.
     print(f"HEC-RAS : {version}", flush=True)
     resultat = caler(pilote, apports, sections, cibles, config, suivi=suivi,
                      journal=_dire_horodate,
