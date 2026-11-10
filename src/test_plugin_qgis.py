@@ -398,9 +398,31 @@ BoiteMessage.traces = []
 
 dialogue = DialogueTexte()
 fichiers = DialogueFichier()
-mod_plugin.QInputDialog = dialogue
-mod_plugin.QFileDialog = fichiers
-mod_plugin.QMessageBox = BoiteMessage
+# LES DOUBLURES VALENT POUR TOUT MODULE DU PAQUET QUI NOMME UNE BOITE, et non
+# plus pour plugin.py seul. La fenetre se repartit en modules de pages
+# (docs/decoupage_dialogue.md) : une page qui ouvrirait une vraie boite, hors
+# ecran, attendrait un clic qui ne vient jamais, et le banc resterait bloque.
+# On parcourt donc les modules du paquet DEJA IMPORTES — plugin.py importe ses
+# pages des son chargement — et l'on remplace chacun des trois noms que le
+# module lie lui-meme. Une page future est ainsi couverte sans y repenser ;
+# confirmer() aussi, ou qu'il vive, puisqu'il lit QMessageBox dans son module.
+# Limite assumee : un module qui ecrirait « QtWidgets.QMessageBox » n'est pas
+# vu ; aucun ne le fait.
+_DOUBLURES = {"QInputDialog": dialogue, "QFileDialog": fichiers,
+              "QMessageBox": BoiteMessage}
+_modules_doubles = []
+for _nom_module, _module in sorted(sys.modules.items()):
+    if not _nom_module.startswith("calage_apports.") or _module is None:
+        continue
+    _lies = [_n for _n in _DOUBLURES if _n in vars(_module)]
+    for _n in _lies:
+        setattr(_module, _n, _DOUBLURES[_n])
+    if _lies:
+        _modules_doubles.append(_nom_module.split(".", 1)[1])
+# Une boucle qui ne doublerait rien — paquet renomme, import deplace — ne
+# se verrait qu'au premier blocage : on le dit ici, et on nomme les modules.
+verifier("les boites sont doublees dans chaque module du paquet qui les nomme",
+         "plugin" in _modules_doubles, ", ".join(_modules_doubles) or "aucun")
 
 # ---------------------------------------------------------------------------
 # Couches de travail
