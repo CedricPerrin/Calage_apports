@@ -14,7 +14,9 @@ Usage : python sonde_ligne_commande.py <modele source> <dossier de travail> <ver
   cas : clone_fin  plan clone, declare en fin de .prj (forme de ras-commander)
         liste      idem, lignes remontees dans les listes du .prj
         courant    idem clone_fin, et « Current Plan= » pointe le clone
+        courant_seul  idem courant, mais « Ras.exe -c projet » SANS nommer le plan
         origine    aucun clone : calcule le plan [plan] tel quel
+        origine_seul  aucun clone : [plan] devient le plan courant, « Ras.exe -c projet »
 """
 
 import re
@@ -72,7 +74,10 @@ def main():
 
     init_ras_project(str(travail), version)
     plan = plan_ref
-    if cas != "origine":
+    if cas == "origine_seul":
+        prj.write_bytes(re.sub(rb"(?m)^Current Plan=.*?(\r?)$",
+                               b"Current Plan=p" + plan.encode() + rb"\1", prj.read_bytes()))
+    elif cas != "origine":
         plan = str(RasPlan.clone_plan(plan_ref)).zfill(2)
         fichier_plan = travail / f"{nom}.p{plan}"
         texte = fichier_plan.read_bytes()
@@ -80,7 +85,7 @@ def main():
         flot = str(RasPlan.clone_unsteady(flot_ref)).zfill(2)
         fichier_plan.write_bytes(re.sub(rb"^Flow File=u\d+", f"Flow File=u{flot}".encode(),
                                         texte, count=1, flags=re.M))
-        if cas in ("liste", "courant"):
+        if cas in ("liste", "courant", "courant_seul"):
             lignes = prj.read_bytes().splitlines(keepends=True)
             if cas == "liste":
                 for cle in (b"Unsteady File=u" + flot.encode(), b"Plan File=p" + plan.encode()):
@@ -124,7 +129,14 @@ def main():
     fil = threading.Thread(target=observer, daemon=True)
     fil.start()
     try:
-        reussi = RasCmdr.compute_plan(plan, overwrite_dest=True)
+        if cas in ("courant_seul", "origine_seul"):
+            # La forme de HEC-RAS 5.x : le plan courant, sans le nommer.
+            ras = rf"C:\Program Files (x86)\HEC\HEC-RAS\{version}\Ras.exe"
+            with open(travail / f"_compute_p{plan}.log", "w") as journal_ras:
+                reussi = subprocess.run(f'"{ras}" -c "{prj}"', stdout=journal_ras,
+                                        stderr=subprocess.STDOUT).returncode
+        else:
+            reussi = RasCmdr.compute_plan(plan, overwrite_dest=True)
     except Exception as e:                                   # noqa: BLE001
         reussi = f"{type(e).__name__}: {e}"
     duree = time.time() - debut

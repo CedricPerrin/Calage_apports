@@ -1299,6 +1299,22 @@ def symbole_decimal():
         return None
 
 
+def par_controleur(version):
+    """
+    Faut-il lancer le calcul par le controleur COM plutot que par
+    « Ras.exe -c » ? Vrai a partir de HEC-RAS 7.0.2.
+
+    SONDE DU 10/11/2026 (Muncie, tools/sonde_ligne_commande.py). En 7.0.1,
+    « Ras.exe -c projet plan » calcule le plan nomme et lui seul. En 7.0.2,
+    il calcule TOUS les plans du projet, dans l'ordre du .prj — plan nomme,
+    plan range dans la liste, plan courant designe, plan non nomme : quatre
+    formes, meme resultat. Le controleur (RAS702.HECRASController), lui,
+    calcule le plan courant et lui seul.
+    """
+    numeros = [int(n) for n in re.findall(r"\d+", str(version or ""))[:3]]
+    return (numeros + [0, 0, 0])[:3] >= [7, 0, 2]
+
+
 # Cadence, en secondes, a laquelle calculer() regarde ce que HEC-RAS ecrit.
 PERIODE_SURVEILLANCE_S = 20
 
@@ -3002,6 +3018,55 @@ class PiloteHecRas(Modele):
                 manques.append(f"« {chemin.suffix[1:]} » absent de {prj.name}")
         return manques
 
+    def _calculer_par_controleur(self):
+        """
+        Calcule le plan de travail par le controleur COM de HEC-RAS, qui
+        calcule le plan COURANT et lui seul (voir par_controleur). Rend True
+        si HEC-RAS annonce un calcul abouti ; calculer() relit ensuite le
+        .hdf, comme apres compute_plan.
+
+        LE PLAN SE DESIGNE PAR SON TITRE : c'est la seule prise du
+        controleur. jalonner() le pose, et remplace tout homonyme ; on relit
+        quand meme quel fichier HEC-RAS a retenu, et l'on refuse s'il s'est
+        trompe de plan. Le .prj n'est pas reecrit : le plan courant du
+        projet reste celui de l'ingenieur.
+        """
+        import win32com.client
+
+        numero = str(self.plan_travail).zfill(2)
+        titre = self._titre(self.dossier / f"{self.nom_projet}.p{numero}",
+                            "Plan Title")
+        controleur = win32com.client.Dispatch(
+            "RAS" + "".join(re.findall(r"\d", self.version))
+            + ".HECRASController")
+        # Meme veilleur de boites de dialogue que compute_plan : sans lui,
+        # un message de HEC-RAS suspendrait le calage jusqu'a un clic.
+        veilleur = None
+        try:
+            from ras_commander.RasDialogWatchdog import DialogWatchdog
+            veilleur = DialogWatchdog()
+            veilleur.start()
+        except Exception:                                    # noqa: BLE001
+            veilleur = None
+        try:
+            controleur.Project_Open(str(self.dossier / f"{self.nom_projet}.prj"))
+            controleur.Plan_SetCurrent(titre)
+            retenu = Path(str(controleur.CurrentPlanFile())).suffix[2:]
+            if retenu != numero:
+                raise RuntimeError(
+                    f"HEC-RAS a retenu le plan p{retenu} pour le titre "
+                    f"« {titre} », et non p{numero} : deux plans portent "
+                    f"sans doute ce titre.")
+            return bool(controleur.Compute_CurrentPlan(None, None, True)[0])
+        finally:
+            for fermer in (controleur.Project_Close, controleur.QuitRas):
+                try:
+                    fermer()
+                except Exception:                            # noqa: BLE001
+                    pass
+            if veilleur is not None:
+                veilleur.stop()
+
     def calculer(self):
         """Lance le calcul et rapporte sa qualite numerique."""
         from ras_commander import HdfResultsPlan, RasCmdr, RasPlan
@@ -3075,8 +3140,13 @@ class PiloteHecRas(Modele):
                 self._par_ras_commander(
                     lambda: RasPlan.set_num_cores(self.plan_travail,
                                                   self.coeurs), plan)
-            reussi = RasCmdr.compute_plan(self.plan_travail,
-                                          overwrite_dest=True)
+            # HEC-RAS 7.0.2 : « Ras.exe -c » calcule tous les plans du projet.
+            # On passe alors par le controleur — voir par_controleur().
+            if par_controleur(self.version):
+                reussi = self._calculer_par_controleur()
+            else:
+                reussi = RasCmdr.compute_plan(self.plan_travail,
+                                              overwrite_dest=True)
             erreur = ""
         except Exception as e:
             reussi, erreur = False, f"{type(e).__name__}: {e}"
@@ -3099,10 +3169,11 @@ class PiloteHecRas(Modele):
                            f"garde ses resultats d'avant. " if fermes else
                            "HEC-RAS n'a pas pu etre arrete : verifier les "
                            "resultats des autres plans du projet. ")
-                        + "Constat du 10/11/2026 sous HEC-RAS 7.0.2. Fermer "
-                          "HEC-RAS, puis relancer ; si le defaut revient, "
-                          "enregistrer le modele avec la version de HEC-RAS "
-                          "des calages precedents.")
+                        + "« Ras.exe -c » de HEC-RAS 7.0.2 calcule tous les "
+                          "plans du projet (sonde du 10/11/2026) ; a partir "
+                          "de cette version la chaine passe par le "
+                          "controleur de HEC-RAS. Fermer HEC-RAS, puis "
+                          "relancer le calage.")
         if erreur:
             return ResultatCalcul(reussi=False, duree_s=duree, message=erreur)
         if not reussi:
@@ -4912,6 +4983,11 @@ if __name__ == "__main__":
               plan_detourne(_bac, "ESSAI", 3, _t0) is None)
     _verifier("le jalon d'horloge ne reste pas dans le projet",
               not (_bac / "_jalon_calcul.tmp").exists())
+    _verifier("controleur COM a partir de HEC-RAS 7.0.2, « Ras.exe -c » avant",
+              par_controleur("7.0.2") and par_controleur("7.1")
+              and par_controleur("8.0") and not par_controleur("7.0.1")
+              and not par_controleur("7.0") and not par_controleur("6.6")
+              and not par_controleur(""))
     _verifier("le symbole decimal de Windows se lit sans lever",
               symbole_decimal() is None or len(symbole_decimal()) == 1,
               repr(symbole_decimal()))

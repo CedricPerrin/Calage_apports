@@ -22,13 +22,21 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+HEC-RAS 7.0.2 — 10 NOVEMBRE 2026, VERSION 0.9.32 (NON PUBLIEE).
+  CAUSE DE L'INCIDENT ETABLIE PAR LA SONDE (Muncie) : en 7.0.2, « Ras.exe -c
+  projet plan » calcule TOUS les plans du projet, dans l'ordre du .prj, quelle
+  que soit la forme de la commande ; en 7.0.1 il calcule le plan nomme seul.
+  A partir de 7.0.2, calculer() passe par le controleur COM de HEC-RAS
+  (RAS702.HECRASController, plan designe par son titre), qui calcule le plan
+  courant et lui seul. Eprouve sur HEC-RAS reel, copie de Muncie : plan
+  clone calcule seul en 7.0.2. PAS ENCORE EPROUVE sur un calage complet ni
+  sur Ard_aval. Detail : CHECKPOINT.md.
+
 GARDE-FOUS DE CALCUL, PLAN VALIDE RECALE, REGLAGES HORS DEFAUT — 10 NOVEMBRE
 2026, VERSION 0.9.31 (NON PUBLIEE).
   Incident du jour sur Ard_aval : premier calage voulu en HEC-RAS 7.0.2 ; lance
   pour p14, Ras.exe a recalcule quatre autres plans pendant 4 h 53 sans ouvrir
-  p14. CAUSE NON ETABLIE : la sonde tools/sonde_ligne_commande.py n'a pas pu
-  tourner (symbole decimal du poste de developpement = virgule). PRIORITE :
-  la lancer sur un poste ou HEC-RAS calcule, en 7.0.1 puis 7.0.2.
+  p14. Cause etablie l'apres-midi : entree ci-dessus.
   Chaine : calculer() verifie le .prj avant de lancer et arrete HEC-RAS s'il
   calcule un autre plan (plan_detourne) ; le pont refuse si le symbole decimal
   n'est pas le point ; version de HEC-RAS au journal.
@@ -2686,17 +2694,17 @@ ENVIRONNEMENT
     decimals » et attend un clic, sans rien calculer ; le chien de garde de
     ras-commander ne le ferme pas (10/11/2026, 7.0.1). Le pont refuse de
     lancer un calage dans ce cas (pilote_hecras.symbole_decimal).
-  - HEC-RAS PEUT CALCULER UN AUTRE PLAN QUE CELUI DEMANDE, puis rendre 0.
-    Releve le 10/11/2026 en 7.0.2 (Ard_aval) : quatre plans recalcules, le
-    plan demande jamais ouvert, 4 h 53 perdues. Cause non etablie. calculer()
+  - HEC-RAS 7.0.2 : « Ras.exe -c projet plan » CALCULE TOUS LES PLANS DU
+    PROJET, dans l'ordre du .prj, puis rend 0 (sonde du 10/11/2026, Muncie ;
+    incident du meme jour sur Ard_aval : quatre plans recalcules, 4 h 53
+    perdues). 7.0.1 calcule le plan nomme seul. A partir de 7.0.2 la chaine
+    lance le plan par le controleur COM (par_controleur). En plus, calculer()
     verifie le .prj avant de lancer et surveille le dossier pendant le calcul
     (plan_detourne) : il arrete HEC-RAS au premier .tmp.hdf d'un autre plan.
   - LA VERSION DE HEC-RAS EST LA PLUS HAUTE LUE DANS LE MODELE : c'est en
     enregistrant son modele dans une version que l'ingenieur la choisit, et
     une seule geometrie y suffit. Elle est dite a l'etape 1, au resume et au
-    journal (0.9.31). Le 10/11/2026, le premier calage voulu en 7.0.2 n'a pas
-    abouti (piege precedent) : la sonde tools/sonde_ligne_commande.py reste
-    a lancer avant de compter sur 7.0.2.
+    journal (0.9.31).
   - Le journal de calage est a ENCODAGE MIXTE : la chaine y ecrit en UTF-8,
     mais GDAL et HEC-RAS ecrivent en page de codes locale. Le lire exige
     errors="replace".

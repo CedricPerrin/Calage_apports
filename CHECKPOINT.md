@@ -1,5 +1,27 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 10 novembre 2026 : HEC-RAS 7.0.2 calcule tous les plans, la chaîne passe par le contrôleur (0.9.32)
+
+**Cause de l'incident du matin, établie par la sonde** (`tools/sonde_ligne_commande.py`,
+copie de Muncie, symbole décimal remis au point par l'utilisateur). En 7.0.1,
+`Ras.exe -c "projet" "plan"` calcule le plan nommé et lui seul (59 s). En 7.0.2, la même
+commande calcule **tous les plans du projet**, dans l'ordre du `.prj` : plan nommé, plan
+rangé dans la liste, plan courant désigné, plan non nommé — quatre formes, même résultat.
+Le batch choisit chaque plan par son titre : un clone au titre de sa source fait
+recalculer la source. Ni le clonage ni la géométrie n'étaient en cause.
+
+**Correction** (`src/pilote_hecras.py`) : à partir de 7.0.2 (`par_controleur`),
+`calculer` lance le plan par le contrôleur COM (`_calculer_par_controleur` :
+`RAS702.HECRASController`, `Project_Open`, `Plan_SetCurrent(titre)`,
+`Compute_CurrentPlan` bloquant, `QuitRas`). Il vérifie que HEC-RAS a retenu le bon
+fichier de plan, et ne réécrit pas le `.prj`. Les versions antérieures gardent
+`compute_plan`. Le veilleur de dialogues de ras-commander tourne dans les deux cas.
+
+**Éprouvé sur HEC-RAS réel** (copie de Muncie, `preparer` → `jalonner` → `calculer`) :
+7.0.2 par le contrôleur, plan cloné seul calculé en 58 s, bilan de masse 0,006 % ;
+7.0.1 par `compute_plan`, même plan seul en 60 s. Pas encore éprouvé sur un
+calage complet ni sur le modèle Ard_aval (partage réseau, 17 plans).
+
 ## 10 novembre 2026 : garde-fous de calcul, plan validé recalé, paramètres hors défaut (0.9.31)
 
 **L'incident.** Modèle `Ard_aval` (affaire 25F193), poste d'une collègue, reprise à ARD11
@@ -10,7 +32,8 @@ plus haute du modèle, lance le calage en 7.0.2. C'est le premier calage de ce p
 7.0.2 ; les précédents avaient tourné en 7.0.1. Lancé pour p14, `Ras.exe` 7.0.2 parcourt les plans
 du projet depuis p01 : p02, p05, p06 et p07 sont recalculés par-dessus leurs résultats,
 p14 n'est jamais ouvert, et l'arrêt tombe après 4 h 53 sur « p14.hdf est absent ».
-**La cause n'est pas établie** (constat : `0-HECRAS`, `08_constats_mesures.md`).
+La cause a été établie l'après-midi (section ci-dessus ; constat : `0-HECRAS`,
+`08_constats_mesures.md`).
 
 **Fait, chaîne de calcul** (`4a5a0c8`, `8d31007`) :
 - `PiloteHecRas.calculer` : avant de lancer, le `.prj` doit déclarer le plan, sa
@@ -54,13 +77,9 @@ précédent » s'il existe, sinon plan de référence ; l'apport repris et l'ava
 pages ; plan validé remplacé seulement sur calage conforme, après confirmation.
 
 **Pas fait.**
-- La sonde `tools/sonde_ligne_commande.py` n'a pas tourné : le poste de développement a
-  la virgule pour symbole décimal, HEC-RAS y attend un clic. À lancer sur un poste dont
-  le symbole est le point, HEC-RAS fermé, en 7.0.1 puis 7.0.2, cas `clone_fin`, `liste`,
-  `courant`, `origine`. **Priorité** : l'ingénieur veut calculer en 7.0.2, et tant que
-  la sonde n'a pas parlé, on ne sait pas faire aboutir un calage dans cette version. Les
-  garde-fous arrêtent le défaut ; ils ne le corrigent pas.
-- Aucun calcul HEC-RAS réel : les garde-fous sont éprouvés par des leurres.
+- La sonde a d'abord buté sur le symbole décimal du poste (virgule : HEC-RAS attend un
+  clic). L'utilisateur l'a mis au point ; elle a tourné l'après-midi (section ci-dessus).
+- Les garde-fous eux-mêmes sont éprouvés par des leurres, pas sur HEC-RAS réel.
 - Limite de `plan_detourne` : un collègue qui lance un autre plan du même projet pendant
   que le nôtre n'a encore rien écrit ferait arrêter notre calcul à tort.
 
