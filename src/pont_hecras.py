@@ -1391,6 +1391,17 @@ def _texte_parametre(valeurs, cle, defaut=""):
     return defaut if v is None or pd.isna(v) else str(v).strip()
 
 
+def _nombre_parametre(valeurs, cle, defaut):
+    """Valeur numerique d'un parametre du classeur, defaut si vide ou illisible."""
+    import pandas as pd
+
+    v = valeurs.get(cle)
+    try:
+        return float(v) if v is not None and not pd.isna(v) else defaut
+    except (TypeError, ValueError):
+        return defaut
+
+
 def _dire_horodate(*morceaux):
     """
     Ecrit une ligne du journal, PRECEDEE DE L'HEURE.
@@ -1495,6 +1506,86 @@ def _cibles_depuis_classeur(chemin_template, journal=None):
         sections.append(section)
         cibles.append((t_cible, q_cible))
     return apports, sections, cibles, manquantes
+
+
+def _configuration(valeurs, prefixe_etape, remplacer_source):
+    """La Configuration de caler(), lue dans les parametres du calage."""
+    from calage import Configuration
+
+    def texte(cle, defaut=""):
+        return _texte_parametre(valeurs, cle, defaut)
+
+    def nombre(cle, defaut):
+        return _nombre_parametre(valeurs, cle, defaut)
+
+    # La precision est saisie en POURCENTAGE, la chaine raisonne en rapports.
+    return Configuration(
+        nb_max_essais=int(nombre("Nb_max_iterations_par_apport", 6)),
+        tolerance_volume=nombre("Tolerance_volume_pct", 5.0) / 100.0,
+        tolerance_pic=nombre("Tolerance_pic_pct", 2.0) / 100.0,
+        # DEJA EN POURCENTAGE des deux cotes — pas de « / 100 » ici : c'est
+        # une erreur de conservation du solveur, pas un rapport a la cible.
+        bilan_masse_max_pct=nombre("Bilan_masse_max_pct", 5.0),
+        # FENETRE DE JUGEMENT. Les deux seuils sont donnes en POURCENTAGE du
+        # volume cumule du deficit. La methodologie les declare explicitement
+        # « a confirmer sur les premiers cas d'application » : ils doivent
+        # donc rester saisissables, et non figes dans le code.
+        fenetre_seuil_bas=nombre("Fenetre_seuil_bas_pct", 0.5) / 100.0,
+        fenetre_seuil_haut=nombre("Fenetre_seuil_haut_pct", 99.0) / 100.0,
+        # Bornes imposees a la main, en heures depuis le debut de la cible.
+        # Vides = detection automatique, qui n'est qu'une proposition.
+        fenetre_t0_h=nombre("Fenetre_t0_h", None),
+        fenetre_tf_h=nombre("Fenetre_tf_h", None),
+        # Vide = active, le defaut. « non » juge sur toute la duree simulee.
+        fenetre_active=_oui_non_ou_defaut(texte("Fenetre_active", "")),
+        # Prefixe pose devant chaque titre d'etape. Vide = comportement
+        # d'avant. C'est ce qui separe les plans du Q10 de ceux du Q100.
+        prefixe_etape=prefixe_etape,
+        remplacer_plan_source=remplacer_source)
+
+
+def _construire_pilote(valeurs, plan_reference, version, pas_travail_h,
+                       apports_a_caler, plan_fenetre_pleine):
+    """Le PiloteHecRas du calage, regle par les parametres du classeur."""
+    from pilote_hecras import PiloteHecRas
+
+    def texte(cle, defaut=""):
+        return _texte_parametre(valeurs, cle, defaut)
+
+    def nombre(cle, defaut):
+        return _nombre_parametre(valeurs, cle, defaut)
+
+    surcharge = texte("Mode_selection_modele", "plan").lower() == "override"
+
+    # La fenetre de simulation n'est imposee que si elle a ete saisie. Sans
+    # cela, celle du plan de reference s'applique — ce qui est le bon defaut
+    # tant qu'on ne substitue pas un unsteady flow d'une autre periode.
+    fenetre = {cle: texte(param)
+               for cle, param in (("debut", "Simulation_debut"),
+                                  ("fin", "Simulation_fin"),
+                                  ("intervalle_calcul", "Intervalle_calcul"),
+                                  ("intervalle_sortie", "Intervalle_sortie"),
+                                  ("intervalle_instantane",
+                                   "Intervalle_instantane"),
+                                  ("intervalle_mapping", "Intervalle_mapping"))
+               if texte(param)}
+
+    return PiloteHecRas(
+        dossier_projet=texte("Dossier_projet_HECRAS"),
+        nom_projet=texte("Nom_projet"),
+        plan_reference=plan_reference,
+        version=version,
+        nom_zone_2d=texte("Nom_zone_2D") or None,
+        geometrie_override=texte("Geometrie_reference") if surcharge else None,
+        unsteady_override=texte("Unsteady_reference") if surcharge else None,
+        nom_clone_geometrie=texte("Nom_clone_geometrie") or None,
+        fenetre_simulation=fenetre or None,
+        pas_travail_h=pas_travail_h,
+        apports_a_caler=apports_a_caler,
+        plan_fenetre_pleine=plan_fenetre_pleine,
+        # 0 ou vide = le plan garde ce qu'il demande (voir PiloteHecRas).
+        coeurs=int(nombre("Coeurs_par_calcul", 0)) or None,
+    )
 
 
 def _consigner_verdict(suivi, resultat):
@@ -1618,13 +1709,10 @@ def commande_caler(args):
     Sous_dossier_suivi) est le seul moyen de savoir ou en est le calcul
     pendant qu'il tourne.
     """
-    import pandas as pd
-
-    from calage import (ETAPE_AVEC_APPORTS, ETAPE_SANS_APPORT, Configuration,
-                        caler, etape_apport, titre_etape)
+    from calage import (ETAPE_AVEC_APPORTS, ETAPE_SANS_APPORT, caler,
+                        etape_apport, titre_etape)
     from criteres import pas_serie_h
-    from pilote_hecras import (PiloteHecRas, plan_par_titre, plans_par_titre,
-                               symbole_decimal)
+    from pilote_hecras import plan_par_titre, plans_par_titre, symbole_decimal
     from suivi import Suivi
 
     # AVANT TOUT : HEC-RAS peut-il seulement demarrer ? Voir symbole_decimal().
@@ -1642,13 +1730,6 @@ def commande_caler(args):
 
     def texte(cle, defaut=""):
         return _texte_parametre(valeurs, cle, defaut)
-
-    def nombre(cle, defaut):
-        v = valeurs.get(cle)
-        try:
-            return float(v) if v is not None and not pd.isna(v) else defaut
-        except (TypeError, ValueError):
-            return defaut
 
     apports, sections, cibles, manquantes = _cibles_depuis_classeur(
         chemin_template, journal=_dire_horodate)
@@ -1739,21 +1820,6 @@ def commande_caler(args):
         apports, sections, cibles = (apports[depart:], sections[depart:],
                                      cibles[depart:])
 
-    surcharge = texte("Mode_selection_modele", "plan").lower() == "override"
-
-    # La fenetre de simulation n'est imposee que si elle a ete saisie. Sans
-    # cela, celle du plan de reference s'applique — ce qui est le bon defaut
-    # tant qu'on ne substitue pas un unsteady flow d'une autre periode.
-    fenetre = {cle: texte(param)
-               for cle, param in (("debut", "Simulation_debut"),
-                                  ("fin", "Simulation_fin"),
-                                  ("intervalle_calcul", "Intervalle_calcul"),
-                                  ("intervalle_sortie", "Intervalle_sortie"),
-                                  ("intervalle_instantane",
-                                   "Intervalle_instantane"),
-                                  ("intervalle_mapping", "Intervalle_mapping"))
-               if texte(param)}
-
     # VERSION DE HEC-RAS : le plugin la lit dans les fichiers du modele. Une
     # cellule VIDE (version illisible) partait telle quelle a ras-commander.
     version = texte("Version_HECRAS", "7.0.1")
@@ -1763,24 +1829,10 @@ def commande_caler(args):
             "lue dans les fichiers du modele. La renseigner dans le classeur, "
             "par exemple 7.0.1."))
 
-    pilote = PiloteHecRas(
-        dossier_projet=texte("Dossier_projet_HECRAS"),
-        nom_projet=texte("Nom_projet"),
-        plan_reference=plan_reference,
-        version=version,
-        nom_zone_2d=texte("Nom_zone_2D") or None,
-        geometrie_override=texte("Geometrie_reference") if surcharge else None,
-        unsteady_override=texte("Unsteady_reference") if surcharge else None,
-        nom_clone_geometrie=texte("Nom_clone_geometrie") or None,
-        fenetre_simulation=fenetre or None,
-        pas_travail_h=pas_travail_h,
-        apports_a_caler=apports_a_caler,
-        plan_fenetre_pleine=plan_fenetre_pleine,
-        # 0 ou vide = le plan garde ce qu'il demande (voir PiloteHecRas).
-        coeurs=int(nombre("Coeurs_par_calcul", 0)) or None,
-    )
+    pilote = _construire_pilote(valeurs, plan_reference, version,
+                                pas_travail_h, apports_a_caler,
+                                plan_fenetre_pleine)
 
-    # La precision est saisie en POURCENTAGE, la chaine raisonne en rapports.
     # LES TITRES D'ETAPE SONT VERIFIES AVANT LE PREMIER CLONAGE. Au-dela de la
     # longueur admise, HEC-RAS ne refuse pas : la chaine rognait en silence,
     # et deux etapes rognees au meme « Short Identifier » partagent le dossier
@@ -1828,29 +1880,7 @@ def commande_caler(args):
               f"{', '.join(f'p{n}' for n in autres)} « {titre_final} », avec "
               f"ses resultats.", flush=True)
 
-    config = Configuration(
-        nb_max_essais=int(nombre("Nb_max_iterations_par_apport", 6)),
-        tolerance_volume=nombre("Tolerance_volume_pct", 5.0) / 100.0,
-        tolerance_pic=nombre("Tolerance_pic_pct", 2.0) / 100.0,
-        # DEJA EN POURCENTAGE des deux cotes — pas de « / 100 » ici : c'est
-        # une erreur de conservation du solveur, pas un rapport a la cible.
-        bilan_masse_max_pct=nombre("Bilan_masse_max_pct", 5.0),
-        # FENETRE DE JUGEMENT. Les deux seuils sont donnes en POURCENTAGE du
-        # volume cumule du deficit. La methodologie les declare explicitement
-        # « a confirmer sur les premiers cas d'application » : ils doivent
-        # donc rester saisissables, et non figes dans le code.
-        fenetre_seuil_bas=nombre("Fenetre_seuil_bas_pct", 0.5) / 100.0,
-        fenetre_seuil_haut=nombre("Fenetre_seuil_haut_pct", 99.0) / 100.0,
-        # Bornes imposees a la main, en heures depuis le debut de la cible.
-        # Vides = detection automatique, qui n'est qu'une proposition.
-        fenetre_t0_h=nombre("Fenetre_t0_h", None),
-        fenetre_tf_h=nombre("Fenetre_tf_h", None),
-        # Vide = active, le defaut. « non » juge sur toute la duree simulee.
-        fenetre_active=_oui_non_ou_defaut(texte("Fenetre_active", "")),
-        # Prefixe pose devant chaque titre d'etape. Vide = comportement
-        # d'avant. C'est ce qui separe les plans du Q10 de ceux du Q100.
-        prefixe_etape=prefixe_etape,
-        remplacer_plan_source=remplacer_source)
+    config = _configuration(valeurs, prefixe_etape, remplacer_source)
 
     dossier_sortie = Path(texte("Dossier_sortie") or chemin_template.parent)
     sous_suivi = texte("Sous_dossier_suivi", "suivi")
