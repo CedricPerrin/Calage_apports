@@ -2440,8 +2440,49 @@ def produire_livrables_finaux(resultat, modele, dossier_sortie,
     rien a rapporter.
     """
     import livrables as liv
-    from suivi import assainir_nom_fichier
 
+    _verifier_resultat_final(resultat)
+
+    sections = [a.nom_section for a in resultat.apports]
+    apports = [a.nom_apport for a in resultat.apports]
+
+    dossier = Path(dossier_sortie)
+    dossier.mkdir(parents=True, exist_ok=True)
+    fichiers = []
+
+    _figures_comparaison(fichiers, resultat, sections, dossier)
+
+    fichiers.append(liv.figure_atteinte(
+        sections, resultat.diagnostics_finaux, dossier / "atteinte_cible.png"))
+
+    _figures_convergence(fichiers, resultat, dossier)
+
+    temps_apports, hydrogrammes, dans_fenetre = _hydrogrammes_retenus(
+        resultat, modele)
+    if temps_apports:
+        _figure_apports_retenus(fichiers, apports, temps_apports,
+                                hydrogrammes, dans_fenetre, dossier)
+        _avertissements_de_queue(fichiers, apports, temps_apports,
+                                 hydrogrammes, dans_fenetre)
+
+    # --- profil en long de synthese, si l'axe hydraulique est disponible ---
+    if profil is not None and len(profil):
+        _profil_en_long_final(fichiers, resultat, sections, apports,
+                              dossier, profil, pk_sections, pk_apports)
+
+    xlsx = _tableaux_calage(resultat, sections, apports, temps_apports,
+                            hydrogrammes, dans_fenetre, dossier)
+    liv.synthese("Calage des apports — note de synthèse", sections,
+                resultat.diagnostics_finaux, dossier / "synthese.md",
+                alertes_chaine=resultat.alertes_chaine)
+
+    return {"fichiers": fichiers + [xlsx, str(dossier / "synthese.md")],
+            "conforme": resultat.conforme}
+
+
+def _verifier_resultat_final(resultat):
+    """Leve si le resultat ne peut pas etre rapporte : rien a livrer, ou
+    des listes qui ne se correspondent plus un a un."""
     if not resultat.diagnostics_finaux:
         raise ValueError(
             "aucun diagnostic final disponible : la verification globale ne "
@@ -2460,12 +2501,11 @@ def produire_livrables_finaux(resultat, modele, dossier_sortie,
             f"{len(resultat.series_finales)} serie(s) — les trois doivent "
             f"correspondre un a un.")
 
-    sections = [a.nom_section for a in resultat.apports]
-    apports = [a.nom_apport for a in resultat.apports]
 
-    dossier = Path(dossier_sortie)
-    dossier.mkdir(parents=True, exist_ok=True)
-    fichiers = []
+def _figures_comparaison(fichiers, resultat, sections, dossier):
+    """Une figure de comparaison cible / calcule par section."""
+    import livrables as liv
+    from suivi import assainir_nom_fichier
 
     for i, (section, diag) in enumerate(zip(sections, resultat.diagnostics_finaux)):
         t_c, q_c, t_s, q_s = resultat.series_finales[i]
@@ -2473,8 +2513,11 @@ def produire_livrables_finaux(resultat, modele, dossier_sortie,
             section, t_c, q_c, t_s, q_s, diag,
             dossier / f"comparaison_{i + 1:02d}_{assainir_nom_fichier(section)}.png"))
 
-    fichiers.append(liv.figure_atteinte(
-        sections, resultat.diagnostics_finaux, dossier / "atteinte_cible.png"))
+
+def _figures_convergence(fichiers, resultat, dossier):
+    """Une figure de convergence par apport cale en deux essais ou plus."""
+    import livrables as liv
+    from suivi import assainir_nom_fichier
 
     for i, a in enumerate(resultat.apports):
         if len(a.historique) >= 2:
@@ -2482,6 +2525,12 @@ def produire_livrables_finaux(resultat, modele, dossier_sortie,
                 a.nom_section, a.historique,
                 dossier / f"convergence_{i + 1:02d}_{assainir_nom_fichier(a.nom_apport)}.png"))
 
+
+def _hydrogrammes_retenus(resultat, modele):
+    """
+    Hydrogramme retenu de chaque apport, sur SA base de temps, et le masque
+    de la fenetre jugee. Retourne (temps_apports, hydrogrammes, dans_fenetre).
+    """
     # L'hydrogramme retenu se lit TEL QUEL dans le modele : la correction etant
     # additive, definir_forme() y a deja ecrit la serie finale et le facteur
     # applique vaut 1. La remultiplier par le rapport de volumes — ce que
@@ -2523,51 +2572,72 @@ def produire_livrables_finaux(resultat, modele, dossier_sortie,
         fin = (float(a.fenetre_principale[1]) if a.fenetre_principale is not None
                else float(np.max(resultat.series_finales[i][0])))
         dans_fenetre.append(t_forme <= fin + 1e-9)
-    if temps_apports:
-        # MEME GARDE-FOU QUE LE PROFIL EN LONG PLUS BAS : une figure qui
-        # echoue ne doit plus emporter le classeur et la note de synthese,
-        # qui sont produits APRES elle. C'est exactement ce que la panne
-        # ci-dessus a coute.
-        try:
-            fichiers.append(liv.figure_apports_retenus(
-                apports, [t[g] for t, g in zip(temps_apports, dans_fenetre)],
-                [h[g] for h, g in zip(hydrogrammes, dans_fenetre)],
-                dossier / "apports_retenus.png"))
-        except Exception as e:
-            fichiers.append(f"apports retenus non produits : "
-                            f"{type(e).__name__}: {e}")
+    return temps_apports, hydrogrammes, dans_fenetre
 
-        # Une queue constante au-dela de la fenetre n'a aucun effet ICI, mais
-        # l'apport injecterait ce debit des que la simulation serait allongee.
-        # Le dire vaut mieux que le laisser decouvrir.
-        for nom, t_a, h, g in zip(apports, temps_apports, hydrogrammes,
-                                  dans_fenetre):
-            queue = h[~g]
-            if len(queue) > 2 and float(np.max(queue)) > 0.01 * float(np.max(h)):
-                fichiers.append(
-                    f"AVERTISSEMENT — l'apport « {nom} » est prolonge a "
-                    f"{float(queue[0]):.1f} m3/s sur "
-                    f"{len(queue) * float(t_a[1] - t_a[0]):.0f} h "
-                    f"au-dela de la fenetre simulee. Sans effet sur ce calcul, "
-                    f"mais ce debit serait injecte si la fenetre etait "
-                    f"allongee.")
 
-    # --- profil en long de synthese, si l'axe hydraulique est disponible ---
-    if profil is not None and len(profil):
-        try:
-            fichiers.append(liv.figure_profil_en_long(
-                profil, pk_sections, dossier / "profil_en_long.png",
-                noms_sections=sections, apports_pk=pk_apports,
-                noms_apports=apports,
-                pics_cible=[_pic_dans_fenetre(s[0], s[1], a.fenetre_principale)
-                            for s, a in zip(resultat.series_finales,
-                                            resultat.apports)],
-                pics_calcule=[_pic_dans_fenetre(s[2], s[3], a.fenetre_principale)
-                              for s, a in zip(resultat.series_finales,
-                                              resultat.apports)]))
-        except Exception as e:
-            fichiers.append(f"profil en long non produit : "
-                            f"{type(e).__name__}: {e}")
+def _figure_apports_retenus(fichiers, apports, temps_apports, hydrogrammes,
+                            dans_fenetre, dossier):
+    """La figure des apports retenus, coupes a leur fenetre."""
+    import livrables as liv
+
+    # MEME GARDE-FOU QUE LE PROFIL EN LONG PLUS BAS : une figure qui
+    # echoue ne doit plus emporter le classeur et la note de synthese,
+    # qui sont produits APRES elle. C'est exactement ce que la panne
+    # ci-dessus a coute.
+    try:
+        fichiers.append(liv.figure_apports_retenus(
+            apports, [t[g] for t, g in zip(temps_apports, dans_fenetre)],
+            [h[g] for h, g in zip(hydrogrammes, dans_fenetre)],
+            dossier / "apports_retenus.png"))
+    except Exception as e:
+        fichiers.append(f"apports retenus non produits : "
+                        f"{type(e).__name__}: {e}")
+
+
+def _avertissements_de_queue(fichiers, apports, temps_apports, hydrogrammes,
+                             dans_fenetre):
+    """Un avertissement par apport prolonge au-dela de la fenetre simulee."""
+    # Une queue constante au-dela de la fenetre n'a aucun effet ICI, mais
+    # l'apport injecterait ce debit des que la simulation serait allongee.
+    # Le dire vaut mieux que le laisser decouvrir.
+    for nom, t_a, h, g in zip(apports, temps_apports, hydrogrammes,
+                              dans_fenetre):
+        queue = h[~g]
+        if len(queue) > 2 and float(np.max(queue)) > 0.01 * float(np.max(h)):
+            fichiers.append(
+                f"AVERTISSEMENT — l'apport « {nom} » est prolonge a "
+                f"{float(queue[0]):.1f} m3/s sur "
+                f"{len(queue) * float(t_a[1] - t_a[0]):.0f} h "
+                f"au-dela de la fenetre simulee. Sans effet sur ce calcul, "
+                f"mais ce debit serait injecte si la fenetre etait "
+                f"allongee.")
+
+
+def _profil_en_long_final(fichiers, resultat, sections, apports, dossier,
+                          profil, pk_sections, pk_apports):
+    """Le profil en long de synthese, ou la raison pour laquelle il manque."""
+    import livrables as liv
+
+    try:
+        fichiers.append(liv.figure_profil_en_long(
+            profil, pk_sections, dossier / "profil_en_long.png",
+            noms_sections=sections, apports_pk=pk_apports,
+            noms_apports=apports,
+            pics_cible=[_pic_dans_fenetre(s[0], s[1], a.fenetre_principale)
+                        for s, a in zip(resultat.series_finales,
+                                        resultat.apports)],
+            pics_calcule=[_pic_dans_fenetre(s[2], s[3], a.fenetre_principale)
+                          for s, a in zip(resultat.series_finales,
+                                          resultat.apports)]))
+    except Exception as e:
+        fichiers.append(f"profil en long non produit : "
+                        f"{type(e).__name__}: {e}")
+
+
+def _tableaux_calage(resultat, sections, apports, temps_apports,
+                     hydrogrammes, dans_fenetre, dossier):
+    """Les quatre tableaux du rapport, ecrits dans tableaux_calage.xlsx."""
+    import livrables as liv
 
     tb = liv.tableau_de_bord(sections, resultat.diagnostics_finaux,
                              nb_essais=[a.essais for a in resultat.apports])
@@ -2591,12 +2661,7 @@ def produire_livrables_finaux(resultat, modele, dossier_sortie,
     xlsx = liv.exporter_excel(dossier / "tableaux_calage.xlsx",
                              Tableau_de_bord=tb, Apports=ta,
                              Hydrogrammes_apports=th, Journal=je)
-    liv.synthese("Calage des apports — note de synthèse", sections,
-                resultat.diagnostics_finaux, dossier / "synthese.md",
-                alertes_chaine=resultat.alertes_chaine)
-
-    return {"fichiers": fichiers + [xlsx, str(dossier / "synthese.md")],
-            "conforme": resultat.conforme}
+    return xlsx
 
 
 # ---------------------------------------------------------------------------
