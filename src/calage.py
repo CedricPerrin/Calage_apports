@@ -1538,6 +1538,58 @@ def _estimer_apport(modele, etat, config, points_axe, dire):
                  f"— apports amont deja cales, ou la cible elle-meme.")
 
 
+def _ajuster_duree_simulee(modele, durees_simulees, i, duree_en_vigueur,
+                           config, dire):
+    """
+    Ramene la duree simulee de l'etape a ce que l'apport de rang « i »
+    demande, d'apres le calendrier, et dit ce que le plafond du plan de
+    reference en rogne.
+
+    duree_en_vigueur : derniere duree ecrite par limiter_duree(), toutes
+    etapes confondues. Rend sa nouvelle valeur — la meme si rien n'a ete
+    reecrit.
+    """
+    if durees_simulees[i] is not None:
+        applique = _sans_interrompre(modele.limiter_duree,
+                                     durees_simulees[i])
+        if applique:
+            duree_en_vigueur = applique
+            dire(f"    duree simulee ramenee a {applique:.1f} h — "
+                 f"au-dela, plus rien n'est juge ni presente")
+        # LE PLAFOND A-T-IL ROGNE ? La duree voulue peut depasser la
+        # fenetre du plan de reference (PiloteHecRas.duree_reference_h),
+        # qui la borne. None de limiter_duree() = rien reecrit : le plan,
+        # clone de l'etape precedente, garde la duree EN VIGUEUR, et
+        # c'est elle qu'on compare — sinon un plafond atteint des la
+        # deuxieme etape se tait pour toutes les suivantes (22/09/2026 :
+        # neuf etapes bornees a 20,5 h pour 21,2 a 23,3 h voulues, et un
+        # journal muet).
+        #
+        # CE QUI SE PERD D'ABORD EST LA MARGE (marge_duree_h), et une
+        # marge existe pour etre rognee : journal seulement, decision du
+        # 31/08/2026. AU-DELA, C'EST LA FENETRE JUGEE QUI N'EST PLUS
+        # SIMULEE ; la couverture le chiffrera a la fin, mais le dire ici,
+        # avant le premier calcul de l'etape, c'est le dire des heures
+        # plus tot — et nommer le remede.
+        en_vigueur = applique or duree_en_vigueur
+        if en_vigueur and en_vigueur < durees_simulees[i] - 1e-9:
+            perte = durees_simulees[i] - en_vigueur
+            if perte <= config.marge_duree_h + 1e-9:
+                dire(f"      ({durees_simulees[i]:.1f} h voulues : plafond "
+                     f"du plan de reference — {perte:.1f} h de marge en "
+                     f"moins, la fenetre jugee reste couverte)")
+            else:
+                dire(f"    ATTENTION — PLAFOND DU PLAN DE REFERENCE : "
+                     f"{durees_simulees[i]:.1f} h voulues, "
+                     f"{en_vigueur:.1f} h simulees. Au-dela de la marge "
+                     f"de {config.marge_duree_h:.1f} h, "
+                     f"{perte - config.marge_duree_h:.1f} h de la fenetre "
+                     f"jugee ne seront pas simulees. Allonger la fin de "
+                     f"« Simulation Date » du plan de reference, ou "
+                     f"designer comme reference un plan a fenetre pleine.")
+    return duree_en_vigueur
+
+
 def _essayer_apport(modele, etat, config, suivi, resultat, dire):
     """
     La boucle d'essais d'un apport : injecter, calculer, diagnostiquer,
@@ -1830,58 +1882,6 @@ def _retenir_apport(etat, config, suivi, resultat):
         # essais encore candidats au titre de meilleur ont donc TOUS
         # echoue au meme test, sur le meme diagnostic. Rejouer ce test
         # ici ne pourrait jamais rattraper un essai qui a deja echoue.
-
-
-def _ajuster_duree_simulee(modele, durees_simulees, i, duree_en_vigueur,
-                           config, dire):
-    """
-    Ramene la duree simulee de l'etape a ce que l'apport de rang « i »
-    demande, d'apres le calendrier, et dit ce que le plafond du plan de
-    reference en rogne.
-
-    duree_en_vigueur : derniere duree ecrite par limiter_duree(), toutes
-    etapes confondues. Rend sa nouvelle valeur — la meme si rien n'a ete
-    reecrit.
-    """
-    if durees_simulees[i] is not None:
-        applique = _sans_interrompre(modele.limiter_duree,
-                                     durees_simulees[i])
-        if applique:
-            duree_en_vigueur = applique
-            dire(f"    duree simulee ramenee a {applique:.1f} h — "
-                 f"au-dela, plus rien n'est juge ni presente")
-        # LE PLAFOND A-T-IL ROGNE ? La duree voulue peut depasser la
-        # fenetre du plan de reference (PiloteHecRas.duree_reference_h),
-        # qui la borne. None de limiter_duree() = rien reecrit : le plan,
-        # clone de l'etape precedente, garde la duree EN VIGUEUR, et
-        # c'est elle qu'on compare — sinon un plafond atteint des la
-        # deuxieme etape se tait pour toutes les suivantes (22/09/2026 :
-        # neuf etapes bornees a 20,5 h pour 21,2 a 23,3 h voulues, et un
-        # journal muet).
-        #
-        # CE QUI SE PERD D'ABORD EST LA MARGE (marge_duree_h), et une
-        # marge existe pour etre rognee : journal seulement, decision du
-        # 31/08/2026. AU-DELA, C'EST LA FENETRE JUGEE QUI N'EST PLUS
-        # SIMULEE ; la couverture le chiffrera a la fin, mais le dire ici,
-        # avant le premier calcul de l'etape, c'est le dire des heures
-        # plus tot — et nommer le remede.
-        en_vigueur = applique or duree_en_vigueur
-        if en_vigueur and en_vigueur < durees_simulees[i] - 1e-9:
-            perte = durees_simulees[i] - en_vigueur
-            if perte <= config.marge_duree_h + 1e-9:
-                dire(f"      ({durees_simulees[i]:.1f} h voulues : plafond "
-                     f"du plan de reference — {perte:.1f} h de marge en "
-                     f"moins, la fenetre jugee reste couverte)")
-            else:
-                dire(f"    ATTENTION — PLAFOND DU PLAN DE REFERENCE : "
-                     f"{durees_simulees[i]:.1f} h voulues, "
-                     f"{en_vigueur:.1f} h simulees. Au-dela de la marge "
-                     f"de {config.marge_duree_h:.1f} h, "
-                     f"{perte - config.marge_duree_h:.1f} h de la fenetre "
-                     f"jugee ne seront pas simulees. Allonger la fin de "
-                     f"« Simulation Date » du plan de reference, ou "
-                     f"designer comme reference un plan a fenetre pleine.")
-    return duree_en_vigueur
 
 
 def _verifier_globalement(modele, sections, cibles, config, resultat, dire):
