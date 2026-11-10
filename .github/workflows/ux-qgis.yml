@@ -43,6 +43,9 @@ jobs:
       # Filet de caler() : 57 scénarios ModeleFictif (chantier C, 10/11/2026). Hors du socle
       # où la référence a été figée, il compare le journal, les appels et le bilan, et le dit.
       - run: python -m pytest src/test_caracterisation_caler.py -q
+      # Filets de la vague 3 (11/11/2026) : les deux fonctions de classeur du noyau (57 cas)
+      # et commande_caler du pont (98 cas, pilote et caler() doublés).
+      - run: python -m pytest src/test_noyau_classeur.py src/test_pont_caler.py -q
 
   chaine-hdf:
     # Hors QGIS, à dessein : h5py entre en conflit avec la bibliothèque HDF5 de QGIS
