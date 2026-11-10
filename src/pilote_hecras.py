@@ -1123,6 +1123,17 @@ def _messages_hecras(hdf_resultats):
     quand le HDF portait « Computing 2D Flow Area tables: Associated terrain
     has been updated / Geometry Writer Failed / Error Processing Geometry ».
     """
+    return (_messages_du_hdf(hdf_resultats)
+            or _messages_des_journaux(hdf_resultats)
+            or "Aucun message de HEC-RAS exploitable : ouvrir le plan dans "
+            "HEC-RAS et lancer le calcul a la main pour voir ce qu'il refuse.")
+
+
+def _messages_du_hdf(hdf_resultats):
+    """
+    Messages lus dans le fichier de resultats, ou None — voir
+    _messages_hecras(), qui l'interroge EN PREMIER.
+    """
     try:
         import h5py
         with h5py.File(hdf_resultats, "r") as h:
@@ -1149,7 +1160,13 @@ def _messages_hecras(hdf_resultats):
                             + " | ".join(retenues[-4:]))
     except Exception:                                        # noqa: BLE001
         pass
+    return None
 
+
+def _messages_des_journaux(hdf_resultats):
+    """
+    Messages lus dans les _compute_pXX.log, celui du plan d'abord, ou None.
+    """
     journal = Path(hdf_resultats).with_name(
         f"_compute_p{Path(hdf_resultats).suffixes[0].lstrip('.p')}.log")
     candidats = [journal] + sorted(
@@ -1170,8 +1187,7 @@ def _messages_hecras(hdf_resultats):
                         + " | ".join(interessantes[-3:]))
         except OSError:
             continue
-    return ("Aucun message de HEC-RAS exploitable : ouvrir le plan dans "
-            "HEC-RAS et lancer le calcul a la main pour voir ce qu'il refuse.")
+    return None
 
 
 # Ce qu'ecrit HEC-RAS quand il n'a pas pu reecrire le .gXX.hdf : la premiere
@@ -1836,6 +1852,25 @@ class PiloteHecRas(Modele):
         intervalle_cible = (intervalle_hecras_depuis_heures(self.pas_travail_h)
                             if self.pas_travail_h else INTERVALLE_APPORT)
 
+        duree_simulation = self._duree_a_couvrir()
+        convertis = self._recadencer_chaque_condition(intervalle_cible,
+                                                      duree_simulation)
+
+        if convertis:
+            self.carte = cartographier_hydrogrammes(self.fichier_unsteady,
+                                                    self.nom_zone_2d,
+                                                    self._bc_lines_connues())
+
+        self._controler_pas_apres_recadencage(intervalle_cible)
+        self._controler_couverture()
+        return convertis
+
+    def _duree_a_couvrir(self):
+        """
+        Duree de la simulation du plan de travail, en heures, que les apports
+        pilotes doivent couvrir ; None si rien n'est pilote ou si la fenetre
+        n'est pas lisible. Etape de _recadencer_apports().
+        """
         # DUREE A COUVRIR, pour les seuls apports que CE calage pilote. Ce
         # sont les seuls dont la serie nous appartient : elle est mise a zero
         # au calcul de reference, puis entierement reecrite a chaque essai.
@@ -1852,7 +1887,14 @@ class PiloteHecRas(Modele):
                         - _en_minutes(instant_hecras(f["debut"]))) / 60.0
             except Exception:                                # noqa: BLE001
                 duree_simulation = None
+        return duree_simulation
 
+    def _recadencer_chaque_condition(self, intervalle_cible, duree_simulation):
+        """
+        Re-cadence chaque condition limite de la carte, dans l'ordre des noms ;
+        rend les comptes rendus des conditions converties. Etape de
+        _recadencer_apports().
+        """
         convertis = []
         for nom in sorted(self.carte):
             pilote = bool(self.apports_a_caler and nom in self.apports_a_caler)
@@ -1874,12 +1916,14 @@ class PiloteHecRas(Modele):
                   f"({compte_rendu['nb_avant']} → {compte_rendu['nb_apres']} "
                   f"valeurs, {compte_rendu['duree_h']:.1f} h conservees)",
                   flush=True)
+        return convertis
 
-        if convertis:
-            self.carte = cartographier_hydrogrammes(self.fichier_unsteady,
-                                                    self.nom_zone_2d,
-                                                    self._bc_lines_connues())
-
+    def _controler_pas_apres_recadencage(self, intervalle_cible):
+        """
+        Relit le pas et l'accord en-tete/tableau de chaque condition ; leve
+        ValueError en nommant celles en desaccord. Etape de
+        _recadencer_apports().
+        """
         # LE MEME FILTRE QU'A L'ECRITURE, sans quoi ce controle se prononce
         # sur des blocs que _recadencer_apports() a volontairement laisses
         # tranquilles — et arrete le calage sur des orphelins.
@@ -1900,6 +1944,11 @@ class PiloteHecRas(Modele):
                 f"l'avertissement ci-dessus ; corriger son bloc a la main "
                 f"dans le modele source avant de relancer.")
 
+    def _controler_couverture(self):
+        """
+        Leve ValueError si une condition limite s'arrete avant la fin de la
+        simulation. Etape de _recadencer_apports().
+        """
         courtes = conditions_trop_courtes(
             self.fichier_unsteady,
             (self.dossier / f"{self.nom_projet}.p{self.plan_travail}"
@@ -1944,7 +1993,6 @@ class PiloteHecRas(Modele):
                 f"s'arreterait sur un calcul de reference sans resultats. "
                 f"Prolonger la serie, ou raccourcir la fenetre de simulation "
                 f"du plan.")
-        return convertis
 
     # --- etapes conservees ---------------------------------------------------
 
