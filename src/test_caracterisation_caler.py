@@ -664,7 +664,12 @@ def _transportable(trace):
     Ce qui ne depend pas du dernier bit : le journal et le bilan en entier,
     et des autres evenements leur seule nature (qui, quelle methode).
     """
+    # L'etat final du modele n'a pas de « methode » en seconde position : son
+    # second element EST son contenu, au bit pres. Le garder faisait echouer
+    # les 57 scenarios hors du socle (CI du 10/11/2026 : numpy 2.5.4 au lieu
+    # de 2.5.3, memes journaux, tableaux differents au dernier bit).
     return [e if e[0] in ("journal", "bilan", "stdout", "exception")
+            else e[:1] if e[0] == "modele_final"
             else e[:2] for e in trace]
 
 
