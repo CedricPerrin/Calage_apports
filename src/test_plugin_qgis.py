@@ -4189,9 +4189,13 @@ verifier("theme clair : « en cours » est le teal sombre, pas l'institutionnel"
          and _contraste(mod_plugin.ISL_TEAL, _FOND_CLAIR) < 4.5,
          f"sombre {_contraste(mod_plugin.ISL_TEAL_SOMBRE, _FOND_CLAIR):.2f}:1, "
          f"institutionnel {_contraste(mod_plugin.ISL_TEAL, _FOND_CLAIR):.2f}:1")
-verifier("theme clair : plus aucun texte ecrit en teal institutionnel dans plugin.py",
-         not re.search(r"color:\{ISL_TEAL\}", Path(mod_plugin.__file__)
-                       .read_text(encoding="utf-8")))
+# SUR TOUS LES .py DU PLUGIN, et non plus sur plugin.py seul : la fenetre se
+# repartit en modules (docs/decoupage_dialogue.md), et un texte en teal ecrit
+# dans l'un d'eux echappait au controle sans le faire rougir.
+_teal_ecrit = [_f.name for _f in sorted(Path(mod_plugin.__file__).parent.glob("*.py"))
+               if re.search(r"color:\{ISL_TEAL\}", _f.read_text(encoding="utf-8"))]
+verifier("theme clair : plus aucun texte ecrit en teal institutionnel dans le plugin",
+         not _teal_ecrit, ", ".join(_teal_ecrit) or "aucun fichier")
 _remappees = set(mod_interface.COULEURS_SOMBRES.values())
 _sous_seuil = {c: round(_contraste(c, _FOND_SOMBRE), 2) for c in _remappees
                if _contraste(c, _FOND_SOMBRE) < 4.5}
@@ -4308,9 +4312,12 @@ verifier("« Chaîne introuvable » : « Plus tard » est le defaut, « Désigne
          and _boite_chaine.bouton_defaut.text() == "Plus tard",
          str([[b.text() for b in v.boutons] for v in _vues]))
 dlg._diagnostic()          # le diagnostic reel reprend sa place dans l'onglet
-verifier("plus aucun QMessageBox.question dans plugin.py",
-         not re.search(r"^\s*\w[^#\n]*QMessageBox\.question\(", Path(mod_plugin.__file__)
-                       .read_text(encoding="utf-8"), re.MULTILINE))
+# Sur tous les .py du plugin, pour la meme raison que le teal ci-dessus.
+_questions = [_f.name for _f in sorted(Path(mod_plugin.__file__).parent.glob("*.py"))
+              if re.search(r"^\s*\w[^#\n]*QMessageBox\.question\(",
+                           _f.read_text(encoding="utf-8"), re.MULTILINE)]
+verifier("plus aucun QMessageBox.question dans le plugin",
+         not _questions, ", ".join(_questions) or "aucun fichier")
 
 # --- LES LIENS DU FIL CONDUCTEUR REPONDENT AU CLAVIER (C5) --------------------
 _flags = dlg.label_fil.textInteractionFlags()
