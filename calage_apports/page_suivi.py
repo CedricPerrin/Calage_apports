@@ -461,122 +461,22 @@ class PageSuivi(QWidget):
         # reste de cette methode continue de ne parler que du calage qui
         # tourne. Melanger les deux ferait lire les chiffres d'hier comme
         # ceux du calcul en cours.
-        repris, courbes_reprises = self._suivi_precedent(dossier)
-        noms_courants = {a.get("apport") for a in apports}
-        repris = [a for a in repris if a.get("apport") not in noms_courants]
-        courbes_reprises = [c for c in courbes_reprises
-                            if c.get("apport") not in noms_courants]
-        # Les jauges jugent sur LES TOLERANCES DE L'ETUDE, publiees par le
-        # suivi. Figees a 2 %, elles coloraient en rouge des valeurs admises
-        # par une etude qui en tolere 5.
-        # Les defauts sont CEUX DE LA CHAINE, repris des constantes du module :
-        # ecrits en dur ici, ils divergeaient — la jauge « Volume » jugeait a
-        # 0,5 % ce que la boucle admet a 5 %, et virait au rouge sur un apport
-        # parfaitement conforme des que le suivi ne publiait pas ses seuils.
-        tolerances = etat.get("tolerances_pct") or {}
-        for cle, defaut in (("volume_pct", 100 * TOLERANCE_VOLUME_DEFAUT),
-                            ("pic_pct", 100 * TOLERANCE_PIC_DEFAUT),
-                            ("forme_pct", 100 * TOLERANCE_FORME_DEFAUT)):
-            self.jauges[cle].tolerance = float(
-                tolerances.get(cle.replace("_pct", ""), defaut))
+        repris, courbes_reprises = self._apports_repris(dossier, apports)
+        self._appliquer_tolerances(etat)
         comptes = etat.get("comptes") or {}
-        fraction = float(etat.get("fraction") or 0.0)
-        self.barre_suivi.setValue(int(round(100 * fraction)))
-        self.ruban_apports.actualiser(
-            repris + apports,
-            en_cours if en_cours is None else en_cours + len(repris))
-        self.courbe_suivi.actualiser(
-            etat.get("courbes"),
-            courbes_reprises + (etat.get("courbes_precedentes") or []))
-
-        # BANNIERE : l'etat en un mot, et sa couleur avant meme la lecture.
-        if etat.get("termine"):
-            if etat.get("conforme"):
-                self._banniere(
-                    ISL_VERT, "Calage terminé — conforme", glyphe="✔",
-                    detail=f"{compte(comptes.get('validé', 0), 'apport calé', 'apports calés')} en "
-                    f"{duree_lisible(etat.get('ecoule_s'))}"
-                    + (f", {compte(etat['nb_calculs'], 'calcul')}"
-                       if etat.get("nb_calculs") else "")
-                    + ". Les livrables sont dans le dossier de résultats.")
-            else:
-                self._banniere(
-                    ISL_ROUGE, "Calage terminé — NON conforme", glyphe="✕",
-                    detail=etat.get("motif_final")
-                    or "voir avancement.md pour le détail.")
-        else:
-            vivant = noyau.processus_vivant(etat.get("pid"))
-            if vivant is False:
-                # LE CAS QUI MANQUAIT : plus personne n'ecrit, et rien ne le
-                # disait. Le dernier etat connu reste affiche, mais il est
-                # annonce comme tel.
-                self._banniere(
-                    ISL_ROUGE, "Calage interrompu", glyphe="⏹",
-                    detail=f"Le processus {etat.get('pid')} n'existe plus et le "
-                    f"calage n'a pas rendu de verdict. Dernier état connu "
-                    f"ci-dessous ; le journal de lancement dit pourquoi.")
-            else:
-                nom = (apports[en_cours]["apport"]
-                       if en_cours is not None and en_cours < len(apports)
-                       else "—")
-                self._banniere(
-                    ISL_TEAL_SOMBRE, "Calage en cours", glyphe="▶",
-                    detail=f"Apport {(en_cours or 0) + 1} sur {etat.get('total')} — "
-                    f"{nom}. Mis à jour "
-                    f"{etat.get('maj', '')[11:]}.")
-
-        # Ligne « ou en est-on », la phrase que l'on vient chercher.
-        if en_cours is not None and en_cours < len(apports):
-            a = apports[en_cours]
-            self.label_suivi_position.setText(
-                f"<b style='color:{ISL_TEAL_SOMBRE}'>{a['apport']} → "
-                f"{a['section']}</b> &nbsp;·&nbsp; essai <b>{a['essais']}</b>"
-                f" &nbsp;·&nbsp; apport <b>{a['ordre']}</b> sur "
-                f"<b>{etat.get('total')}</b>")
-        else:
-            self.label_suivi_position.setText(
-                f"{compte(comptes.get('validé', 0), 'validé')}, "
-                f"{compte(comptes.get('échoué', 0), 'échoué')}, "
-                f"{comptes.get('en attente', 0)} en attente")
-
-        # LES JAUGES SE REPLIENT SUR LE DERNIER APPORT CHIFFRE. Un apport dont
-        # le premier essai n'est pas encore evalue — soit toute la duree de son
-        # calcul HEC-RAS, environ trois heures — n'a aucun chiffre a montrer :
-        # les trois jauges restaient donc vides pendant exactement les heures
-        # ou on les regarde. Le repli dit de QUEL apport il s'agit, sans quoi
-        # on lirait les chiffres du precedent comme ceux du calcul en cours.
-        montre = (apports[en_cours]
-                  if en_cours is not None and en_cours < len(apports)
-                  and apports[en_cours].get("volume_pct") is not None
-                  else next((a for a in reversed(apports)
-                             if a.get("volume_pct") is not None), None))
-        for cle, jauge in self.jauges.items():
-            jauge.actualiser(montre.get(cle) if montre else None)
-        self.label_jauges.setText(
-            "en attente du premier essai" if montre is None
-            else (f"<b>{montre['apport']} → {montre['section']}</b>, essai "
-                  f"{montre['essais']}"
-                  + ("" if en_cours is not None
-                     and en_cours < len(apports)
-                     and montre is apports[en_cours]
-                     else " — dernier essai évalué ; le calcul en cours n'a "
-                          "pas encore rendu le sien")))
+        self._peindre_avancement(etat, apports, en_cours, repris,
+                                 courbes_reprises)
+        self._peindre_banniere_etat(etat, apports, en_cours, comptes)
+        self._peindre_position(etat, apports, en_cours, comptes)
+        self._peindre_jauges(apports, en_cours)
 
         self._afficher_bilan_masse(etat.get("bilan_masse"))
 
-        self.label_suivi_ecoule.setText(duree_lisible(etat.get("ecoule_s")))
-        self.label_suivi_reste.setText(
-            "—" if etat.get("termine") else duree_lisible(etat.get("reste_s")))
-        fin = etat.get("fin") or etat.get("fin_prevue")
-        self.label_suivi_fin.setText(
-            date_lisible(fin) if fin else "—")
-        self.label_suivi_maj.setText(
-            f"actualisé {etat.get('maj', '')[11:]}"
-            + (f" · {compte(etat['incidents'], 'incident')}"
-               if etat.get("incidents") else ""))
+        self._peindre_temps(etat)
         self._remplir_table_suivi(repris + apports)
 
     def _etat_perime(self, etat):
+        """L'etat lu est-il celui d'un calage PRECEDENT ? (verdict « a nous / perime »)"""
         # L'ETAT LU EST-IL CELUI DU CALAGE QU'ON VIENT DE LANCER ? Apres un
         # relancement, le dossier porte encore l'avancement.json du calage
         # PRECEDENT tant que le nouveau n'a pas ecrit le sien : on peignait
@@ -608,6 +508,7 @@ class PageSuivi(QWidget):
         return perime
 
     def _nommer_dossier_suivi(self, dossier):
+        """Le dossier surveille, sous la banniere, a chaque passage."""
         # LE DOSSIER SURVEILLE EST NOMME A CHAQUE PASSAGE, avant tout test :
         # la branche « Aucun calage suivi » sort plus bas, et c'est elle qui
         # le disait — donc jamais quand un calage tourne. Voir la construction
@@ -623,6 +524,7 @@ class PageSuivi(QWidget):
              else "Aucun dossier de suivi désigné.")
 
     def _peindre_sans_etat(self, etat, perime):
+        """Rien a montrer : pas encore parti, mort au demarrage, ou etat perime."""
         # LE DOSSIER SURVEILLE EST NOMME : un suivi muet parce qu'il
         # regardait le mauvais dossier ne se distinguait en rien d'un
         # calage pas encore parti.
@@ -676,6 +578,135 @@ class PageSuivi(QWidget):
         self.table_suivi.setRowCount(0)
         for jauge in self.jauges.values():
             jauge.actualiser(None)
+
+    def _apports_repris(self, dossier, apports):
+        """(apports, courbes) du calage precedent que celui-ci ne traite pas."""
+        repris, courbes_reprises = self._suivi_precedent(dossier)
+        noms_courants = {a.get("apport") for a in apports}
+        repris = [a for a in repris if a.get("apport") not in noms_courants]
+        courbes_reprises = [c for c in courbes_reprises
+                            if c.get("apport") not in noms_courants]
+        return repris, courbes_reprises
+
+    def _appliquer_tolerances(self, etat):
+        """Les tolerances de l'etude, posees sur les jauges."""
+        # Les jauges jugent sur LES TOLERANCES DE L'ETUDE, publiees par le
+        # suivi. Figees a 2 %, elles coloraient en rouge des valeurs admises
+        # par une etude qui en tolere 5.
+        # Les defauts sont CEUX DE LA CHAINE, repris des constantes du module :
+        # ecrits en dur ici, ils divergeaient — la jauge « Volume » jugeait a
+        # 0,5 % ce que la boucle admet a 5 %, et virait au rouge sur un apport
+        # parfaitement conforme des que le suivi ne publiait pas ses seuils.
+        tolerances = etat.get("tolerances_pct") or {}
+        for cle, defaut in (("volume_pct", 100 * TOLERANCE_VOLUME_DEFAUT),
+                            ("pic_pct", 100 * TOLERANCE_PIC_DEFAUT),
+                            ("forme_pct", 100 * TOLERANCE_FORME_DEFAUT)):
+            self.jauges[cle].tolerance = float(
+                tolerances.get(cle.replace("_pct", ""), defaut))
+
+    def _peindre_avancement(self, etat, apports, en_cours, repris,
+                            courbes_reprises):
+        """Barre, ruban des apports et courbe cible / calcule."""
+        fraction = float(etat.get("fraction") or 0.0)
+        self.barre_suivi.setValue(int(round(100 * fraction)))
+        self.ruban_apports.actualiser(
+            repris + apports,
+            en_cours if en_cours is None else en_cours + len(repris))
+        self.courbe_suivi.actualiser(
+            etat.get("courbes"),
+            courbes_reprises + (etat.get("courbes_precedentes") or []))
+
+    def _peindre_banniere_etat(self, etat, apports, en_cours, comptes):
+        """Banniere d'un etat lu : termine, interrompu ou en cours."""
+        # BANNIERE : l'etat en un mot, et sa couleur avant meme la lecture.
+        if etat.get("termine"):
+            if etat.get("conforme"):
+                self._banniere(
+                    ISL_VERT, "Calage terminé — conforme", glyphe="✔",
+                    detail=f"{compte(comptes.get('validé', 0), 'apport calé', 'apports calés')} en "
+                    f"{duree_lisible(etat.get('ecoule_s'))}"
+                    + (f", {compte(etat['nb_calculs'], 'calcul')}"
+                       if etat.get("nb_calculs") else "")
+                    + ". Les livrables sont dans le dossier de résultats.")
+            else:
+                self._banniere(
+                    ISL_ROUGE, "Calage terminé — NON conforme", glyphe="✕",
+                    detail=etat.get("motif_final")
+                    or "voir avancement.md pour le détail.")
+        else:
+            vivant = noyau.processus_vivant(etat.get("pid"))
+            if vivant is False:
+                # LE CAS QUI MANQUAIT : plus personne n'ecrit, et rien ne le
+                # disait. Le dernier etat connu reste affiche, mais il est
+                # annonce comme tel.
+                self._banniere(
+                    ISL_ROUGE, "Calage interrompu", glyphe="⏹",
+                    detail=f"Le processus {etat.get('pid')} n'existe plus et le "
+                    f"calage n'a pas rendu de verdict. Dernier état connu "
+                    f"ci-dessous ; le journal de lancement dit pourquoi.")
+            else:
+                nom = (apports[en_cours]["apport"]
+                       if en_cours is not None and en_cours < len(apports)
+                       else "—")
+                self._banniere(
+                    ISL_TEAL_SOMBRE, "Calage en cours", glyphe="▶",
+                    detail=f"Apport {(en_cours or 0) + 1} sur {etat.get('total')} — "
+                    f"{nom}. Mis à jour "
+                    f"{etat.get('maj', '')[11:]}.")
+
+    def _peindre_position(self, etat, apports, en_cours, comptes):
+        """La ligne « ou en est-on », sous la barre."""
+        # Ligne « ou en est-on », la phrase que l'on vient chercher.
+        if en_cours is not None and en_cours < len(apports):
+            a = apports[en_cours]
+            self.label_suivi_position.setText(
+                f"<b style='color:{ISL_TEAL_SOMBRE}'>{a['apport']} → "
+                f"{a['section']}</b> &nbsp;·&nbsp; essai <b>{a['essais']}</b>"
+                f" &nbsp;·&nbsp; apport <b>{a['ordre']}</b> sur "
+                f"<b>{etat.get('total')}</b>")
+        else:
+            self.label_suivi_position.setText(
+                f"{compte(comptes.get('validé', 0), 'validé')}, "
+                f"{compte(comptes.get('échoué', 0), 'échoué')}, "
+                f"{comptes.get('en attente', 0)} en attente")
+
+    def _peindre_jauges(self, apports, en_cours):
+        """Les trois jauges, et de quel apport viennent leurs chiffres."""
+        # LES JAUGES SE REPLIENT SUR LE DERNIER APPORT CHIFFRE. Un apport dont
+        # le premier essai n'est pas encore evalue — soit toute la duree de son
+        # calcul HEC-RAS, environ trois heures — n'a aucun chiffre a montrer :
+        # les trois jauges restaient donc vides pendant exactement les heures
+        # ou on les regarde. Le repli dit de QUEL apport il s'agit, sans quoi
+        # on lirait les chiffres du precedent comme ceux du calcul en cours.
+        montre = (apports[en_cours]
+                  if en_cours is not None and en_cours < len(apports)
+                  and apports[en_cours].get("volume_pct") is not None
+                  else next((a for a in reversed(apports)
+                             if a.get("volume_pct") is not None), None))
+        for cle, jauge in self.jauges.items():
+            jauge.actualiser(montre.get(cle) if montre else None)
+        self.label_jauges.setText(
+            "en attente du premier essai" if montre is None
+            else (f"<b>{montre['apport']} → {montre['section']}</b>, essai "
+                  f"{montre['essais']}"
+                  + ("" if en_cours is not None
+                     and en_cours < len(apports)
+                     and montre is apports[en_cours]
+                     else " — dernier essai évalué ; le calcul en cours n'a "
+                          "pas encore rendu le sien")))
+
+    def _peindre_temps(self, etat):
+        """Ecoule, reste estime, fin previsible et heure de mise a jour."""
+        self.label_suivi_ecoule.setText(duree_lisible(etat.get("ecoule_s")))
+        self.label_suivi_reste.setText(
+            "—" if etat.get("termine") else duree_lisible(etat.get("reste_s")))
+        fin = etat.get("fin") or etat.get("fin_prevue")
+        self.label_suivi_fin.setText(
+            date_lisible(fin) if fin else "—")
+        self.label_suivi_maj.setText(
+            f"actualisé {etat.get('maj', '')[11:]}"
+            + (f" · {compte(etat['incidents'], 'incident')}"
+               if etat.get("incidents") else ""))
 
     def _suivi_precedent(self, dossier):
         """
