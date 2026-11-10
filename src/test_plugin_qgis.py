@@ -2107,7 +2107,7 @@ _PORTEES_CONNUES = (
     "GlobalColor|LayoutDirection|FocusPolicy|ConnectionType|MatchFlag|"
     "ToolButtonStyle|TimeSpec|DateFormat|TextElideMode|AspectRatioMode|"
     "TransformationMode|ContextMenuPolicy|WidgetAttribute|ArrowType|ShortcutContext|ApplicationState|"
-    "FocusReason")
+    "FocusReason|TextFlag")
 #
 # CE GARDE-FOU AVAIT UN ANGLE MORT, et il a coute exactement ce qu'il devait
 # eviter : il ne portait que sur six classes. QFormLayout, QTextEdit et
@@ -2126,6 +2126,10 @@ _PORTEES_CONNUES = (
 # que sur QGIS < 3.38, donc sous PyQt5, ou la forme plate est la seule qui
 # existe. L'y interdire casserait le repli qui fait tenir la promesse
 # qgisMinimumVersion=3.34.
+# SUR TOUS LES .py DU PLUGIN, et non plus sur plugin.py seul : la fenetre se
+# repartit en modules (widgets, socle, pages), et une constante nue ecrite
+# dans l'un d'eux echappait au controle. Le detail nomme le fichier.
+_FICHIERS_PLUGIN = sorted(Path(mod_plugin.__file__).parent.glob("*.py"))
 for _classe, _portees in (("Qt", _PORTEES_CONNUES),
                           ("QMessageBox", "StandardButton|Icon|ButtonRole"),
                           ("QSizePolicy", "Policy|ControlType"),
@@ -2167,9 +2171,10 @@ for _classe, _portees in (("Qt", _PORTEES_CONNUES),
     # l'ancienne expression ne rendait rien, la nouvelle rend « Key_Return ».
     # Le [A-Za-z_0-9] capture en outre les membres a underscore ou a chiffre,
     # que [A-Za-z] tronquait.
-    _nus = sorted(set(re.findall(
-        rf"\b{_classe}\.(?!(?:{_portees})\b)([A-Z][A-Za-z_0-9]+)",
-        Path(mod_plugin.__file__).read_text(encoding="utf-8"))))
+    _nus = sorted({f"{_f.name}:{_m}" for _f in _FICHIERS_PLUGIN
+                   for _m in re.findall(
+                       rf"\b{_classe}\.(?!(?:{_portees})\b)([A-Z][A-Za-z_0-9]+)",
+                       _f.read_text(encoding="utf-8"))})
     verifier(f"aucune constante {_classe} non qualifiee (Qt6)",
              not _nus, ", ".join(_nus[:4]) or "aucune")
 
