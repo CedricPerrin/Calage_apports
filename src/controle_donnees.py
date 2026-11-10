@@ -387,118 +387,65 @@ def _correspondance(chemin_template):
             corr[col_apport].astype(str).tolist())
 
 
-def controler_geometrie(chemin_template):
-    """
-    Controle de la chaine SIG : shapefiles, PK, et coherence entre la
-    geometrie reelle et l'ordre declare dans le template.
+# ---------------------------------------------------------------------------
+# Regles de la chaine SIG, enchainees par controler_geometrie.
+# ---------------------------------------------------------------------------
 
-    C'est ici que se verifie ce qu'aucune relecture du classeur ne peut
-    attraper : une section declaree en amont d'une autre alors qu'elle est
-    physiquement en aval, un apport place apres la section qu'il doit
-    alimenter, un axe dessine a l'envers, ou des couches en projections
-    differentes.
+def _chemin_declare(valeurs, cle):
+    """Chemin saisi pour ce parametre, ou None s'il est vide."""
+    v = valeurs.get(cle)
+    return None if v is None or pd.isna(v) or not str(v).strip() else Path(str(v))
 
-    Retourne (anomalies, tableau_pk). tableau_pk vaut None si les PK n'ont pas
-    pu etre calcules.
-    """
-    import geometrie as geo
 
-    anomalies, tableau = [], None
-    try:
-        valeurs = parametres.lire(chemin_template)
-    except Exception as e:
-        return [(ERREUR, f"parametres du calage illisibles : {e}")], None
+def _regle_fichiers_existent(chemins):
+    return [(ERREUR, f"{cle} : fichier introuvable -> {p}")
+            for cle, p in chemins if p is not None and not p.exists()]
 
-    def chemin(cle):
-        v = valeurs.get(cle)
-        return None if v is None or pd.isna(v) or not str(v).strip() else Path(str(v))
 
-    p_sections, p_apports = chemin("Fichier_SHP_Sections"), chemin("Fichier_SHP_Apports")
-    p_axe = chemin(PARAMETRE_AXE)
-
-    for cle, p in [("Fichier_SHP_Sections", p_sections),
-                   ("Fichier_SHP_Apports", p_apports),
-                   (PARAMETRE_AXE, p_axe)]:
-        if p is not None and not p.exists():
-            anomalies.append((ERREUR, f"{cle} : fichier introuvable -> {p}"))
-
-    # Source_geometrie declare l'intention ; les chemins declarent le fait.
-    # Une contradiction entre les deux doit etre dite, pas devinee.
-    source_geometrie = str(valeurs.get("Source_geometrie", "SHP") or "SHP"
-                           ).strip().upper()
-    if source_geometrie not in ("SHP", "MODELE"):
-        anomalies.append((
-            ERREUR,
-            f"Source_geometrie = '{source_geometrie}' : valeurs admises "
-            f"['SHP', 'MODELE']."))
-        return anomalies, None
-
-    if source_geometrie == "MODELE":
-        if p_sections is not None or p_apports is not None:
-            anomalies.append((
-                AVERTISSEMENT,
-                "Source_geometrie = MODELE, mais des shapefiles sont declares : "
-                "ils seront ignores. Passer a SHP pour les utiliser."))
+def _regle_source_modele(p_sections, p_apports):
+    anomalies = []
+    if p_sections is not None or p_apports is not None:
         anomalies.append((
             AVERTISSEMENT,
-            "Source_geometrie = MODELE : les sections et les injections sont "
-            "supposees deja tracees et nommees dans la geometrie. Leur "
-            "existence reelle est verifiee par le controle contre le modele."))
-        return anomalies, None
+            "Source_geometrie = MODELE, mais des shapefiles sont declares : "
+            "ils seront ignores. Passer a SHP pour les utiliser."))
+    anomalies.append((
+        AVERTISSEMENT,
+        "Source_geometrie = MODELE : les sections et les injections sont "
+        "supposees deja tracees et nommees dans la geometrie. Leur "
+        "existence reelle est verifiee par le controle contre le modele."))
+    return anomalies
 
-    if p_sections is None or p_apports is None:
-        anomalies.append((
-            ERREUR,
-            "Source_geometrie = SHP mais les chemins des shapefiles ne sont "
-            "pas renseignes. Les renseigner, ou passer Source_geometrie a "
-            "MODELE si les lignes sont deja tracees dans la geometrie."))
-        return anomalies, None
 
-    if any(n == ERREUR for n, _ in anomalies):
-        return anomalies, None
-
-    # --- lecture ----------------------------------------------------------
-    # Champ_nom_SHP : vide ou absent = detection automatique du champ de nom.
+def _champ_nom(valeurs):
+    """Champ_nom_SHP : vide ou absent = detection automatique du champ de nom."""
     champ_nom = valeurs.get("Champ_nom_SHP")
-    champ_nom = (str(champ_nom).strip()
-                 if champ_nom is not None and not pd.isna(champ_nom)
-                 and str(champ_nom).strip() else None)
-    try:
-        g_sec = geo.lire_lignes(p_sections, colonne_nom=champ_nom,
-                                prefixe_defaut="Section")
-        g_app = geo.lire_lignes(p_apports, colonne_nom=champ_nom,
-                                prefixe_defaut="Apport")
-    except Exception as e:
-        anomalies.append((ERREUR, f"lecture des shapefiles : {e}"))
-        return anomalies, None
+    return (str(champ_nom).strip()
+            if champ_nom is not None and not pd.isna(champ_nom)
+            and str(champ_nom).strip() else None)
 
-    axe = crs_ref = None
-    if p_axe is not None:
-        try:
-            axe, crs_ref = geo.lire_axe(p_axe)
-        except Exception as e:
-            anomalies.append((ERREUR, f"lecture de l'axe hydraulique : {e}"))
-    else:
-        anomalies.append((
+
+def _lire_axe(p_axe, g_sec):
+    """(axe, crs_reference, anomalies). Sans axe, la reference est la
+    projection des sections."""
+    import geometrie as geo
+
+    if p_axe is None:
+        return None, g_sec.crs, [(
             AVERTISSEMENT,
             f"{PARAMETRE_AXE} non renseigne : pas de PK, donc ni verification "
             f"de l'ordre declare ni profil en long. Fournir l'axe hydraulique "
-            f"en polyligne est vivement recommande."))
-        crs_ref = g_sec.crs
-
-    # --- controles SIG ----------------------------------------------------
-    anomalies += geo.controler_shp(g_sec, "sections de controle", crs_ref,
-                                   exiger_croisement=axe is not None, axe=axe)
-    anomalies += geo.controler_shp(g_app, "lignes d'injection", crs_ref)
-
-    # --- confrontation des noms au template -------------------------------
+            f"en polyligne est vivement recommande.")]
     try:
-        noms_sections, noms_apports = _correspondance(chemin_template)
+        axe, crs_ref = geo.lire_axe(p_axe)
     except Exception as e:
-        anomalies.append((ERREUR, f"feuille Correspondance illisible : {e}"))
-        return anomalies, None
+        return None, None, [(ERREUR, f"lecture de l'axe hydraulique : {e}")]
+    return axe, crs_ref, []
 
-    noms_absents = []
+
+def _regle_noms_dans_shp(noms_sections, noms_apports, g_sec, g_app):
+    """(noms_absents, anomalies) : les noms declares absents des shapefiles."""
+    noms_absents, anomalies = [], []
     for declares, presents, libelle in [
         (noms_sections, set(g_sec["nom"]), "section de controle"),
         (noms_apports, set(g_app["nom"]), "ligne d'injection"),
@@ -510,7 +457,12 @@ def controler_geometrie(chemin_template):
                 ERREUR,
                 f"{libelle}(s) declaree(s) dans le template mais absente(s) du "
                 f"shapefile : {absents} (presentes : {sorted(presents)})"))
+    return noms_absents, anomalies
 
+
+def _regle_pk_calculables(axe, noms_absents, g_sec, g_app):
+    """Rien si les PK sont calculables ; sinon l'avertissement qui dit
+    pourquoi."""
     # CE QUI EMPECHE UN PK, DIT EN CLAIR — et non plus deduit de la gravite
     # GENERALE du controle SIG. Un PK est une projection metrique sur l'axe,
     # indexee par le nom : il lui faut l'axe, une projection metrique, et tous
@@ -527,35 +479,148 @@ def controler_geometrie(chemin_template):
     #   mauvais PK.
     doublons = sorted({n for g in (g_sec, g_app)
                        for n in g["nom"][g["nom"].duplicated()]})
-    if axe is None or noms_absents or doublons:
-        raisons = ["axe hydraulique indisponible"] if axe is None else []
-        if noms_absents:
-            raisons.append(f"noms declares absents des shapefiles : "
-                           f"{noms_absents}")
-        if doublons:
-            raisons.append(f"noms en doublon dans les shapefiles : {doublons}")
+    if not (axe is None or noms_absents or doublons):
+        return []
+    raisons = ["axe hydraulique indisponible"] if axe is None else []
+    if noms_absents:
+        raisons.append(f"noms declares absents des shapefiles : "
+                       f"{noms_absents}")
+    if doublons:
+        raisons.append(f"noms en doublon dans les shapefiles : {doublons}")
+    return [(
+        AVERTISSEMENT,
+        f"PK non calculables ({' ; '.join(raisons)}) : ni ordre declare "
+        f"verifie, ni profil en long, ni pente locale deduite.")]
+
+
+def _regle_sens_axe(sens):
+    if sens not in ("amont_aval", "aval_amont"):
+        return [(ERREUR,
+                 f"Sens_axe = '{sens}' : valeurs admises ['amont_aval', "
+                 f"'aval_amont'].")]
+    return []
+
+
+def _pk_origine(valeurs):
+    """(pk_origine, anomalies) : PK_origine_m en nombre, 0 s'il est vide."""
+    pk_origine = valeurs.get("PK_origine_m", 0)
+    try:
+        return (0.0 if pd.isna(pk_origine) else float(pk_origine)), []
+    except (TypeError, ValueError):
+        return None, [(
+            ERREUR, f"PK_origine_m = '{pk_origine}' : un nombre est attendu.")]
+
+
+def _tableau_pk(noms_sections, noms_apports, pk_sec, pk_app):
+    tableau = pd.DataFrame({
+        "Ordre": range(1, len(noms_sections) + 1),
+        "Section": noms_sections,
+        "PK section (m)": [round(pk_sec[n], 1) for n in noms_sections],
+        "Apport": noms_apports,
+        "PK apport (m)": [round(pk_app[n], 1) for n in noms_apports],
+    })
+    tableau["Distance apport-section (m)"] = (
+        tableau["PK section (m)"] - tableau["PK apport (m)"]).round(1)
+    return tableau
+
+
+def controler_geometrie(chemin_template):
+    """
+    Controle de la chaine SIG : shapefiles, PK, et coherence entre la
+    geometrie reelle et l'ordre declare dans le template.
+
+    C'est ici que se verifie ce qu'aucune relecture du classeur ne peut
+    attraper : une section declaree en amont d'une autre alors qu'elle est
+    physiquement en aval, un apport place apres la section qu'il doit
+    alimenter, un axe dessine a l'envers, ou des couches en projections
+    differentes.
+
+    Retourne (anomalies, tableau_pk). tableau_pk vaut None si les PK n'ont pas
+    pu etre calcules.
+    """
+    import geometrie as geo
+
+    try:
+        valeurs = parametres.lire(chemin_template)
+    except Exception as e:
+        return [(ERREUR, f"parametres du calage illisibles : {e}")], None
+
+    p_sections = _chemin_declare(valeurs, "Fichier_SHP_Sections")
+    p_apports = _chemin_declare(valeurs, "Fichier_SHP_Apports")
+    p_axe = _chemin_declare(valeurs, PARAMETRE_AXE)
+
+    anomalies = _regle_fichiers_existent([("Fichier_SHP_Sections", p_sections),
+                                          ("Fichier_SHP_Apports", p_apports),
+                                          (PARAMETRE_AXE, p_axe)])
+
+    # Source_geometrie declare l'intention ; les chemins declarent le fait.
+    # Une contradiction entre les deux doit etre dite, pas devinee.
+    source_geometrie = str(valeurs.get("Source_geometrie", "SHP") or "SHP"
+                           ).strip().upper()
+    if source_geometrie not in ("SHP", "MODELE"):
         anomalies.append((
-            AVERTISSEMENT,
-            f"PK non calculables ({' ; '.join(raisons)}) : ni ordre declare "
-            f"verifie, ni profil en long, ni pente locale deduite."))
+            ERREUR,
+            f"Source_geometrie = '{source_geometrie}' : valeurs admises "
+            f"['SHP', 'MODELE']."))
         return anomalies, None
+
+    if source_geometrie == "MODELE":
+        return anomalies + _regle_source_modele(p_sections, p_apports), None
+
+    if p_sections is None or p_apports is None:
+        anomalies.append((
+            ERREUR,
+            "Source_geometrie = SHP mais les chemins des shapefiles ne sont "
+            "pas renseignes. Les renseigner, ou passer Source_geometrie a "
+            "MODELE si les lignes sont deja tracees dans la geometrie."))
+        return anomalies, None
+
+    if any(n == ERREUR for n, _ in anomalies):
+        return anomalies, None
+
+    # --- lecture ----------------------------------------------------------
+    champ_nom = _champ_nom(valeurs)
+    try:
+        g_sec = geo.lire_lignes(p_sections, colonne_nom=champ_nom,
+                                prefixe_defaut="Section")
+        g_app = geo.lire_lignes(p_apports, colonne_nom=champ_nom,
+                                prefixe_defaut="Apport")
+    except Exception as e:
+        anomalies.append((ERREUR, f"lecture des shapefiles : {e}"))
+        return anomalies, None
+
+    axe, crs_ref, lues = _lire_axe(p_axe, g_sec)
+    anomalies += lues
+
+    # --- controles SIG ----------------------------------------------------
+    anomalies += geo.controler_shp(g_sec, "sections de controle", crs_ref,
+                                   exiger_croisement=axe is not None, axe=axe)
+    anomalies += geo.controler_shp(g_app, "lignes d'injection", crs_ref)
+
+    # --- confrontation des noms au template -------------------------------
+    try:
+        noms_sections, noms_apports = _correspondance(chemin_template)
+    except Exception as e:
+        anomalies.append((ERREUR, f"feuille Correspondance illisible : {e}"))
+        return anomalies, None
+
+    noms_absents, absences = _regle_noms_dans_shp(noms_sections, noms_apports,
+                                                  g_sec, g_app)
+    anomalies += absences
+
+    empechements = _regle_pk_calculables(axe, noms_absents, g_sec, g_app)
+    if empechements:
+        return anomalies + empechements, None
 
     # --- PK et coherence geographique -------------------------------------
     sens = str(valeurs.get("Sens_axe", "amont_aval")).strip() or "amont_aval"
-    if sens not in ("amont_aval", "aval_amont"):
-        anomalies.append((
-            ERREUR,
-            f"Sens_axe = '{sens}' : valeurs admises ['amont_aval', "
-            f"'aval_amont']."))
-        return anomalies, None
+    refus = _regle_sens_axe(sens)
+    if refus:
+        return anomalies + refus, None
 
-    pk_origine = valeurs.get("PK_origine_m", 0)
-    try:
-        pk_origine = 0.0 if pd.isna(pk_origine) else float(pk_origine)
-    except (TypeError, ValueError):
-        anomalies.append((
-            ERREUR, f"PK_origine_m = '{pk_origine}' : un nombre est attendu."))
-        return anomalies, None
+    pk_origine, refus = _pk_origine(valeurs)
+    if refus:
+        return anomalies + refus, None
 
     g_sec = geo.calculer_pk(g_sec, axe, pk_origine=pk_origine, sens=sens)
     g_app = geo.calculer_pk(g_app, axe, pk_origine=pk_origine, sens=sens)
@@ -566,16 +631,7 @@ def controler_geometrie(chemin_template):
     anomalies += geo.verifier_position_apports(
         list(zip(noms_apports, noms_sections)), pk_app, pk_sec)
 
-    tableau = pd.DataFrame({
-        "Ordre": range(1, len(noms_sections) + 1),
-        "Section": noms_sections,
-        "PK section (m)": [round(pk_sec[n], 1) for n in noms_sections],
-        "Apport": noms_apports,
-        "PK apport (m)": [round(pk_app[n], 1) for n in noms_apports],
-    })
-    tableau["Distance apport-section (m)"] = (
-        tableau["PK section (m)"] - tableau["PK apport (m)"]).round(1)
-    return anomalies, tableau
+    return anomalies, _tableau_pk(noms_sections, noms_apports, pk_sec, pk_app)
 
 
 def geometrie_hdf(chemin_template):
