@@ -1175,12 +1175,12 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
         duree_en_vigueur = _ajuster_duree_simulee(
             modele, durees_simulees, i, duree_en_vigueur, config, dire)
 
+        # --- boucle d'essais, puis retour au meilleur d'entre eux ---------
         _essayer_apport(modele, etat, config, suivi, resultat, dire)
-
         _restituer_meilleur(modele, etat, dire)
 
+        # --- verdict de l'apport : un echec arrete la sequence ------------
         valide = _retenir_apport(etat, config, suivi, resultat)
-
         if not valide:
             dire(f"    ARRET sur cet apport : {etat.motif}")
             resultat.motif = (f"apport {apport} non cale : {etat.motif}. "
