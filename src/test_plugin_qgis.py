@@ -2158,8 +2158,13 @@ for _classe, _portees in (("Qt", _PORTEES_CONNUES),
 # du livrable cadreraient alors deux fenetres differentes, sans que rien ne le
 # dise. Les deux constantes sont donc comparees ici, sur le TEXTE des deux
 # fichiers — ce qui n'exige d'importer ni matplotlib ni la chaine.
+#   LE COTE PLUGIN EST LE FICHIER QUI DEFINIT _fenetre_crue, et non plus
+# plugin.py ecrit en dur : la courbe du suivi et sa fenetre de crue quittent
+# plugin.py (docs/decoupage_dialogue.md). Suivre la fonction garde le
+# controle sur le code qui trace reellement, ou qu'il vive.
+_FICHIER_CRUE = Path(sys.modules[mod_plugin._fenetre_crue.__module__].__file__)
 _CRUE = {}
-for _quel, _fichier in (("plugin", Path(mod_plugin.__file__)),
+for _quel, _fichier in (("plugin", _FICHIER_CRUE),
                         ("livrables", CHAINE / "livrables.py")):
     _texte = _fichier.read_text(encoding="utf-8")
     _CRUE[_quel] = {
@@ -2178,7 +2183,7 @@ verifier("la fenetre de crue ne diverge pas entre plugin et livrables",
 # ci-dessus au vert pendant que les deux fenetres divergent — exactement ce
 # que ce garde-fou existe pour empecher.
 _SIGN = {}
-for _quel, _fichier in (("plugin", Path(mod_plugin.__file__)),
+for _quel, _fichier in (("plugin", _FICHIER_CRUE),
                         ("livrables", CHAINE / "livrables.py")):
     _m = re.search(r"def _fenetre_crue\((.*?)\):",
                    _fichier.read_text(encoding="utf-8"), re.S)
