@@ -2029,7 +2029,6 @@ def ecrire_parametre(chemin_classeur, cle, valeur):
     import parametres
 
     return parametres.ecrire_un(chemin_classeur, cle, valeur)
-    return False
 
 
 def prolonger_cibles(chemin_classeur, duree_h):
