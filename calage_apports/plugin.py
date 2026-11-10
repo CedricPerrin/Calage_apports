@@ -35,7 +35,6 @@ from qgis.core import (
     QgsFeature,
     QgsField,
     QgsFillSymbol,
-    QgsFields,
     QgsGeometry,
     QgsMeshLayer,
     QgsMessageLog,
@@ -50,7 +49,7 @@ from qgis.gui import (QgsCollapsibleGroupBox, QgsFieldComboBox, QgsGui,
 from qgis.PyQt.QtCore import (QEvent, QMetaType, QPointF, QRectF, QSettings,
                               QSizeF, Qt, QTimer)
 from qgis.PyQt.QtGui import (QColor, QCursor, QFont, QFontDatabase, QFontMetrics,
-                             QIcon, QKeySequence, QPalette, QPen,
+                             QIcon, QKeySequence, QPen,
                              QPolygonF, QTextCursor)
 from qgis.PyQt.QtWidgets import (
     QAbstractItemView,
@@ -63,11 +62,9 @@ from qgis.PyQt.QtWidgets import (
     QFileDialog,
     QFormLayout,
     QFrame,
-    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QInputDialog,
-    QLabel,
     QLayout,
     QLineEdit,
     QListWidgetItem,
@@ -81,7 +78,6 @@ from qgis.PyQt.QtWidgets import (
     QSpinBox,
     QTableWidgetItem,
     QTabWidget,
-    QTextBrowser,
     QTextEdit,
     QToolTip,
     QVBoxLayout,
@@ -93,7 +89,7 @@ from .bande import Bande
 from .installation import TacheInstallation, TacheRecherchePython, installation_en_cours
 from .interface import Etiquette as QLabel, EtiquetteLexique, Manuel as QTextBrowser
 from .interface import TableauTriable
-from .interface import couleur as couleur_theme, sombre as fond_sombre
+from .interface import couleur as couleur_theme
 from .interface import feuille as feuille_interface
 from .widgets import (GLYPHE_STATUT, STATUT_REPRIS, BarreTexte, JaugeAtteinte,
                       RubanApports, _carte, _taille_police, compte, nombre)
@@ -4303,12 +4299,12 @@ class DialogueParametrage(QDialog):
             return
 
         lignes = [
-            f"<tr>"
-            f"<th align='left'>Apport → section</th>"
-            f"<th align='right'>&nbsp;&nbsp;Pointe (m³/s)</th>"
-            f"<th align='right'>&nbsp;&nbsp;Heure du pic (h)</th>"
-            f"<th align='right'>&nbsp;&nbsp;Volume (hm³)</th>"
-            f"</tr>"]
+            "<tr>"
+            "<th align='left'>Apport → section</th>"
+            "<th align='right'>&nbsp;&nbsp;Pointe (m³/s)</th>"
+            "<th align='right'>&nbsp;&nbsp;Heure du pic (h)</th>"
+            "<th align='right'>&nbsp;&nbsp;Volume (hm³)</th>"
+            "</tr>"]
         for e in resume:
             paire = (f"{e['apport']} → {e['section']}"
                      if e["apport"] != e["section"] else e["section"])
