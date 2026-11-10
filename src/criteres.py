@@ -628,113 +628,8 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
 
     r, pic_cible, pic_calcule = _forme_et_pointes(comparaison, c_a, s_a)
 
-    # Volumes compares sur la fenetre ou les deux series existent, jamais
-    # chacun sur sa propre etendue — ET APRES NEUTRALISATION DU DECALAGE.
-    #
-    # Sans cette neutralisation, un temps de propagation coute du volume au
-    # seul calcul des lors que la fenetre se ferme sur un debit encore fort :
-    # mesure, 1,6 h de retard sur une crue dont la fenetre coupe la decrue a
-    # 36 % du pic amputent le volume de 3,7 %. Or la correction, elle, est
-    # calculee APRES recalage et ne voit alors rien a injecter. Le calage se
-    # trouvait ainsi somme de combler un deficit que sa propre methode lui
-    # interdit de corriger : il stagnait, sans levier.
-    #
-    # On compare donc les deux series sur la meme DUREE, chacune decalee de sa
-    # part : c'est la meme regle que pour la forme, ou r est evalue apres
-    # recalage. La dynamique est exclue partout, ou nulle part.
-    debut, fin = fenetre_commune(temps_cible, temps_calcule)
-    avance, retard = max(decalage_h, 0.0), min(decalage_h, 0.0)
-    # OU CHAQUE SERIE EST LUE, par rapport a [debut, fin] : le calcul sur
-    # [debut + ds0, fin + ds1], la cible sur [debut + dc0, fin + dc1]. Sans
-    # fenetre, [debut, fin] est l'etendue brute commune aux deux axes, et
-    # chaque serie cede |Dt| d'un cote pour que cible(t) et calcule(t + Dt)
-    # y tiennent toutes deux, sur la meme duree.
-    ds0, ds1, dc0, dc1 = avance, retard, -retard, -avance
-    if fenetre is not None and np.isfinite(debut):
-        # La fenetre du hydrogramme principal ne peut que RETRECIR la
-        # comparaison, jamais l'elargir au-dela de ce que les deux series
-        # couvrent reellement.
-        #
-        # SUR LA BASE DE TEMPS DE LA CIBLE, ET DECALEE DE Dt POUR LE CALCUL.
-        # La cible doit exister sur [f0c, f1c], le calcul sur
-        # [f0c + Dt, f1c + Dt] = [f0, f1] : c'est cela qui borne la fenetre
-        # jugee, pas l'etendue brute des deux axes.
-        #   RETRECIR SUR L'ETENDUE BRUTE PUIS RETIRER ENCORE |Dt| D'UN COTE
-        # (le schema sans fenetre) comptait Dt DEUX FOIS. Mesure du
-        # 22/09/2026 sur onze apports reels : calcul en avance de 4,6 a 11 h
-        # sur des cibles de 80 h, simulation de 20,5 h qui couvrait toute la
-        # fenetre jugee — « ne couvre que 45 a 90 % », onze sections NON
-        # CONFORMES a 100 % de volume, et un « decalage qui excede la fenetre
-        # jugee » de 9,5 h pour une fenetre de 21 h.
-        debut = max(f0c, float(tc[0]), float(ts[0]) - decalage_h)
-        fin = min(f1c, float(tc[-1]), float(ts[-1]) - decalage_h)
-        if not fin > debut:
-            debut = fin = float("nan")
-        ds0, ds1, dc0, dc1 = decalage_h, decalage_h, 0.0, 0.0
-
-    # BORNES PROPRES AU VOLUME. « debut/fin » servent aussi a juger la
-    # COUVERTURE plus bas, ou ils doivent rester ceux de la fenetre : les
-    # elargir la-bas ferait passer pour couverte une simulation qui ne l'est
-    # pas. Le repli ci-dessous ne touche donc que la mesure des volumes.
-    debut_v, fin_v = debut, fin
-    decalage_hors_fenetre = None
-    if np.isfinite(debut) and abs(decalage_h) >= fin - debut:
-        # LE DECALAGE EXCEDE LA FENETRE JUGEE — il ne reste, apres recalage,
-        # aucun intervalle commun aux deux series. Rendre « nan » ici etait
-        # exact mais muet : caler() n'y lisait qu'un volume non calculable et
-        # concluait « le modele ne repond plus a cet apport », ce qui designe
-        # l'hydraulique alors que la cause est la MESURE DU DECALAGE.
-        #
-        # On rend donc la comparaison des volumes a la fenetre commune
-        # ENTIERE — meme regle que fenetre_injection() sur un ecart nul :
-        # mieux vaut ne rien restreindre que restreindre au hasard — et on le
-        # DIT.
-        #
-        # ET C'EST BLOQUANT DEPUIS LE 09/09/2026. L'alerte etait signalee sans
-        # l'etre : le calage acceptait un apport apparie sur un decalage plus
-        # long que l'evenement lui-meme. Ce n'est pas juger le decalage — la
-        # regle « mesure, rapporte, jamais juge » tient — c'est constater que
-        # LA COMPARAISON N'A PLUS D'OBJET, ce qui est la definition meme
-        # d'alertes_bloquantes : les pourcentages seraient justes sur des
-        # grandeurs qui ne se correspondent pas.
-        #   CE QUI AVAIT FAIT CHOISIR « NON BLOQUANT » RESTE SATISFAIT :
-        # l'objection portait sur un « nan » MUET, ou caler() lisait un volume
-        # non calculable et concluait « le modele ne repond plus a cet
-        # apport » — l'hydraulique accusee a la place de la mesure du
-        # decalage. Le motif nomme desormais la cause, et le volume reste
-        # calcule : on refuse EN DISANT POURQUOI.
-        #   POURQUOI MAINTENANT : jusqu'au correctif de la fenetre
-        # (09/09/2026), ce cas etait refuse PAR ACCIDENT — diagnostiquer()
-        # lisait la cible sur un intervalle decale de Dt, donc hors de son
-        # evenement, et rendait des pourcentages absurdes qui faisaient
-        # echouer l'apport. La fenetre reparee, l'appariement devient
-        # coherent et le verdict passait a « conforme » sur un apport cale
-        # onze heures trop tot. Le garde-fou est donc pose la ou il aurait
-        # toujours du etre.
-        #
-        # UN DECALAGE PLUS LONG QUE L'EVENEMENT QU'IL DECALE N'EST PAS UN
-        # TEMPS DE TRANSFERT. Revele le 31/08/2026 en resserrant la borne
-        # haute de fenetre_injection() : le defaut preexistait, une fenetre
-        # qui courait jusqu'au bout de la serie le masquait.
-        decalage_hors_fenetre = (
-            f"le decalage mesure ({decalage_h:+.2f} h) excede la fenetre "
-            f"jugee ({fin - debut:.2f} h) : les volumes sont compares sur "
-            f"toute la fenetre commune, pas sur l'evenement. Un decalage "
-            f"plus long que l'evenement qu'il decale n'est pas un temps de "
-            f"transfert - relire les cibles et leur base de temps")
-        debut_v, fin_v = fenetre_commune(temps_cible, temps_calcule)
-        # Etendue brute : chaque serie cede de nouveau |Dt| d'un cote.
-        ds0, ds1, dc0, dc1 = avance, retard, -retard, -avance
-
-    if np.isfinite(debut_v) and (fin_v + ds1) - (debut_v + ds0) <= 0:
-        # Meme apres elargissement, rien de comparable : la, c'est franc.
-        vol_cible = vol_calcule = float("nan")
-    else:
-        vol_calcule = volume(temps_calcule, debit_calcule,
-                             debut_v + ds0, fin_v + ds1, pas_h)
-        vol_cible = volume(temps_cible, debit_cible,
-                           debut_v + dc0, fin_v + dc1, pas_h)
-    rapport_vol = (vol_calcule / vol_cible if vol_cible else float("nan"))
+    debut, fin, vol_cible, rapport_vol, decalage_hors_fenetre = _volume_juge(
+        comparaison)
 
     rapport_volume_serie, part_cible_jugee = _volume_de_la_serie(
         comparaison, vol_cible)
@@ -910,6 +805,138 @@ def _forme_et_pointes(comparaison, c_a, s_a):
         pic_cible = float(np.max(debit_cible))
         pic_calcule = float(np.max(debit_calcule))
     return r, pic_cible, pic_calcule
+
+
+def _volume_juge(comparaison):
+    """
+    Le rapport de VOLUME du verdict, et l'intervalle sur lequel il est pris.
+
+    Rend (debut, fin, vol_cible, rapport_vol, decalage_hors_fenetre) :
+      - [debut, fin] : l'intervalle juge, sur la base de temps de la cible —
+        la fenetre, retrecie a ce que les deux series couvrent une fois
+        appariees ; (nan, nan) quand il n'en reste rien. C'est aussi sur lui
+        que se juge la COUVERTURE ;
+      - vol_cible : le volume de la cible qui y a ete integre ;
+      - rapport_vol : calcule / cible, nan si rien n'est comparable ;
+      - decalage_hors_fenetre : le texte de la bloquante, quand le decalage
+        excede l'intervalle juge et que les volumes ont du etre repris sur
+        toute la fenetre commune ; None sinon.
+    """
+    temps_cible, debit_cible = comparaison.temps_cible, comparaison.debit_cible
+    temps_calcule, debit_calcule = (comparaison.temps_calcule,
+                                    comparaison.debit_calcule)
+    tc, ts = comparaison.tc, comparaison.ts
+    fenetre, pas_h, decalage_h = (comparaison.fenetre, comparaison.pas_h,
+                                  comparaison.decalage_h)
+    f0c, f1c = comparaison.f0c, comparaison.f1c
+    # Volumes compares sur la fenetre ou les deux series existent, jamais
+    # chacun sur sa propre etendue — ET APRES NEUTRALISATION DU DECALAGE.
+    #
+    # Sans cette neutralisation, un temps de propagation coute du volume au
+    # seul calcul des lors que la fenetre se ferme sur un debit encore fort :
+    # mesure, 1,6 h de retard sur une crue dont la fenetre coupe la decrue a
+    # 36 % du pic amputent le volume de 3,7 %. Or la correction, elle, est
+    # calculee APRES recalage et ne voit alors rien a injecter. Le calage se
+    # trouvait ainsi somme de combler un deficit que sa propre methode lui
+    # interdit de corriger : il stagnait, sans levier.
+    #
+    # On compare donc les deux series sur la meme DUREE, chacune decalee de sa
+    # part : c'est la meme regle que pour la forme, ou r est evalue apres
+    # recalage. La dynamique est exclue partout, ou nulle part.
+    debut, fin = fenetre_commune(temps_cible, temps_calcule)
+    avance, retard = max(decalage_h, 0.0), min(decalage_h, 0.0)
+    # OU CHAQUE SERIE EST LUE, par rapport a [debut, fin] : le calcul sur
+    # [debut + ds0, fin + ds1], la cible sur [debut + dc0, fin + dc1]. Sans
+    # fenetre, [debut, fin] est l'etendue brute commune aux deux axes, et
+    # chaque serie cede |Dt| d'un cote pour que cible(t) et calcule(t + Dt)
+    # y tiennent toutes deux, sur la meme duree.
+    ds0, ds1, dc0, dc1 = avance, retard, -retard, -avance
+    if fenetre is not None and np.isfinite(debut):
+        # La fenetre du hydrogramme principal ne peut que RETRECIR la
+        # comparaison, jamais l'elargir au-dela de ce que les deux series
+        # couvrent reellement.
+        #
+        # SUR LA BASE DE TEMPS DE LA CIBLE, ET DECALEE DE Dt POUR LE CALCUL.
+        # La cible doit exister sur [f0c, f1c], le calcul sur
+        # [f0c + Dt, f1c + Dt] = [f0, f1] : c'est cela qui borne la fenetre
+        # jugee, pas l'etendue brute des deux axes.
+        #   RETRECIR SUR L'ETENDUE BRUTE PUIS RETIRER ENCORE |Dt| D'UN COTE
+        # (le schema sans fenetre) comptait Dt DEUX FOIS. Mesure du
+        # 22/09/2026 sur onze apports reels : calcul en avance de 4,6 a 11 h
+        # sur des cibles de 80 h, simulation de 20,5 h qui couvrait toute la
+        # fenetre jugee — « ne couvre que 45 a 90 % », onze sections NON
+        # CONFORMES a 100 % de volume, et un « decalage qui excede la fenetre
+        # jugee » de 9,5 h pour une fenetre de 21 h.
+        debut = max(f0c, float(tc[0]), float(ts[0]) - decalage_h)
+        fin = min(f1c, float(tc[-1]), float(ts[-1]) - decalage_h)
+        if not fin > debut:
+            debut = fin = float("nan")
+        ds0, ds1, dc0, dc1 = decalage_h, decalage_h, 0.0, 0.0
+
+    # BORNES PROPRES AU VOLUME. « debut/fin » servent aussi a juger la
+    # COUVERTURE plus bas, ou ils doivent rester ceux de la fenetre : les
+    # elargir la-bas ferait passer pour couverte une simulation qui ne l'est
+    # pas. Le repli ci-dessous ne touche donc que la mesure des volumes.
+    debut_v, fin_v = debut, fin
+    decalage_hors_fenetre = None
+    if np.isfinite(debut) and abs(decalage_h) >= fin - debut:
+        # LE DECALAGE EXCEDE LA FENETRE JUGEE — il ne reste, apres recalage,
+        # aucun intervalle commun aux deux series. Rendre « nan » ici etait
+        # exact mais muet : caler() n'y lisait qu'un volume non calculable et
+        # concluait « le modele ne repond plus a cet apport », ce qui designe
+        # l'hydraulique alors que la cause est la MESURE DU DECALAGE.
+        #
+        # On rend donc la comparaison des volumes a la fenetre commune
+        # ENTIERE — meme regle que fenetre_injection() sur un ecart nul :
+        # mieux vaut ne rien restreindre que restreindre au hasard — et on le
+        # DIT.
+        #
+        # ET C'EST BLOQUANT DEPUIS LE 09/09/2026. L'alerte etait signalee sans
+        # l'etre : le calage acceptait un apport apparie sur un decalage plus
+        # long que l'evenement lui-meme. Ce n'est pas juger le decalage — la
+        # regle « mesure, rapporte, jamais juge » tient — c'est constater que
+        # LA COMPARAISON N'A PLUS D'OBJET, ce qui est la definition meme
+        # d'alertes_bloquantes : les pourcentages seraient justes sur des
+        # grandeurs qui ne se correspondent pas.
+        #   CE QUI AVAIT FAIT CHOISIR « NON BLOQUANT » RESTE SATISFAIT :
+        # l'objection portait sur un « nan » MUET, ou caler() lisait un volume
+        # non calculable et concluait « le modele ne repond plus a cet
+        # apport » — l'hydraulique accusee a la place de la mesure du
+        # decalage. Le motif nomme desormais la cause, et le volume reste
+        # calcule : on refuse EN DISANT POURQUOI.
+        #   POURQUOI MAINTENANT : jusqu'au correctif de la fenetre
+        # (09/09/2026), ce cas etait refuse PAR ACCIDENT — diagnostiquer()
+        # lisait la cible sur un intervalle decale de Dt, donc hors de son
+        # evenement, et rendait des pourcentages absurdes qui faisaient
+        # echouer l'apport. La fenetre reparee, l'appariement devient
+        # coherent et le verdict passait a « conforme » sur un apport cale
+        # onze heures trop tot. Le garde-fou est donc pose la ou il aurait
+        # toujours du etre.
+        #
+        # UN DECALAGE PLUS LONG QUE L'EVENEMENT QU'IL DECALE N'EST PAS UN
+        # TEMPS DE TRANSFERT. Revele le 31/08/2026 en resserrant la borne
+        # haute de fenetre_injection() : le defaut preexistait, une fenetre
+        # qui courait jusqu'au bout de la serie le masquait.
+        decalage_hors_fenetre = (
+            f"le decalage mesure ({decalage_h:+.2f} h) excede la fenetre "
+            f"jugee ({fin - debut:.2f} h) : les volumes sont compares sur "
+            f"toute la fenetre commune, pas sur l'evenement. Un decalage "
+            f"plus long que l'evenement qu'il decale n'est pas un temps de "
+            f"transfert - relire les cibles et leur base de temps")
+        debut_v, fin_v = fenetre_commune(temps_cible, temps_calcule)
+        # Etendue brute : chaque serie cede de nouveau |Dt| d'un cote.
+        ds0, ds1, dc0, dc1 = avance, retard, -retard, -avance
+
+    if np.isfinite(debut_v) and (fin_v + ds1) - (debut_v + ds0) <= 0:
+        # Meme apres elargissement, rien de comparable : la, c'est franc.
+        vol_cible = vol_calcule = float("nan")
+    else:
+        vol_calcule = volume(temps_calcule, debit_calcule,
+                             debut_v + ds0, fin_v + ds1, pas_h)
+        vol_cible = volume(temps_cible, debit_cible,
+                           debut_v + dc0, fin_v + dc1, pas_h)
+    rapport_vol = (vol_calcule / vol_cible if vol_cible else float("nan"))
+    return debut, fin, vol_cible, rapport_vol, decalage_hors_fenetre
 
 
 def _volume_de_la_serie(comparaison, vol_cible):
