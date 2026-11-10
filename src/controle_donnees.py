@@ -669,6 +669,179 @@ def geometrie_hdf(chemin_template):
     return chemin, anomalies
 
 
+# ---------------------------------------------------------------------------
+# Regles du controle contre le modele, enchainees par controler_contre_modele.
+# ---------------------------------------------------------------------------
+
+def _regle_zone_2d(chemin_template, chemin_geometrie_hdf):
+    """
+    (zone_declaree, anomalies) : la zone 2D declaree existe-t-elle ? Une zone
+    absente est rendue None, pour que le perimetre ne soit pas filtre sur
+    elle.
+    """
+    import geometrie as geo
+
+    valeurs = parametres.lire(chemin_template)
+    zone_declaree = valeurs.get("Nom_zone_2D")
+    zone_declaree = (str(zone_declaree).strip()
+                     if zone_declaree is not None and not pd.isna(zone_declaree)
+                     else None)
+
+    zones_presentes = geo.zones_2d(chemin_geometrie_hdf)
+    if zone_declaree and zone_declaree not in zones_presentes:
+        return None, [(
+            ERREUR,
+            f"zone d'ecoulement 2D '{zone_declaree}' absente de la geometrie "
+            f"(presentes : {zones_presentes})")]
+    if not zone_declaree and len(zones_presentes) > 1:
+        return zone_declaree, [(
+            AVERTISSEMENT,
+            f"Nom_zone_2D non renseigne et le modele en comporte plusieurs "
+            f"{zones_presentes} : la premiere est retenue par defaut.")]
+    return zone_declaree, []
+
+
+def _noms_des_lignes(gdf):
+    """Noms portes par une couche de lignes lue dans le HDF."""
+    import geometrie as geo
+
+    if gdf is None or len(gdf) == 0:
+        return set()
+    colonne = next((c for c in gdf.columns if c in geo.COLONNES_NOM), None)
+    return set(gdf[colonne].astype(str)) if colonne else set()
+
+
+def _ajouter_noms_du_texte(chemin_geometrie_hdf, presents):
+    """
+    Complete « presents » par les objets du fichier texte .gXX, et rend ceux
+    qui n'y figuraient pas encore (ecrits, pas encore pretraites).
+    """
+    import geometrie as geo
+
+    # LE FICHIER TEXTE FAIT FOI. Le .gXX.hdf lu ci-dessus est le produit d'un
+    # PRETRAITEMENT : un objet qu'on vient d'ecrire dans le .gXX n'y figure
+    # pas tant que HEC-RAS n'a pas repretraite la geometrie. S'en tenir au
+    # HDF revenait a declarer absents des objets qui viennent d'etre crees,
+    # et a bloquer un paquet parfaitement valide.
+    texte = Path(chemin_geometrie_hdf).with_suffix("")   # .gXX.hdf -> .gXX
+    en_attente = set()
+    if texte.exists():
+        du_texte = geo.objets_depuis_texte(texte)
+        for libelle, cle in (("ligne d'injection", "apports"),
+                             ("section de controle", "sections")):
+            noms_texte = {o["nom"] for o in du_texte[cle]}
+            en_attente |= noms_texte - presents[libelle]
+            presents[libelle] |= noms_texte
+    return en_attente
+
+
+def _regle_noms_dans_modele(presents, noms_sections, noms_apports):
+    anomalies = []
+    for libelle, declares in [("ligne d'injection", noms_apports),
+                              ("section de controle", noms_sections)]:
+        disponibles = presents[libelle]
+        for nom in declares:
+            if nom not in disponibles:
+                anomalies.append((
+                    ERREUR,
+                    f"{libelle} '{nom}' absente de la geometrie. "
+                    + (f"Presentes : {sorted(disponibles)}." if disponibles
+                       else "La geometrie n'en contient aucune — les creer "
+                            "avant de lancer le calage.")))
+    return anomalies
+
+
+def _regle_en_attente_de_pretraitement(en_attente, noms_sections, noms_apports):
+    # Signale, sans bloquer, ce qui est ecrit mais pas encore pretraite : le
+    # premier calcul s'en chargera, mais il vaut mieux que l'utilisateur le
+    # sache que de le laisser s'interroger.
+    declares_tous = set(noms_sections) | set(noms_apports)
+    concernes = sorted(en_attente & declares_tous)
+    if concernes:
+        return [(
+            INFO,
+            f"ecrits dans la geometrie mais pas encore pretraites par "
+            f"HEC-RAS : {concernes}. Ils seront pris en compte au prochain "
+            f"calcul ; rien a faire.")]
+    return []
+
+
+def _perimetre_zone(zones, zone_declaree):
+    """
+    (perimetre, anomalies) du maillage lu dans le HDF. Une anomalie rendue
+    signifie que le perimetre manque : l'implantation n'est pas controlee.
+    """
+    if zones is None or len(zones) == 0:
+        return None, [(AVERTISSEMENT, "aucune zone 2D dans la geometrie")]
+
+    # Sur un modele multi-zones, ne retenir que celle qui est declaree :
+    # unir tous les perimetres donnerait une emprise qui n'existe pas.
+    if zone_declaree and "mesh_name" in zones.columns:
+        zones = zones[zones["mesh_name"].astype(str) == zone_declaree]
+        if len(zones) == 0:
+            return None, [(AVERTISSEMENT,
+                           f"perimetre de la zone '{zone_declaree}' introuvable")]
+
+    perimetre = zones.geometry.union_all() if hasattr(zones.geometry, "union_all") \
+        else zones.geometry.unary_union
+    return perimetre, []
+
+
+def _tolerance_locale(chemin_geometrie_hdf, zone_declaree):
+    """Ecart admis au perimetre, fonction de la geometrie ; None si la taille
+    de maille est illisible."""
+    import geometrie as geo
+
+    # La tolerance geometrique se mesure en tailles de maille, jamais en
+    # metres absolus, et LOCALEMENT : sur un maillage raffine par zones, le lit
+    # peut etre a 3 m et la plaine a 25 m. Une tolerance batie sur la mediane
+    # globale serait beaucoup trop severe en bordure de domaine, ou se
+    # trouvent precisement les conditions limites.
+    try:
+        # SONDE, ET NON UNE VALEUR : son resultat ne sert a rien, son ECHEC
+        # si. Elle etablit que la taille de maille est lisible pour cette zone
+        # AVANT qu'on ne confie « tolerance » a
+        # geo.controler_contre_maillage, qui l'appelle par geometrie et SANS
+        # protection (« admis = tolerance_m(g) »). Sans elle, un
+        # maillage illisible ne donnerait plus tolerance=None — le repli
+        # prevu, ou le controle se contente de RAPPORTER la distance — mais
+        # une exception remontee au milieu du controle.
+        #   Elle portait un nom, « maille_globale », que personne ne lisait :
+        # ruff le signalait en F841 et l'effacer aurait emporte la sonde avec.
+        geo.taille_maille(chemin_geometrie_hdf, zone_declaree)
+
+        def tolerance(g):
+            return TOLERANCE_EN_MAILLES * geo.taille_maille(
+                chemin_geometrie_hdf, zone_declaree, geometrie=g)
+    except Exception:
+        tolerance = None
+    return tolerance
+
+
+def _regle_bc_externes_au_perimetre(bc, perimetre, tolerance):
+    # Seules les conditions limites EXTERNES doivent longer le perimetre ;
+    # une condition interne est par definition ailleurs.
+    if bc is None or not len(bc) or "Type" not in bc.columns:
+        return []
+    externes = bc[bc["Type"].astype(str).str.strip().str.lower() == "external"]
+    if not len(externes):
+        return []
+
+    import geopandas as gpd
+
+    import geometrie as geo
+
+    colonne = next((c for c in externes.columns if c in geo.COLONNES_NOM),
+                   None)
+    g_ext = gpd.GeoDataFrame(
+        {"nom": externes[colonne].astype(str) if colonne
+                else [f"BC_{i}" for i in range(len(externes))]},
+        geometry=list(externes.geometry), crs=externes.crs)
+    return geo.controler_contre_maillage(
+        g_ext, "lignes d'injection externes", perimetre,
+        doit_etre_interieur=False, tolerance_m=tolerance)
+
+
 def controler_contre_modele(chemin_template, chemin_geometrie_hdf=None):
     """
     Confronte la saisie a la geometrie REELLE du modele. Deux controles que
@@ -696,77 +869,23 @@ def controler_contre_modele(chemin_template, chemin_geometrie_hdf=None):
             return anomalies
 
     # --- 0. la zone 2D declaree existe-t-elle ? ---------------------------
-    valeurs = parametres.lire(chemin_template)
-    zone_declaree = valeurs.get("Nom_zone_2D")
-    zone_declaree = (str(zone_declaree).strip()
-                     if zone_declaree is not None and not pd.isna(zone_declaree)
-                     else None)
-
-    zones_presentes = geo.zones_2d(chemin_geometrie_hdf)
-    if zone_declaree and zone_declaree not in zones_presentes:
-        anomalies.append((
-            ERREUR,
-            f"zone d'ecoulement 2D '{zone_declaree}' absente de la geometrie "
-            f"(presentes : {zones_presentes})"))
-        zone_declaree = None
-    elif not zone_declaree and len(zones_presentes) > 1:
-        anomalies.append((
-            AVERTISSEMENT,
-            f"Nom_zone_2D non renseigne et le modele en comporte plusieurs "
-            f"{zones_presentes} : la premiere est retenue par defaut."))
+    zone_declaree, constats = _regle_zone_2d(chemin_template,
+                                             chemin_geometrie_hdf)
+    anomalies += constats
 
     # --- 1. existence des noms declares -----------------------------------
-    def noms_de(gdf):
-        if gdf is None or len(gdf) == 0:
-            return set()
-        colonne = next((c for c in gdf.columns if c in geo.COLONNES_NOM), None)
-        return set(gdf[colonne].astype(str)) if colonne else set()
-
     presents = {
-        "ligne d'injection": noms_de(HdfBndry.get_bc_lines(chemin_geometrie_hdf)),
-        "section de controle": noms_de(
+        "ligne d'injection": _noms_des_lignes(
+            HdfBndry.get_bc_lines(chemin_geometrie_hdf)),
+        "section de controle": _noms_des_lignes(
             HdfBndry.get_reference_lines(chemin_geometrie_hdf)),
     }
-
-    # LE FICHIER TEXTE FAIT FOI. Le .gXX.hdf lu ci-dessus est le produit d'un
-    # PRETRAITEMENT : un objet qu'on vient d'ecrire dans le .gXX n'y figure
-    # pas tant que HEC-RAS n'a pas repretraite la geometrie. S'en tenir au
-    # HDF revenait a declarer absents des objets qui viennent d'etre crees,
-    # et a bloquer un paquet parfaitement valide.
-    texte = Path(chemin_geometrie_hdf).with_suffix("")   # .gXX.hdf -> .gXX
-    en_attente = set()
-    if texte.exists():
-        du_texte = geo.objets_depuis_texte(texte)
-        for libelle, cle in (("ligne d'injection", "apports"),
-                             ("section de controle", "sections")):
-            noms_texte = {o["nom"] for o in du_texte[cle]}
-            en_attente |= noms_texte - presents[libelle]
-            presents[libelle] |= noms_texte
+    en_attente = _ajouter_noms_du_texte(chemin_geometrie_hdf, presents)
 
     noms_sections, noms_apports = _correspondance(chemin_template)
-    for libelle, declares in [("ligne d'injection", noms_apports),
-                              ("section de controle", noms_sections)]:
-        disponibles = presents[libelle]
-        for nom in declares:
-            if nom not in disponibles:
-                anomalies.append((
-                    ERREUR,
-                    f"{libelle} '{nom}' absente de la geometrie. "
-                    + (f"Presentes : {sorted(disponibles)}." if disponibles
-                       else "La geometrie n'en contient aucune — les creer "
-                            "avant de lancer le calage.")))
-
-    # Signale, sans bloquer, ce qui est ecrit mais pas encore pretraite : le
-    # premier calcul s'en chargera, mais il vaut mieux que l'utilisateur le
-    # sache que de le laisser s'interroger.
-    declares_tous = set(noms_sections) | set(noms_apports)
-    concernes = sorted(en_attente & declares_tous)
-    if concernes:
-        anomalies.append((
-            INFO,
-            f"ecrits dans la geometrie mais pas encore pretraites par "
-            f"HEC-RAS : {concernes}. Ils seront pris en compte au prochain "
-            f"calcul ; rien a faire."))
+    anomalies += _regle_noms_dans_modele(presents, noms_sections, noms_apports)
+    anomalies += _regle_en_attente_de_pretraitement(en_attente, noms_sections,
+                                                    noms_apports)
 
     # --- 2. implantation vis-a-vis du maillage ----------------------------
     try:
@@ -775,68 +894,19 @@ def controler_contre_modele(chemin_template, chemin_geometrie_hdf=None):
         anomalies.append((AVERTISSEMENT,
                           f"perimetre de la zone 2D illisible : {e}"))
         return anomalies
-    if zones is None or len(zones) == 0:
-        anomalies.append((AVERTISSEMENT, "aucune zone 2D dans la geometrie"))
-        return anomalies
+    perimetre, manques = _perimetre_zone(zones, zone_declaree)
+    if manques:
+        return anomalies + manques
 
-    # Sur un modele multi-zones, ne retenir que celle qui est declaree :
-    # unir tous les perimetres donnerait une emprise qui n'existe pas.
-    if zone_declaree and "mesh_name" in zones.columns:
-        zones = zones[zones["mesh_name"].astype(str) == zone_declaree]
-        if len(zones) == 0:
-            anomalies.append((AVERTISSEMENT,
-                              f"perimetre de la zone '{zone_declaree}' introuvable"))
-            return anomalies
-
-    perimetre = zones.geometry.union_all() if hasattr(zones.geometry, "union_all") \
-        else zones.geometry.unary_union
-
-    # La tolerance geometrique se mesure en tailles de maille, jamais en
-    # metres absolus, et LOCALEMENT : sur un maillage raffine par zones, le lit
-    # peut etre a 3 m et la plaine a 25 m. Une tolerance batie sur la mediane
-    # globale serait beaucoup trop severe en bordure de domaine, ou se
-    # trouvent precisement les conditions limites.
-    try:
-        # SONDE, ET NON UNE VALEUR : son resultat ne sert a rien, son ECHEC
-        # si. Elle etablit que la taille de maille est lisible pour cette zone
-        # AVANT qu'on ne confie « tolerance » a
-        # geo.controler_contre_maillage, qui l'appelle par geometrie et SANS
-        # protection (« admis = tolerance_m(g) »). Sans elle, un
-        # maillage illisible ne donnerait plus tolerance=None — le repli
-        # prevu, ou le controle se contente de RAPPORTER la distance — mais
-        # une exception remontee au milieu du controle.
-        #   Elle portait un nom, « maille_globale », que personne ne lisait :
-        # ruff le signalait en F841 et l'effacer aurait emporte la sonde avec.
-        geo.taille_maille(chemin_geometrie_hdf, zone_declaree)
-
-        def tolerance(g):
-            return TOLERANCE_EN_MAILLES * geo.taille_maille(
-                chemin_geometrie_hdf, zone_declaree, geometrie=g)
-    except Exception:
-        tolerance = None
+    tolerance = _tolerance_locale(chemin_geometrie_hdf, zone_declaree)
 
     g_sec, _ = geo.lignes_depuis_modele(chemin_geometrie_hdf)
     if len(g_sec):
         anomalies += geo.controler_contre_maillage(
             g_sec, "sections de controle", perimetre, doit_etre_interieur=True)
 
-    # Seules les conditions limites EXTERNES doivent longer le perimetre ;
-    # une condition interne est par definition ailleurs.
-    bc = HdfBndry.get_bc_lines(chemin_geometrie_hdf)
-    if bc is not None and len(bc) and "Type" in bc.columns:
-        externes = bc[bc["Type"].astype(str).str.strip().str.lower() == "external"]
-        if len(externes):
-            import geopandas as gpd
-
-            colonne = next((c for c in externes.columns if c in geo.COLONNES_NOM),
-                           None)
-            g_ext = gpd.GeoDataFrame(
-                {"nom": externes[colonne].astype(str) if colonne
-                        else [f"BC_{i}" for i in range(len(externes))]},
-                geometry=list(externes.geometry), crs=externes.crs)
-            anomalies += geo.controler_contre_maillage(
-                g_ext, "lignes d'injection externes", perimetre,
-                doit_etre_interieur=False, tolerance_m=tolerance)
+    anomalies += _regle_bc_externes_au_perimetre(
+        HdfBndry.get_bc_lines(chemin_geometrie_hdf), perimetre, tolerance)
 
     return anomalies
 
