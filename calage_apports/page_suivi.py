@@ -437,103 +437,12 @@ class PageSuivi(QWidget):
         dossier = self._dialogue._dossier_suivi()
         etat = noyau.lire_avancement(dossier) if dossier else None
 
-        # L'ETAT LU EST-IL CELUI DU CALAGE QU'ON VIENT DE LANCER ? Apres un
-        # relancement, le dossier porte encore l'avancement.json du calage
-        # PRECEDENT tant que le nouveau n'a pas ecrit le sien : on peignait
-        # « Calage terminé — conforme » ou « Calage interrompu » comme reponse
-        # au lancement qui venait d'aboutir.
-        #
-        # C'EST L'HEURE QUI TRANCHE, PAS LE PID — et il a fallu un vrai calage
-        # pour le decouvrir (08/09/2026, Q20 sur poste distant). Le PID rendu
-        # par Popen n'est PAS celui qui ecrit l'etat des que l'interpreteur
-        # HEC-RAS est un RELAIS : un venv cree depuis le Python de QGIS — ce
-        # que le bouton « Installer… » propose lui-meme — a un python.exe de
-        # 256 ko qui relance le vrai interpreteur dans un AUTRE processus.
-        # Mesure : Popen rend 55160, le processus qui tourne est 23284.
-        #   Consequence, vue a l'ecran : le suivi refusait d'afficher le calage
-        # EN COURS en le prenant pour celui d'avant, pendant toute sa duree.
-        #   L'etat est donc a nous s'il a commence APRES notre lancement. La
-        # tolerance d'une seconde couvre l'arrondi de « debut », ecrit a la
-        # seconde par suivi.py.
-        perime = False
-        if self._dialogue.instant_lance and etat and etat.get("debut"):
-            try:
-                debut = datetime.fromisoformat(etat["debut"])
-                perime = debut < self._dialogue.instant_lance - timedelta(seconds=1)
-            except ValueError:
-                # Un « debut » illisible ne doit pas masquer un calage qui
-                # tourne : on prefere afficher un etat douteux a ne rien
-                # afficher pendant des heures.
-                perime = False
+        perime = self._etat_perime(etat)
 
-        # LE DOSSIER SURVEILLE EST NOMME A CHAQUE PASSAGE, avant tout test :
-        # la branche « Aucun calage suivi » sort plus bas, et c'est elle qui
-        # le disait — donc jamais quand un calage tourne. Voir la construction
-        # de ce label.
-        # LE CHEMIN PEUT PASSER A LA LIGNE APRES CHAQUE SEPARATEUR (23/10/2026) :
-        # un espace sans chasse le permet. Sans lui, Qt ne coupe pas un chemin
-        # sans espace et la page Suivi defilait de 69 px a 13 pt sur 720 px.
-        # Ce texte n'est pas selectionnable ; l'espace ne gene aucune copie.
-        coupable = str(dossier).replace("\\", "\\\u200b").replace("/", "/\u200b")
-        dire(self.label_suivi_dossier,
-             (f"Dossier surveillé ({self._dialogue._origine_dossier_suivi()}) : {coupable}"
-              + self._dialogue._detail_desaccord_suivi(dossier)) if dossier
-             else "Aucun dossier de suivi désigné.")
+        self._nommer_dossier_suivi(dossier)
 
         if etat is None or perime:
-            # LE DOSSIER SURVEILLE EST NOMME : un suivi muet parce qu'il
-            # regardait le mauvais dossier ne se distinguait en rien d'un
-            # calage pas encore parti.
-            #
-            # ET « PAS ENCORE DEMARRE » SE DISTINGUE DE « MORT AU DEMARRAGE ».
-            # Cette branche promettait « quelques secondes après le
-            # lancement » POUR TOUJOURS, y compris devant un sous-processus
-            # mort avant d'avoir rien ecrit — cas des refus precoces, qui
-            # rendent la main avant que suivi.py n'ecrive son premier etat. Et
-            # le seul document qui dit pourquoi, le journal de lancement, ne
-            # se lisait que dans une boite d'information depuis longtemps
-            # fermee.
-            titre, glyphe, couleur = "Aucun calage suivi", "·", ISL_ARDOISE_CLAIR
-            detail = ("Le suivi apparaît ici dès que le calage écrit son "
-                      "premier état, quelques secondes après le lancement.")
-            if self._dialogue.pid_lance:
-                journal = (f"<br>Journal de lancement : {self._dialogue.journal_lance}"
-                           if self._dialogue.journal_lance else "")
-                # « MORT AU DEMARRAGE » NE SE PRONONCE PLUS SUR LE PID DE
-                # POPEN. Avec un interpreteur-relais, ce processus-la rend la
-                # main aussitot apres avoir lance le vrai : le suivi annoncait
-                # un calage mort alors qu'il demarrait. On ne conclut donc a la
-                # mort que si l'on a laisse au calage le temps d'ecrire —
-                # DELAI_PREMIER_ETAT_S — et qu'il n'a toujours rien ecrit.
-                depuis = ((datetime.now() - self._dialogue.instant_lance).total_seconds()
-                          if self._dialogue.instant_lance else 0.0)
-                mort = (noyau.processus_vivant(self._dialogue.pid_lance) is False
-                        and depuis > DELAI_PREMIER_ETAT_S)
-                if mort:
-                    titre, glyphe, couleur = (
-                        "Calage arrêté sans avoir rien écrit", "✕", ISL_ROUGE)
-                    detail = (f"Rien n'a été écrit en "
-                              f"{int(depuis)} s : le calage est mort au "
-                              f"démarrage." + journal)
-                else:
-                    detail = (f"Calage lancé (processus {self._dialogue.pid_lance}) — le "
-                              f"suivi apparaît ici dès qu'il écrit son premier "
-                              f"état." + journal)
-            if perime:
-                detail += (f"<br>Le dossier porte encore l'état d'un calage "
-                           f"précédent, commencé le {date_lisible(etat.get('debut'))} : il "
-                           f"n'est pas affiché, pour ne pas se lire comme "
-                           f"celui du calage en cours.")
-            # Le dossier surveille n'est plus recopie ici : il vit desormais
-            # sous la banniere, a chaque passage.
-            self._banniere(couleur, titre, glyphe=glyphe, detail=detail)
-            self.barre_suivi.setValue(0)
-            self.ruban_apports.actualiser([], None)
-            self.courbe_suivi.actualiser(None, None)
-            self.label_suivi_position.setText("—")
-            self.table_suivi.setRowCount(0)
-            for jauge in self.jauges.values():
-                jauge.actualiser(None)
+            self._peindre_sans_etat(etat, perime)
             return
 
         apports = etat.get("apports") or []
@@ -666,6 +575,107 @@ class PageSuivi(QWidget):
             + (f" · {compte(etat['incidents'], 'incident')}"
                if etat.get("incidents") else ""))
         self._remplir_table_suivi(repris + apports)
+
+    def _etat_perime(self, etat):
+        # L'ETAT LU EST-IL CELUI DU CALAGE QU'ON VIENT DE LANCER ? Apres un
+        # relancement, le dossier porte encore l'avancement.json du calage
+        # PRECEDENT tant que le nouveau n'a pas ecrit le sien : on peignait
+        # « Calage terminé — conforme » ou « Calage interrompu » comme reponse
+        # au lancement qui venait d'aboutir.
+        #
+        # C'EST L'HEURE QUI TRANCHE, PAS LE PID — et il a fallu un vrai calage
+        # pour le decouvrir (08/09/2026, Q20 sur poste distant). Le PID rendu
+        # par Popen n'est PAS celui qui ecrit l'etat des que l'interpreteur
+        # HEC-RAS est un RELAIS : un venv cree depuis le Python de QGIS — ce
+        # que le bouton « Installer… » propose lui-meme — a un python.exe de
+        # 256 ko qui relance le vrai interpreteur dans un AUTRE processus.
+        # Mesure : Popen rend 55160, le processus qui tourne est 23284.
+        #   Consequence, vue a l'ecran : le suivi refusait d'afficher le calage
+        # EN COURS en le prenant pour celui d'avant, pendant toute sa duree.
+        #   L'etat est donc a nous s'il a commence APRES notre lancement. La
+        # tolerance d'une seconde couvre l'arrondi de « debut », ecrit a la
+        # seconde par suivi.py.
+        perime = False
+        if self._dialogue.instant_lance and etat and etat.get("debut"):
+            try:
+                debut = datetime.fromisoformat(etat["debut"])
+                perime = debut < self._dialogue.instant_lance - timedelta(seconds=1)
+            except ValueError:
+                # Un « debut » illisible ne doit pas masquer un calage qui
+                # tourne : on prefere afficher un etat douteux a ne rien
+                # afficher pendant des heures.
+                perime = False
+        return perime
+
+    def _nommer_dossier_suivi(self, dossier):
+        # LE DOSSIER SURVEILLE EST NOMME A CHAQUE PASSAGE, avant tout test :
+        # la branche « Aucun calage suivi » sort plus bas, et c'est elle qui
+        # le disait — donc jamais quand un calage tourne. Voir la construction
+        # de ce label.
+        # LE CHEMIN PEUT PASSER A LA LIGNE APRES CHAQUE SEPARATEUR (23/10/2026) :
+        # un espace sans chasse le permet. Sans lui, Qt ne coupe pas un chemin
+        # sans espace et la page Suivi defilait de 69 px a 13 pt sur 720 px.
+        # Ce texte n'est pas selectionnable ; l'espace ne gene aucune copie.
+        coupable = str(dossier).replace("\\", "\\\u200b").replace("/", "/\u200b")
+        dire(self.label_suivi_dossier,
+             (f"Dossier surveillé ({self._dialogue._origine_dossier_suivi()}) : {coupable}"
+              + self._dialogue._detail_desaccord_suivi(dossier)) if dossier
+             else "Aucun dossier de suivi désigné.")
+
+    def _peindre_sans_etat(self, etat, perime):
+        # LE DOSSIER SURVEILLE EST NOMME : un suivi muet parce qu'il
+        # regardait le mauvais dossier ne se distinguait en rien d'un
+        # calage pas encore parti.
+        #
+        # ET « PAS ENCORE DEMARRE » SE DISTINGUE DE « MORT AU DEMARRAGE ».
+        # Cette branche promettait « quelques secondes après le
+        # lancement » POUR TOUJOURS, y compris devant un sous-processus
+        # mort avant d'avoir rien ecrit — cas des refus precoces, qui
+        # rendent la main avant que suivi.py n'ecrive son premier etat. Et
+        # le seul document qui dit pourquoi, le journal de lancement, ne
+        # se lisait que dans une boite d'information depuis longtemps
+        # fermee.
+        titre, glyphe, couleur = "Aucun calage suivi", "·", ISL_ARDOISE_CLAIR
+        detail = ("Le suivi apparaît ici dès que le calage écrit son "
+                  "premier état, quelques secondes après le lancement.")
+        if self._dialogue.pid_lance:
+            journal = (f"<br>Journal de lancement : {self._dialogue.journal_lance}"
+                       if self._dialogue.journal_lance else "")
+            # « MORT AU DEMARRAGE » NE SE PRONONCE PLUS SUR LE PID DE
+            # POPEN. Avec un interpreteur-relais, ce processus-la rend la
+            # main aussitot apres avoir lance le vrai : le suivi annoncait
+            # un calage mort alors qu'il demarrait. On ne conclut donc a la
+            # mort que si l'on a laisse au calage le temps d'ecrire —
+            # DELAI_PREMIER_ETAT_S — et qu'il n'a toujours rien ecrit.
+            depuis = ((datetime.now() - self._dialogue.instant_lance).total_seconds()
+                      if self._dialogue.instant_lance else 0.0)
+            mort = (noyau.processus_vivant(self._dialogue.pid_lance) is False
+                    and depuis > DELAI_PREMIER_ETAT_S)
+            if mort:
+                titre, glyphe, couleur = (
+                    "Calage arrêté sans avoir rien écrit", "✕", ISL_ROUGE)
+                detail = (f"Rien n'a été écrit en "
+                          f"{int(depuis)} s : le calage est mort au "
+                          f"démarrage." + journal)
+            else:
+                detail = (f"Calage lancé (processus {self._dialogue.pid_lance}) — le "
+                          f"suivi apparaît ici dès qu'il écrit son premier "
+                          f"état." + journal)
+        if perime:
+            detail += (f"<br>Le dossier porte encore l'état d'un calage "
+                       f"précédent, commencé le {date_lisible(etat.get('debut'))} : il "
+                       f"n'est pas affiché, pour ne pas se lire comme "
+                       f"celui du calage en cours.")
+        # Le dossier surveille n'est plus recopie ici : il vit desormais
+        # sous la banniere, a chaque passage.
+        self._banniere(couleur, titre, glyphe=glyphe, detail=detail)
+        self.barre_suivi.setValue(0)
+        self.ruban_apports.actualiser([], None)
+        self.courbe_suivi.actualiser(None, None)
+        self.label_suivi_position.setText("—")
+        self.table_suivi.setRowCount(0)
+        for jauge in self.jauges.values():
+            jauge.actualiser(None)
 
     def _suivi_precedent(self, dossier):
         """
