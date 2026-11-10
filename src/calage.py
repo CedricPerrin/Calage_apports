@@ -1632,23 +1632,7 @@ def _essayer_apport(modele, etat, config, suivi, resultat, dire):
              f"pointe {100 * etat.diag.rapport_pic:5.1f} %  "
              f"forme {100 * etat.diag.r:5.1f} %"
              + ("  -> concordance atteinte" if atteint else ""))
-        if suivi is not None:
-            if etat.essais == 1:
-                _sans_interrompre(suivi.enregistrer_residuel, etat.i,
-                                  (etat.temps_cible, etat.debit_cible),
-                                  (etat.temps_residuel, etat.residuel),
-                                  etat.decalage_zero)
-            # rapport_volume : c'est la grandeur que la boucle teste et
-            # que le journal affiche.
-            _sans_interrompre(
-                suivi.enregistrer_essai, etat.i,
-                _volume(etat.temps_cible, etat.courant) / etat.volume_initial,
-                etat.diag.rapport_volume,
-                etat.diag.rapport_pic, etat.diag.r, etat.diag.decalage_h,
-                (etat.temps_cible, etat.debit_cible,
-                 etat.temps_calcule, etat.debit_calcule),
-                (etat.temps_cible, etat.courant),
-                etat.decalage_zero)
+        _suivre_essai(suivi, etat)
 
         if atteint:
             etat.issue = "converge"
@@ -1702,6 +1686,30 @@ def _essayer_apport(modele, etat, config, suivi, resultat, dire):
                 f"{100 * etat.diag.rapport_pic:.1f} %) : le modele ne repond "
                 f"plus a cet apport.")
             break
+
+
+def _suivre_essai(suivi, etat):
+    """
+    Transmet au suivi l'essai qui vient d'etre diagnostique — et, au premier
+    essai, le residuel dont l'estimation est partie.
+    """
+    if suivi is not None:
+        if etat.essais == 1:
+            _sans_interrompre(suivi.enregistrer_residuel, etat.i,
+                              (etat.temps_cible, etat.debit_cible),
+                              (etat.temps_residuel, etat.residuel),
+                              etat.decalage_zero)
+        # rapport_volume : c'est la grandeur que la boucle teste et
+        # que le journal affiche.
+        _sans_interrompre(
+            suivi.enregistrer_essai, etat.i,
+            _volume(etat.temps_cible, etat.courant) / etat.volume_initial,
+            etat.diag.rapport_volume,
+            etat.diag.rapport_pic, etat.diag.r, etat.diag.decalage_h,
+            (etat.temps_cible, etat.debit_cible,
+             etat.temps_calcule, etat.debit_calcule),
+            (etat.temps_cible, etat.courant),
+            etat.decalage_zero)
 
 
 def _motiver_essais_epuises(etat, config):
