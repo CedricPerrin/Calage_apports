@@ -1349,30 +1349,7 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
                     f"plus a cet apport.")
                 break
 
-        # RESTITUER LE MEILLEUR ETAT, pas le dernier. Le modele conserve
-        # l'hydrogramme du dernier essai : si un essai anterieur etait plus
-        # proche de la concordance, c'est lui qu'il faut remettre en place,
-        # sans quoi le calage laisserait derriere lui un apport moins bon que
-        # celui qu'il a su trouver.
-        etat.essai_en_place = etat.essais
-        if (etat.meilleur is not None and etat.issue != "converge"
-                and etat.meilleur["essai"] != etat.essais):
-            modele.definir_forme(etat.apport, etat.temps_cible,
-                                 etat.meilleur["apport"])
-            modele.appliquer_facteur(etat.apport, 1.0)
-            etat.essai_en_place = etat.meilleur["essai"]
-            etat.diag = etat.meilleur["diag"]
-            (etat.temps_cible, etat.debit_cible,
-             etat.temps_calcule, etat.debit_calcule) = etat.meilleur["series"]
-            dire(f"    retour a l'essai {etat.meilleur['essai']}, le plus proche "
-                 f"de la concordance (volume "
-                 f"{100 * etat.diag.rapport_volume:.1f} %, pointe "
-                 f"{100 * etat.diag.rapport_pic:.1f} %)")
-            # UN APPORT REMIS EN PLACE N'EST JAMAIS VALIDE : tout essai
-            # concordant fait deja sortir la boucle sur « converge » — les
-            # essais encore candidats au titre de meilleur ont donc TOUS
-            # echoue au meme test, sur le meme diagnostic. Rejouer ce test
-            # ici ne pourrait jamais rattraper un essai qui a deja echoue.
+        _restituer_meilleur(modele, etat, dire)
 
         duree_apport = time.time() - etat.debut_apport
         valide = etat.issue == "converge"
@@ -1779,6 +1756,37 @@ def _estimer_apport(modele, etat, config, points_axe, dire):
                  f"{100 * config.tolerance_volume:.1f} %. Aucun essai n'y "
                  f"changera rien : c'est le residuel qu'il faut reprendre "
                  f"— apports amont deja cales, ou la cible elle-meme.")
+
+
+def _restituer_meilleur(modele, etat, dire):
+    """
+    Remet dans le modele le MEILLEUR essai quand ce n'est pas le dernier, et
+    note dans l'etat le rang de l'essai qui reste en place.
+    """
+    # RESTITUER LE MEILLEUR ETAT, pas le dernier. Le modele conserve
+    # l'hydrogramme du dernier essai : si un essai anterieur etait plus
+    # proche de la concordance, c'est lui qu'il faut remettre en place,
+    # sans quoi le calage laisserait derriere lui un apport moins bon que
+    # celui qu'il a su trouver.
+    etat.essai_en_place = etat.essais
+    if (etat.meilleur is not None and etat.issue != "converge"
+            and etat.meilleur["essai"] != etat.essais):
+        modele.definir_forme(etat.apport, etat.temps_cible,
+                             etat.meilleur["apport"])
+        modele.appliquer_facteur(etat.apport, 1.0)
+        etat.essai_en_place = etat.meilleur["essai"]
+        etat.diag = etat.meilleur["diag"]
+        (etat.temps_cible, etat.debit_cible,
+         etat.temps_calcule, etat.debit_calcule) = etat.meilleur["series"]
+        dire(f"    retour a l'essai {etat.meilleur['essai']}, le plus proche "
+             f"de la concordance (volume "
+             f"{100 * etat.diag.rapport_volume:.1f} %, pointe "
+             f"{100 * etat.diag.rapport_pic:.1f} %)")
+        # UN APPORT REMIS EN PLACE N'EST JAMAIS VALIDE : tout essai
+        # concordant fait deja sortir la boucle sur « converge » — les
+        # essais encore candidats au titre de meilleur ont donc TOUS
+        # echoue au meme test, sur le meme diagnostic. Rejouer ce test
+        # ici ne pourrait jamais rattraper un essai qui a deja echoue.
 
 
 def _ajuster_duree_simulee(modele, durees_simulees, i, duree_en_vigueur,
