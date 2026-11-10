@@ -644,57 +644,8 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
     if not np.isfinite(r):
         alertes.append("forme non calculable (serie constante)")
 
-    # Une fenetre de simulation qui ne couvre pas tout l'hydrogramme cible est
-    # une erreur de configuration courante et couteuse : le volume manquant
-    # est attribue a tort a un defaut d'apport, et le calage cherche a le
-    # compenser en surdimensionnant l'injection.
-    #
-    # LA REFERENCE EST LA DUREE DE L'EVENEMENT, PAS CELLE DE LA DONNEE
-    # D'ENTREE : une cible peut porter, avant ou apres l'evenement cale, une
-    # periode qui ne le concerne pas (mini-crue anterieure, bruit de fin de
-    # serie). La juger sur la duree totale de l'entree ferait passer pour une
-    # simulation tronquee ce qui n'est que la fenetre voulue.
-    # LA PART DE LA FENETRE QUE LA CIBLE PORTE REELLEMENT, et non sa
-    # longueur nominale. Des que la fenetre est decalee sur la base de temps
-    # de la cible (dec_f non nul), ses bords peuvent tomber hors de la donnee
-    # d'entree — c'est alors la MARGE de fenetre_injection qui deborde, pas
-    # l'evenement. Une marge existe pour etre rognee : la compter comme non
-    # simulee levait une alerte sur une perte sans consequence, et un
-    # garde-fou qui se declenche pour rien apprend a etre ignore.
-    duree_cible = ((min(f1c, float(tc[-1])) - max(f0c, float(tc[0])))
-                   if fenetre is not None else float(tc[-1] - tc[0]))
-    if not np.isfinite(debut):
-        bloquantes.append(
-            "les fenetres de temps de la cible et du calcul ne se recouvrent "
-            "pas - verifier la date de debut de la simulation")
-    elif duree_cible > 0 and (fin - debut) < couverture_min * duree_cible:
-        bloquantes.append(
-            f"la fenetre de calcul ne couvre que "
-            f"{100 * (fin - debut) / duree_cible:.0f} % de la duree de "
-            f"l'hydrogramme cible - allonger la simulation, sinon le volume "
-            f"manquant sera attribue a tort a un defaut d'apport")
-    elif duree_cible > 0 and (fin - debut) < duree_cible - 1e-9:
-        # L'ANGLE MORT DE couverture_min, ET IL EST AVEUGLE PAR CONSTRUCTION.
-        #
-        # Entre 90 et 100 % de couverture, la bloquante ci-dessus se taisait
-        # et RIEN D'AUTRE NE POUVAIT LE DIRE : les volumes sont integres sur
-        # le MEME intervalle rogne pour la cible et pour le calcul (voir
-        # debut_v / fin_v plus haut), donc leur rapport reste a 100 % alors
-        # qu'une part de l'evenement juge n'a jamais ete simulee. Mesure du
-        # 31/08/2026 : fenetre jugee 2-35 h, calcul arrete a 34 h — 97 % de
-        # couverture, volume 100,0 %, aucune alerte.
-        #
-        # NON BLOQUANTE, A DESSEIN : ce qui manque est la queue de
-        # l'evenement, dont le poids en volume est justement inferieur a la
-        # tolerance — le verdict garde son sens. Mais il porte sur un
-        # evenement incomplet, et celui qui lit le rapport doit le savoir.
-        # Le seuil bloquant reste a couverture_min.
-        alertes.append(
-            f"{duree_cible - (fin - debut):.1f} h de la fenetre jugee ne sont "
-            f"pas simulees ({100 * (fin - debut) / duree_cible:.0f} % de "
-            f"couverture) : le verdict porte sur un evenement incomplet. Le "
-            f"rapport de volume ne peut PAS le reveler, cible et calcul etant "
-            f"integres sur le meme intervalle rogne")
+    _juger_couverture(comparaison, debut, fin, couverture_min,
+                      alertes, bloquantes)
 
     # LE VERDICT DE VOLUME TIENT, ET LA SERIE ENTIERE LE DEMENT.
     #
@@ -983,6 +934,71 @@ def _volume_de_la_serie(comparaison, vol_cible):
                 rapport_volume_serie = vol_calcule_s / vol_cible_s
                 part_cible_jugee = vol_cible / vol_cible_s
     return rapport_volume_serie, part_cible_jugee
+
+
+def _juger_couverture(comparaison, debut, fin, couverture_min,
+                      alertes, bloquantes):
+    """
+    La simulation couvre-t-elle l'evenement juge ? Ajoute ce qu'il y a a en
+    dire : a « bloquantes » quand les series ne se recouvrent pas ou que la
+    couverture tombe sous couverture_min, a « alertes » quand il en manque
+    un peu — ce que le rapport de volume ne peut pas reveler.
+
+    [debut, fin] : l'intervalle juge, tel que _volume_juge() le rend.
+    """
+    fenetre, tc = comparaison.fenetre, comparaison.tc
+    f0c, f1c = comparaison.f0c, comparaison.f1c
+    # Une fenetre de simulation qui ne couvre pas tout l'hydrogramme cible est
+    # une erreur de configuration courante et couteuse : le volume manquant
+    # est attribue a tort a un defaut d'apport, et le calage cherche a le
+    # compenser en surdimensionnant l'injection.
+    #
+    # LA REFERENCE EST LA DUREE DE L'EVENEMENT, PAS CELLE DE LA DONNEE
+    # D'ENTREE : une cible peut porter, avant ou apres l'evenement cale, une
+    # periode qui ne le concerne pas (mini-crue anterieure, bruit de fin de
+    # serie). La juger sur la duree totale de l'entree ferait passer pour une
+    # simulation tronquee ce qui n'est que la fenetre voulue.
+    # LA PART DE LA FENETRE QUE LA CIBLE PORTE REELLEMENT, et non sa
+    # longueur nominale. Des que la fenetre est decalee sur la base de temps
+    # de la cible (dec_f non nul), ses bords peuvent tomber hors de la donnee
+    # d'entree — c'est alors la MARGE de fenetre_injection qui deborde, pas
+    # l'evenement. Une marge existe pour etre rognee : la compter comme non
+    # simulee levait une alerte sur une perte sans consequence, et un
+    # garde-fou qui se declenche pour rien apprend a etre ignore.
+    duree_cible = ((min(f1c, float(tc[-1])) - max(f0c, float(tc[0])))
+                   if fenetre is not None else float(tc[-1] - tc[0]))
+    if not np.isfinite(debut):
+        bloquantes.append(
+            "les fenetres de temps de la cible et du calcul ne se recouvrent "
+            "pas - verifier la date de debut de la simulation")
+    elif duree_cible > 0 and (fin - debut) < couverture_min * duree_cible:
+        bloquantes.append(
+            f"la fenetre de calcul ne couvre que "
+            f"{100 * (fin - debut) / duree_cible:.0f} % de la duree de "
+            f"l'hydrogramme cible - allonger la simulation, sinon le volume "
+            f"manquant sera attribue a tort a un defaut d'apport")
+    elif duree_cible > 0 and (fin - debut) < duree_cible - 1e-9:
+        # L'ANGLE MORT DE couverture_min, ET IL EST AVEUGLE PAR CONSTRUCTION.
+        #
+        # Entre 90 et 100 % de couverture, la bloquante ci-dessus se taisait
+        # et RIEN D'AUTRE NE POUVAIT LE DIRE : les volumes sont integres sur
+        # le MEME intervalle rogne pour la cible et pour le calcul (voir
+        # debut_v / fin_v plus haut), donc leur rapport reste a 100 % alors
+        # qu'une part de l'evenement juge n'a jamais ete simulee. Mesure du
+        # 31/08/2026 : fenetre jugee 2-35 h, calcul arrete a 34 h — 97 % de
+        # couverture, volume 100,0 %, aucune alerte.
+        #
+        # NON BLOQUANTE, A DESSEIN : ce qui manque est la queue de
+        # l'evenement, dont le poids en volume est justement inferieur a la
+        # tolerance — le verdict garde son sens. Mais il porte sur un
+        # evenement incomplet, et celui qui lit le rapport doit le savoir.
+        # Le seuil bloquant reste a couverture_min.
+        alertes.append(
+            f"{duree_cible - (fin - debut):.1f} h de la fenetre jugee ne sont "
+            f"pas simulees ({100 * (fin - debut) / duree_cible:.0f} % de "
+            f"couverture) : le verdict porte sur un evenement incomplet. Le "
+            f"rapport de volume ne peut PAS le reveler, cible et calcul etant "
+            f"integres sur le meme intervalle rogne")
 
 
 # ---------------------------------------------------------------------------
