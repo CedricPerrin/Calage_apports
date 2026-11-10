@@ -1059,116 +1059,13 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
 
     modele.preparer()
 
-    # --- etape 0 : etat de reference, TOUS LES APPORTS A CALER MIS A ZERO --
-    #
-    # Sans cette passe, l'estimation initiale etait fausse deux fois :
-    #   - pour le PREMIER apport, aucun residuel n'etait connu, et le facteur
-    #     valait cible / forme. Or la section recoit deja le debit de tout ce
-    #     qui n'est pas cale — conditions limites permanentes, affluents
-    #     amont. Mesure sur un cas reel : 275 m3/s deja presents pour une
-    #     cible a 551, soit plus de la moitie ignoree ;
-    #   - pour les SUIVANTS, le residuel etait lu sur le dernier calcul, ou
-    #     l'apport en cours valait encore 1. On retranchait donc a la cible
-    #     un debit qui contenait deja une part de l'apport cherche.
-    #
-    # Mettre TOUS les apports a zero des le depart resout les deux : chaque
-    # apport est active a son tour, si bien que le dernier calcul de l'apport
-    # N est exactement l'etat « sans apport N+1 ». Le surcout est donc d'UN
-    # SEUL calcul pour tout le calage, et non d'un par apport.
-    # Un debit injecte nul est parfaitement admis par HEC-RAS.
-    for nom in apports:
-        modele.appliquer_facteur(nom, 0.0)
-    _jalonner(modele, titre_etape(etape_reference, config.prefixe_etape),
-              dire)
-    # LA LIGNE NOMME CE QU'ELLE MET A ZERO. « tous les apports a caler » se
-    # lisait « tous les apports » sur une REPRISE, ou la liste ne porte que
-    # l'aval du point de depart : on croyait le calage en train de defaire le
-    # travail des apports amont, qu'il ne touche pas (14/09/2026, retour
-    # utilisateur sur un calage reel repris a son dernier apport).
-    dire(f"Calcul de reference : {len(apports)} apport(s) mis a zero "
-         f"({', '.join(apports)}), pour mesurer ce que les sections "
-         f"recoivent sans eux. Les apports hors de cette liste gardent la "
-         f"valeur du plan de depart.")
-    # DEUX PASSES AU PLUS : la seconde suit un retard de l'axe temporel —
-    # voir plus bas et Modele.retarder.
-    retard_mesure = False
-    while True:
-        calcul = modele.calculer()
-        resultat.nb_calculs += 1
-        _noter_bilan(suivi, calcul, config)
-        acceptable, motif_qualite = qualite_acceptable(calcul, config)
-        if not acceptable:
-            resultat.motif = (
-                f"le calcul de reference (apports a zero) n'est pas exploitable : "
-                f"{motif_qualite}. Rien ne peut etre cale sur cette base.")
-            dire(f"    ARRET : {resultat.motif}")
-            resultat.duree_s = time.time() - debut
-            return resultat
-
-        # TOUTES LES SECTIONS SONT LUES MAINTENANT, pas quand leur tour vient.
-        #
-        # Le calcul de reference est le SEUL etat ou les sections sont toutes
-        # lisibles ensemble, et il vient d'avoir lieu : les eprouver ici ne coute
-        # rien. Une section illisible — nom absent du modele, faute de frappe —
-        # ne se manifestait qu'au moment ou son apport arrivait, c'est-a-dire
-        # apres le calage complet des apports amont.
-        illisibles = []
-        residuels_reference = []
-        for section in sections:
-            try:
-                t_zero, residuel_zero = modele.lire_section(section)
-            except Exception as e:                              # noqa: BLE001
-                illisibles.append(f"{section} ({type(e).__name__}: {e})")
-            else:
-                dire(f"    {section:24s} recoit {float(np.max(residuel_zero)):7.1f} "
-                     f"m3/s sans les apports a caler")
-                residuels_reference.append((t_zero, residuel_zero))
-        if illisibles:
-            resultat.motif = (
-                f"section(s) de controle illisible(s) dans le calcul de "
-                f"reference : {' ; '.join(illisibles)}. Verifier que ces noms "
-                f"sont bien ceux des lignes de reference du modele.")
-            dire(f"    ARRET : {resultat.motif}")
-            resultat.duree_s = time.time() - debut
-            return resultat
-
-        if retard_mesure:
-            break
-        retard_mesure = True
-        # L'AXE TEMPOREL EST-IL ASSEZ LONG AVANT L'EVENEMENT ? Quand une
-        # section culmine bien avant sa cible, Δt est tres negatif et la cible
-        # decalee commence AVANT le debut de la simulation : sa montee ne peut
-        # pas etre injectee (cas reel du 30/10/2026). On mesure ici, sur le
-        # calcul de reference, ce qu'il manque a CHAQUE section, et on retarde
-        # le modele une fois pour toutes du plus grand de ces manques. Mesure
-        # a apports nuls, donc approchee : l'avance restante est redite
-        # apport par apport, au journal.
-        retard = max((avance_hors_simulation(
-            tc, qc, decalage_minimisant_ecart(tc, qc, tr, qr), tr[0])
-            for (tc, qc), (tr, qr) in zip(cibles, residuels_reference)),
-            default=0.0)
-        if retard <= 1e-6:
-            break
-        try:
-            applique, cause = modele.retarder(retard, list(apports)), ""
-        except Exception as e:                              # noqa: BLE001
-            applique, cause = None, f" ({type(e).__name__}: {e})"
-        if not applique:
-            dire(f"    ATTENTION — une cible decalee commence {retard:.2f} h "
-                 f"avant le debut de la simulation, et ce modele ne sait pas "
-                 f"retarder ses entrees{cause} : la montee de crue "
-                 f"correspondante ne sera pas injectee.")
-            break
-        resultat.retard_axe_h = float(applique)
-        resultat.alertes_chaine.append(
-            f"axe temporel du modele retarde de {applique:.2f} h : les "
-            f"entrees non calees commencent {applique:.2f} h plus tard et la "
-            f"simulation dure {applique:.2f} h de plus. Sans cela, une cible, "
-            f"une fois decalee, commencait {retard:.2f} h avant le debut de "
-            f"la simulation, et sa montee de crue etait perdue.")
-        dire(f"    axe temporel retarde de {applique:.2f} h (une cible "
-             f"decalee commencait {retard:.2f} h avant la simulation) — "
-             f"nouveau calcul de reference")
+    # --- etape 0 : etat de reference --------------------------------------
+    residuels_reference = _calculer_reference(
+        modele, apports, sections, cibles, config, suivi, resultat, dire,
+        etape_reference)
+    if residuels_reference is None:
+        resultat.duree_s = time.time() - debut
+        return resultat
 
     # --- calendrier des durees simulees, etabli ICI et pas ailleurs -------
     #
@@ -1683,6 +1580,128 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
     if suivi is not None:
         _sans_interrompre(suivi.terminer)
     return resultat
+
+
+def _calculer_reference(modele, apports, sections, cibles, config, suivi,
+                        resultat, dire, etape_reference):
+    """
+    Etape 0 : met a zero les apports a caler, calcule l'etat de reference, y
+    lit TOUTES les sections et, s'il le faut, retarde l'axe temporel du
+    modele — ce qui demande un second calcul de reference, et un seul.
+
+    Rend les residuels de reference, un (temps, debit) par section, ou None
+    quand rien ne peut etre cale sur cette base : le motif est alors ecrit
+    dans resultat et dit au journal, et c'est a caler() de s'arreter.
+    """
+    # --- etape 0 : etat de reference, TOUS LES APPORTS A CALER MIS A ZERO --
+    #
+    # Sans cette passe, l'estimation initiale etait fausse deux fois :
+    #   - pour le PREMIER apport, aucun residuel n'etait connu, et le facteur
+    #     valait cible / forme. Or la section recoit deja le debit de tout ce
+    #     qui n'est pas cale — conditions limites permanentes, affluents
+    #     amont. Mesure sur un cas reel : 275 m3/s deja presents pour une
+    #     cible a 551, soit plus de la moitie ignoree ;
+    #   - pour les SUIVANTS, le residuel etait lu sur le dernier calcul, ou
+    #     l'apport en cours valait encore 1. On retranchait donc a la cible
+    #     un debit qui contenait deja une part de l'apport cherche.
+    #
+    # Mettre TOUS les apports a zero des le depart resout les deux : chaque
+    # apport est active a son tour, si bien que le dernier calcul de l'apport
+    # N est exactement l'etat « sans apport N+1 ». Le surcout est donc d'UN
+    # SEUL calcul pour tout le calage, et non d'un par apport.
+    # Un debit injecte nul est parfaitement admis par HEC-RAS.
+    for nom in apports:
+        modele.appliquer_facteur(nom, 0.0)
+    _jalonner(modele, titre_etape(etape_reference, config.prefixe_etape),
+              dire)
+    # LA LIGNE NOMME CE QU'ELLE MET A ZERO. « tous les apports a caler » se
+    # lisait « tous les apports » sur une REPRISE, ou la liste ne porte que
+    # l'aval du point de depart : on croyait le calage en train de defaire le
+    # travail des apports amont, qu'il ne touche pas (14/09/2026, retour
+    # utilisateur sur un calage reel repris a son dernier apport).
+    dire(f"Calcul de reference : {len(apports)} apport(s) mis a zero "
+         f"({', '.join(apports)}), pour mesurer ce que les sections "
+         f"recoivent sans eux. Les apports hors de cette liste gardent la "
+         f"valeur du plan de depart.")
+    # DEUX PASSES AU PLUS : la seconde suit un retard de l'axe temporel —
+    # voir plus bas et Modele.retarder.
+    retard_mesure = False
+    while True:
+        calcul = modele.calculer()
+        resultat.nb_calculs += 1
+        _noter_bilan(suivi, calcul, config)
+        acceptable, motif_qualite = qualite_acceptable(calcul, config)
+        if not acceptable:
+            resultat.motif = (
+                f"le calcul de reference (apports a zero) n'est pas exploitable : "
+                f"{motif_qualite}. Rien ne peut etre cale sur cette base.")
+            dire(f"    ARRET : {resultat.motif}")
+            return None
+
+        # TOUTES LES SECTIONS SONT LUES MAINTENANT, pas quand leur tour vient.
+        #
+        # Le calcul de reference est le SEUL etat ou les sections sont toutes
+        # lisibles ensemble, et il vient d'avoir lieu : les eprouver ici ne coute
+        # rien. Une section illisible — nom absent du modele, faute de frappe —
+        # ne se manifestait qu'au moment ou son apport arrivait, c'est-a-dire
+        # apres le calage complet des apports amont.
+        illisibles = []
+        residuels_reference = []
+        for section in sections:
+            try:
+                t_zero, residuel_zero = modele.lire_section(section)
+            except Exception as e:                              # noqa: BLE001
+                illisibles.append(f"{section} ({type(e).__name__}: {e})")
+            else:
+                dire(f"    {section:24s} recoit {float(np.max(residuel_zero)):7.1f} "
+                     f"m3/s sans les apports a caler")
+                residuels_reference.append((t_zero, residuel_zero))
+        if illisibles:
+            resultat.motif = (
+                f"section(s) de controle illisible(s) dans le calcul de "
+                f"reference : {' ; '.join(illisibles)}. Verifier que ces noms "
+                f"sont bien ceux des lignes de reference du modele.")
+            dire(f"    ARRET : {resultat.motif}")
+            return None
+
+        if retard_mesure:
+            break
+        retard_mesure = True
+        # L'AXE TEMPOREL EST-IL ASSEZ LONG AVANT L'EVENEMENT ? Quand une
+        # section culmine bien avant sa cible, Δt est tres negatif et la cible
+        # decalee commence AVANT le debut de la simulation : sa montee ne peut
+        # pas etre injectee (cas reel du 30/10/2026). On mesure ici, sur le
+        # calcul de reference, ce qu'il manque a CHAQUE section, et on retarde
+        # le modele une fois pour toutes du plus grand de ces manques. Mesure
+        # a apports nuls, donc approchee : l'avance restante est redite
+        # apport par apport, au journal.
+        retard = max((avance_hors_simulation(
+            tc, qc, decalage_minimisant_ecart(tc, qc, tr, qr), tr[0])
+            for (tc, qc), (tr, qr) in zip(cibles, residuels_reference)),
+            default=0.0)
+        if retard <= 1e-6:
+            break
+        try:
+            applique, cause = modele.retarder(retard, list(apports)), ""
+        except Exception as e:                              # noqa: BLE001
+            applique, cause = None, f" ({type(e).__name__}: {e})"
+        if not applique:
+            dire(f"    ATTENTION — une cible decalee commence {retard:.2f} h "
+                 f"avant le debut de la simulation, et ce modele ne sait pas "
+                 f"retarder ses entrees{cause} : la montee de crue "
+                 f"correspondante ne sera pas injectee.")
+            break
+        resultat.retard_axe_h = float(applique)
+        resultat.alertes_chaine.append(
+            f"axe temporel du modele retarde de {applique:.2f} h : les "
+            f"entrees non calees commencent {applique:.2f} h plus tard et la "
+            f"simulation dure {applique:.2f} h de plus. Sans cela, une cible, "
+            f"une fois decalee, commencait {retard:.2f} h avant le debut de "
+            f"la simulation, et sa montee de crue etait perdue.")
+        dire(f"    axe temporel retarde de {applique:.2f} h (une cible "
+             f"decalee commencait {retard:.2f} h avant la simulation) — "
+             f"nouveau calcul de reference")
+    return residuels_reference
 
 
 def _ajuster_duree_simulee(modele, durees_simulees, i, duree_en_vigueur,
