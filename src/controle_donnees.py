@@ -141,6 +141,164 @@ def _lire(chemin):
     return feuilles
 
 
+# ---------------------------------------------------------------------------
+# Regles du classeur de saisie. Chacune rend ses anomalies (niveau, message) ;
+# controler_template les enchaine dans l'ordre ou l'ingenieur les lit.
+# ---------------------------------------------------------------------------
+
+def _regle_parametres_trouves(chemin, valeurs):
+    """Le JSON des parametres (ou la feuille heritee) accompagne le classeur."""
+    if valeurs:
+        return []
+    return [(ERREUR,
+             f"parametres du calage introuvables : ni "
+             f"« {parametres.chemin(chemin).name} » a cote du classeur, "
+             f"ni feuille « {parametres.FEUILLE_HERITEE} » dedans. Le "
+             f"JSON accompagne le classeur : deplacer l'un sans l'autre "
+             f"laisse un calage sans parametres.")]
+
+
+def _regle_parametres_requis(valeurs):
+    anomalies = []
+    for cle in PARAMETRES_REQUIS:
+        v = valeurs.get(cle)
+        if cle not in valeurs or v is None or (
+                isinstance(v, float) and pd.isna(v)):
+            anomalies.append((ERREUR, f"parametre manquant ou vide : {cle}"))
+    return anomalies
+
+
+def _regle_nb_max_iterations(valeurs):
+    nb_max = valeurs.get("Nb_max_iterations_par_apport")
+    if isinstance(nb_max, (int, float)) and nb_max < 3:
+        return [(ERREUR,
+                 f"Nb_max_iterations_par_apport = {nb_max} : au moins 3 essais "
+                 f"sont necessaires pour que la correction converge")]
+    return []
+
+
+def _regle_coeurs_par_calcul(valeurs):
+    # Cœurs demandes a HEC-RAS : facultatif ; 0 = plan inchange ; 64 est le
+    # plafond que Windows accorde a un Ras.exe (ras-commander, set_num_cores).
+    coeurs = valeurs.get("Coeurs_par_calcul")
+    if coeurs not in (None, "") and not (
+            isinstance(coeurs, (int, float)) and not pd.isna(coeurs)
+            and float(coeurs).is_integer() and 0 <= coeurs <= 64):
+        return [(ERREUR,
+                 f"Coeurs_par_calcul = {coeurs!r} : entier entre 0 (plan "
+                 f"inchange) et 64 attendu")]
+    return []
+
+
+def _colonnes_correspondance(corr):
+    """(Ordre, Nom_Apport, Nom_Section, Nom_Cible) de la feuille, ou None si
+    l'une manque."""
+    col_ordre = "Ordre"
+    col_apport = next((c for c in corr.columns if c.startswith("Nom_Apport")), None)
+    col_section = next((c for c in corr.columns if c.startswith("Nom_Section")), None)
+    col_cible = next((c for c in corr.columns if c.startswith("Nom_Cible")), None)
+    if not all([col_ordre in corr.columns, col_apport, col_section, col_cible]):
+        return None
+    return col_ordre, col_apport, col_section, col_cible
+
+
+def _regle_ordre_contigu(colonne_ordre):
+    n = len(colonne_ordre)
+    ordres = sorted(int(o) for o in colonne_ordre)
+    if ordres != list(range(1, n + 1)):
+        return [(ERREUR,
+                 f"colonne Ordre : doit etre la suite 1..{n} sans trou ni doublon "
+                 f"(valeurs lues : {ordres})")]
+    return []
+
+
+def _regle_noms_uniques(corr, col_apport, col_section):
+    anomalies = []
+    for col, libelle in [(col_apport, "apport"), (col_section, "section")]:
+        doublons = corr[col][corr[col].duplicated()].tolist()
+        if doublons:
+            anomalies.append((
+                ERREUR,
+                f"nom de {libelle} en doublon : {doublons}. Chaque "
+                f"{libelle} doit etre unique — une inconnue par contrainte."))
+    return anomalies
+
+
+def _regle_pas_de_temps(colonne_temps):
+    anomalies = []
+    temps = pd.to_numeric(colonne_temps, errors="coerce").dropna().to_numpy()
+    if len(temps) < 10:
+        anomalies.append((
+            AVERTISSEMENT,
+            f"feuille Cibles : seulement {len(temps)} pas de temps. "
+            f"Un hydrogramme trop grossier fausse le volume et le debit "
+            f"de pointe compares a la cible."))
+    if len(temps) > 1 and not np.all(np.diff(temps) > 0):
+        anomalies.append((
+            ERREUR,
+            "feuille Cibles : la colonne Temps_h doit etre strictement "
+            "croissante"))
+    return anomalies
+
+
+def _colonnes_cibles(cib):
+    """Les colonnes de la feuille Cibles qui sont des hydrogrammes."""
+    # Exclut l'apercu visuel que style_classeur ajoute sur cette meme feuille
+    # (graphique + tableau de debit de pointe, cf. ENTETE_PIC) : ses colonnes
+    # ne sont pas des cibles, et ne doivent pas se signaler comme telles.
+    # « Unnamed: » est le nom que pandas donne aux colonnes sans en-tete —
+    # celles du tableau, hors la premiere.
+    reserves = {"Temps_h"}
+    try:
+        import style_classeur
+        reserves.add(style_classeur.ENTETE_PIC)
+    except ImportError:
+        pass
+    return {c for c in cib.columns
+            if isinstance(c, str) and not c.startswith("Unnamed:")
+            } - reserves
+
+
+def _regle_cibles_declarees_presentes(cibles_declarees, cibles_presentes):
+    anomalies = []
+    absentes = cibles_declarees - cibles_presentes
+    if absentes:
+        anomalies.append((
+            ERREUR,
+            f"cibles declarees dans Correspondance mais absentes de la "
+            f"feuille Cibles : {sorted(absentes)}"))
+    inutilisees = cibles_presentes - cibles_declarees
+    if inutilisees:
+        anomalies.append((
+            AVERTISSEMENT,
+            f"colonnes de la feuille Cibles jamais utilisees : "
+            f"{sorted(inutilisees)}"))
+    return anomalies
+
+
+def _regle_hydrogramme_cible(nom, colonne):
+    serie = pd.to_numeric(colonne, errors="coerce")
+    valides = serie.dropna()
+    # Colonne entierement vide : le template n'est pas encore rempli, ce
+    # qui est un etat normal et non une donnee fautive.
+    if len(valides) == 0:
+        return [(AVERTISSEMENT,
+                 f"cible '{nom}' : colonne vide, a renseigner avant le calage")]
+    if len(valides) < 2:
+        return [(ERREUR,
+                 f"cible '{nom}' : pas assez de valeurs numeriques "
+                 f"({len(valides)} valeur exploitable)")]
+    anomalies = []
+    if (valides < 0).any():
+        anomalies.append((ERREUR, f"cible '{nom}' : contient des debits negatifs"))
+    if float(valides.max()) <= 0:
+        anomalies.append((ERREUR, f"cible '{nom}' : hydrogramme identiquement nul"))
+    if serie.isna().sum() > 0 and serie.dropna().index.max() < len(serie) - 1:
+        anomalies.append((AVERTISSEMENT,
+                          f"cible '{nom}' : valeurs manquantes intercalees"))
+    return anomalies
+
+
 def controler_template(chemin):
     """
     Valide le classeur de saisie. Retourne une liste de couples
@@ -152,9 +310,6 @@ def controler_template(chemin):
     def erreur(msg):
         anomalies.append((ERREUR, msg))
 
-    def avertir(msg):
-        anomalies.append((AVERTISSEMENT, msg))
-
     try:
         feuilles = _lire(chemin)
     except Exception as e:
@@ -162,32 +317,10 @@ def controler_template(chemin):
 
     # --- 1. Parametres -----------------------------------------------------
     valeurs = parametres.lire(chemin)
-    if not valeurs:
-        erreur(f"parametres du calage introuvables : ni "
-               f"« {parametres.chemin(chemin).name} » a cote du classeur, "
-               f"ni feuille « {parametres.FEUILLE_HERITEE} » dedans. Le "
-               f"JSON accompagne le classeur : deplacer l'un sans l'autre "
-               f"laisse un calage sans parametres.")
-
-    for cle in PARAMETRES_REQUIS:
-        v = valeurs.get(cle)
-        if cle not in valeurs or v is None or (
-                isinstance(v, float) and pd.isna(v)):
-            erreur(f"parametre manquant ou vide : {cle}")
-
-    nb_max = valeurs.get("Nb_max_iterations_par_apport")
-    if isinstance(nb_max, (int, float)) and nb_max < 3:
-        erreur(f"Nb_max_iterations_par_apport = {nb_max} : au moins 3 essais "
-               f"sont necessaires pour que la correction converge")
-
-    # Cœurs demandes a HEC-RAS : facultatif ; 0 = plan inchange ; 64 est le
-    # plafond que Windows accorde a un Ras.exe (ras-commander, set_num_cores).
-    coeurs = valeurs.get("Coeurs_par_calcul")
-    if coeurs not in (None, "") and not (
-            isinstance(coeurs, (int, float)) and not pd.isna(coeurs)
-            and float(coeurs).is_integer() and 0 <= coeurs <= 64):
-        erreur(f"Coeurs_par_calcul = {coeurs!r} : entier entre 0 (plan "
-               f"inchange) et 64 attendu")
+    anomalies += _regle_parametres_trouves(chemin, valeurs)
+    anomalies += _regle_parametres_requis(valeurs)
+    anomalies += _regle_nb_max_iterations(valeurs)
+    anomalies += _regle_coeurs_par_calcul(valeurs)
 
     # Fenetre de simulation : facultative, mais si elle est saisie elle doit
     # etre juste. Une date mal formee n'est pas refusee par HEC-RAS — elle est
@@ -198,32 +331,20 @@ def controler_template(chemin):
 
     # --- 2. Correspondance -------------------------------------------------
     corr = feuilles["Correspondance"]
-    col_ordre = "Ordre"
-    col_apport = next((c for c in corr.columns if c.startswith("Nom_Apport")), None)
-    col_section = next((c for c in corr.columns if c.startswith("Nom_Section")), None)
-    col_cible = next((c for c in corr.columns if c.startswith("Nom_Cible")), None)
-
-    if not all([col_ordre in corr.columns, col_apport, col_section, col_cible]):
+    colonnes = _colonnes_correspondance(corr)
+    if colonnes is None:
         erreur("feuille Correspondance : colonnes Ordre / Nom_Apport / "
                "Nom_Section / Nom_Cible attendues")
         return anomalies
+    col_ordre, col_apport, col_section, col_cible = colonnes
 
     corr = corr.dropna(subset=[col_ordre, col_apport, col_section, col_cible])
-    n = len(corr)
-    if n == 0:
+    if len(corr) == 0:
         erreur("feuille Correspondance : aucune station renseignee")
         return anomalies
 
-    ordres = sorted(int(o) for o in corr[col_ordre])
-    if ordres != list(range(1, n + 1)):
-        erreur(f"colonne Ordre : doit etre la suite 1..{n} sans trou ni doublon "
-               f"(valeurs lues : {ordres})")
-
-    for col, libelle in [(col_apport, "apport"), (col_section, "section")]:
-        doublons = corr[col][corr[col].duplicated()].tolist()
-        if doublons:
-            erreur(f"nom de {libelle} en doublon : {doublons}. Chaque "
-                   f"{libelle} doit etre unique — une inconnue par contrainte.")
+    anomalies += _regle_ordre_contigu(corr[col_ordre])
+    anomalies += _regle_noms_uniques(corr, col_apport, col_section)
 
     # LE PREFIXE SE JUGE SUR LES NOMS D'APPORT REELS : il est donc controle
     # ici, et non a la section 1, qui ne les connait pas encore.
@@ -241,57 +362,14 @@ def controler_template(chemin):
         erreur("feuille Cibles : colonne 'Temps_h' absente")
         return anomalies
 
-    temps = pd.to_numeric(cib["Temps_h"], errors="coerce").dropna().to_numpy()
-    if len(temps) < 10:
-        avertir(f"feuille Cibles : seulement {len(temps)} pas de temps. "
-                f"Un hydrogramme trop grossier fausse le volume et le debit "
-                f"de pointe compares a la cible.")
-    if len(temps) > 1 and not np.all(np.diff(temps) > 0):
-        erreur("feuille Cibles : la colonne Temps_h doit etre strictement "
-               "croissante")
+    anomalies += _regle_pas_de_temps(cib["Temps_h"])
 
     cibles_declarees = set(corr[col_cible].astype(str))
-    # Exclut l'apercu visuel que style_classeur ajoute sur cette meme feuille
-    # (graphique + tableau de debit de pointe, cf. ENTETE_PIC) : ses colonnes
-    # ne sont pas des cibles, et ne doivent pas se signaler comme telles.
-    # « Unnamed: » est le nom que pandas donne aux colonnes sans en-tete —
-    # celles du tableau, hors la premiere.
-    reserves = {"Temps_h"}
-    try:
-        import style_classeur
-        reserves.add(style_classeur.ENTETE_PIC)
-    except ImportError:
-        pass
-    cibles_presentes = {c for c in cib.columns
-                        if isinstance(c, str) and not c.startswith("Unnamed:")
-                        } - reserves
-    absentes = cibles_declarees - cibles_presentes
-    if absentes:
-        erreur(f"cibles declarees dans Correspondance mais absentes de la "
-               f"feuille Cibles : {sorted(absentes)}")
-    inutilisees = cibles_presentes - cibles_declarees
-    if inutilisees:
-        avertir(f"colonnes de la feuille Cibles jamais utilisees : "
-                f"{sorted(inutilisees)}")
-
+    cibles_presentes = _colonnes_cibles(cib)
+    anomalies += _regle_cibles_declarees_presentes(cibles_declarees,
+                                                   cibles_presentes)
     for nom in sorted(cibles_declarees & cibles_presentes):
-        serie = pd.to_numeric(cib[nom], errors="coerce")
-        valides = serie.dropna()
-        # Colonne entierement vide : le template n'est pas encore rempli, ce
-        # qui est un etat normal et non une donnee fautive.
-        if len(valides) == 0:
-            avertir(f"cible '{nom}' : colonne vide, a renseigner avant le calage")
-            continue
-        if len(valides) < 2:
-            erreur(f"cible '{nom}' : pas assez de valeurs numeriques "
-                   f"({len(valides)} valeur exploitable)")
-            continue
-        if (valides < 0).any():
-            erreur(f"cible '{nom}' : contient des debits negatifs")
-        if float(valides.max()) <= 0:
-            erreur(f"cible '{nom}' : hydrogramme identiquement nul")
-        if serie.isna().sum() > 0 and serie.dropna().index.max() < len(serie) - 1:
-            avertir(f"cible '{nom}' : valeurs manquantes intercalees")
+        anomalies += _regle_hydrogramme_cible(nom, cib[nom])
 
     return anomalies
 
