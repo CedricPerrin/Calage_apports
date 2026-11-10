@@ -72,7 +72,6 @@ from qgis.PyQt.QtWidgets import (
     QRadioButton,
     QScrollArea,
     QSizePolicy,
-    QSpacerItem,
     QSpinBox,
     QTabWidget,
     QTextEdit,
@@ -95,8 +94,9 @@ from .page_suivi import PageSuivi
 from .widgets import (GLYPHE_STATUT, OPACITE_SEGMENT, OPACITE_SEGMENT_DEFAUT,  # noqa: F401
                       TEINTE_STATUT, _fenetre_crue)
 from .socle import (BOUTON_GEOMETRIE, ISL_ARDOISE, ISL_ROUGE, ISL_TEAL_SOMBRE, ISL_VERT,
-                    ROLE_AIDE, ROLE_ETAT, TOLERANCE_PIC_DEFAUT, TOLERANCE_VOLUME_DEFAUT,
-                    _cle_fichier, dire, formulaire, texte_aide)
+                    ROLE_AIDE, TOLERANCE_PIC_DEFAUT, TOLERANCE_VOLUME_DEFAUT,
+                    _cle_fichier, confirmer, dire, formulaire, rendre_la_main,
+                    rendre_redimensionnable, sans_sablier, texte_aide, texte_etat)
 # Ré-exportés, comme ci-dessus.
 from .socle import (COULEUR_STATUT, DELAI_PREMIER_ETAT_S, ISL_TEAL,  # noqa: F401
                     date_lisible)
@@ -759,78 +759,6 @@ def avec_sablier(methode):
     return enveloppe
 
 
-def rendre_la_main(fenetre):
-    """
-    Retire le sablier avant une boite que l'utilisateur va LIRE.
-
-    UN SEUL restore PAR set, ET C'EST LA RAISON DU DRAPEAU. Un
-    restoreOverrideCursor() de trop n'est inoffensif que si la pile est VIDE ;
-    sinon il depile le curseur courant, fut-il pose par QGIS lui-meme. Rendre
-    la main ici PUIS laisser le finally du decorateur restaurer une seconde
-    fois aurait donc pu retirer le curseur de quelqu'un d'autre.
-    """
-    if getattr(fenetre, "_sablier_pose", False):
-        QApplication.restoreOverrideCursor()
-        fenetre._sablier_pose = False
-
-
-def sans_sablier(fenetre):
-    """
-    Suspend le sablier le temps d'une boite qui ATTEND L'UTILISATEUR.
-
-    Un selecteur de fichier ou une question oui/non peut rester ouvert
-    plusieurs minutes : le sablier y designerait un calcul qui n'a pas lieu,
-    et c'est l'utilisateur qu'on attend. Il est repose a la fermeture de la
-    boite, le travail n'etant pas fini pour autant.
-
-    S'emploie en bloc « with » a l'INTERIEUR d'une methode decoree par
-    @avec_sablier ; hors d'une telle methode, ne fait rien.
-    """
-    return _SablierSuspendu(fenetre)
-
-
-class _SablierSuspendu:
-    def __init__(self, fenetre):
-        self.fenetre = fenetre
-        self.etait_pose = False
-
-    def __enter__(self):
-        self.etait_pose = getattr(self.fenetre, "_sablier_pose", False)
-        if self.etait_pose:
-            QApplication.restoreOverrideCursor()
-            self.fenetre._sablier_pose = False
-        return self
-
-    def __exit__(self, *_):
-        if self.etait_pose:
-            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-            self.fenetre._sablier_pose = True
-        return False
-
-
-# ---------------------------------------------------------------------------
-# Fabriques de widgets — un seul endroit ou se decide l'apparence d'un texte
-# d'aide, d'un compte rendu ou d'un formulaire. Ecrite a la main a chaque
-# fois, la mise en forme finissait par differer d'un onglet a l'autre.
-# ---------------------------------------------------------------------------
-
-def texte_etat(contenu=""):
-    """
-    Compte rendu d'une action, selectionnable a la souris.
-
-    MASQUE tant qu'il n'a rien a dire : un cadre vide sous chaque bouton
-    donnait a croire qu'il manquait quelque chose. Ses termes techniques
-    renvoient au lexique de l'aide (EtiquetteLexique), d'ou les liens.
-    """
-    label = EtiquetteLexique(contenu)
-    label.setWordWrap(True)
-    label.setProperty("role", ROLE_ETAT)
-    label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse
-                                  | Qt.TextInteractionFlag.LinksAccessibleByMouse)
-    label.setVisible(bool(contenu))
-    return label
-
-
 # ---------------------------------------------------------------------------
 # Aide affichee dans la fenetre. Reprend le mode operatoire de la note
 # methodologique : une aide qu'il faut aller chercher ailleurs n'est pas lue.
@@ -1191,73 +1119,6 @@ def texte_rapport_controle(anomalies, tableau):
     if tableau is not None:
         rapport.append("\nPK calculés :\n" + tableau.to_string(index=False))
     return "\n\n".join(rapport)
-
-
-def confirmer(parent, titre, texte, oui, non):
-    """
-    Une question a deux issues, nommees par des VERBES, dont le defaut est
-    celle qui ne coute rien. Vrai si l'utilisateur a choisi « oui ».
-
-    QMessageBox.question(..., Yes | No) SANS defaultButton LAISSE QT CHOISIR :
-    il retient le premier bouton de role Accept — or « Oui » porte le role
-    Yes, donc aucun —, et Entree va alors au premier bouton autoDefault de la
-    chaine de focus, « Oui » en disposition Windows. La garde de
-    DialogueParametrage.keyPressEvent ne protege pas une boite modale : c'est
-    une autre fenetre. Trois questions etaient dans ce cas (0.8.5), dont
-    celle qui autorise a recomposer pendant qu'un calage tourne — et dont la
-    docstring promettait « non » par defaut.
-
-    LES BOUTONS DISENT CE QU'ILS FONT — « Recomposer quand meme » plutot que
-    « Oui » —, comme _confirmer_reprise le fait deja. Le refus est le bouton
-    par defaut ET le bouton d'echappement : Entree, Echap et la croix disent
-    tous « non ». AUCUN BOUTON CLIQUE VAUT NON, un talon de recette compris.
-    """
-    boite = QMessageBox(parent)
-    boite.setIcon(QMessageBox.Icon.Question)
-    boite.setWindowTitle(titre)
-    boite.setText(texte)
-    bouton_oui = boite.addButton(oui, QMessageBox.ButtonRole.AcceptRole)
-    bouton_non = boite.addButton(non, QMessageBox.ButtonRole.RejectRole)
-    boite.setDefaultButton(bouton_non)
-    boite.setEscapeButton(bouton_non)
-    boite.exec()
-    return boite.clickedButton() is bouton_oui
-
-
-def rendre_redimensionnable(boite, largeur=900, hauteur=420):
-    """
-    Rend une QMessageBox etirable, et son detail lisible.
-
-    Qt fige la taille d'une QMessageBox : sa disposition porte une contrainte
-    de taille FIXE, et la fenetre n'a pas de poignee. Le rapport de contrôle
-    s'y lisait donc par une lucarne de quelques lignes, alors qu'il compte le
-    tableau des PK — plusieurs dizaines de lignes larges, dont la lecture est
-    justement ce pour quoi la fenêtre s'ouvre.
-
-    Trois gestes, tous necessaires : lever la contrainte, sans quoi la
-    fenetre revient a sa taille de contenu ; poser un separateur invisible
-    sur toute la largeur de la grille, sans quoi elle se retracte aussitot ;
-    donner une taille minimale a la zone de detail, qui autrement reste plate
-    quand la fenetre grandit.
-
-    A appeler APRES setDetailedText() : c'est lui qui cree la zone de detail.
-    Retourne la boite, pour pouvoir s'enchainer.
-    """
-    boite.setSizeGripEnabled(True)
-    grille = boite.layout()
-    if grille is not None:
-        grille.setSizeConstraint(QLayout.SizeConstraint.SetNoConstraint)
-        grille.addItem(
-            QSpacerItem(largeur, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding),
-            grille.rowCount(), 0, 1, grille.columnCount())
-    detail = boite.findChild(QTextEdit)
-    if detail is not None:
-        detail.setMinimumSize(largeur, hauteur)
-        detail.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        # Le tableau des PK est aligne a la colonne : une police proportionnelle
-        # en decale les colonnes et le rend illisible.
-        detail.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
-    return boite
 
 
 # LES COUCHES DE PK DE LA 0.9.15 portaient cette marque. Il n'en est plus
