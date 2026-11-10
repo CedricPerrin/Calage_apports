@@ -146,6 +146,72 @@ def _orienter(debit):
     return debit, False, reversible
 
 
+def _debit_matriciel(h, chemin, nom, vise, groupe, objets):
+    """
+    Disposition MATRICIELLE (« Reference Lines ») de lire_serie_hdf : rend
+    (debit, nom apparie), le debit tel que stocke, non oriente.
+    """
+    import numpy as np
+
+    noms = [_texte(v) for v in np.asarray(h[f"{chemin}/Name"][:])]
+    # Chaque entree vaut « <nom>|<zone 2D> » : on apparie sur la
+    # partie qui precede la barre, en tolerant qu'elle soit absente.
+    courts = [n.split("|")[0].strip() for n in noms]
+    indice = next((i for i, n in enumerate(courts) if n == str(nom)),
+                  None)
+    if indice is None:
+        indice = next((i for i, n in enumerate(courts)
+                       if n.lower() == vise), None)
+    if indice is None:
+        raise KeyError(
+            f"« {nom} » absent des resultats de type « {groupe} ». "
+            f"Presents : {courts}")
+    if "Flow" not in objets:
+        raise KeyError(
+            f"les resultats « {groupe} » ne comportent pas de jeu "
+            f"« Flow ». Presents : {objets}")
+    matrice = np.asarray(h[f"{chemin}/Flow"][:], dtype=float)
+    if matrice.ndim != 2 or indice >= matrice.shape[1]:
+        raise ValueError(
+            f"le jeu « Flow » a la forme {matrice.shape}, "
+            f"incompatible avec {len(courts)} objet(s) nommes.")
+    debit = matrice[:, indice]
+    correspondance = noms[indice]
+    return debit, correspondance
+
+
+def _debit_par_objet(h, chemin, nom, vise, objets):
+    """
+    Disposition PAR OBJET (« Boundary Conditions ») de lire_serie_hdf : rend
+    (debit, nom apparie), le debit tel que stocke, non oriente.
+    """
+    import numpy as np
+
+    correspondance = next(
+        (o for o in objets if o == nom), None) or next(
+        (o for o in objets if o.strip().lower() == vise), None)
+    if correspondance is None:
+        raise KeyError(
+            f"« {nom} » absent des resultats. Presents : {objets}")
+
+    jeu = h[f"{chemin}/{correspondance}"]
+    donnees = np.asarray(jeu[:], dtype=float)
+    colonnes = [_texte(c) for c in jeu.attrs.get("Columns", [])]
+
+    if donnees.ndim == 1:
+        debit = donnees
+    elif colonnes and "Flow" in colonnes:
+        debit = donnees[:, colonnes.index("Flow")]
+    elif donnees.shape[1] == 1:
+        debit = donnees[:, 0]
+    else:
+        raise ValueError(
+            f"« {correspondance} » : {donnees.shape[1]} colonnes "
+            f"{colonnes or 'sans attribut Columns'} — impossible "
+            f"d'identifier le debit sans deviner.")
+    return debit, correspondance
+
+
 def lire_serie_hdf(plan, nom, groupe="Reference Lines"):
     """
     Lit une serie de debit DIRECTEMENT dans le fichier de resultats.
@@ -192,55 +258,11 @@ def lire_serie_hdf(plan, nom, groupe="Reference Lines"):
         vise = str(nom).strip().lower()
 
         if "Name" in objets:
-            # --- disposition matricielle ---------------------------------
-            noms = [_texte(v) for v in np.asarray(h[f"{chemin}/Name"][:])]
-            # Chaque entree vaut « <nom>|<zone 2D> » : on apparie sur la
-            # partie qui precede la barre, en tolerant qu'elle soit absente.
-            courts = [n.split("|")[0].strip() for n in noms]
-            indice = next((i for i, n in enumerate(courts) if n == str(nom)),
-                          None)
-            if indice is None:
-                indice = next((i for i, n in enumerate(courts)
-                               if n.lower() == vise), None)
-            if indice is None:
-                raise KeyError(
-                    f"« {nom} » absent des resultats de type « {groupe} ». "
-                    f"Presents : {courts}")
-            if "Flow" not in objets:
-                raise KeyError(
-                    f"les resultats « {groupe} » ne comportent pas de jeu "
-                    f"« Flow ». Presents : {objets}")
-            matrice = np.asarray(h[f"{chemin}/Flow"][:], dtype=float)
-            if matrice.ndim != 2 or indice >= matrice.shape[1]:
-                raise ValueError(
-                    f"le jeu « Flow » a la forme {matrice.shape}, "
-                    f"incompatible avec {len(courts)} objet(s) nommes.")
-            debit = matrice[:, indice]
-            correspondance = noms[indice]
+            debit, correspondance = _debit_matriciel(h, chemin, nom, vise,
+                                                     groupe, objets)
         else:
-            # --- disposition par objet -----------------------------------
-            correspondance = next(
-                (o for o in objets if o == nom), None) or next(
-                (o for o in objets if o.strip().lower() == vise), None)
-            if correspondance is None:
-                raise KeyError(
-                    f"« {nom} » absent des resultats. Presents : {objets}")
-
-            jeu = h[f"{chemin}/{correspondance}"]
-            donnees = np.asarray(jeu[:], dtype=float)
-            colonnes = [_texte(c) for c in jeu.attrs.get("Columns", [])]
-
-            if donnees.ndim == 1:
-                debit = donnees
-            elif colonnes and "Flow" in colonnes:
-                debit = donnees[:, colonnes.index("Flow")]
-            elif donnees.shape[1] == 1:
-                debit = donnees[:, 0]
-            else:
-                raise ValueError(
-                    f"« {correspondance} » : {donnees.shape[1]} colonnes "
-                    f"{colonnes or 'sans attribut Columns'} — impossible "
-                    f"d'identifier le debit sans deviner.")
+            debit, correspondance = _debit_par_objet(h, chemin, nom, vise,
+                                                     objets)
 
         temps_jours = np.asarray(h[f"{CHEMIN_SERIES_HDF}/Time"][:], dtype=float)
         unite = h[f"{CHEMIN_SERIES_HDF}/Time"].attrs.get("Time", b"days")
@@ -368,6 +390,56 @@ def _normaliser(brut, nom_section):
     return None
 
 
+def _objets_du_hdf(chemin):
+    """
+    Ce que le .gXX.hdf PRETRAITE porte deja : (crs, perimetres, sections,
+    injections, vides_hdf), vides_hdf etant les noms des lignes que le HDF
+    nomme sans en porter le trace.
+    """
+    from ras_commander import HdfBndry, HdfMesh
+
+    # LIGNES SANS GEOMETRIE DANS LE HDF : un .gXX.hdf peut nommer ses
+    # reference lines sans en porter un seul point (« Polyline Points » vide —
+    # releve sur un modele reel le 30/10/2026). ras-commander 0.99 les rend
+    # alors en « LINESTRING EMPTY » ; le repli texte ci-dessous les croyait
+    # deja connues et ne les relisait pas : la couche des sections arrivait
+    # avec des entites sans trace. On les ecarte ici pour que le texte les
+    # fournisse.
+    vides_hdf = set()
+
+    def lignes(gdf, prefixe):
+        if gdf is None or len(gdf) == 0:
+            return []
+        colonne = next((c for c in gdf.columns
+                        if c in ("Name", "name", "Nom", "NOM")), None)
+        retenues = []
+        for i in range(len(gdf)):
+            nom = (str(gdf.iloc[i][colonne]).strip() if colonne
+                   else f"{prefixe}_{i + 1:02d}")
+            forme = gdf.geometry.iloc[i]
+            if forme is None or forme.is_empty:
+                vides_hdf.add(nom)
+                continue
+            retenues.append({"nom": nom, "wkt": forme.wkt})
+        return retenues
+
+    crs = None
+    bc = HdfBndry.get_bc_lines(chemin)
+    ref = HdfBndry.get_reference_lines(chemin)
+    zones = HdfMesh.get_mesh_areas(chemin)
+
+    for gdf in (ref, bc, zones):
+        if gdf is not None and len(gdf) and gdf.crs is not None:
+            crs = gdf.crs.to_string()
+            break
+
+    perimetres = ([{"zone": str(r["mesh_name"]), "wkt": r.geometry.wkt}
+                  for _, r in zones.iterrows()]
+                 if zones is not None and len(zones) else [])
+    sections, injections = lignes(ref, "Section"), lignes(bc, "Apport")
+    return crs, perimetres, sections, injections, vides_hdf
+
+
 def commande_modele(args):
     """
     Couches geometriques EXISTANTES dans une geometrie HEC-RAS : perimetre(s)
@@ -395,48 +467,11 @@ def commande_modele(args):
             f"geometrie choisi."))
 
     pretraitee = chemin.exists()
-    # LIGNES SANS GEOMETRIE DANS LE HDF : un .gXX.hdf peut nommer ses
-    # reference lines sans en porter un seul point (« Polyline Points » vide —
-    # releve sur un modele reel le 30/10/2026). ras-commander 0.99 les rend
-    # alors en « LINESTRING EMPTY » ; le repli texte ci-dessous les croyait
-    # deja connues et ne les relisait pas : la couche des sections arrivait
-    # avec des entites sans trace. On les ecarte ici pour que le texte les
-    # fournisse.
-    vides_hdf = set()
-
-    def lignes(gdf, prefixe):
-        if gdf is None or len(gdf) == 0:
-            return []
-        colonne = next((c for c in gdf.columns
-                        if c in ("Name", "name", "Nom", "NOM")), None)
-        retenues = []
-        for i in range(len(gdf)):
-            nom = (str(gdf.iloc[i][colonne]).strip() if colonne
-                   else f"{prefixe}_{i + 1:02d}")
-            forme = gdf.geometry.iloc[i]
-            if forme is None or forme.is_empty:
-                vides_hdf.add(nom)
-                continue
-            retenues.append({"nom": nom, "wkt": forme.wkt})
-        return retenues
-
     crs, perimetres, sections, injections = None, [], [], []
+    vides_hdf = set()
     if pretraitee:
-        from ras_commander import HdfBndry, HdfMesh
-
-        bc = HdfBndry.get_bc_lines(chemin)
-        ref = HdfBndry.get_reference_lines(chemin)
-        zones = HdfMesh.get_mesh_areas(chemin)
-
-        for gdf in (ref, bc, zones):
-            if gdf is not None and len(gdf) and gdf.crs is not None:
-                crs = gdf.crs.to_string()
-                break
-
-        perimetres = ([{"zone": str(r["mesh_name"]), "wkt": r.geometry.wkt}
-                      for _, r in zones.iterrows()]
-                     if zones is not None and len(zones) else [])
-        sections, injections = lignes(ref, "Section"), lignes(bc, "Apport")
+        crs, perimetres, sections, injections, vides_hdf = _objets_du_hdf(
+            chemin)
 
     # LE FICHIER TEXTE FAIT FOI POUR LES OBJETS. Le .gXX.hdf lu ci-dessus est
     # le produit d'un PRETRAITEMENT : un objet qu'on vient d'ecrire dans le
@@ -962,6 +997,84 @@ def _controler_durees_avant_calcul(chemin_template):
 FACTEUR_DUREE_ABERRANTE = 10
 
 
+def _pretraitement_perime_du_plan(fichier_plan):
+    """
+    Avertissement si le pretraitement 2D de la geometrie du plan est plus
+    ancien qu'elle : [] ou [(AVERTISSEMENT, message)]. Ne leve jamais.
+    """
+    import controle_donnees as cd
+    from pilote_hecras import pretraitement_perime
+
+    anomalies = []
+    try:
+        for ligne in Path(fichier_plan).read_text(
+                encoding="utf-8", errors="replace").splitlines():
+            if ligne.startswith("Geom File="):
+                g = Path(fichier_plan).with_suffix(
+                    "." + ligne.split("=", 1)[1].strip())
+                perime = pretraitement_perime(g)
+                if perime:
+                    anomalies.append((
+                        cd.AVERTISSEMENT,
+                        f"le pretraitement 2D de {g.name} est PERIME : le "
+                        f"fichier texte a ete modifie il y a "
+                        f"{perime['geometrie_h']:.1f} h, son .hdf date de "
+                        f"{perime['hdf_h']:.1f} h. C'est NORMAL apres une "
+                        f"composition — ecrire les sections et les injections "
+                        f"perime les tables 2D. HEC-RAS les refera au premier "
+                        f"calcul ; sur un modele lourd (gros terrain, projet "
+                        f"sur un partage reseau) cela peut echouer sur "
+                        f"« Geometry Writer Failed », et le calage s'arretera "
+                        f"avant tout resultat. Dans le doute : ouvrir le "
+                        f"modele dans HEC-RAS et lancer le plan une fois a la "
+                        f"main, puis lancer le calage SANS recomposer."))
+                break
+    except Exception:                                        # noqa: BLE001
+        pass
+    return anomalies
+
+
+def _series_aberrantes(fichier, fichier_plan, retenus):
+    """
+    Avertissement pour les series bien plus longues que la simulation du
+    plan, ou None : rien a dire, ou fenetre de simulation illisible.
+    """
+    import controle_donnees as cd
+    from pilote_hecras import (fenetre_simulation_du_plan, instant_hecras,
+                               lire_hydrogramme_unsteady, _en_minutes)
+
+    try:
+        fenetre = fenetre_simulation_du_plan(fichier_plan)
+        simulation_h = (_en_minutes(instant_hecras(fenetre["fin"]))
+                        - _en_minutes(instant_hecras(fenetre["debut"]))) / 60.0
+    except Exception:                                        # noqa: BLE001
+        return None
+    if simulation_h <= 0:
+        return None
+
+    aberrantes = []
+    for nom, info in retenus.items():
+        pas = info["intervalle_h"]
+        if not pas:
+            continue
+        try:
+            valeurs = lire_hydrogramme_unsteady(fichier, info["debut"],
+                                                   info["fin"])
+        except Exception:                                    # noqa: BLE001
+            continue
+        duree_h = (len(valeurs) - 1) * pas
+        if duree_h > FACTEUR_DUREE_ABERRANTE * simulation_h:
+            aberrantes.append(f"« {nom} » {duree_h:.0f} h")
+    if not aberrantes:
+        return None
+    return (cd.AVERTISSEMENT,
+            f"serie(s) beaucoup plus longues que la simulation "
+            f"({simulation_h:.2f} h) : {', '.join(aberrantes)}. "
+            f"Verifier qu'il ne s'agit pas d'un hydrogramme "
+            f"herite d'un autre evenement : seul le debut sera "
+            f"lu, et rien ne le signalera.")
+
+
 def _controler_residus_unsteady(chemin_template):
     """
     Signale ce qui, dans le fichier Unsteady, trahit un historique d'edition.
@@ -982,10 +1095,7 @@ def _controler_residus_unsteady(chemin_template):
         24 est un residu, pas une donnee. Seul son debut sera lu.
     """
     import controle_donnees as cd
-    from pilote_hecras import (cartographier_hydrogrammes,
-                               fenetre_simulation_du_plan, instant_hecras,
-                               lire_hydrogramme_unsteady, pretraitement_perime,
-                               _en_minutes)
+    from pilote_hecras import cartographier_hydrogrammes
 
     try:
         contexte = _contexte_modele(chemin_template)
@@ -995,32 +1105,7 @@ def _controler_residus_unsteady(chemin_template):
         return []
     fichier, fichier_plan, zone, noms_connus, _ = contexte
 
-    anomalies_pretraitement = []
-    try:
-        for ligne in Path(fichier_plan).read_text(
-                encoding="utf-8", errors="replace").splitlines():
-            if ligne.startswith("Geom File="):
-                g = Path(fichier_plan).with_suffix(
-                    "." + ligne.split("=", 1)[1].strip())
-                perime = pretraitement_perime(g)
-                if perime:
-                    anomalies_pretraitement.append((
-                        cd.AVERTISSEMENT,
-                        f"le pretraitement 2D de {g.name} est PERIME : le "
-                        f"fichier texte a ete modifie il y a "
-                        f"{perime['geometrie_h']:.1f} h, son .hdf date de "
-                        f"{perime['hdf_h']:.1f} h. C'est NORMAL apres une "
-                        f"composition — ecrire les sections et les injections "
-                        f"perime les tables 2D. HEC-RAS les refera au premier "
-                        f"calcul ; sur un modele lourd (gros terrain, projet "
-                        f"sur un partage reseau) cela peut echouer sur "
-                        f"« Geometry Writer Failed », et le calage s'arretera "
-                        f"avant tout resultat. Dans le doute : ouvrir le "
-                        f"modele dans HEC-RAS et lancer le plan une fois a la "
-                        f"main, puis lancer le calage SANS recomposer."))
-                break
-    except Exception:                                        # noqa: BLE001
-        pass
+    anomalies_pretraitement = _pretraitement_perime_du_plan(fichier_plan)
 
     try:
         dans_zone = cartographier_hydrogrammes(fichier, zone)
@@ -1054,35 +1139,9 @@ def _controler_residus_unsteady(chemin_template):
                               f"n'aurait aucun effet et la boucle tournerait "
                               f"sans jamais progresser."))
 
-    try:
-        fenetre = fenetre_simulation_du_plan(fichier_plan)
-        simulation_h = (_en_minutes(instant_hecras(fenetre["fin"]))
-                        - _en_minutes(instant_hecras(fenetre["debut"]))) / 60.0
-    except Exception:                                        # noqa: BLE001
-        return anomalies
-    if simulation_h <= 0:
-        return anomalies
-
-    aberrantes = []
-    for nom, info in retenus.items():
-        pas = info["intervalle_h"]
-        if not pas:
-            continue
-        try:
-            valeurs = lire_hydrogramme_unsteady(fichier, info["debut"],
-                                                   info["fin"])
-        except Exception:                                    # noqa: BLE001
-            continue
-        duree_h = (len(valeurs) - 1) * pas
-        if duree_h > FACTEUR_DUREE_ABERRANTE * simulation_h:
-            aberrantes.append(f"« {nom} » {duree_h:.0f} h")
+    aberrantes = _series_aberrantes(fichier, fichier_plan, retenus)
     if aberrantes:
-        anomalies.append((cd.AVERTISSEMENT,
-                          f"serie(s) beaucoup plus longues que la simulation "
-                          f"({simulation_h:.2f} h) : {', '.join(aberrantes)}. "
-                          f"Verifier qu'il ne s'agit pas d'un hydrogramme "
-                          f"herite d'un autre evenement : seul le debut sera "
-                          f"lu, et rien ne le signalera."))
+        anomalies.append(aberrantes)
     return anomalies
 
 
