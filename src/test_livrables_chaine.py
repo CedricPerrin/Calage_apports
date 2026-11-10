@@ -561,6 +561,25 @@ class _BasesHeterogenes(cg.ModeleFictif):
         return self.temps[:n], self.formes[nom_apport][:n]
 
 
+class _UnsteadyPlusLong(cg.ModeleFictif):
+    """
+    Le fichier unsteady couvre bien plus que la fenetre simulee, et le PREMIER
+    apport y porte, au-dela, une seconde crue plus forte que celle qui a ete
+    calee : le maximum de l'hydrogramme retenu tombe HORS de la fenetre jugee.
+    Pointe, volume et serie livres ne doivent porter que sur la fenetre.
+    """
+
+    def forme_apport(self, nom_apport):
+        t, q = super().forme_apport(nom_apport)
+        if nom_apport != self.apports[0]:
+            return t, q
+        pas = float(t[1] - t[0])
+        suite = t[-1] + pas * np.arange(1, 134)
+        crue = q[-1] + 1.6 * float(np.max(q)) * np.exp(
+            -0.5 * ((suite - 44.0) / 1.5) ** 2)
+        return np.concatenate([t, suite]), np.concatenate([q, crue])
+
+
 class _Reprise(cg.ModeleFictif):
     """preparer() laisse en place les apports amont deja cales."""
     gardes = ("A1", "A2")
@@ -729,6 +748,8 @@ SCENARIOS = {
     "queue_de_deux_et_trois_pas": lambda: _calage(
         2, formes=[_hydrogramme(TEMPS, 10.0, t_pic=20.0) for _ in range(2)],
         modele={"retard_h": 0.0}, alterer=_fenetres_au_bord),
+    "crue_de_l_unsteady_hors_fenetre": lambda: _calage(
+        2, classe=_UnsteadyPlusLong, modele={"retard_h": 0.0}),
 }
 
 

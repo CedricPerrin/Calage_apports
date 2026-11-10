@@ -49049,6 +49049,1007 @@
     }
    }
   },
+  "calage/crue_de_l_unsteady_hors_fenetre": {
+   "calage": {"conforme": true, "motif": "", "essais": [1, 1], "retard_axe_h": "f:0x0.0p+0"},
+   "rendu": {
+    "fichiers": [
+     "<DOSSIER>/livrables/comparaison_01_S1.png",
+     "<DOSSIER>/livrables/comparaison_02_S2.png",
+     "<DOSSIER>/livrables/atteinte_cible.png",
+     "<DOSSIER>/livrables/apports_retenus.png",
+     "AVERTISSEMENT — l'apport « A1 » est prolonge a 1.0 m3/s sur 25 h au-dela de la fenetre simulee. Sans effet sur ce calcul, mais ce debit serait injecte si la fenetre etait allongee.",
+     "AVERTISSEMENT — l'apport « A2 » est prolonge a 1.0 m3/s sur 14 h au-dela de la fenetre simulee. Sans effet sur ce calcul, mais ce debit serait injecte si la fenetre etait allongee.",
+     "<DOSSIER>/livrables/tableaux_calage.xlsx",
+     "<DOSSIER>/livrables/synthese.md"
+    ],
+    "conforme": true
+   },
+   "sortie": "",
+   "ecritures": [
+    "<DOSSIER>/livrables/comparaison_01_S1.png",
+    "<DOSSIER>/livrables/comparaison_02_S2.png",
+    "<DOSSIER>/livrables/atteinte_cible.png",
+    "<DOSSIER>/livrables/apports_retenus.png",
+    "<DOSSIER>/livrables/tableaux_calage.xlsx",
+    "<DOSSIER>/livrables/synthese.md"
+   ],
+   "figures": [
+    {
+     "fichier": "<DOSSIER>/livrables/comparaison_01_S1.png",
+     "figure": {
+      "taille": [7.2, 6.0],
+      "suptitre": null,
+      "textes": [
+       {
+        "texte": "pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage +0.00 h | fenetre 0.27-23.20 h",
+        "position": ["f:0x1.0000000000000p-1", "f:0x1.47ae147ae147bp-8"],
+        "couleur": "#1e8449ff",
+        "rotation": 0.0,
+        "ha": "center",
+        "va": "baseline",
+        "taille": 8.5,
+        "style": "normal",
+        "graisse": "normal",
+        "famille": ["monospace"],
+        "zorder": 3
+       }
+      ],
+      "axes": [
+       {
+        "ordre": ["ligne", "ligne"],
+        "grille": [2, 1, [1, 1], [1]],
+        "x_partage": false,
+        "visible": true,
+        "titres": {"left": ["S1 — hydrogrammes bruts", 10.799999999999999, "bold", "#000000ff"]},
+        "x": "",
+        "y": "Débit (m³/s)",
+        "graduations_x": {},
+        "graduations_y": {},
+        "lignes": [
+         {
+          "legende": "Cible (HSMF)",
+          "couleur": "#b03a2eff",
+          "style": "-",
+          "epaisseur": 2.0,
+          "marqueur": "None",
+          "alpha": null,
+          "zorder": 2,
+          "x": {
+           "n": 400,
+           "trous": [],
+           "sha": "9c1cc51bd8cc8b8c3609b2d5",
+           "stats": [
+            "f:0x1.47ae147ae147bp-7",
+            "f:0x1.2000000000000p+5",
+            "f:0x1.47ae147ae147bp-7",
+            "f:0x1.2000000000000p+5",
+            "f:0x1.c220000000001p+12",
+            "f:0x1.d5fcb55555556p+20",
+            "f:0x1.5204379a81bdcp+17"
+           ]
+          },
+          "y": {
+           "n": 400,
+           "trous": [],
+           "sha": "47085bf994c68097e6dfb36c",
+           "stats": [
+            "f:0x1.03ab642961518p-14",
+            "f:0x1.e492c8e9c6571p-7",
+            "f:0x1.03ab642961518p-14",
+            "f:0x1.67fba814ea506p+5",
+            "f:0x1.328f90a5f5d8ep+12",
+            "f:0x1.c22e9038f85b6p+18",
+            "f:0x1.2bde5c4c05255p+17"
+           ]
+          }
+         },
+         {
+          "legende": "Calculé par le modèle",
+          "couleur": "#1b5e7eff",
+          "style": "-",
+          "epaisseur": 2.0,
+          "marqueur": "None",
+          "alpha": null,
+          "zorder": 2,
+          "x": {
+           "n": 280,
+           "trous": [],
+           "sha": "87cf51d7b6ccd3d19091b22d",
+           "stats": [
+            "f:0x1.47ae147ae147bp-7",
+            "f:0x1.92d0a64dc32d1p+4",
+            "f:0x1.47ae147ae147bp-7",
+            "f:0x1.92d0a64dc32d1p+4",
+            "f:0x1.b8c102b1da462p+11",
+            "f:0x1.427783b48c206p+19",
+            "f:0x1.cf2d6dc2ecdcbp+15"
+           ]
+          },
+          "y": {
+           "n": 280,
+           "trous": [],
+           "sha": "c3c0d1f418ecaa5b8ab417e2",
+           "stats": [
+            "f:0x1.03ab642961518p-14",
+            "f:0x1.198ea117b4926p-1",
+            "f:0x1.03ab642961518p-14",
+            "f:0x1.67fba814ea506p+5",
+            "f:0x1.3171088ab9355p+12",
+            "f:0x1.bcc01bafeb097p+18",
+            "f:0x1.2bdbd720a7f2ep+17"
+           ]
+          }
+         }
+        ],
+        "collections": [],
+        "rectangles": [],
+        "barres": [],
+        "textes": [],
+        "legende": {
+         "textes": ["Cible (HSMF)", "Calculé par le modèle"],
+         "colonnes": 1,
+         "position": 0,
+         "cadre": false,
+         "taille": 9.0
+        },
+        "bornes_x": ["f:0x1.a3747d58009e0p-5", "f:0x1.80d658d96d40ap+4"],
+        "~bornes_y": ["f:-0x1.1ffa6528cf830p+1", "f:0x1.79fb6edce3cdcp+5"]
+       },
+       {
+        "ordre": ["ligne", "ligne", "collection"],
+        "grille": [2, 1, [1, 1], [1]],
+        "x_partage": false,
+        "visible": true,
+        "titres": {"left": ["Après recalage temporel — base du diagnostic", 10.799999999999999, "bold", "#000000ff"]},
+        "x": "Temps (h)",
+        "y": "Débit (m³/s)",
+        "graduations_x": {},
+        "graduations_y": {},
+        "lignes": [
+         {
+          "legende": "Cible (HSMF)",
+          "couleur": "#b03a2eff",
+          "style": "-",
+          "epaisseur": 2.0,
+          "marqueur": "None",
+          "alpha": null,
+          "zorder": 2,
+          "x": {
+           "n": 361,
+           "trous": [],
+           "sha": "932f078b486e5170894ce1b3",
+           "stats": [
+            "f:0x1.47ae147ae147bp-7",
+            "f:0x1.20147ae147ae1p+5",
+            "f:0x1.47ae147ae147bp-7",
+            "f:0x1.20147ae147ae1p+5",
+            "f:0x1.9659c28f5c290p+12",
+            "f:0x1.7f04568f5c28fp+20",
+            "f:0x1.31454c4d013aap+17"
+           ]
+          },
+          "y": {
+           "n": 361,
+           "trous": [],
+           "sha": "2ccc59a96be19599c8bd541a",
+           "stats": [
+            "f:0x1.03ab642961518p-14",
+            "f:0x1.e492c8e9c6571p-7",
+            "f:0x1.03ab642961518p-14",
+            "f:0x1.67f9331c95a2dp+5",
+            "f:0x1.14850b5f4f3bap+12",
+            "f:0x1.6eb2b30094654p+18",
+            "f:0x1.0e7792906dccep+17"
+           ]
+          }
+         },
+         {
+          "legende": "Calculé, recalé",
+          "couleur": "#1b5e7eff",
+          "style": "-",
+          "epaisseur": 2.0,
+          "marqueur": "None",
+          "alpha": null,
+          "zorder": 2,
+          "x": {
+           "n": 361,
+           "trous": [],
+           "sha": "932f078b486e5170894ce1b3",
+           "stats": [
+            "f:0x1.47ae147ae147bp-7",
+            "f:0x1.20147ae147ae1p+5",
+            "f:0x1.47ae147ae147bp-7",
+            "f:0x1.20147ae147ae1p+5",
+            "f:0x1.9659c28f5c290p+12",
+            "f:0x1.7f04568f5c28fp+20",
+            "f:0x1.31454c4d013aap+17"
+           ]
+          },
+          "y": {
+           "n": 361,
+           "trous": [],
+           "sha": "1c258d9c8029ca7295c3b839",
+           "stats": [
+            "f:0x1.03ab642961518p-14",
+            "f:0x1.198ea117b4926p-1",
+            "f:0x1.03ab642961518p-14",
+            "f:0x1.67f9331c95a2dp+5",
+            "f:0x1.173c3f5876117p+12",
+            "f:0x1.7c2a14cdabf9cp+18",
+            "f:0x1.0e85b0558b9b1p+17"
+           ]
+          }
+         }
+        ],
+        "collections": [
+         {
+          "legende": "Écart",
+          "fond": ["#7f8c8d2e"],
+          "alpha": 0.18,
+          "zorder": 1,
+          "genre": "polygones",
+          "x": {
+           "n": 470,
+           "trous": [],
+           "sha": "4cf150363cb45622c562120f",
+           "stats": [
+            "f:0x1.47ae147ae147bp-7",
+            "f:0x1.20147ae147ae1p+5",
+            "f:0x1.47ae147ae147bp-7",
+            "f:0x1.20147ae147ae1p+5",
+            "f:0x1.3370ccccccccdp+13",
+            "f:0x1.6ce431fffffffp+21",
+            "f:0x1.fad9d3d70a3d9p+17"
+           ]
+          },
+          "y": {
+           "n": 470,
+           "trous": [],
+           "sha": "0f22c37fff0174d16e029b97",
+           "stats": [
+            "f:0x1.03ab642961518p-14",
+            "f:0x1.198ea117b4926p-1",
+            "f:0x1.03ab642961518p-14",
+            "f:0x1.67f9331c95a2dp+5",
+            "f:0x1.1844193407fabp+12",
+            "f:0x1.8451648f1b2fdp+18",
+            "f:0x1.0e880dc27c7a1p+17"
+           ]
+          }
+         }
+        ],
+        "rectangles": [],
+        "barres": [],
+        "textes": [],
+        "legende": {
+         "textes": ["Cible (HSMF)", "Calculé, recalé", "Écart"],
+         "colonnes": 1,
+         "position": 0,
+         "cadre": false,
+         "taille": 9.0
+        },
+        "bornes_x": ["f:0x1.47ae147ae1480p-7", "f:0x1.8028f5c28f5c3p+4"],
+        "~bornes_y": ["f:-0x1.1ffa6528cf830p+1", "f:0x1.79fb6edce3cdcp+5"]
+       }
+      ]
+     }
+    },
+    {
+     "fichier": "<DOSSIER>/livrables/comparaison_02_S2.png",
+     "figure": {
+      "taille": [7.2, 6.0],
+      "suptitre": null,
+      "textes": [
+       {
+        "texte": "pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage +0.00 h | fenetre 0.27-22.21 h",
+        "position": ["f:0x1.0000000000000p-1", "f:0x1.47ae147ae147bp-8"],
+        "couleur": "#1e8449ff",
+        "rotation": 0.0,
+        "ha": "center",
+        "va": "baseline",
+        "taille": 8.5,
+        "style": "normal",
+        "graisse": "normal",
+        "famille": ["monospace"],
+        "zorder": 3
+       }
+      ],
+      "axes": [
+       {
+        "ordre": ["ligne", "ligne"],
+        "grille": [2, 1, [1, 1], [1]],
+        "x_partage": false,
+        "visible": true,
+        "titres": {"left": ["S2 — hydrogrammes bruts", 10.799999999999999, "bold", "#000000ff"]},
+        "x": "",
+        "y": "Débit (m³/s)",
+        "graduations_x": {},
+        "graduations_y": {},
+        "lignes": [
+         {
+          "legende": "Cible (HSMF)",
+          "couleur": "#b03a2eff",
+          "style": "-",
+          "epaisseur": 2.0,
+          "marqueur": "None",
+          "alpha": null,
+          "zorder": 2,
+          "x": {
+           "n": 400,
+           "trous": [],
+           "sha": "9c1cc51bd8cc8b8c3609b2d5",
+           "stats": [
+            "f:0x1.47ae147ae147bp-7",
+            "f:0x1.2000000000000p+5",
+            "f:0x1.47ae147ae147bp-7",
+            "f:0x1.2000000000000p+5",
+            "f:0x1.c220000000001p+12",
+            "f:0x1.d5fcb55555556p+20",
+            "f:0x1.5204379a81bdcp+17"
+           ]
+          },
+          "y": {
+           "n": 400,
+           "trous": [],
+           "sha": "4f3d93cb75c8a7acfbd3ade2",
+           "stats": [
+            "f:0x1.c7dd3e0fc19a7p-14",
+            "f:0x1.a95905b0c2028p-6",
+            "f:0x1.c7dd3e0fc19a7p-14",
+            "f:0x1.3bfc2ffb9a79cp+6",
+            "f:0x1.0d179e4208279p+13",
+            "f:0x1.8b28df4e739a2p+19",
+            "f:0x1.ce18038bc671bp+18"
+           ]
+          }
+         },
+         {
+          "legende": "Calculé par le modèle",
+          "couleur": "#1b5e7eff",
+          "style": "-",
+          "epaisseur": 2.0,
+          "marqueur": "None",
+          "alpha": null,
+          "zorder": 2,
+          "x": {
+           "n": 280,
+           "trous": [],
+           "sha": "87cf51d7b6ccd3d19091b22d",
+           "stats": [
+            "f:0x1.47ae147ae147bp-7",
+            "f:0x1.92d0a64dc32d1p+4",
+            "f:0x1.47ae147ae147bp-7",
+            "f:0x1.92d0a64dc32d1p+4",
+            "f:0x1.b8c102b1da462p+11",
+            "f:0x1.427783b48c206p+19",
+            "f:0x1.cf2d6dc2ecdcbp+15"
+           ]
+          },
+          "y": {
+           "n": 280,
+           "trous": [],
+           "sha": "759e4cf13d9b044cdf5113f0",
+           "stats": [
+            "f:0x1.c7dd3e0fc19a7p-14",
+            "f:0x1.ee4a09bd86f5ap-1",
+            "f:0x1.c7dd3e0fc19a7p-14",
+            "f:0x1.3bfc2ffb9a79cp+6",
+            "f:0x1.0c1c1b68b3a36p+13",
+            "f:0x1.86645c91e238ap+19",
+            "f:0x1.ce14215911fa2p+18"
+           ]
+          }
+         }
+        ],
+        "collections": [],
+        "rectangles": [],
+        "barres": [],
+        "textes": [],
+        "legende": {
+         "textes": ["Cible (HSMF)", "Calculé par le modèle"],
+         "colonnes": 1,
+         "position": 0,
+         "cadre": false,
+         "taille": 9.0
+        },
+        "bornes_x": ["f:0x1.a3747d58009e0p-5", "f:0x1.80d658d96d40ap+4"],
+        "~bornes_y": ["f:-0x1.f98fc2a85b3b5p+1", "f:0x1.4bc8ca8eb1349p+6"]
+       },
+       {
+        "ordre": ["ligne", "ligne", "collection"],
+        "grille": [2, 1, [1, 1], [1]],
+        "x_partage": false,
+        "visible": true,
+        "titres": {"left": ["Après recalage temporel — base du diagnostic", 10.799999999999999, "bold", "#000000ff"]},
+        "x": "Temps (h)",
+        "y": "Débit (m³/s)",
+        "graduations_x": {},
+        "graduations_y": {},
+        "lignes": [
+         {
+          "legende": "Cible (HSMF)",
+          "couleur": "#b03a2eff",
+          "style": "-",
+          "epaisseur": 2.0,
+          "marqueur": "None",
+          "alpha": null,
+          "zorder": 2,
+          "x": {
+           "n": 361,
+           "trous": [],
+           "sha": "932f078b486e5170894ce1b3",
+           "stats": [
+            "f:0x1.47ae147ae147bp-7",
+            "f:0x1.20147ae147ae1p+5",
+            "f:0x1.47ae147ae147bp-7",
+            "f:0x1.20147ae147ae1p+5",
+            "f:0x1.9659c28f5c290p+12",
+            "f:0x1.7f04568f5c28fp+20",
+            "f:0x1.31454c4d013aap+17"
+           ]
+          },
+          "y": {
+           "n": 361,
+           "trous": [],
+           "sha": "62812a00de33dd89748a10cb",
+           "stats": [
+            "f:0x1.c7dd3e0fc19a7p-14",
+            "f:0x1.a95905b0c2028p-6",
+            "f:0x1.c7dd3e0fc19a7p-14",
+            "f:0x1.3bfa07e30be17p+6",
+            "f:0x1.e57219a752356p+12",
+            "f:0x1.41e11ff7f9b99p+19",
+            "f:0x1.a0c9539172761p+18"
+           ]
+          }
+         },
+         {
+          "legende": "Calculé, recalé",
+          "couleur": "#1b5e7eff",
+          "style": "-",
+          "epaisseur": 2.0,
+          "marqueur": "None",
+          "alpha": null,
+          "zorder": 2,
+          "x": {
+           "n": 361,
+           "trous": [],
+           "sha": "932f078b486e5170894ce1b3",
+           "stats": [
+            "f:0x1.47ae147ae147bp-7",
+            "f:0x1.20147ae147ae1p+5",
+            "f:0x1.47ae147ae147bp-7",
+            "f:0x1.20147ae147ae1p+5",
+            "f:0x1.9659c28f5c290p+12",
+            "f:0x1.7f04568f5c28fp+20",
+            "f:0x1.31454c4d013aap+17"
+           ]
+          },
+          "y": {
+           "n": 361,
+           "trous": [],
+           "sha": "b1226512de7c4c452dc419ae",
+           "stats": [
+            "f:0x1.c7dd3e0fc19a7p-14",
+            "f:0x1.ee4a09bd86f5ap-1",
+            "f:0x1.c7dd3e0fc19a7p-14",
+            "f:0x1.3bfa07e30be17p+6",
+            "f:0x1.ea3691570829dp+12",
+            "f:0x1.4db329042db63p+19",
+            "f:0x1.a0df1457d48a0p+18"
+           ]
+          }
+         }
+        ],
+        "collections": [
+         {
+          "legende": "Écart",
+          "fond": ["#7f8c8d2e"],
+          "alpha": 0.18,
+          "zorder": 1,
+          "genre": "polygones",
+          "x": {
+           "n": 470,
+           "trous": [],
+           "sha": "4cf150363cb45622c562120f",
+           "stats": [
+            "f:0x1.47ae147ae147bp-7",
+            "f:0x1.20147ae147ae1p+5",
+            "f:0x1.47ae147ae147bp-7",
+            "f:0x1.20147ae147ae1p+5",
+            "f:0x1.3370ccccccccdp+13",
+            "f:0x1.6ce431fffffffp+21",
+            "f:0x1.fad9d3d70a3d9p+17"
+           ]
+          },
+          "y": {
+           "n": 470,
+           "trous": [],
+           "sha": "ff6bc0fb919574f1af0f7875",
+           "stats": [
+            "f:0x1.c7dd3e0fc19a7p-14",
+            "f:0x1.ee4a09bd86f5ap-1",
+            "f:0x1.c7dd3e0fc19a7p-14",
+            "f:0x1.3bfa07e30be17p+6",
+            "f:0x1.ec05c5d87fc93p+12",
+            "f:0x1.54db5b1ce7823p+19",
+            "f:0x1.a0e2b94bdfed7p+18"
+           ]
+          }
+         }
+        ],
+        "rectangles": [],
+        "barres": [],
+        "textes": [],
+        "legende": {
+         "textes": ["Cible (HSMF)", "Calculé, recalé", "Écart"],
+         "colonnes": 1,
+         "position": 0,
+         "cadre": false,
+         "taille": 9.0
+        },
+        "bornes_x": ["f:0x1.47ae147ae1480p-7", "f:0x1.8028f5c28f5c3p+4"],
+        "~bornes_y": ["f:-0x1.f98fc2a85b3b5p+1", "f:0x1.4bc8ca8eb1349p+6"]
+       }
+      ]
+     }
+    },
+    {
+     "fichier": "<DOSSIER>/livrables/atteinte_cible.png",
+     "figure": {
+      "taille": [7.6, 3.4],
+      "suptitre": null,
+      "textes": [],
+      "axes": [
+       {
+        "ordre": ["rectangle", "rectangle", "rectangle", "rectangle", "rectangle", "rectangle", "ligne"],
+        "grille": [1, 1, [1], [1]],
+        "x_partage": false,
+        "visible": true,
+        "titres": {"left": ["Ce qui est atteint, par section de contrôle", 10.799999999999999, "bold", "#000000ff"]},
+        "x": "",
+        "y": "Atteinte de la cible (%)",
+        "graduations_x": {"positions": ["f:0x0.0p+0", "f:0x1.0000000000000p+0"]},
+        "graduations_y": {},
+        "lignes": [
+         {
+          "legende": "cible = 100 %",
+          "couleur": "#b03a2eff",
+          "style": "--",
+          "epaisseur": 1.4,
+          "marqueur": "None",
+          "alpha": null,
+          "zorder": 2,
+          "x": ["f:0x0.0p+0", "f:0x1.0000000000000p+0"],
+          "y": ["f:0x1.9000000000000p+6", "f:0x1.9000000000000p+6"]
+         }
+        ],
+        "collections": [],
+        "rectangles": [
+         {
+          "emprise": ["f:-0x1.8f5c28f5c28f6p-2", "f:0x0.0p+0", "f:-0x1.0a3d70a3d70a4p-3", "f:0x1.9000000000000p+6"],
+          "fond": "#2e86abff",
+          "alpha": null,
+          "zorder": 1,
+          "legende": "_"
+         },
+         {
+          "emprise": ["f:0x1.3851eb851eb85p-1", "f:0x0.0p+0", "f:0x1.bd70a3d70a3d7p-1", "f:0x1.9000000000000p+6"],
+          "fond": "#2e86abff",
+          "alpha": null,
+          "zorder": 1,
+          "legende": "_"
+         },
+         {
+          "emprise": ["f:-0x1.0a3d70a3d70a4p-3", "f:0x0.0p+0", "f:0x1.0a3d70a3d70a4p-3", "f:0x1.9000000000000p+6"],
+          "fond": "#117a65ff",
+          "alpha": null,
+          "zorder": 1,
+          "legende": "_"
+         },
+         {
+          "emprise": ["f:0x1.bd70a3d70a3d7p-1", "f:0x0.0p+0", "f:0x1.2147ae147ae14p+0", "f:0x1.9000000000000p+6"],
+          "fond": "#117a65ff",
+          "alpha": null,
+          "zorder": 1,
+          "legende": "_"
+         },
+         {
+          "emprise": ["f:0x1.0a3d70a3d70a4p-3", "f:0x0.0p+0", "f:0x1.8f5c28f5c28f6p-2", "f:0x1.8ffffffffffffp+6"],
+          "fond": "#5d6d7eff",
+          "alpha": null,
+          "zorder": 1,
+          "legende": "_"
+         },
+         {
+          "emprise": ["f:0x1.2147ae147ae14p+0", "f:0x0.0p+0", "f:0x1.63d70a3d70a3dp+0", "f:0x1.8ffffffffffffp+6"],
+          "fond": "#5d6d7eff",
+          "alpha": null,
+          "zorder": 1,
+          "legende": "_"
+         }
+        ],
+        "barres": ["Débit de pointe", "Volume", "Forme"],
+        "textes": [],
+        "legende": {
+         "textes": ["cible = 100 %", "Débit de pointe", "Volume", "Forme"],
+         "colonnes": 4,
+         "position": 0,
+         "cadre": false,
+         "taille": 8.0
+        },
+        "~bornes_x": ["f:-0x1.ea7ef9db22d0ep-2", "f:0x1.7a9fbe76c8b43p+0"],
+        "~bornes_y": ["f:0x0.0p+0", "f:0x1.a400000000000p+6"]
+       }
+      ]
+     }
+    },
+    {
+     "fichier": "<DOSSIER>/livrables/apports_retenus.png",
+     "figure": {
+      "taille": [7.2, 3.6],
+      "suptitre": null,
+      "textes": [],
+      "axes": [
+       {
+        "ordre": ["ligne", "ligne"],
+        "grille": [1, 1, [1], [1]],
+        "x_partage": false,
+        "visible": true,
+        "titres": {"left": ["Hydrogrammes d'apport retenus après calage", 10.799999999999999, "bold", "#000000ff"]},
+        "x": "Temps (h)",
+        "y": "Débit injecté (m³/s)",
+        "graduations_x": {},
+        "graduations_y": {},
+        "lignes": [
+         {
+          "legende": "A1",
+          "couleur": "#463480ff",
+          "style": "-",
+          "epaisseur": 1.9,
+          "marqueur": "None",
+          "alpha": null,
+          "zorder": 2,
+          "x": {
+           "n": 258,
+           "trous": [],
+           "sha": "e3b9f2c5e4bef8fa2ec6b0f2",
+           "stats": [
+            "f:0x1.47ae147ae147bp-7",
+            "f:0x1.73108086af7dep+4",
+            "f:0x1.47ae147ae147bp-7",
+            "f:0x1.73108086af7dep+4",
+            "f:0x1.761fe935d157bp+11",
+            "f:0x1.f891dee92f3f7p+18",
+            "f:0x1.6a396abd3f408p+15"
+           ]
+          },
+          "y": {
+           "n": 258,
+           "trous": [],
+           "sha": "cf876446a4be0f0029fca6e1",
+           "stats": [
+            "f:0x1.03ab642961518p-14",
+            "f:0x1.061cacd34fdcdp+0",
+            "f:0x1.03ab642961518p-14",
+            "f:0x1.67fba814ea506p+5",
+            "f:0x1.3068082a997f1p+12",
+            "f:0x1.b868e202f428bp+18",
+            "f:0x1.2bd56826876e2p+17"
+           ]
+          }
+         },
+         {
+          "legende": "A2",
+          "couleur": "#9bd93cff",
+          "style": "-",
+          "epaisseur": 1.9,
+          "marqueur": "None",
+          "alpha": null,
+          "zorder": 2,
+          "x": {
+           "n": 247,
+           "trous": [],
+           "sha": "4ac4695dc02d1320abb0cc45",
+           "stats": [
+            "f:0x1.47ae147ae147bp-7",
+            "f:0x1.63306da325a64p+4",
+            "f:0x1.47ae147ae147bp-7",
+            "f:0x1.63306da325a64p+4",
+            "f:0x1.56db3ee721a56p+11",
+            "f:0x1.bac1ab46b46b5p+18",
+            "f:0x1.3dc6bbb200e17p+15"
+           ]
+          },
+          "y": {
+           "n": 247,
+           "trous": [],
+           "sha": "c944f956dc223596a57b933e",
+           "stats": [
+            "f:0x1.8863b3ccc091ep-15",
+            "f:0x1.0c6d17150376ap+0",
+            "f:0x1.8863b3ccc091ep-15",
+            "f:0x1.0ffcb7e24aa32p+5",
+            "f:0x1.cac3ebe09507ep+11",
+            "f:0x1.4a5512885530ep+18",
+            "f:0x1.564b4a8ded8d3p+16"
+           ]
+          }
+         }
+        ],
+        "collections": [],
+        "rectangles": [],
+        "barres": [],
+        "textes": [],
+        "legende": {"textes": ["A1", "A2"], "colonnes": 2, "position": 0, "cadre": false, "taille": 8.0},
+        "~bornes_x": ["f:-0x1.2629dfa723f20p+0", "f:0x1.859c1443b1193p+4"],
+        "~bornes_y": ["f:-0x1.1ffaea74d842fp+1", "f:0x1.79fb6f4273116p+5"]
+       }
+      ]
+     }
+    }
+   ],
+   "dossier": {
+    "<DOSSIER>/livrables/apports_retenus.png": {"non_vide": true},
+    "<DOSSIER>/livrables/atteinte_cible.png": {"non_vide": true},
+    "<DOSSIER>/livrables/comparaison_01_S1.png": {"non_vide": true},
+    "<DOSSIER>/livrables/comparaison_02_S2.png": {"non_vide": true},
+    "<DOSSIER>/livrables/synthese.md": {
+     "texte": "# Calage des apports — note de synthèse\n\n## Conclusion\n\nLe calage est **conforme** : les 2 sections de contrôle restituent l'hydrogramme cible en volume, en débit de pointe et en forme. Écart maximal constaté : 0.0 % sur le volume et 0.0 % sur le débit de pointe.\n\n- Débit de pointe : de 100.0 % à 100.0 % de la cible\n- Volume : de 100.0 % à 100.0 % de la cible\n- Décalage temporel maximal : 0.00 h (surveillé, non corrigé)\n\n## Détail par section\n\n- **S1** — OK — pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage +0.00 h | fenetre 0.27-23.20 h\n- **S2** — OK — pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage +0.00 h | fenetre 0.27-22.21 h\n\n## Vérifications exigées par le guide méthodologique\n\nConformément à Lang & Lavabre (2007), p. 81, les points suivants ont été contrôlés :\n\n1. Cohérence de forme entre l'hydrogramme de référence et le calcul, évaluée après recalage temporel.\n2. Cohérence fréquentielle, par comparaison du volume et du débit de pointe à la cible HSMF.\n3. Absence de dérive en fréquence vers l'aval, contrôlée par le profil longitudinal des débits de pointe.\n\n## Outils\n\nLe pilotage de HEC-RAS s'appuie sur **ras-commander v0.99.1** (CLB Engineering Corporation), bibliothèque libre — github.com/gpt-cmdr/ras-commander. Merci de conserver cette mention dans toute publication reprenant ces résultats (rascommander.info/ras/cite/)."
+    },
+    "<DOSSIER>/livrables/tableaux_calage.xlsx": {
+     "classeur": {
+      "feuilles": [
+       {
+        "nom": "Tableau_de_bord",
+        "dimensions": "A1:I3",
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "largeurs": {},
+        "conditionnelles": [],
+        "validations": 0,
+        "colonnes": {
+         "A": {
+          "textes": [[1, "Section"], [2, "S1"], [3, "S2"]],
+          "lignes_nombres": [],
+          "nombres": [],
+          "types": [[1, 3, "str"]],
+          "~styles": [[1, 3, ["General", false, 11.0, null, null, null, null]]]
+         },
+         "B": {
+          "textes": [[1, "Débit de pointe (% cible)"]],
+          "lignes_nombres": [[2, 3]],
+          "nombres": ["f:0x1.9000000000000p+6", "f:0x1.9000000000000p+6"],
+          "types": [[1, 1, "str"], [2, 3, "int"]],
+          "~styles": [[1, 3, ["General", false, 11.0, null, null, null, null]]]
+         },
+         "C": {
+          "textes": [[1, "Volume (% cible)"]],
+          "lignes_nombres": [[2, 3]],
+          "nombres": ["f:0x1.9000000000000p+6", "f:0x1.9000000000000p+6"],
+          "types": [[1, 1, "str"], [2, 3, "int"]],
+          "~styles": [[1, 3, ["General", false, 11.0, null, null, null, null]]]
+         },
+         "D": {
+          "textes": [[1, "Forme (concordance %)"]],
+          "lignes_nombres": [[2, 3]],
+          "nombres": ["f:0x1.9000000000000p+6", "f:0x1.9000000000000p+6"],
+          "types": [[1, 1, "str"], [2, 3, "int"]],
+          "~styles": [[1, 3, ["General", false, 11.0, null, null, null, null]]]
+         },
+         "E": {
+          "textes": [[1, "Décalage (h)"]],
+          "lignes_nombres": [[2, 3]],
+          "nombres": ["f:0x0.0p+0", "f:0x0.0p+0"],
+          "types": [[1, 1, "str"], [2, 3, "int"]],
+          "~styles": [[1, 3, ["General", false, 11.0, null, null, null, null]]]
+         },
+         "F": {
+          "textes": [[1, "Essais"]],
+          "lignes_nombres": [[2, 3]],
+          "nombres": ["f:0x1.0000000000000p+0", "f:0x1.0000000000000p+0"],
+          "types": [[1, 1, "str"], [2, 3, "int"]],
+          "~styles": [[1, 3, ["General", false, 11.0, null, null, null, null]]]
+         },
+         "G": {
+          "textes": [[1, "Bilan masse (%)"]],
+          "lignes_nombres": [],
+          "nombres": [],
+          "types": [[1, 1, "str"]],
+          "~styles": [[1, 1, ["General", false, 11.0, null, null, null, null]]]
+         },
+         "H": {
+          "textes": [[1, "Statut"], [2, "Validé"], [3, "Validé"]],
+          "lignes_nombres": [],
+          "nombres": [],
+          "types": [[1, 3, "str"]],
+          "~styles": [[1, 3, ["General", false, 11.0, null, null, null, null]]]
+         },
+         "I": {
+          "textes": [[1, "Alertes"]],
+          "lignes_nombres": [],
+          "nombres": [],
+          "types": [[1, 1, "str"]],
+          "~styles": [[1, 1, ["General", false, 11.0, null, null, null, null]]]
+         }
+        },
+        "graphiques": []
+       },
+       {
+        "nom": "Apports",
+        "dimensions": "A1:D3",
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "largeurs": {},
+        "conditionnelles": [],
+        "validations": 0,
+        "colonnes": {
+         "A": {
+          "textes": [[1, "Apport"], [2, "A1"], [3, "A2"]],
+          "lignes_nombres": [],
+          "nombres": [],
+          "types": [[1, 3, "str"]],
+          "~styles": [[1, 3, ["General", false, 11.0, null, null, null, null]]]
+         },
+         "B": {
+          "textes": [[1, "Volume retenu / 1re estimation"]],
+          "lignes_nombres": [[2, 3]],
+          "nombres": ["f:0x1.0000000000000p+0", "f:0x1.0000000000000p+0"],
+          "types": [[1, 1, "str"], [2, 3, "int"]],
+          "~styles": [[1, 3, ["General", false, 11.0, null, null, null, null]]]
+         },
+         "C": {
+          "textes": [[1, "Pic injecte (m3/s)"]],
+          "lignes_nombres": [[2, 3]],
+          "nombres": ["f:0x1.6800000000000p+5", "f:0x1.1000000000000p+5"],
+          "types": [[1, 1, "str"], [2, 3, "int"]],
+          "~styles": [[1, 3, ["General", false, 11.0, null, null, null, null]]]
+         },
+         "D": {
+          "textes": [[1, "Volume injecte (1000 m3)"]],
+          "lignes_nombres": [[2, 3]],
+          "nombres": ["f:0x1.8b5999999999ap+10", "f:0x1.29e6666666666p+10"],
+          "types": [[1, 1, "str"], [2, 3, "float"]],
+          "~styles": [[1, 3, ["General", false, 11.0, null, null, null, null]]]
+         }
+        },
+        "graphiques": []
+       },
+       {
+        "nom": "Hydrogrammes_apports",
+        "dimensions": "A1:C259",
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "largeurs": {},
+        "conditionnelles": [],
+        "validations": 0,
+        "colonnes": {
+         "A": {
+          "textes": [[1, "Temps_h"]],
+          "lignes_nombres": [[2, 259]],
+          "nombres": {
+           "n": 258,
+           "trous": [],
+           "sha": "f25d32febd450a37cbe8f47b",
+           "stats": [
+            "f:0x1.47ae147ae147bp-7",
+            "f:0x1.73126e978d4fep+4",
+            "f:0x1.47ae147ae147bp-7",
+            "f:0x1.73126e978d4fep+4",
+            "f:0x1.761fbe76c8b44p+11",
+            "f:0x1.f891d1a9fbe78p+18",
+            "f:0x1.6a39580f98fa4p+15"
+           ]
+          },
+          "types": [[1, 1, "str"], [2, 259, "float"]],
+          "~styles": [[1, 259, ["General", false, 11.0, null, null, null, null]]]
+         },
+         "B": {
+          "textes": [[1, "Apport_A1"]],
+          "lignes_nombres": [[2, 259]],
+          "nombres": {
+           "n": 258,
+           "trous": [],
+           "sha": "f94fee05239b4fb67d60c72a",
+           "stats": [
+            "f:0x0.0p+0",
+            "f:0x1.0624dd2f1a9fcp+0",
+            "f:0x0.0p+0",
+            "f:0x1.67fbe76c8b439p+5",
+            "f:0x1.3067f3b645a1dp+12",
+            "f:0x1.b868c0a3d70a4p+18",
+            "f:0x1.2bd53b58d9b5ep+17"
+           ]
+          },
+          "types": [[1, 1, "str"], [2, 2, "int"], [3, 259, "float"]],
+          "~styles": [[1, 259, ["General", false, 11.0, null, null, null, null]]]
+         },
+         "C": {
+          "textes": [[1, "Apport_A2"]],
+          "lignes_nombres": [[2, 248]],
+          "nombres": {
+           "n": 247,
+           "trous": [],
+           "sha": "810d1c0617a66bf9b6f3ed02",
+           "stats": [
+            "f:0x0.0p+0",
+            "f:0x1.0c8b439581062p+0",
+            "f:0x0.0p+0",
+            "f:0x1.0ffbe76c8b439p+5",
+            "f:0x1.cac3c6a7ef9dbp+11",
+            "f:0x1.4a54ec7ae147ap+18",
+            "f:0x1.564b325c3dee6p+16"
+           ]
+          },
+          "types": [[1, 1, "str"], [2, 2, "int"], [3, 248, "float"]],
+          "~styles": [[1, 248, ["General", false, 11.0, null, null, null, null]]]
+         }
+        },
+        "graphiques": []
+       },
+       {
+        "nom": "Journal",
+        "dimensions": "A1:F3",
+        "figees": null,
+        "filtre": null,
+        "fusions": [],
+        "largeurs": {},
+        "conditionnelles": [],
+        "validations": 0,
+        "colonnes": {
+         "A": {
+          "textes": [[1, "apport"], [2, "A1"], [3, "A2"]],
+          "lignes_nombres": [],
+          "nombres": [],
+          "types": [[1, 3, "str"]],
+          "~styles": [[1, 3, ["General", false, 11.0, null, null, null, null]]]
+         },
+         "B": {
+          "textes": [[1, "essai"]],
+          "lignes_nombres": [[2, 3]],
+          "nombres": ["f:0x1.0000000000000p+0", "f:0x1.0000000000000p+0"],
+          "types": [[1, 1, "str"], [2, 3, "int"]],
+          "~styles": [[1, 3, ["General", false, 11.0, null, null, null, null]]]
+         },
+         "C": {
+          "textes": [[1, "facteur"]],
+          "lignes_nombres": [[2, 3]],
+          "nombres": ["f:0x1.0000000000000p+0", "f:0x1.0000000000000p+0"],
+          "types": [[1, 1, "str"], [2, 3, "int"]],
+          "~styles": [[1, 3, ["General", false, 11.0, null, null, null, null]]]
+         },
+         "D": {
+          "textes": [[1, "volume"]],
+          "lignes_nombres": [[2, 3]],
+          "nombres": ["f:0x1.0000000000000p+0", "f:0x1.0000000000000p+0"],
+          "types": [[1, 1, "str"], [2, 3, "int"]],
+          "~styles": [[1, 3, ["General", false, 11.0, null, null, null, null]]]
+         },
+         "E": {
+          "textes": [[1, "pic"]],
+          "lignes_nombres": [[2, 3]],
+          "nombres": ["f:0x1.0000000000000p+0", "f:0x1.0000000000000p+0"],
+          "types": [[1, 1, "str"], [2, 3, "int"]],
+          "~styles": [[1, 3, ["General", false, 11.0, null, null, null, null]]]
+         },
+         "F": {
+          "textes": [[1, "r"]],
+          "lignes_nombres": [[2, 3]],
+          "nombres": ["f:0x1.fffffffffffffp-1", "f:0x1.fffffffffffffp-1"],
+          "types": [[1, 1, "str"], [2, 3, "float"]],
+          "~styles": [[1, 3, ["General", false, 11.0, null, null, null, null]]]
+         }
+        },
+        "graphiques": []
+       }
+      ]
+     }
+    }
+   }
+  },
   "profil/complet_avec_debits": {
    "rendu": "<DOSSIER>/p.png",
    "figures": [
