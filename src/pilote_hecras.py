@@ -3292,14 +3292,18 @@ if __name__ == "__main__":
     import runpy
     _banc = Path(__file__).resolve().parent / "bancs" / "banc_pilote_hecras.py"
     if not _banc.is_file():
+        # SANS LE BANC, --projet RESTE UTILISABLE : c'est un diagnostic en
+        # lecture seule, et c'est sur un poste installe, la ou le banc n'est
+        # pas livre, qu'on en a besoin. Sans --projet, on sort en code 2.
         print("Le banc d'auto-tests de pilote_hecras.py n'est pas livre avec "
               "cette installation.")
-        raise SystemExit(2)
-    try:
-        runpy.run_path(str(_banc), run_name="__main__")
-        _code_banc = 0
-    except SystemExit as _fin:                 # le banc rend 1 sur un ECHEC
-        _code_banc = _fin.code
+        _code_banc = 2
+    else:
+        try:
+            runpy.run_path(str(_banc), run_name="__main__")
+            _code_banc = 0
+        except SystemExit as _fin:             # le banc rend 1 sur un ECHEC
+            _code_banc = _fin.code
 
     analyseur = argparse.ArgumentParser(
         description="Diagnostic du raccordement a un projet HEC-RAS. "
