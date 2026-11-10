@@ -1497,6 +1497,115 @@ def _cibles_depuis_classeur(chemin_template, journal=None):
     return apports, sections, cibles, manquantes
 
 
+def _consigner_verdict(suivi, resultat):
+    """
+    Ecrit le verdict du calage au suivi ; un echec n'est qu'un avertissement.
+    """
+    # VERDICT DANS LE SUIVI, avant meme les livrables. Sans lui, celui qui
+    # regarde l'avancement voit les fichiers cesser d'etre reecrits sans
+    # savoir si le calage a abouti, echoue, ou s'il est mort en chemin.
+    # Consigne aussi si l'assemblage du rapport echoue ensuite : le calage,
+    # lui, est bien termine.
+    try:
+        suivi.conclure(resultat.conforme, resultat.motif, resultat.nb_calculs)
+    except Exception as e:                                  # noqa: BLE001
+        print(f"AVERTISSEMENT : verdict non consigne au suivi : {e}",
+              flush=True)
+
+
+def _produire_rapport(pilote, chemin_template, resultat, dossier_resultats):
+    """
+    Livrables finaux du calage, dans dossier_resultats. Rend ce que
+    produire_livrables_finaux() rend, ou None : rien a livrer, ou echec dit
+    au journal.
+    """
+    from calage import produire_livrables_finaux
+
+    rapport = None
+    if resultat.diagnostics_finaux:
+        # PROFIL EN LONG DE SYNTHESE. Ces trois valeurs sont FACULTATIVES pour
+        # produire_livrables_finaux(), qui saute la figure d'ensemble sans rien
+        # dire quand elles manquent. Ne pas les passer suffisait donc a rendre
+        # la figure introuvable dans les livrables de n'importe quel calage —
+        # celle-la meme que reprend la note methodologique.
+        profil, pk_sections, pk_apports = _profil_pour_livrables(
+            pilote, chemin_template, resultat)
+        try:
+            rapport = produire_livrables_finaux(
+                resultat, pilote, dossier_resultats,
+                profil=profil, pk_sections=pk_sections,
+                pk_apports=pk_apports)
+        except Exception as e:
+            print(f"AVERTISSEMENT : rapport final non produit : {e}", flush=True)
+    return rapport
+
+
+def _ranger_plans(pilote, resultat, prefixe_etape, tous_apports, elaguer):
+    """
+    Menage des traces de preparation puis, si « elaguer », elagage des plans
+    d'etape — sur un calage conforme seulement. Rend le bilan du menage, ou
+    None s'il n'a pas eu lieu.
+    """
+    # MENAGE. LES PLANS D'ETAPE SONT CONSERVES — « sans_apport », puis un par
+    # apport : ils documentent le calage et permettent de le reprendre sans
+    # repartir du premier apport. Ne partent que les traces de preparation, et
+    # seulement si le calage a abouti : tant qu'il n'a pas abouti, les
+    # sauvegardes horodatees sont le seul retour en arriere sur le modele.
+    menage = None
+    if resultat.conforme:
+        try:
+            menage = pilote.nettoyer_reliquats()
+            if menage["reliquats"]:
+                print(f"Menage : {len(menage['reliquats'])} reliquat(s) de "
+                      f"preparation retire(s) — "
+                      f"{', '.join(menage['reliquats'])}", flush=True)
+            print(f"Plans conserves : {', '.join(menage['etapes'])}",
+                  flush=True)
+        except Exception as e:
+            # Le menage est un confort : son echec ne doit pas faire perdre un
+            # calage qui a abouti.
+            print(f"AVERTISSEMENT : menage non effectue : {e}", flush=True)
+
+        # ELAGAGE DES PLANS D'ETAPE, SI LA CASE ETAIT COCHEE. Ici et pas
+        # ailleurs : le plan final vient d'etre titre, c'est le seul moment ou
+        # l'operation a un sens ET ou elle est sure — elaguer_etapes refuse de
+        # toute facon s'il n'existe pas.
+        #   APRES LES LIVRABLES, JAMAIS AVANT : ils relisent les plans
+        # d'etape. Les retirer d'abord rendrait un rapport ampute sur un
+        # calage reussi, ce qui est pire que garder des plans.
+        if elaguer:
+            _elaguer_plans_etape(pilote, prefixe_etape, tous_apports)
+    elif elaguer:
+        # La case etait cochee : dire pourquoi rien n'est retire, sinon
+        # l'utilisateur croit l'option cassee (modele reel, 28/09/2026).
+        print("AVERTISSEMENT : elagage non fait — le calage n'est pas "
+              "conforme, et ses plans d'etape sont ce qui permet de le "
+              "reprendre.", flush=True)
+    return menage
+
+
+def _elaguer_plans_etape(pilote, prefixe_etape, tous_apports):
+    """
+    Retire les plans d'etape d'un calage conforme ; un echec n'est qu'un
+    avertissement.
+    """
+    try:
+        elagage = pilote.elaguer_etapes(prefixe_etape, tous_apports,
+                                        simuler=False)
+        if elagage.get("refus"):
+            print(f"Elagage refuse : {elagage['refus']}", flush=True)
+        else:
+            print(f"Elagage : {len(elagage['supprimes'])} objet(s) "
+                  f"retire(s) — "
+                  f"{', '.join(elagage['supprimes'])}. Le plan "
+                  f"« {elagage['final']} » est conserve.", flush=True)
+    except Exception as e:
+        # Comme le menage : un calage abouti ne se perd pas sur un
+        # confort de rangement.
+        print(f"AVERTISSEMENT : elagage non effectue : {e}",
+              flush=True)
+
+
 def commande_caler(args):
     """
     Lance la boucle de calage sequentielle COMPLETE, a partir d'un classeur
@@ -1512,8 +1621,7 @@ def commande_caler(args):
     import pandas as pd
 
     from calage import (ETAPE_AVEC_APPORTS, ETAPE_SANS_APPORT, Configuration,
-                        caler, etape_apport, produire_livrables_finaux,
-                        titre_etape)
+                        caler, etape_apport, titre_etape)
     from criteres import pas_serie_h
     from pilote_hecras import (PiloteHecRas, plan_par_titre, plans_par_titre,
                                symbole_decimal)
@@ -1779,83 +1887,12 @@ def commande_caler(args):
                      journal=_dire_horodate,
                      etape_reference=etape_reference)
 
-    # VERDICT DANS LE SUIVI, avant meme les livrables. Sans lui, celui qui
-    # regarde l'avancement voit les fichiers cesser d'etre reecrits sans
-    # savoir si le calage a abouti, echoue, ou s'il est mort en chemin.
-    # Consigne aussi si l'assemblage du rapport echoue ensuite : le calage,
-    # lui, est bien termine.
-    try:
-        suivi.conclure(resultat.conforme, resultat.motif, resultat.nb_calculs)
-    except Exception as e:                                  # noqa: BLE001
-        print(f"AVERTISSEMENT : verdict non consigne au suivi : {e}",
-              flush=True)
-
-    rapport = None
-    if resultat.diagnostics_finaux:
-        # PROFIL EN LONG DE SYNTHESE. Ces trois valeurs sont FACULTATIVES pour
-        # produire_livrables_finaux(), qui saute la figure d'ensemble sans rien
-        # dire quand elles manquent. Ne pas les passer suffisait donc a rendre
-        # la figure introuvable dans les livrables de n'importe quel calage —
-        # celle-la meme que reprend la note methodologique.
-        profil, pk_sections, pk_apports = _profil_pour_livrables(
-            pilote, chemin_template, resultat)
-        try:
-            rapport = produire_livrables_finaux(
-                resultat, pilote, dossier_sortie / sous_resultats,
-                profil=profil, pk_sections=pk_sections,
-                pk_apports=pk_apports)
-        except Exception as e:
-            print(f"AVERTISSEMENT : rapport final non produit : {e}", flush=True)
-
-    # MENAGE. LES PLANS D'ETAPE SONT CONSERVES — « sans_apport », puis un par
-    # apport : ils documentent le calage et permettent de le reprendre sans
-    # repartir du premier apport. Ne partent que les traces de preparation, et
-    # seulement si le calage a abouti : tant qu'il n'a pas abouti, les
-    # sauvegardes horodatees sont le seul retour en arriere sur le modele.
-    menage = None
-    if resultat.conforme:
-        try:
-            menage = pilote.nettoyer_reliquats()
-            if menage["reliquats"]:
-                print(f"Menage : {len(menage['reliquats'])} reliquat(s) de "
-                      f"preparation retire(s) — "
-                      f"{', '.join(menage['reliquats'])}", flush=True)
-            print(f"Plans conserves : {', '.join(menage['etapes'])}",
-                  flush=True)
-        except Exception as e:
-            # Le menage est un confort : son echec ne doit pas faire perdre un
-            # calage qui a abouti.
-            print(f"AVERTISSEMENT : menage non effectue : {e}", flush=True)
-
-        # ELAGAGE DES PLANS D'ETAPE, SI LA CASE ETAIT COCHEE. Ici et pas
-        # ailleurs : le plan final vient d'etre titre, c'est le seul moment ou
-        # l'operation a un sens ET ou elle est sure — elaguer_etapes refuse de
-        # toute facon s'il n'existe pas.
-        #   APRES LES LIVRABLES, JAMAIS AVANT : ils relisent les plans
-        # d'etape. Les retirer d'abord rendrait un rapport ampute sur un
-        # calage reussi, ce qui est pire que garder des plans.
-        if texte("Elaguer_plans_etape", "non").lower() in ("oui", "true", "1"):
-            try:
-                elagage = pilote.elaguer_etapes(prefixe_etape, tous_apports,
-                                                simuler=False)
-                if elagage.get("refus"):
-                    print(f"Elagage refuse : {elagage['refus']}", flush=True)
-                else:
-                    print(f"Elagage : {len(elagage['supprimes'])} objet(s) "
-                          f"retire(s) — "
-                          f"{', '.join(elagage['supprimes'])}. Le plan "
-                          f"« {elagage['final']} » est conserve.", flush=True)
-            except Exception as e:
-                # Comme le menage : un calage abouti ne se perd pas sur un
-                # confort de rangement.
-                print(f"AVERTISSEMENT : elagage non effectue : {e}",
-                      flush=True)
-    elif texte("Elaguer_plans_etape", "non").lower() in ("oui", "true", "1"):
-        # La case etait cochee : dire pourquoi rien n'est retire, sinon
-        # l'utilisateur croit l'option cassee (modele reel, 28/09/2026).
-        print("AVERTISSEMENT : elagage non fait — le calage n'est pas "
-              "conforme, et ses plans d'etape sont ce qui permet de le "
-              "reprendre.", flush=True)
+    _consigner_verdict(suivi, resultat)
+    rapport = _produire_rapport(pilote, chemin_template, resultat,
+                                dossier_sortie / sous_resultats)
+    elaguer = texte("Elaguer_plans_etape", "non").lower() in ("oui", "true", "1")
+    menage = _ranger_plans(pilote, resultat, prefixe_etape, tous_apports,
+                           elaguer)
 
     return repondre(
         ok=True, conforme=resultat.conforme, motif=resultat.motif,
