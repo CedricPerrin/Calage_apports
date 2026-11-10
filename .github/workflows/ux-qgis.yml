@@ -37,6 +37,9 @@ jobs:
             echo "=== src/$banc.py"
             python src/$banc.py
           done
+      # Filet des trois contrôles de controle_donnees.py : 143 cas figés dans
+      # src/reference_controle_donnees.json (chantier B, 10/11/2026).
+      - run: python -m pytest src/test_controle_donnees.py -q
 
   chaine-hdf:
     # Hors QGIS, à dessein : h5py entre en conflit avec la bibliothèque HDF5 de QGIS
