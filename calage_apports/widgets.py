@@ -2,16 +2,16 @@
 Widgets peints de la fenêtre du plugin, et le vocabulaire qu'ils partagent avec elle.
 
 Sortis de plugin.py le 10/11/2026 (docs/decoupage_dialogue.md), code déplacé à
-l'identique. CourbeComparaison reste dans plugin.py : test_plugin_qgis.py relit
-dans le TEXTE de plugin.py la fenêtre de crue qu'elle emploie (_fenetre_crue,
-SEUIL_CRUE, MARGE_CRUE_H), pour la comparer à celle de livrables.py.
+l'identique. CourbeComparaison et sa fenêtre de crue (_fenetre_crue, SEUIL_CRUE,
+MARGE_CRUE_H) les ont rejoints en phase 2 : test_plugin_qgis.py compare cette
+fenêtre à celle de livrables.py dans le fichier qui définit _fenetre_crue.
 
 Ce module n'importe pas plugin.py : c'est plugin.py qui l'importe, et qui
 ré-exporte ce que le banc y lit par son nom.
 """
 
-from qgis.PyQt.QtCore import QEvent, QRectF, Qt
-from qgis.PyQt.QtGui import QColor, QFont, QFontMetrics, QPainter, QPen
+from qgis.PyQt.QtCore import QEvent, QPointF, QRectF, Qt
+from qgis.PyQt.QtGui import QColor, QFont, QFontMetrics, QPainter, QPen, QPolygonF
 from qgis.PyQt.QtWidgets import QApplication, QProgressBar, QSizePolicy, QWidget
 
 from . import registre
@@ -336,6 +336,243 @@ class JaugeAtteinte(QWidget):
                                     hauteur - 4, 2, 2)
         peintre.setPen(QColor(registre.NEUTRE_FONCE))
         peintre.drawLine(int(centre), haut - 2, int(centre), haut + hauteur + 2)
+        peintre.end()
+
+
+# Fenetre de crue : bornes hors desquelles il ne se passe rien d'interessant.
+#
+# LA REGLE EXISTE EN DEUX EXEMPLAIRES, ET C'EST ASSUME. Le plugin la traite
+# dans un paintEvent rafraichi toutes les deux secondes ; livrables.py la
+# traite sur des tableaux numpy, pour une figure matplotlib. Fusionner les
+# deux ferait entrer matplotlib — et la chaine entiere — dans le fil
+# graphique de QGIS, pour cadrer un trace de deux courbes.
+#
+# CE QUI EST INTERDIT, C'EST QU'ELLES DIVERGENT. Les deux valeurs sont donc
+# NOMMEES des deux cotes, et test_plugin_qgis.py verifie qu'elles sont
+# egales : le jour ou l'une bouge, le banc le dit, au lieu de laisser la
+# courbe du suivi et la figure du livrable cadrer deux fenetres differentes
+# sans que rien ne le signale.
+SEUIL_CRUE = 0.02      # fraction du debit de pointe sous laquelle on coupe
+MARGE_CRUE_H = 0.5     # heures conservees de part et d'autre
+
+
+def _fenetre_crue(tc, qc, ts, qs, q_max, seuil=SEUIL_CRUE,
+                  marge_h=MARGE_CRUE_H):
+    """
+    Bornes temporelles ou la crue est effectivement significative.
+
+    L'hydrogramme saisi peut couvrir 24 h alors que la crue elle-meme ne
+    dure que quelques heures : le trace ne doit pas s'etendre au-dela de ce
+    qui se passe reellement, sous peine d'ecraser la courbe contre l'axe.
+    Seuil relatif au pic (2 %) plutot qu'un debit de base absolu, pour
+    marcher aussi bien sur un petit affluent que sur un cours d'eau majeur.
+    """
+    borne_totale = (min(min(tc), min(ts)), max(max(tc), max(ts)))
+    seuil_q = seuil * q_max
+    instants = [t for t, q in zip(tc, qc) if q >= seuil_q]
+    instants += [t for t, q in zip(ts, qs) if q >= seuil_q]
+    if not instants:
+        return borne_totale
+    t_debut = max(min(instants) - marge_h, borne_totale[0])
+    t_fin = min(max(instants) + marge_h, borne_totale[1])
+    return t_debut, t_fin
+
+
+class CourbeComparaison(QWidget):
+    """
+    Hydrogramme CIBLE et hydrogramme MESURE a la section, du dernier essai.
+
+    Les trois jauges disent DE COMBIEN on s'ecarte ; elles ne disent pas OU.
+    Un volume a 103 % avec une pointe a 94 % peut venir d'un pic trop bas ou
+    d'une decrue trop longue — ce sont deux diagnostics opposes, et seule la
+    courbe les distingue. C'est aussi ce qui permet de voir, sans attendre la
+    fin, qu'un apport part de travers.
+
+    LA CIBLE TRACEE EST LA CIBLE DECALEE DE -Δt, celle que la methode compare
+    a la section et que le classeur d'iterations consigne (suivi.py la publie
+    ainsi). Tracee brute, elle apparaissait translatee de Δt — 3,8 h sur le
+    premier apport d'un calage reel — juste sous trois jauges affichant
+    99,9 %, et l'oeil concluait a un calage faux la ou il etait juste. La
+    legende NOMME le
+    decalage : le taire reviendrait a laisser croire que les deux courbes sont
+    sur la meme origine des temps.
+    """
+
+    _TEXTE_ATTENTE = "La comparaison apparaît après le premier essai évalué."
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.courbes = None
+        self.precedentes = []
+        self._ajuster_hauteur()
+        self.setAccessibleName("Cible et débit calculé à la section")
+        self.setAccessibleDescription(self._TEXTE_ATTENTE)
+
+    def _ajuster_hauteur(self):
+        # 190 px a 10 pt — la valeur qui etait ecrite en dur —, davantage
+        # quand la police grandit ; 16 px est la hauteur de ligne de la
+        # police de reference.
+        self.setMinimumHeight(
+            max(190, round(190 * self.fontMetrics().height() / 16)))
+
+    def changeEvent(self, evenement):                       # noqa: N802
+        super().changeEvent(evenement)
+        if evenement.type() == QEvent.Type.FontChange:
+            self._ajuster_hauteur()
+
+    def actualiser(self, courbes, precedentes=None):
+        self.courbes = courbes or None
+        self.precedentes = list(precedentes or [])
+        if not self.courbes:
+            description = self._TEXTE_ATTENTE
+        else:
+            decalage = float(self.courbes.get("decalage_h") or 0.0)
+            deja = sum(1 for c in self.precedentes
+                       if len(c.get("debit") or []) > 1)
+            description = (
+                "Cible et débit calculé au dernier essai évalué"
+                + (f", cible décalée de {nombre(decalage, 2, signe=True)} h"
+                   if abs(decalage) >= 0.005 else "")
+                + (f", {compte(deja, 'section calée', 'sections calées')} derrière"
+                   if deja else ""))
+        self.setAccessibleDescription(description)
+        self.update()
+
+    def paintEvent(self, evenement):                        # noqa: N802
+        peintre, zone = _carte(self)
+        police = peintre.font()
+        police.setPointSizeF(_taille_police(self, 0.75))
+        peintre.setFont(police)
+        metriques = QFontMetrics(police)
+        h_texte = metriques.height()
+
+        if not self.courbes:
+            # Message EXPLICITE sur ce qu'on attend : « au premier essai » se
+            # lisait comme une panne au bout de la troisieme heure de calcul.
+            peintre.setPen(QColor(registre.TEXTE_SECONDAIRE))
+            peintre.drawText(zone, Qt.AlignmentFlag.AlignCenter,
+                             self._TEXTE_ATTENTE)
+            peintre.end()
+            return
+
+        tc = self.courbes.get("temps_cible") or []
+        qc = self.courbes.get("debit_cible") or []
+        ts = self.courbes.get("temps_calcule") or []
+        qs = self.courbes.get("debit_calcule") or []
+        if len(tc) < 2 or len(ts) < 2:
+            peintre.end()
+            return
+
+        # LES SECTIONS DEJA CALEES ENTRENT DANS L'ECHELLE, mais PAS dans la
+        # fenetre de crue : celle-ci se calcule sur la paire courante, qui est
+        # ce qu'on juge. Les couper a l'echelle les ecraserait ; les laisser
+        # commander la fenetre deplacerait le regard vers un apport clos.
+        deja = [c for c in self.precedentes if len(c.get("debit") or []) > 1]
+        courantes = [c for c in deja if not c.get("anterieur")]
+        anterieures = [c for c in deja if c.get("anterieur")]
+
+        # DEUX FAMILLES DERRIERE, ET ELLES NE SE CONFONDENT PAS : ce que CE
+        # calage a cale, a l'accent adouci en pointille ; ce que le PRECEDENT
+        # avait cale et qu'on ne refait pas, au neutre fonce en tiret-point.
+        # Deux teintes ET deux styles de trait — la teinte seule ne porte
+        # jamais le sens.
+        cale = QColor(registre.ACCENT)
+        cale.setAlpha(130)
+        stylo_cale = QPen(cale, 1.2, Qt.PenStyle.DotLine)
+        stylo_avant = QPen(QColor(registre.NEUTRE_FONCE), 1.2, Qt.PenStyle.DashDotLine)
+        stylo_cible = QPen(QColor(registre.ENCRE), 1.6, Qt.PenStyle.DashLine)
+        stylo_mesure = QPen(QColor(registre.ACCENT), 2.2)
+
+        # LA LEGENDE A SES PROPRES LIGNES, AU-DESSUS DU TRACE. Posee dans le
+        # trace, en haut a droite, elle passait sous les pointes des courbes
+        # des que la police grandissait (13 pt : « cible décalée » coupee par le
+        # pic). Le libelle de la cible DIT son decalage des qu'il n'est pas nul
+        # — sans quoi le lecteur croirait les deux courbes sur la meme origine
+        # des temps. La troisieme et la quatrieme entree n'apparaissent QUE
+        # s'il y a quelque chose derriere : au premier apport, une legende
+        # annoncant des sections calees qui n'existent pas ferait chercher des
+        # courbes absentes. Les entrees passent a la ligne quand la largeur
+        # manque.
+        decalage = float(self.courbes.get("decalage_h") or 0.0)
+        entrees = [(stylo_mesure, "calculé"),
+                   (stylo_cible, "cible" if abs(decalage) < 0.005
+                    else f"cible décalée de {nombre(decalage, 2, signe=True)} h")]
+        if courantes:
+            entrees.append((stylo_cale, compte(len(courantes), "section calée",
+                                               "sections calées")))
+        if anterieures:
+            entrees.append((stylo_avant, compte(len(anterieures), "section")
+                            + " du calage précédent"))
+        lignes, x = [[]], 0.0
+        for stylo, libelle in entrees:
+            place = 22 + metriques.horizontalAdvance(libelle) + 14
+            if lignes[-1] and x + place > zone.width():
+                lignes.append([])
+                x = 0.0
+            lignes[-1].append((x, stylo, libelle))
+            x += place
+        for rang, ligne in enumerate(lignes):
+            y = zone.top() + rang * (h_texte + 2)
+            for x, stylo, libelle in ligne:
+                gauche_entree = zone.left() + x
+                peintre.setPen(stylo)
+                peintre.drawLine(QPointF(gauche_entree, y + h_texte / 2),
+                                 QPointF(gauche_entree + 18, y + h_texte / 2))
+                peintre.setPen(QColor(registre.ENCRE))
+                peintre.drawText(QRectF(gauche_entree + 22, y, zone.width(), h_texte),
+                                 int(Qt.AlignmentFlag.AlignLeft
+                                     | Qt.AlignmentFlag.AlignVCenter), libelle)
+
+        q_max = max([max(qc), max(qs)]
+                    + [max(c["debit"]) for c in deja]) or 1.0
+        # LES MARGES SUIVENT LA POLICE : la gauche loge la plus large des
+        # graduations, le bas une ligne de texte, le haut la legende.
+        gauche = zone.left() + max(metriques.horizontalAdvance(f"{q_max:.0f}"),
+                                   metriques.horizontalAdvance("m³/s")) + 8
+        haut = zone.top() + len(lignes) * (h_texte + 2) + 6
+        largeur = max(zone.right() - gauche, 10)
+        hauteur = max(zone.bottom() - h_texte - 4 - haut, 10)
+        t_min, t_max = _fenetre_crue(tc, qc, ts, qs, max(max(qc), max(qs)) or 1.0)
+        etendue_t = (t_max - t_min) or 1.0
+
+        def point(t, q):
+            return QPointF(gauche + largeur * (t - t_min) / etendue_t,
+                           haut + hauteur * (1.0 - q / (1.08 * q_max)))
+
+        # Repere discret : graduations de debit sur la grille fine du
+        # registre, l'axe des temps.
+        peintre.setPen(QPen(QColor(registre.GRILLE), 1))
+        for fraction in (0.25, 0.5, 0.75, 1.0):
+            y = haut + hauteur * (1.0 - fraction / 1.08)
+            peintre.drawLine(QPointF(gauche, y), QPointF(gauche + largeur, y))
+        peintre.setPen(QColor(registre.TEXTE_SECONDAIRE))
+        a_droite = int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        for fraction in (0.5, 1.0):
+            y = haut + hauteur * (1.0 - fraction / 1.08)
+            peintre.drawText(QRectF(zone.left(), y - h_texte / 2,
+                                    gauche - zone.left() - 5, h_texte),
+                             a_droite, f"{fraction * q_max:.0f}")
+        peintre.drawText(QRectF(zone.left(), haut + hauteur - h_texte / 2,
+                                gauche - zone.left() - 5, h_texte), a_droite, "m³/s")
+        peintre.drawText(QRectF(gauche, haut + hauteur + 2, largeur, h_texte),
+                         int(Qt.AlignmentFlag.AlignLeft), f"{t_min:.0f} h")
+        peintre.drawText(QRectF(gauche, haut + hauteur + 2, largeur, h_texte),
+                         int(Qt.AlignmentFlag.AlignRight), f"{t_max:.0f} h")
+
+        # DERRIERE, ET CLIPPEES. Une section calee peut deborder la fenetre de
+        # crue courante : sans decoupe, sa polyligne irait ecrire par-dessus
+        # les graduations et la legende.
+        peintre.setClipRect(QRectF(gauche, haut, largeur, hauteur))
+        for courbe in deja:
+            peintre.setPen(stylo_avant if courbe.get("anterieur") else stylo_cale)
+            peintre.drawPolyline(QPolygonF(
+                [point(t, q) for t, q in zip(courbe["temps"],
+                                             courbe["debit"])]))
+        for temps, debits, stylo in ((tc, qc, stylo_cible), (ts, qs, stylo_mesure)):
+            peintre.setPen(stylo)
+            peintre.drawPolyline(QPolygonF(
+                [point(t, q) for t, q in zip(temps, debits)]))
+        peintre.setClipping(False)
         peintre.end()
 
 
