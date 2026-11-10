@@ -298,13 +298,7 @@ def figure_profil_en_long(profil, sections_pk, chemin,
     pics_*      : debits de pointe cible et calcule aux sections. S'ils sont
                   fournis, deux panneaux supplementaires sont traces.
     """
-    profil = profil.sort_values("pk_m")
-    # Rien hors du modele : l'axe qui en deborde n'allonge pas la figure. Les
-    # trous interieurs restent des trous.
-    dedans = profil["z_fond"].notna().to_numpy()
-    if dedans.any():
-        rangs = np.flatnonzero(dedans)
-        profil = profil.iloc[rangs[0]:rangs[-1] + 1]
+    profil = _profil_dans_le_modele(profil)
     pk_profil = profil["pk_m"].to_numpy(dtype=float)
     z_fond = profil["z_fond"].to_numpy(dtype=float)
     z_eau = (profil["z_eau_max"].to_numpy(dtype=float)
@@ -325,6 +319,36 @@ def figure_profil_en_long(profil, sections_pk, chemin,
         fig, ax = plt.subplots(figsize=(8.0, 3.6))
         ax_q = ax_e = None
 
+    _panneau_geometrie(ax, x_profil, pk_profil, z_fond, z_eau, x_sections,
+                       noms_sections, x_apports, apports_pk, noms_apports,
+                       titre)
+
+    # --- panneau 2 : debits de pointe --------------------------------------
+    if avec_debits:
+        _panneaux_debits(ax_q, ax_e, x_sections, x_apports, pics_cible,
+                         pics_calcule, libelle_x)
+    else:
+        ax.set_xlabel(libelle_x)
+
+    return _finaliser(fig, chemin)
+
+
+def _profil_dans_le_modele(profil):
+    """Le profil trie par PK, sans ce qui deborde du modele aux deux bouts."""
+    profil = profil.sort_values("pk_m")
+    # Rien hors du modele : l'axe qui en deborde n'allonge pas la figure. Les
+    # trous interieurs restent des trous.
+    dedans = profil["z_fond"].notna().to_numpy()
+    if dedans.any():
+        rangs = np.flatnonzero(dedans)
+        profil = profil.iloc[rangs[0]:rangs[-1] + 1]
+    return profil
+
+
+def _panneau_geometrie(ax, x_profil, pk_profil, z_fond, z_eau, x_sections,
+                       noms_sections, x_apports, apports_pk, noms_apports,
+                       titre):
+    """Panneau 1 du profil en long : lit, ligne d'eau, sections, injections."""
     # --- panneau 1 : geometrie et ligne d'eau ------------------------------
     # Une bande libre est reservee en haut pour les etiquettes d'ouvrage, de
     # facon qu'elles ne recouvrent jamais la ligne d'eau ni la legende.
@@ -349,6 +373,19 @@ def figure_profil_en_long(profil, sections_pk, chemin,
     ax.set_title(titre, loc="left", fontweight="bold")
     ax.axhline(base_bande, color=NEUTRE, lw=0.7, alpha=0.35, zorder=5)
 
+    _reperes_sections(ax, x_sections, noms_sections, bas, base_bande, plage)
+
+    if x_apports is not None:
+        _reperes_injections(ax, x_apports, apports_pk, noms_apports,
+                            pk_profil, z_fond, z_eau, base_bande, plage)
+
+    # Legende posee sur le remblai de terrain, zone uniforme sans information.
+    ax.legend(fontsize=7.6, loc="lower left", ncol=2, framealpha=0.92,
+              facecolor="white", edgecolor="none", borderpad=0.5)
+
+
+def _reperes_sections(ax, x_sections, noms_sections, bas, base_bande, plage):
+    """Trait et etiquette de chaque section de controle, au panneau 1."""
     for i, xs in enumerate(x_sections):
         # Le trait s'arrete sous la bande d'etiquettes, qu'il barrerait sinon.
         ax.plot([xs, xs], [bas, base_bande], color=CALCULE, lw=1.0, ls="--",
@@ -358,61 +395,58 @@ def figure_profil_en_long(profil, sections_pk, chemin,
                     rotation=90, fontsize=6.8, color=CALCULE, ha="center",
                     va="bottom", zorder=6)
 
+
+def _reperes_injections(ax, x_apports, apports_pk, noms_apports, pk_profil,
+                        z_fond, z_eau, base_bande, plage):
+    """Injections d'apport au panneau 1 : posees sur la ligne d'eau."""
+    # Le profil peut comporter des trous là où l'axe sort du maillage :
+    # on n'interpole que sur les points renseignés.
+    reference = z_eau if z_eau is not None else z_fond
+    valides = ~np.isnan(reference)
+    z_apport = np.interp(np.asarray(apports_pk, dtype=float),
+                         pk_profil[valides], reference[valides])
+    for xa, za in zip(x_apports, z_apport):
+        ax.plot([xa, xa], [za, base_bande], color=APPORT, lw=0.8, ls=":",
+                alpha=0.6, zorder=5)
+    ax.scatter(x_apports, z_apport, marker="v", s=52, color=APPORT,
+               zorder=7, label="Injection d'apport")
+    if noms_apports is not None:
+        for xa, nom in zip(x_apports, noms_apports):
+            ax.text(xa, base_bande + 0.03 * plage, nom, rotation=90,
+                    fontsize=6.8, color=APPORT, ha="center", va="bottom",
+                    zorder=6)
+
+
+def _panneaux_debits(ax_q, ax_e, x_sections, x_apports, pics_cible,
+                     pics_calcule, libelle_x):
+    """Panneaux 2 et 3 du profil en long : pics aux sections, et leur ecart."""
+    ax_q.plot(x_sections, pics_cible, "o-", color=CIBLE, lw=2,
+              label="Cible (HSMF)")
+    ax_q.plot(x_sections, pics_calcule, "s--", color=CALCULE, lw=2,
+              label="Calculé")
+    for xs in x_sections:
+        ax_q.axvline(xs, color=CALCULE, lw=0.8, ls="--", alpha=0.25)
     if x_apports is not None:
-        # Le profil peut comporter des trous là où l'axe sort du maillage :
-        # on n'interpole que sur les points renseignés.
-        reference = z_eau if z_eau is not None else z_fond
-        valides = ~np.isnan(reference)
-        z_apport = np.interp(np.asarray(apports_pk, dtype=float),
-                             pk_profil[valides], reference[valides])
-        for xa, za in zip(x_apports, z_apport):
-            ax.plot([xa, xa], [za, base_bande], color=APPORT, lw=0.8, ls=":",
-                    alpha=0.6, zorder=5)
-        ax.scatter(x_apports, z_apport, marker="v", s=52, color=APPORT,
-                   zorder=7, label="Injection d'apport")
-        if noms_apports is not None:
-            for xa, nom in zip(x_apports, noms_apports):
-                ax.text(xa, base_bande + 0.03 * plage, nom, rotation=90,
-                        fontsize=6.8, color=APPORT, ha="center", va="bottom",
-                        zorder=6)
+        for xa in x_apports:
+            ax_q.axvline(xa, color=APPORT, lw=0.8, ls=":", alpha=0.45)
+    ax_q.set_ylabel("Débit de pointe (m³/s)")
+    ax_q.legend(frameon=False, fontsize=8)
+    ax_q.set_title("Débits de pointe aux sections de contrôle "
+                   "(pointillés violets : injections)",
+                   loc="left", fontsize=8.5, color=NEUTRE)
 
-    # Legende posee sur le remblai de terrain, zone uniforme sans information.
-    ax.legend(fontsize=7.6, loc="lower left", ncol=2, framealpha=0.92,
-              facecolor="white", edgecolor="none", borderpad=0.5)
-
-    # --- panneau 2 : debits de pointe --------------------------------------
-    if avec_debits:
-        ax_q.plot(x_sections, pics_cible, "o-", color=CIBLE, lw=2,
-                  label="Cible (HSMF)")
-        ax_q.plot(x_sections, pics_calcule, "s--", color=CALCULE, lw=2,
-                  label="Calculé")
-        for xs in x_sections:
-            ax_q.axvline(xs, color=CALCULE, lw=0.8, ls="--", alpha=0.25)
-        if x_apports is not None:
-            for xa in x_apports:
-                ax_q.axvline(xa, color=APPORT, lw=0.8, ls=":", alpha=0.45)
-        ax_q.set_ylabel("Débit de pointe (m³/s)")
-        ax_q.legend(frameon=False, fontsize=8)
-        ax_q.set_title("Débits de pointe aux sections de contrôle "
-                       "(pointillés violets : injections)",
-                       loc="left", fontsize=8.5, color=NEUTRE)
-
-        ecart = 100 * (np.asarray(pics_calcule, dtype=float)
-                       / np.asarray(pics_cible, dtype=float) - 1)
-        largeur = (0.35 * float(np.min(np.diff(np.sort(x_sections))))
-                   if len(x_sections) > 1 else 0.5)
-        ax_e.bar(x_sections, ecart, width=largeur,
-                 color=[OK if abs(e) <= 5 else ALERTE for e in ecart])
-        ax_e.axhline(0, color=NEUTRE, lw=1)
-        ax_e.axhspan(-5, 5, color=OK, alpha=0.10)
-        ax_e.set_ylabel("Écart (%)")
-        ax_e.set_xlabel(libelle_x)
-        ax_e.set_title("Écart sur le pic — bande verte : ±5 %", loc="left",
-                       fontsize=8.5, color=NEUTRE)
-    else:
-        ax.set_xlabel(libelle_x)
-
-    return _finaliser(fig, chemin)
+    ecart = 100 * (np.asarray(pics_calcule, dtype=float)
+                   / np.asarray(pics_cible, dtype=float) - 1)
+    largeur = (0.35 * float(np.min(np.diff(np.sort(x_sections))))
+               if len(x_sections) > 1 else 0.5)
+    ax_e.bar(x_sections, ecart, width=largeur,
+             color=[OK if abs(e) <= 5 else ALERTE for e in ecart])
+    ax_e.axhline(0, color=NEUTRE, lw=1)
+    ax_e.axhspan(-5, 5, color=OK, alpha=0.10)
+    ax_e.set_ylabel("Écart (%)")
+    ax_e.set_xlabel(libelle_x)
+    ax_e.set_title("Écart sur le pic — bande verte : ±5 %", loc="left",
+                   fontsize=8.5, color=NEUTRE)
 
 
 def tableau_geometrie(noms_sections, pk_sections, noms_apports=None,
