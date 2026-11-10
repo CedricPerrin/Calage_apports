@@ -40,6 +40,9 @@ jobs:
       # Filet des trois contrôles de controle_donnees.py : 143 cas figés dans
       # src/reference_controle_donnees.json (chantier B, 10/11/2026).
       - run: python -m pytest src/test_controle_donnees.py -q
+      # Filet de caler() : 57 scénarios ModeleFictif (chantier C, 10/11/2026). Hors du socle
+      # où la référence a été figée, il compare le journal, les appels et le bilan, et le dit.
+      - run: python -m pytest src/test_caracterisation_caler.py -q
 
   chaine-hdf:
     # Hors QGIS, à dessein : h5py entre en conflit avec la bibliothèque HDF5 de QGIS
