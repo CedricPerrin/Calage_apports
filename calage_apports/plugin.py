@@ -1227,6 +1227,9 @@ class DialogueParametrage(QDialog):
     def __init__(self, iface, parent=None):
         super().__init__(parent or iface.mainWindow())
         self.iface = iface
+        self._tache_installation = None
+        self._python_en_attente = None
+        self._choix_python_ouvert = False
         self.setWindowTitle(f"{NOM_PLUGIN} — {EDITEUR}")
         self.setObjectName("calageFenetre")
         self.setWindowIcon(QIcon(os.path.join(DOSSIER, "icon.png")))
@@ -4554,9 +4557,24 @@ class DialogueParametrage(QDialog):
             Qgis.MessageLevel.Warning, 10)
         return True
 
-    # RELAIS VERS LA PAGE AIDE (page_aide.py). Le banc, showEvent et
-    # PluginCalage.unload appellent ces methodes sur le dialogue, par leur
-    # nom : elles ne font que transmettre.
+    # RELAIS VERS LA PAGE AIDE (page_aide.py). Le banc, showEvent,
+    # PluginCalage.unload et src/test_installation_qgis.py appellent ces
+    # methodes sur le dialogue, par leur nom : elles ne font que transmettre.
+    # _proposer_python et _confirmer sont en outre des points de passage : la
+    # page les appelle PAR LE DIALOGUE, parce que ce test remplace le premier
+    # sur l'instance et confirmer sur le module plugin.
+    def _suivre_installation(self, tache):
+        self.page_aide._suivre_installation(tache)
+
+    def _reprendre_installation(self):
+        self.page_aide._reprendre_installation()
+
+    def _proposer_python(self, cible, candidats):
+        self.page_aide._proposer_python(cible, candidats)
+
+    def _confirmer(self, *args, **kwargs):
+        return confirmer(*args, **kwargs)
+
     def _survol_aide(self, lien):
         self.page_aide._survol_aide(lien)
 

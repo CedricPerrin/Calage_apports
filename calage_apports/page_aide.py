@@ -29,7 +29,7 @@ from qgis.PyQt.QtWidgets import (
 from . import lexique, noyau
 from .installation import TacheInstallation, TacheRecherchePython, installation_en_cours
 from .interface import Etiquette as QLabel, Manuel as QTextBrowser
-from .socle import (ISL_ROUGE, confirmer, dire, formulaire, rendre_la_main,
+from .socle import (ISL_ROUGE, dire, formulaire, rendre_la_main,
                     rendre_redimensionnable, sans_sablier, texte_aide, texte_etat)
 from .widgets import compte
 
@@ -43,7 +43,11 @@ class PageAide(QWidget):
     CE QU'ELLE EMPLOIE DU DIALOGUE, ET RIEN D'AUTRE : la fenetre elle-meme —
     parent de ses boites, et porteuse du sablier que sans_sablier et
     rendre_la_main suspendent (_sablier_pose) — ; sa visibilite (isVisible :
-    la fenetre, pas l'onglet) ; _signaler ; _installation_occupe.
+    la fenetre, pas l'onglet) ; _signaler ; _installation_occupe. Puis ce que
+    src/test_installation_qgis.py y lit ou y remplace, et qui doit donc y
+    rester : les etats _tache_installation, _python_en_attente,
+    _choix_python_ouvert et _erreur_installation ; _proposer_python (remplace
+    sur l'instance) et _confirmer (le test remplace plugin.confirmer).
 
     CE QU'ELLE RECOIT A LA CONSTRUCTION, faute de pouvoir importer plugin.py
     qui l'importe : le texte de l'aide (AIDE_HTML reste dans plugin.py, ou
@@ -58,9 +62,6 @@ class PageAide(QWidget):
         self._journaliser = journaliser
         self._cle_chaine = cle_chaine
         self._cle_interpreteur = cle_interpreteur
-        self._tache_installation = None
-        self._python_en_attente = None
-        self._choix_python_ouvert = False
         v = QVBoxLayout(self)
         v.setSpacing(10)
 
@@ -250,9 +251,9 @@ class PageAide(QWidget):
             self._suivre_installation(tache)
 
     def _suivre_installation(self, tache):
-        if self._tache_installation is tache:
+        if self._dialogue._tache_installation is tache:
             return
-        self._tache_installation = tache
+        self._dialogue._tache_installation = tache
         tache.phase.connect(self._phase_installation)
         fin = self._fin_recherche_python if isinstance(tache, TacheRecherchePython) else self._fin_installation
         tache.resultat.connect(fin)
@@ -262,7 +263,7 @@ class PageAide(QWidget):
         self._phase_installation(tache.lignes[-1] if tache.lignes else "Installation en attente…")
 
     def _phase_installation(self, phase):
-        if isinstance(self._tache_installation, TacheRecherchePython):
+        if isinstance(self._dialogue._tache_installation, TacheRecherchePython):
             self.progression_installation.setAccessibleName("Recherche des interpréteurs Python")
             dire(self.label_diagnostic, phase + "\nQGIS reste utilisable. "
                  "La recherche continue si cette fenêtre est fermée. "
@@ -274,7 +275,7 @@ class PageAide(QWidget):
              "Ne quittez pas QGIS ; l'arrêt pendant pip n'est pas proposé.")
 
     def _detacher_installation(self):
-        tache = self._tache_installation
+        tache = self._dialogue._tache_installation
         if tache is not None:
             try:
                 tache.phase.disconnect(self._phase_installation)
@@ -282,13 +283,13 @@ class PageAide(QWidget):
                 tache.resultat.disconnect(fin)
             except (TypeError, RuntimeError):
                 pass
-            self._tache_installation = None
+            self._dialogue._tache_installation = None
 
     def _installer_interpreteur(self):
         """Confirme la cible ; recherche et installation restent hors du fil GUI."""
-        if self._choix_python_ouvert:
+        if self._dialogue._choix_python_ouvert:
             return
-        if self._python_en_attente is not None:
+        if self._dialogue._python_en_attente is not None:
             self._choisir_python_recherche()
             return
         if self._dialogue._installation_occupe():
@@ -303,7 +304,7 @@ class PageAide(QWidget):
         # installée ET vérifiée, et l'annoncer autrement finirait par mentir.
         paquets = [p for _, p in noyau.PAQUETS_HECRAS]
         with sans_sablier(self._dialogue):
-            accepte = confirmer(
+            accepte = self._dialogue._confirmer(
                 self._dialogue, "Installer l'environnement Python HEC-RAS",
                 f"Un environnement Python va être créé dans :\n{cible}\n\n"
                 f"puis {len(paquets)} paquets y seront installés depuis "
@@ -320,7 +321,7 @@ class PageAide(QWidget):
         QgsApplication.taskManager().addTask(tache)
 
     def _fin_recherche_python(self, candidats, message, journal):
-        cible = self._tache_installation.cible
+        cible = self._dialogue._tache_installation.cible
         self._detacher_installation()
         self.progression_installation.hide()
         for bouton in self._commandes_poste:
@@ -328,21 +329,21 @@ class PageAide(QWidget):
         dire(self.label_diagnostic, message)
         if candidats is None:
             return  # annulation/erreur : aucun sélecteur ni installation implicite
-        self._python_en_attente = (cible, candidats)
+        self._dialogue._python_en_attente = (cible, candidats)
         # finished() doit rendre la main au gestionnaire avant une boîte de choix.
         QTimer.singleShot(0, self._choisir_python_recherche)
 
     def _choisir_python_recherche(self):
-        if (self._python_en_attente is None or self._choix_python_ouvert
+        if (self._dialogue._python_en_attente is None or self._dialogue._choix_python_ouvert
                 or not self._dialogue.isVisible()):
             return
-        cible, candidats = self._python_en_attente
-        self._python_en_attente = None
-        self._choix_python_ouvert = True
+        cible, candidats = self._dialogue._python_en_attente
+        self._dialogue._python_en_attente = None
+        self._dialogue._choix_python_ouvert = True
         try:
-            self._proposer_python(cible, candidats)
+            self._dialogue._proposer_python(cible, candidats)
         finally:
-            self._choix_python_ouvert = False
+            self._dialogue._choix_python_ouvert = False
 
     def _proposer_python(self, cible, candidats):
         """Choix sur le fil graphique ; la cible confirmée reste inchangée."""
@@ -421,7 +422,7 @@ class PageAide(QWidget):
             boite.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
             boite.setModal(False)
             boite.show()
-            self._erreur_installation = boite
+            self._dialogue._erreur_installation = boite
             return
 
         self._maj_parametres_poste()
@@ -447,7 +448,7 @@ class PageAide(QWidget):
         if noyau.trouver_chaine() is None:
             # QUATRIEME QUESTION OUI/NON SANS DEFAUT, que la relecture du 17/09
             # n'avait pas comptee : meme correctif que les trois autres.
-            if confirmer(
+            if self._dialogue._confirmer(
                     self._dialogue, "Chaîne de calage introuvable",
                     "Le dossier de la chaîne de calage n'a pas été trouvé.\n\n"
                     "Installé depuis une archive, le plugin ne peut pas le "
