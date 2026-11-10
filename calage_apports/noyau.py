@@ -2159,6 +2159,109 @@ def prolonger_cibles(chemin_classeur, duree_h):
             "colonnes": [entetes[c - 1] for c in colonnes]}
 
 
+def _colonnes_entete(feuille):
+    """{en-tete: numero de colonne} de la ligne 1 d'une feuille."""
+    # JUSQU'AU PREMIER EN-TETE VIDE : au-dela vivent le tableau des pics
+    # et le graphique (style_classeur._ajouter_apercu_cibles).
+    rangs = {}
+    for cellule in feuille[1]:
+        if cellule.value is None or str(cellule.value).strip() == "":
+            break
+        rangs[str(cellule.value).strip()] = cellule.column
+    return rangs
+
+
+def _valeurs_colonne(feuille, colonne):
+    """Les valeurs d'une colonne sous l'en-tete, sans les vides de fin."""
+    serie = [feuille.cell(row=ligne, column=colonne).value
+             for ligne in range(2, feuille.max_row + 1)]
+    while serie and serie[-1] in (None, ""):
+        serie.pop()
+    return serie
+
+
+def _verifier_excels_objectifs(source, lu, cible, ecrit):
+    """Leve ValueError si l'un des deux classeurs n'a pas les feuilles d'un
+    Excel des objectifs."""
+    for fichier, classeur in ((source, lu), (cible, ecrit)):
+        absentes = [f for f in ("Correspondance", "Cibles")
+                    if f not in classeur.sheetnames]
+        if absentes:
+            raise ValueError(
+                f"{fichier.name} n’a pas de feuille « "
+                f"{' » ni « '.join(absentes)} » : ce n’est pas un Excel des "
+                f"hydrogrammes objectifs.")
+
+
+def _verifier_temps_h(source, cols_src, cible, cols_dst):
+    """Leve ValueError si une feuille Cibles n'a pas de colonne Temps_h."""
+    for fichier, cols in ((source, cols_src), (cible, cols_dst)):
+        if "Temps_h" not in cols:
+            raise ValueError(f"la feuille Cibles de {fichier.name} n’a pas de "
+                             f"colonne « Temps_h ».")
+
+
+def _cibles_communes(source, src, cols_src, cols_dst):
+    """(attendues, portees, importees) ; leve ValueError si aucune cible de
+    ce calcul n'est renseignee dans la source."""
+    attendues = [e for e in cols_dst if e.startswith("Cible_")]
+    portees = [e for e in cols_src
+               if e.startswith("Cible_") and _valeurs_colonne(src, cols_src[e])]
+    importees = [e for e in attendues if e in portees]
+    if not importees:
+        raise ValueError(
+            f"aucun hydrogramme de {source.name} ne correspond aux cibles de "
+            f"ce calcul. Attendues : {_entetes_dits(attendues)}. Dans l’Excel "
+            f"importé : " + (_entetes_dits(portees) if portees else
+                             "aucune colonne « Cible_… » renseignée") + ".")
+    return attendues, portees, importees
+
+
+def _refuser_autre_base_de_temps(source, gardees, temps, dst, cols_dst):
+    """Leve ValueError si des colonnes deja saisies dans ce calcul le sont
+    sur une autre base de temps : l'import changerait Temps_h sous elles."""
+    if gardees and _valeurs_colonne(dst, cols_dst["Temps_h"]) != temps:
+        raise ValueError(
+            f"{', '.join(gardees)} {'porte' if len(gardees) < 2 else 'portent'} déjà des valeurs, sur une autre "
+            f"base de temps que {source.name} : l’import changerait la colonne "
+            f"Temps_h sous elles. Les vider dans l’Excel de ce calcul, ou les "
+            f"ajouter à l’Excel importé, puis recommencer.")
+
+
+def _recopier_cibles(src, dst, cols_src, cols_dst, temps, importees):
+    """Ecrit Temps_h et les cibles importees, SUR PLACE ; les lignes de la
+    cible au-dela de la source sont videes."""
+    hauteur = max(len(temps), dst.max_row - 1)
+    for entete in ["Temps_h"] + importees:
+        serie = (temps if entete == "Temps_h"
+                 else _valeurs_colonne(src, cols_src[entete]))
+        for i in range(hauteur):
+            dst.cell(row=i + 2, column=cols_dst[entete],
+                     value=serie[i] if i < len(serie) else None)
+
+
+def _recopier_pentes(f_src, f_dst):
+    """Reporte, par nom d'apport, les pentes de la source ; rend les apports
+    servis."""
+    pentes = []
+    apport, pente = "Nom_Apport (BC line)", "Pente_m_par_m"
+    c_src, c_dst = _colonnes_entete(f_src), _colonnes_entete(f_dst)
+    if {apport, pente} <= set(c_src) and {apport, pente} <= set(c_dst):
+        lues = {}
+        for ligne in range(2, f_src.max_row + 1):
+            nom = f_src.cell(row=ligne, column=c_src[apport]).value
+            valeur = f_src.cell(row=ligne, column=c_src[pente]).value
+            if nom not in (None, "") and valeur not in (None, ""):
+                lues[str(nom).strip()] = valeur
+        for ligne in range(2, f_dst.max_row + 1):
+            nom = str(f_dst.cell(row=ligne, column=c_dst[apport]).value
+                      or "").strip()
+            if nom in lues:
+                f_dst.cell(row=ligne, column=c_dst[pente], value=lues[nom])
+                pentes.append(nom)
+    return pentes
+
+
 def importer_hydrogrammes(source, cible):
     """
     Recopie dans l'Excel de CE calcul (`cible`) les hydrogrammes cibles et les
@@ -2192,84 +2295,24 @@ def importer_hydrogrammes(source, cible):
         raise ValueError(f"{source.name} est déjà l’Excel de ce calcul.")
     lu = openpyxl.load_workbook(source, data_only=True)
     ecrit = openpyxl.load_workbook(cible)
-    for fichier, classeur in ((source, lu), (cible, ecrit)):
-        absentes = [f for f in ("Correspondance", "Cibles")
-                    if f not in classeur.sheetnames]
-        if absentes:
-            raise ValueError(
-                f"{fichier.name} n’a pas de feuille « "
-                f"{' » ni « '.join(absentes)} » : ce n’est pas un Excel des "
-                f"hydrogrammes objectifs.")
-
-    def colonnes(feuille):
-        # JUSQU'AU PREMIER EN-TETE VIDE : au-dela vivent le tableau des pics
-        # et le graphique (style_classeur._ajouter_apercu_cibles).
-        rangs = {}
-        for cellule in feuille[1]:
-            if cellule.value is None or str(cellule.value).strip() == "":
-                break
-            rangs[str(cellule.value).strip()] = cellule.column
-        return rangs
-
-    def valeurs(feuille, colonne):
-        serie = [feuille.cell(row=ligne, column=colonne).value
-                 for ligne in range(2, feuille.max_row + 1)]
-        while serie and serie[-1] in (None, ""):
-            serie.pop()
-        return serie
+    _verifier_excels_objectifs(source, lu, cible, ecrit)
 
     src, dst = lu["Cibles"], ecrit["Cibles"]
-    cols_src, cols_dst = colonnes(src), colonnes(dst)
-    for fichier, cols in ((source, cols_src), (cible, cols_dst)):
-        if "Temps_h" not in cols:
-            raise ValueError(f"la feuille Cibles de {fichier.name} n’a pas de "
-                             f"colonne « Temps_h ».")
-    attendues = [e for e in cols_dst if e.startswith("Cible_")]
-    portees = [e for e in cols_src
-               if e.startswith("Cible_") and valeurs(src, cols_src[e])]
-    importees = [e for e in attendues if e in portees]
-    if not importees:
-        raise ValueError(
-            f"aucun hydrogramme de {source.name} ne correspond aux cibles de "
-            f"ce calcul. Attendues : {_entetes_dits(attendues)}. Dans l’Excel "
-            f"importé : " + (_entetes_dits(portees) if portees else
-                             "aucune colonne « Cible_… » renseignée") + ".")
+    cols_src, cols_dst = _colonnes_entete(src), _colonnes_entete(dst)
+    _verifier_temps_h(source, cols_src, cible, cols_dst)
+    attendues, portees, importees = _cibles_communes(source, src, cols_src,
+                                                     cols_dst)
     restantes = [e for e in attendues if e not in importees]
-    gardees = [e for e in restantes if valeurs(dst, cols_dst[e])]
-    temps = valeurs(src, cols_src["Temps_h"])
-    if gardees and valeurs(dst, cols_dst["Temps_h"]) != temps:
-        raise ValueError(
-            f"{', '.join(gardees)} {'porte' if len(gardees) < 2 else 'portent'} déjà des valeurs, sur une autre "
-            f"base de temps que {source.name} : l’import changerait la colonne "
-            f"Temps_h sous elles. Les vider dans l’Excel de ce calcul, ou les "
-            f"ajouter à l’Excel importé, puis recommencer.")
+    gardees = [e for e in restantes if _valeurs_colonne(dst, cols_dst[e])]
+    temps = _valeurs_colonne(src, cols_src["Temps_h"])
+    _refuser_autre_base_de_temps(source, gardees, temps, dst, cols_dst)
 
+    # L'EXCEL D'AVANT EST MIS DE COTE AVANT TOUTE ECRITURE, apres le dernier
+    # refus : un refus ne laisse aucune copie.
     sauvegarde = cible.with_name(cible.stem + ".precedent" + cible.suffix)
     shutil.copy2(cible, sauvegarde)
-    hauteur = max(len(temps), dst.max_row - 1)
-    for entete in ["Temps_h"] + importees:
-        serie = temps if entete == "Temps_h" else valeurs(src, cols_src[entete])
-        for i in range(hauteur):
-            dst.cell(row=i + 2, column=cols_dst[entete],
-                     value=serie[i] if i < len(serie) else None)
-
-    pentes = []
-    apport, pente = "Nom_Apport (BC line)", "Pente_m_par_m"
-    f_src, f_dst = lu["Correspondance"], ecrit["Correspondance"]
-    c_src, c_dst = colonnes(f_src), colonnes(f_dst)
-    if {apport, pente} <= set(c_src) and {apport, pente} <= set(c_dst):
-        lues = {}
-        for ligne in range(2, f_src.max_row + 1):
-            nom = f_src.cell(row=ligne, column=c_src[apport]).value
-            valeur = f_src.cell(row=ligne, column=c_src[pente]).value
-            if nom not in (None, "") and valeur not in (None, ""):
-                lues[str(nom).strip()] = valeur
-        for ligne in range(2, f_dst.max_row + 1):
-            nom = str(f_dst.cell(row=ligne, column=c_dst[apport]).value
-                      or "").strip()
-            if nom in lues:
-                f_dst.cell(row=ligne, column=c_dst[pente], value=lues[nom])
-                pentes.append(nom)
+    _recopier_cibles(src, dst, cols_src, cols_dst, temps, importees)
+    pentes = _recopier_pentes(lu["Correspondance"], ecrit["Correspondance"])
     ecrit.save(cible)
     return {"importees": importees,
             "vides": [e for e in restantes if e not in gardees],
