@@ -965,9 +965,7 @@ def _onglet_iterations(feuille, etat):
     centaines et invisible, precisement quand il devient interessant. Le
     second repond a « qu'ai-je injecte pour cela ? ».
     """
-    from openpyxl.chart import LineChart, Reference
-    from openpyxl.styles import Alignment, Font
-    from openpyxl.utils import get_column_letter
+    from openpyxl.styles import Font
 
     essais = etat.essais_detail
     # LE BLOC 0 EST L'ETAT DE DEPART : la section avec l'apport a zero. C'est
@@ -979,6 +977,27 @@ def _onglet_iterations(feuille, etat):
     if not blocs:
         return
     gras = Font(bold=True)
+
+    _en_tete_onglet(feuille, etat, essais)
+
+    _recapitulatif_essais(feuille, essais, gras)
+
+    # --- series, une colonne de temps et quatre colonnes par bloc ---------
+    entete = 7 + len(essais)
+    _en_tetes_series(feuille, blocs, entete, gras)
+
+    temps = blocs[0]["temps"]
+    _series_par_bloc(feuille, blocs, entete, temps)
+
+    derniere = entete + len(temps)
+    _largeurs_iterations(feuille, blocs)
+
+    _graphes_iterations(feuille, etat, blocs, entete, derniere)
+
+
+def _en_tete_onglet(feuille, etat, essais):
+    """Lignes 1 a 3 de l'onglet : l'apport, son statut, la regle de lecture."""
+    from openpyxl.styles import Alignment, Font
 
     feuille["A1"] = f"Apport « {etat.nom_apport} » → section « {etat.nom_section} »"
     feuille["A1"].font = Font(bold=True, size=13)
@@ -998,6 +1017,9 @@ def _onglet_iterations(feuille, etat):
             "colonne — même formule que la correction elle-même.")
         feuille["A3"].alignment = Alignment(wrap_text=False)
 
+
+def _recapitulatif_essais(feuille, essais, gras):
+    """Le recapitulatif, ligne 4 et suivantes : une ligne par essai."""
     # --- recapitulatif des essais -----------------------------------------
     # « Décalage appliqué » est LE nombre qui rend le classeur verifiable :
     # c'est de celui-la, et pas du decalage du diagnostic, que le calcul est
@@ -1022,8 +1044,9 @@ def _onglet_iterations(feuille, etat):
                          value=_cellule(None if valeur is None
                                         else float(valeur) * facteur))
 
-    # --- series, une colonne de temps et quatre colonnes par bloc ---------
-    entete = 7 + len(essais)
+
+def _en_tetes_series(feuille, blocs, entete, gras):
+    """La ligne d'en-tete des series : temps, cible, quatre colonnes par bloc."""
     feuille.cell(row=entete, column=1, value="Temps (h)").font = gras
     feuille.cell(row=entete, column=2, value="Cible (m³/s)").font = gras
     for k, essai in enumerate(blocs):
@@ -1040,7 +1063,9 @@ def _onglet_iterations(feuille, etat):
             feuille.cell(row=entete, column=base + rang,
                          value=libelle).font = gras
 
-    temps = blocs[0]["temps"]
+
+def _series_par_bloc(feuille, blocs, entete, temps):
+    """Les valeurs des series, une ligne par instant de la grille du bloc 0."""
     for r, instant in enumerate(temps):
         ligne = entete + 1 + r
         feuille.cell(row=ligne, column=1, value=_cellule(instant))
@@ -1071,9 +1096,18 @@ def _onglet_iterations(feuille, etat):
                 feuille.cell(row=ligne, column=base + 3,
                              value=_cellule(essai["apport"][r]))
 
-    derniere = entete + len(temps)
+
+def _largeurs_iterations(feuille, blocs):
+    """Largeur de toutes les colonnes ecrites."""
+    from openpyxl.utils import get_column_letter
+
     for j in range(1, 3 + COLONNES_PAR_ESSAI * len(blocs)):
         feuille.column_dimensions[get_column_letter(j)].width = 17
+
+
+def _graphes_iterations(feuille, etat, blocs, entete, derniere):
+    """Les deux graphes de l'onglet, sous les series."""
+    from openpyxl.chart import LineChart, Reference
 
     # --- graphes -----------------------------------------------------------
     abscisses = Reference(feuille, min_col=1, min_row=entete + 1,
