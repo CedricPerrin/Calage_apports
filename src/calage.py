@@ -1644,12 +1644,12 @@ def _essayer_apport(modele, etat, config, suivi, resultat, dire):
         # hydrogramme trop plat. On le DIT, sans arreter.
         if (etat.diag.rapport_volume > 1.0 + config.tolerance_volume
                 and etat.diag.rapport_pic < 1.0 - config.tolerance_pic):
-            dire(f"      volume DEJA excedentaire alors que la pointe "
-                 f"manque : l'hydrogramme calcule est trop ETALE, pas "
-                 f"trop faible. Rehausser la pointe aggravera le volume. "
-                 f"Pistes : resserrer les apports amont deja cales, "
-                 f"rapprocher l'injection de la section, ou revoir la "
-                 f"cible.")
+            dire("      volume DEJA excedentaire alors que la pointe "
+                 "manque : l'hydrogramme calcule est trop ETALE, pas "
+                 "trop faible. Rehausser la pointe aggravera le volume. "
+                 "Pistes : resserrer les apports amont deja cales, "
+                 "rapprocher l'injection de la section, ou revoir la "
+                 "cible.")
 
         # Deux essais consecutifs qui s'eloignent : insister ne fera
         # qu'empirer. On s'arrete et on retient le meilleur.
@@ -2842,7 +2842,7 @@ if __name__ == "__main__":
                      Configuration(nb_max_essais=8),
                      suivi=suivi)
 
-    print(f"\n--- BILAN ---")
+    print("\n--- BILAN ---")
     print(f"   {resultat.nb_calculs} calculs, "
           f"{sum(a.essais for a in resultat.apports)} essais retenus")
     # La correction etant ADDITIVE, il n'y a plus de facteur scalaire a
