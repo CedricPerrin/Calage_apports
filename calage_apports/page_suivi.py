@@ -437,6 +437,46 @@ class PageSuivi(QWidget):
         dossier = self._dialogue._dossier_suivi()
         etat = noyau.lire_avancement(dossier) if dossier else None
 
+        perime = self._etat_perime(etat)
+
+        self._nommer_dossier_suivi(dossier)
+
+        if etat is None or perime:
+            self._peindre_sans_etat(etat, perime)
+            return
+
+        apports = etat.get("apports") or []
+        en_cours = etat.get("en_cours")
+        # LE CALAGE PRECEDENT RESTE A L'ECRAN, DERRIERE CELUI-CI (demande
+        # utilisateur, 13/09/2026). Relancer remettait l'onglet a zero :
+        # les apports deja cales disparaissaient du ruban et du tableau,
+        # leurs hydrogrammes du trace, et rien ne disait qu'ils avaient
+        # existe. C'est le plus visible sur une REPRISE, ou le calage en
+        # cours ne porte volontairement que les apports restants.
+        #   ON NE GARDE QUE CE QUE CE CALAGE NE TRAITE PAS : un apport
+        # present dans les deux est celui qu'on refait, et c'est l'etat
+        # COURANT qui fait foi pour lui.
+        #   ILS N'ENTRENT NI DANS « en_cours », NI DANS LES JAUGES, NI
+        # DANS LES COMPTES : le ruban et le tableau les montrent, tout le
+        # reste de cette methode continue de ne parler que du calage qui
+        # tourne. Melanger les deux ferait lire les chiffres d'hier comme
+        # ceux du calcul en cours.
+        repris, courbes_reprises = self._apports_repris(dossier, apports)
+        self._appliquer_tolerances(etat)
+        comptes = etat.get("comptes") or {}
+        self._peindre_avancement(etat, apports, en_cours, repris,
+                                 courbes_reprises)
+        self._peindre_banniere_etat(etat, apports, en_cours, comptes)
+        self._peindre_position(etat, apports, en_cours, comptes)
+        self._peindre_jauges(apports, en_cours)
+
+        self._afficher_bilan_masse(etat.get("bilan_masse"))
+
+        self._peindre_temps(etat)
+        self._remplir_table_suivi(repris + apports)
+
+    def _etat_perime(self, etat):
+        """L'etat lu est-il celui d'un calage PRECEDENT ? (verdict « a nous / perime »)"""
         # L'ETAT LU EST-IL CELUI DU CALAGE QU'ON VIENT DE LANCER ? Apres un
         # relancement, le dossier porte encore l'avancement.json du calage
         # PRECEDENT tant que le nouveau n'a pas ecrit le sien : on peignait
@@ -465,7 +505,10 @@ class PageSuivi(QWidget):
                 # tourne : on prefere afficher un etat douteux a ne rien
                 # afficher pendant des heures.
                 perime = False
+        return perime
 
+    def _nommer_dossier_suivi(self, dossier):
+        """Le dossier surveille, sous la banniere, a chaque passage."""
         # LE DOSSIER SURVEILLE EST NOMME A CHAQUE PASSAGE, avant tout test :
         # la branche « Aucun calage suivi » sort plus bas, et c'est elle qui
         # le disait — donc jamais quand un calage tourne. Voir la construction
@@ -480,83 +523,73 @@ class PageSuivi(QWidget):
               + self._dialogue._detail_desaccord_suivi(dossier)) if dossier
              else "Aucun dossier de suivi désigné.")
 
-        if etat is None or perime:
-            # LE DOSSIER SURVEILLE EST NOMME : un suivi muet parce qu'il
-            # regardait le mauvais dossier ne se distinguait en rien d'un
-            # calage pas encore parti.
-            #
-            # ET « PAS ENCORE DEMARRE » SE DISTINGUE DE « MORT AU DEMARRAGE ».
-            # Cette branche promettait « quelques secondes après le
-            # lancement » POUR TOUJOURS, y compris devant un sous-processus
-            # mort avant d'avoir rien ecrit — cas des refus precoces, qui
-            # rendent la main avant que suivi.py n'ecrive son premier etat. Et
-            # le seul document qui dit pourquoi, le journal de lancement, ne
-            # se lisait que dans une boite d'information depuis longtemps
-            # fermee.
-            titre, glyphe, couleur = "Aucun calage suivi", "·", ISL_ARDOISE_CLAIR
-            detail = ("Le suivi apparaît ici dès que le calage écrit son "
-                      "premier état, quelques secondes après le lancement.")
-            if self._dialogue.pid_lance:
-                journal = (f"<br>Journal de lancement : {self._dialogue.journal_lance}"
-                           if self._dialogue.journal_lance else "")
-                # « MORT AU DEMARRAGE » NE SE PRONONCE PLUS SUR LE PID DE
-                # POPEN. Avec un interpreteur-relais, ce processus-la rend la
-                # main aussitot apres avoir lance le vrai : le suivi annoncait
-                # un calage mort alors qu'il demarrait. On ne conclut donc a la
-                # mort que si l'on a laisse au calage le temps d'ecrire —
-                # DELAI_PREMIER_ETAT_S — et qu'il n'a toujours rien ecrit.
-                depuis = ((datetime.now() - self._dialogue.instant_lance).total_seconds()
-                          if self._dialogue.instant_lance else 0.0)
-                mort = (noyau.processus_vivant(self._dialogue.pid_lance) is False
-                        and depuis > DELAI_PREMIER_ETAT_S)
-                if mort:
-                    titre, glyphe, couleur = (
-                        "Calage arrêté sans avoir rien écrit", "✕", ISL_ROUGE)
-                    detail = (f"Rien n'a été écrit en "
-                              f"{int(depuis)} s : le calage est mort au "
-                              f"démarrage." + journal)
-                else:
-                    detail = (f"Calage lancé (processus {self._dialogue.pid_lance}) — le "
-                              f"suivi apparaît ici dès qu'il écrit son premier "
-                              f"état." + journal)
-            if perime:
-                detail += (f"<br>Le dossier porte encore l'état d'un calage "
-                           f"précédent, commencé le {date_lisible(etat.get('debut'))} : il "
-                           f"n'est pas affiché, pour ne pas se lire comme "
-                           f"celui du calage en cours.")
-            # Le dossier surveille n'est plus recopie ici : il vit desormais
-            # sous la banniere, a chaque passage.
-            self._banniere(couleur, titre, glyphe=glyphe, detail=detail)
-            self.barre_suivi.setValue(0)
-            self.ruban_apports.actualiser([], None)
-            self.courbe_suivi.actualiser(None, None)
-            self.label_suivi_position.setText("—")
-            self.table_suivi.setRowCount(0)
-            for jauge in self.jauges.values():
-                jauge.actualiser(None)
-            return
+    def _peindre_sans_etat(self, etat, perime):
+        """Rien a montrer : pas encore parti, mort au demarrage, ou etat perime."""
+        # LE DOSSIER SURVEILLE EST NOMME : un suivi muet parce qu'il
+        # regardait le mauvais dossier ne se distinguait en rien d'un
+        # calage pas encore parti.
+        #
+        # ET « PAS ENCORE DEMARRE » SE DISTINGUE DE « MORT AU DEMARRAGE ».
+        # Cette branche promettait « quelques secondes après le
+        # lancement » POUR TOUJOURS, y compris devant un sous-processus
+        # mort avant d'avoir rien ecrit — cas des refus precoces, qui
+        # rendent la main avant que suivi.py n'ecrive son premier etat. Et
+        # le seul document qui dit pourquoi, le journal de lancement, ne
+        # se lisait que dans une boite d'information depuis longtemps
+        # fermee.
+        titre, glyphe, couleur = "Aucun calage suivi", "·", ISL_ARDOISE_CLAIR
+        detail = ("Le suivi apparaît ici dès que le calage écrit son "
+                  "premier état, quelques secondes après le lancement.")
+        if self._dialogue.pid_lance:
+            journal = (f"<br>Journal de lancement : {self._dialogue.journal_lance}"
+                       if self._dialogue.journal_lance else "")
+            # « MORT AU DEMARRAGE » NE SE PRONONCE PLUS SUR LE PID DE
+            # POPEN. Avec un interpreteur-relais, ce processus-la rend la
+            # main aussitot apres avoir lance le vrai : le suivi annoncait
+            # un calage mort alors qu'il demarrait. On ne conclut donc a la
+            # mort que si l'on a laisse au calage le temps d'ecrire —
+            # DELAI_PREMIER_ETAT_S — et qu'il n'a toujours rien ecrit.
+            depuis = ((datetime.now() - self._dialogue.instant_lance).total_seconds()
+                      if self._dialogue.instant_lance else 0.0)
+            mort = (noyau.processus_vivant(self._dialogue.pid_lance) is False
+                    and depuis > DELAI_PREMIER_ETAT_S)
+            if mort:
+                titre, glyphe, couleur = (
+                    "Calage arrêté sans avoir rien écrit", "✕", ISL_ROUGE)
+                detail = (f"Rien n'a été écrit en "
+                          f"{int(depuis)} s : le calage est mort au "
+                          f"démarrage." + journal)
+            else:
+                detail = (f"Calage lancé (processus {self._dialogue.pid_lance}) — le "
+                          f"suivi apparaît ici dès qu'il écrit son premier "
+                          f"état." + journal)
+        if perime:
+            detail += (f"<br>Le dossier porte encore l'état d'un calage "
+                       f"précédent, commencé le {date_lisible(etat.get('debut'))} : il "
+                       f"n'est pas affiché, pour ne pas se lire comme "
+                       f"celui du calage en cours.")
+        # Le dossier surveille n'est plus recopie ici : il vit desormais
+        # sous la banniere, a chaque passage.
+        self._banniere(couleur, titre, glyphe=glyphe, detail=detail)
+        self.barre_suivi.setValue(0)
+        self.ruban_apports.actualiser([], None)
+        self.courbe_suivi.actualiser(None, None)
+        self.label_suivi_position.setText("—")
+        self.table_suivi.setRowCount(0)
+        for jauge in self.jauges.values():
+            jauge.actualiser(None)
 
-        apports = etat.get("apports") or []
-        en_cours = etat.get("en_cours")
-        # LE CALAGE PRECEDENT RESTE A L'ECRAN, DERRIERE CELUI-CI (demande
-        # utilisateur, 13/09/2026). Relancer remettait l'onglet a zero :
-        # les apports deja cales disparaissaient du ruban et du tableau,
-        # leurs hydrogrammes du trace, et rien ne disait qu'ils avaient
-        # existe. C'est le plus visible sur une REPRISE, ou le calage en
-        # cours ne porte volontairement que les apports restants.
-        #   ON NE GARDE QUE CE QUE CE CALAGE NE TRAITE PAS : un apport
-        # present dans les deux est celui qu'on refait, et c'est l'etat
-        # COURANT qui fait foi pour lui.
-        #   ILS N'ENTRENT NI DANS « en_cours », NI DANS LES JAUGES, NI
-        # DANS LES COMPTES : le ruban et le tableau les montrent, tout le
-        # reste de cette methode continue de ne parler que du calage qui
-        # tourne. Melanger les deux ferait lire les chiffres d'hier comme
-        # ceux du calcul en cours.
+    def _apports_repris(self, dossier, apports):
+        """(apports, courbes) du calage precedent que celui-ci ne traite pas."""
         repris, courbes_reprises = self._suivi_precedent(dossier)
         noms_courants = {a.get("apport") for a in apports}
         repris = [a for a in repris if a.get("apport") not in noms_courants]
         courbes_reprises = [c for c in courbes_reprises
                             if c.get("apport") not in noms_courants]
+        return repris, courbes_reprises
+
+    def _appliquer_tolerances(self, etat):
+        """Les tolerances de l'etude, posees sur les jauges."""
         # Les jauges jugent sur LES TOLERANCES DE L'ETUDE, publiees par le
         # suivi. Figees a 2 %, elles coloraient en rouge des valeurs admises
         # par une etude qui en tolere 5.
@@ -570,7 +603,10 @@ class PageSuivi(QWidget):
                             ("forme_pct", 100 * TOLERANCE_FORME_DEFAUT)):
             self.jauges[cle].tolerance = float(
                 tolerances.get(cle.replace("_pct", ""), defaut))
-        comptes = etat.get("comptes") or {}
+
+    def _peindre_avancement(self, etat, apports, en_cours, repris,
+                            courbes_reprises):
+        """Barre, ruban des apports et courbe cible / calcule."""
         fraction = float(etat.get("fraction") or 0.0)
         self.barre_suivi.setValue(int(round(100 * fraction)))
         self.ruban_apports.actualiser(
@@ -580,6 +616,8 @@ class PageSuivi(QWidget):
             etat.get("courbes"),
             courbes_reprises + (etat.get("courbes_precedentes") or []))
 
+    def _peindre_banniere_etat(self, etat, apports, en_cours, comptes):
+        """Banniere d'un etat lu : termine, interrompu ou en cours."""
         # BANNIERE : l'etat en un mot, et sa couleur avant meme la lecture.
         if etat.get("termine"):
             if etat.get("conforme"):
@@ -616,6 +654,8 @@ class PageSuivi(QWidget):
                     f"{nom}. Mis à jour "
                     f"{etat.get('maj', '')[11:]}.")
 
+    def _peindre_position(self, etat, apports, en_cours, comptes):
+        """La ligne « ou en est-on », sous la barre."""
         # Ligne « ou en est-on », la phrase que l'on vient chercher.
         if en_cours is not None and en_cours < len(apports):
             a = apports[en_cours]
@@ -630,6 +670,8 @@ class PageSuivi(QWidget):
                 f"{compte(comptes.get('échoué', 0), 'échoué')}, "
                 f"{comptes.get('en attente', 0)} en attente")
 
+    def _peindre_jauges(self, apports, en_cours):
+        """Les trois jauges, et de quel apport viennent leurs chiffres."""
         # LES JAUGES SE REPLIENT SUR LE DERNIER APPORT CHIFFRE. Un apport dont
         # le premier essai n'est pas encore evalue — soit toute la duree de son
         # calcul HEC-RAS, environ trois heures — n'a aucun chiffre a montrer :
@@ -653,8 +695,8 @@ class PageSuivi(QWidget):
                      else " — dernier essai évalué ; le calcul en cours n'a "
                           "pas encore rendu le sien")))
 
-        self._afficher_bilan_masse(etat.get("bilan_masse"))
-
+    def _peindre_temps(self, etat):
+        """Ecoule, reste estime, fin previsible et heure de mise a jour."""
         self.label_suivi_ecoule.setText(duree_lisible(etat.get("ecoule_s")))
         self.label_suivi_reste.setText(
             "—" if etat.get("termine") else duree_lisible(etat.get("reste_s")))
@@ -665,7 +707,6 @@ class PageSuivi(QWidget):
             f"actualisé {etat.get('maj', '')[11:]}"
             + (f" · {compte(etat['incidents'], 'incident')}"
                if etat.get("incidents") else ""))
-        self._remplir_table_suivi(repris + apports)
 
     def _suivi_precedent(self, dossier):
         """

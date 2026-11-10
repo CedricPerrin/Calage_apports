@@ -471,6 +471,34 @@ class CourbeComparaison(QWidget):
         courantes = [c for c in deja if not c.get("anterieur")]
         anterieures = [c for c in deja if c.get("anterieur")]
 
+        stylo_cale, stylo_avant, stylo_cible, stylo_mesure = self._stylos()
+        lignes = self._peindre_legende(
+            peintre, zone, metriques, h_texte, courantes, anterieures,
+            stylo_cale, stylo_avant, stylo_cible, stylo_mesure)
+        q_max, gauche, haut, largeur, hauteur, t_min, t_max, etendue_t = (
+            self._echelles(zone, metriques, h_texte, lignes, tc, qc, ts, qs, deja))
+
+        def point(t, q):
+            return QPointF(gauche + largeur * (t - t_min) / etendue_t,
+                           haut + hauteur * (1.0 - q / (1.08 * q_max)))
+
+        self._peindre_axes(peintre, zone, h_texte, q_max, gauche, haut, largeur,
+                           hauteur, t_min, t_max)
+
+        # DERRIERE, ET CLIPPEES. Une section calee peut deborder la fenetre de
+        # crue courante : sans decoupe, sa polyligne irait ecrire par-dessus
+        # les graduations et la legende.
+        peintre.setClipRect(QRectF(gauche, haut, largeur, hauteur))
+        self._peindre_sections_calees(peintre, deja, point, stylo_cale,
+                                      stylo_avant)
+        self._peindre_cible_et_calcule(peintre, tc, qc, ts, qs, point,
+                                       stylo_cible, stylo_mesure)
+        peintre.setClipping(False)
+        peintre.end()
+
+    @staticmethod
+    def _stylos():
+        """Les quatre traits : section calee, calage precedent, cible, calcule."""
         # DEUX FAMILLES DERRIERE, ET ELLES NE SE CONFONDENT PAS : ce que CE
         # calage a cale, a l'accent adouci en pointille ; ce que le PRECEDENT
         # avait cale et qu'on ne refait pas, au neutre fonce en tiret-point.
@@ -482,7 +510,12 @@ class CourbeComparaison(QWidget):
         stylo_avant = QPen(QColor(registre.NEUTRE_FONCE), 1.2, Qt.PenStyle.DashDotLine)
         stylo_cible = QPen(QColor(registre.ENCRE), 1.6, Qt.PenStyle.DashLine)
         stylo_mesure = QPen(QColor(registre.ACCENT), 2.2)
+        return stylo_cale, stylo_avant, stylo_cible, stylo_mesure
 
+    def _peindre_legende(self, peintre, zone, metriques, h_texte, courantes,
+                         anterieures, stylo_cale, stylo_avant, stylo_cible,
+                         stylo_mesure):
+        """La legende, au-dessus du trace ; rend ses lignes, dont depend le haut du trace."""
         # LA LEGENDE A SES PROPRES LIGNES, AU-DESSUS DU TRACE. Posee dans le
         # trace, en haut a droite, elle passait sous les pointes des courbes
         # des que la police grandissait (13 pt : « cible décalée » coupee par le
@@ -522,7 +555,11 @@ class CourbeComparaison(QWidget):
                 peintre.drawText(QRectF(gauche_entree + 22, y, zone.width(), h_texte),
                                  int(Qt.AlignmentFlag.AlignLeft
                                      | Qt.AlignmentFlag.AlignVCenter), libelle)
+        return lignes
 
+    @staticmethod
+    def _echelles(zone, metriques, h_texte, lignes, tc, qc, ts, qs, deja):
+        """Debit maximal, cadre du trace et fenetre de crue."""
         q_max = max([max(qc), max(qs)]
                     + [max(c["debit"]) for c in deja]) or 1.0
         # LES MARGES SUIVENT LA POLICE : la gauche loge la plus large des
@@ -534,11 +571,12 @@ class CourbeComparaison(QWidget):
         hauteur = max(zone.bottom() - h_texte - 4 - haut, 10)
         t_min, t_max = _fenetre_crue(tc, qc, ts, qs, max(max(qc), max(qs)) or 1.0)
         etendue_t = (t_max - t_min) or 1.0
+        return q_max, gauche, haut, largeur, hauteur, t_min, t_max, etendue_t
 
-        def point(t, q):
-            return QPointF(gauche + largeur * (t - t_min) / etendue_t,
-                           haut + hauteur * (1.0 - q / (1.08 * q_max)))
-
+    @staticmethod
+    def _peindre_axes(peintre, zone, h_texte, q_max, gauche, haut, largeur,
+                      hauteur, t_min, t_max):
+        """Cadre et axes : grille des debits, graduations, bornes de temps."""
         # Repere discret : graduations de debit sur la grille fine du
         # registre, l'axe des temps.
         peintre.setPen(QPen(QColor(registre.GRILLE), 1))
@@ -559,21 +597,23 @@ class CourbeComparaison(QWidget):
         peintre.drawText(QRectF(gauche, haut + hauteur + 2, largeur, h_texte),
                          int(Qt.AlignmentFlag.AlignRight), f"{t_max:.0f} h")
 
-        # DERRIERE, ET CLIPPEES. Une section calee peut deborder la fenetre de
-        # crue courante : sans decoupe, sa polyligne irait ecrire par-dessus
-        # les graduations et la legende.
-        peintre.setClipRect(QRectF(gauche, haut, largeur, hauteur))
+    @staticmethod
+    def _peindre_sections_calees(peintre, deja, point, stylo_cale, stylo_avant):
+        """Les sections deja calees, derriere la paire courante."""
         for courbe in deja:
             peintre.setPen(stylo_avant if courbe.get("anterieur") else stylo_cale)
             peintre.drawPolyline(QPolygonF(
                 [point(t, q) for t, q in zip(courbe["temps"],
                                              courbe["debit"])]))
+
+    @staticmethod
+    def _peindre_cible_et_calcule(peintre, tc, qc, ts, qs, point, stylo_cible,
+                                  stylo_mesure):
+        """La cible, puis le calcule par-dessus."""
         for temps, debits, stylo in ((tc, qc, stylo_cible), (ts, qs, stylo_mesure)):
             peintre.setPen(stylo)
             peintre.drawPolyline(QPolygonF(
                 [point(t, q) for t, q in zip(temps, debits)]))
-        peintre.setClipping(False)
-        peintre.end()
 
 
 class BarreTexte(QProgressBar):
