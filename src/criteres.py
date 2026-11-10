@@ -499,6 +499,39 @@ def reserve_identifiabilite(part_apport, tolerance_volume):
             f"pese davantage, ou une tolerance plus serree.")
 
 
+@dataclass(frozen=True)
+class _Comparaison:
+    """
+    Ce que diagnostiquer() compare : les deux series, le decalage qui les
+    apparie, le pas, et la fenetre jugee dite dans les DEUX bases de temps.
+
+    Etabli une fois, en tete de diagnostiquer(), puis LU par chacune des
+    grandeurs du verdict — forme, pointes, volumes, couverture. Aucune ne le
+    modifie (il est fige), et ce qu'elles calculent est rendu, pas range ici.
+
+    POURQUOI UN OBJET PLUTOT QUE DIX ARGUMENTS. f0/f1 et f0c/f1c designent
+    la MEME fenetre sur deux bases de temps, et les confondre est le defaut
+    du 08/09/2026 (voir diagnostiquer, « decalage_fenetre_h ») : une section
+    juste a 0,1 % pres annoncee a 350 %. Passes un a un a cinq fonctions, ces
+    quatre flottants s'echangeraient a l'appel sans que rien ne le dise ; lus
+    ici par leur nom, ils ne le peuvent pas.
+    """
+    temps_cible: object
+    debit_cible: object
+    temps_calcule: object
+    debit_calcule: object
+    tc: object                  # temps_cible, en tableau de flottants
+    ts: object                  # temps_calcule, de meme
+    pas_h: float
+    decalage_h: float           # mesure par recaler() ; positif = calcul en retard
+    fenetre: object = None      # telle que recue ; None = pas de fenetre
+    f0: float = None            # la fenetre en temps de SIMULATION : la ou
+    f1: float = None            # se lit le calcul
+    f0c: float = None           # la meme sur la base de temps de la CIBLE
+    f1c: float = None           # (f0 - Dt de fenetre, f1 - Dt de fenetre)
+
+
+
 def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
                   pas_h=PAS_RECALAGE_H,
                   couverture_min=0.9, tolerance_volume=0.05,
@@ -583,48 +616,17 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
 
     tc = np.asarray(temps_cible, dtype=float)
     ts = np.asarray(temps_calcule, dtype=float)
+    f0 = f1 = f0c = f1c = None
     if fenetre is not None:
         f0, f1 = float(fenetre[0]), float(fenetre[1])
         # LA MEME FENETRE, SUR LA BASE DE TEMPS DE LA CIBLE. Tout ce qui lit
         # la cible passe par f0c/f1c ; tout ce qui lit le calcul, par f0/f1.
         f0c, f1c = f0 - dec_f, f1 - dec_f
+    comparaison = _Comparaison(
+        temps_cible, debit_cible, temps_calcule, debit_calcule, tc, ts,
+        pas_h, decalage_h, fenetre, f0, f1, f0c, f1c)
 
-        # LA FORME EST JUGEE SUR LA MEME FENETRE QUE LA POINTE ET LE VOLUME,
-        # PAS SUR c_a/s_a — qui portent toute la grille commune aux deux
-        # series. Sans cette restriction, une mini-crue isolee hors de
-        # l'evenement cale (avant ou apres) degradait r sans le
-        # moindre rapport avec l'apport qu'on cherche a caler : le § 7 de
-        # l'auto-test verifiait deja que le pic et le volume l'ignoraient,
-        # jamais que la forme le faisait.
-        #
-        # Meme decalage que pour le pic et le volume : cible(t) pour
-        # t dans [f0, f1] comparee a calcule(t + decalage_h), soit
-        # exactement l'appariement que recaler() etablit ailleurs.
-        grille_f = np.arange(f0c, f1c + pas_h / 2, pas_h)
-        cible_f = np.interp(grille_f, tc,
-                            np.asarray(debit_cible, dtype=float))
-        calc_f = np.interp(grille_f + decalage_h, ts,
-                           np.asarray(debit_calcule, dtype=float))
-        # np.interp PROLONGE par la valeur de bord hors du domaine calcule :
-        # comme pour calcul_rephase() ailleurs, on exclut ces points plutot
-        # que de les laisser fausser la correlation avec un plateau fictif.
-        dedans_f = ((grille_f + decalage_h >= ts[0])
-                   & (grille_f + decalage_h <= ts[-1])
-                   & (grille_f >= tc[0]) & (grille_f <= tc[-1]))
-        if dedans_f.sum() >= 2:
-            cible_f, calc_f = cible_f[dedans_f], calc_f[dedans_f]
-        r = correlation(cible_f, calc_f)
-
-        dans_c = (tc >= f0c) & (tc <= f1c)
-        dans_s = (ts >= f0) & (ts <= f1)
-        pic_cible = (float(np.max(np.asarray(debit_cible, dtype=float)[dans_c]))
-                    if dans_c.any() else float(np.max(debit_cible)))
-        pic_calcule = (float(np.max(np.asarray(debit_calcule, dtype=float)[dans_s]))
-                      if dans_s.any() else float(np.max(debit_calcule)))
-    else:
-        r = correlation(c_a, s_a)
-        pic_cible = float(np.max(debit_cible))
-        pic_calcule = float(np.max(debit_calcule))
+    r, pic_cible, pic_calcule = _forme_et_pointes(comparaison, c_a, s_a)
 
     # Volumes compares sur la fenetre ou les deux series existent, jamais
     # chacun sur sa propre etendue — ET APRES NEUTRALISATION DU DECALAGE.
@@ -873,6 +875,63 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
         part_cible_jugee=part_cible_jugee,
         part_apport=part_apport,
     )
+
+
+def _forme_et_pointes(comparaison, c_a, s_a):
+    """
+    La FORME (r) et les deux POINTES — sur la fenetre jugee quand il y en a
+    une, sur les series entieres sinon.
+
+    c_a, s_a : les series recalees sur toute la grille commune, telles que
+    recaler() les rend. Elles ne servent que sans fenetre.
+
+    Rend (r, pic_cible, pic_calcule).
+    """
+    fenetre, pas_h, decalage_h = (comparaison.fenetre, comparaison.pas_h,
+                                  comparaison.decalage_h)
+    tc, ts = comparaison.tc, comparaison.ts
+    debit_cible, debit_calcule = (comparaison.debit_cible,
+                                  comparaison.debit_calcule)
+    f0, f1, f0c, f1c = (comparaison.f0, comparaison.f1,
+                        comparaison.f0c, comparaison.f1c)
+    if fenetre is not None:
+        # LA FORME EST JUGEE SUR LA MEME FENETRE QUE LA POINTE ET LE VOLUME,
+        # PAS SUR c_a/s_a — qui portent toute la grille commune aux deux
+        # series. Sans cette restriction, une mini-crue isolee hors de
+        # l'evenement cale (avant ou apres) degradait r sans le
+        # moindre rapport avec l'apport qu'on cherche a caler : le § 7 de
+        # l'auto-test verifiait deja que le pic et le volume l'ignoraient,
+        # jamais que la forme le faisait.
+        #
+        # Meme decalage que pour le pic et le volume : cible(t) pour
+        # t dans [f0, f1] comparee a calcule(t + decalage_h), soit
+        # exactement l'appariement que recaler() etablit ailleurs.
+        grille_f = np.arange(f0c, f1c + pas_h / 2, pas_h)
+        cible_f = np.interp(grille_f, tc,
+                            np.asarray(debit_cible, dtype=float))
+        calc_f = np.interp(grille_f + decalage_h, ts,
+                           np.asarray(debit_calcule, dtype=float))
+        # np.interp PROLONGE par la valeur de bord hors du domaine calcule :
+        # comme pour calcul_rephase() ailleurs, on exclut ces points plutot
+        # que de les laisser fausser la correlation avec un plateau fictif.
+        dedans_f = ((grille_f + decalage_h >= ts[0])
+                   & (grille_f + decalage_h <= ts[-1])
+                   & (grille_f >= tc[0]) & (grille_f <= tc[-1]))
+        if dedans_f.sum() >= 2:
+            cible_f, calc_f = cible_f[dedans_f], calc_f[dedans_f]
+        r = correlation(cible_f, calc_f)
+
+        dans_c = (tc >= f0c) & (tc <= f1c)
+        dans_s = (ts >= f0) & (ts <= f1)
+        pic_cible = (float(np.max(np.asarray(debit_cible, dtype=float)[dans_c]))
+                    if dans_c.any() else float(np.max(debit_cible)))
+        pic_calcule = (float(np.max(np.asarray(debit_calcule, dtype=float)[dans_s]))
+                      if dans_s.any() else float(np.max(debit_calcule)))
+    else:
+        r = correlation(c_a, s_a)
+        pic_cible = float(np.max(debit_cible))
+        pic_calcule = float(np.max(debit_calcule))
+    return r, pic_cible, pic_calcule
 
 
 # ---------------------------------------------------------------------------
