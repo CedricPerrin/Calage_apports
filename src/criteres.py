@@ -647,39 +647,8 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
     _juger_couverture(comparaison, debut, fin, couverture_min,
                       alertes, bloquantes)
 
-    # LE VERDICT DE VOLUME TIENT, ET LA SERIE ENTIERE LE DEMENT.
-    #
-    # ELLE ENONCE UN PERIMETRE, ELLE NE DENONCE PAS UN DEFAUT — et c'est ce
-    # qui regle le seul cas ou l'on pourrait la croire abusive : celui d'une
-    # mini-crue anterieure que la fenetre exclut A BON DROIT (§ 7 du banc).
-    # La distinguer d'une fenetre qui coupe dans la decrue (§ 7 ter) demande
-    # un seuil d'amplitude que personne n'a mesure — le signe de l'ecart n'y
-    # suffit pas, verifie : dans les deux cas l'excedent touche le bord de la
-    # fenetre. Or l'enonce reste VRAI et utile dans les deux : au § 7 le
-    # modele double la mini-crue, et le verdict ne le voit pas davantage.
-    #
-    # ELLE NE SE LEVE PAS QUAND LE VERDICT EST DEJA HORS BANDE : il le dit
-    # alors lui-meme et la boucle travaille dessus ; ajouter un second
-    # pourcentage a chaque essai n'apprendrait rien et apprendrait a ignorer
-    # la colonne « Alertes ». Le NOMBRE, lui, est porte par le Diagnostic dans
-    # tous les cas.
-    #
-    # NON BLOQUANTE, comme celle de la couverture : ce qu'elle signale n'est
-    # pas une comparaison invalide, c'est une comparaison dont il faut
-    # connaitre le perimetre.
-    if (rapport_volume_serie is not None and part_cible_jugee is not None
-            and np.isfinite(rapport_vol) and np.isfinite(rapport_volume_serie)
-            and abs(rapport_vol - 1.0) <= tolerance_volume
-            and abs(rapport_volume_serie - 1.0) > tolerance_volume):
-        alertes.append(
-            f"PERIMETRE DU VERDICT : le volume est juge sur la fenetre "
-            f"{f0:.1f}-{f1:.1f} h, qui retient "
-            f"{100 * part_cible_jugee:.0f} % du volume de la cible. Sur "
-            f"toute la serie le rapport vaut "
-            f"{100 * rapport_volume_serie:.1f} %, hors de la bande "
-            f"+/-{100 * tolerance_volume:.0f} %. Ce qui est dehors n'est pas "
-            f"juge, et ne peut pas l'etre ici : un apport ne sait qu'ajouter "
-            f"du debit, un excedent hors fenetre se corrige en amont")
+    _dire_perimetre(comparaison, rapport_vol, rapport_volume_serie,
+                    part_cible_jugee, tolerance_volume, alertes)
     # L'APPORT EST-IL IDENTIFIABLE ? NON BLOQUANTE, meme famille que PERIMETRE
     # DU VERDICT : elle dit le perimetre de ce qui est publie, elle ne denonce
     # rien. Avant les bloquantes, pour que celles-ci restent en queue.
@@ -999,6 +968,49 @@ def _juger_couverture(comparaison, debut, fin, couverture_min,
             f"couverture) : le verdict porte sur un evenement incomplet. Le "
             f"rapport de volume ne peut PAS le reveler, cible et calcul etant "
             f"integres sur le meme intervalle rogne")
+
+
+def _dire_perimetre(comparaison, rapport_vol, rapport_volume_serie,
+                    part_cible_jugee, tolerance_volume, alertes):
+    """
+    Ajoute a « alertes » la reserve PERIMETRE DU VERDICT, quand le volume
+    juge tient dans la bande et que la serie entiere en sort. Jamais
+    bloquante.
+    """
+    f0, f1 = comparaison.f0, comparaison.f1
+    # LE VERDICT DE VOLUME TIENT, ET LA SERIE ENTIERE LE DEMENT.
+    #
+    # ELLE ENONCE UN PERIMETRE, ELLE NE DENONCE PAS UN DEFAUT — et c'est ce
+    # qui regle le seul cas ou l'on pourrait la croire abusive : celui d'une
+    # mini-crue anterieure que la fenetre exclut A BON DROIT (§ 7 du banc).
+    # La distinguer d'une fenetre qui coupe dans la decrue (§ 7 ter) demande
+    # un seuil d'amplitude que personne n'a mesure — le signe de l'ecart n'y
+    # suffit pas, verifie : dans les deux cas l'excedent touche le bord de la
+    # fenetre. Or l'enonce reste VRAI et utile dans les deux : au § 7 le
+    # modele double la mini-crue, et le verdict ne le voit pas davantage.
+    #
+    # ELLE NE SE LEVE PAS QUAND LE VERDICT EST DEJA HORS BANDE : il le dit
+    # alors lui-meme et la boucle travaille dessus ; ajouter un second
+    # pourcentage a chaque essai n'apprendrait rien et apprendrait a ignorer
+    # la colonne « Alertes ». Le NOMBRE, lui, est porte par le Diagnostic dans
+    # tous les cas.
+    #
+    # NON BLOQUANTE, comme celle de la couverture : ce qu'elle signale n'est
+    # pas une comparaison invalide, c'est une comparaison dont il faut
+    # connaitre le perimetre.
+    if (rapport_volume_serie is not None and part_cible_jugee is not None
+            and np.isfinite(rapport_vol) and np.isfinite(rapport_volume_serie)
+            and abs(rapport_vol - 1.0) <= tolerance_volume
+            and abs(rapport_volume_serie - 1.0) > tolerance_volume):
+        alertes.append(
+            f"PERIMETRE DU VERDICT : le volume est juge sur la fenetre "
+            f"{f0:.1f}-{f1:.1f} h, qui retient "
+            f"{100 * part_cible_jugee:.0f} % du volume de la cible. Sur "
+            f"toute la serie le rapport vaut "
+            f"{100 * rapport_volume_serie:.1f} %, hors de la bande "
+            f"+/-{100 * tolerance_volume:.0f} %. Ce qui est dehors n'est pas "
+            f"juge, et ne peut pas l'etre ici : un apport ne sait qu'ajouter "
+            f"du debit, un excedent hors fenetre se corrige en amont")
 
 
 # ---------------------------------------------------------------------------
