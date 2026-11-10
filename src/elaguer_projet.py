@@ -623,7 +623,7 @@ def main():
             morts, gardes, utilisateur, inacheves = inventorier(
                 dossier, projet, retenu, args.inclure_inacheves)
 
-    print(f"\nCONSERVE — plan retenu")
+    print("\nCONSERVE — plan retenu")
     for p in gardes:
         print(f"   p{p['numero']}  « {p['titre']} »  geom={p['geom'] or '?'}  "
               f"flot={p['flot'] or '?'}")
