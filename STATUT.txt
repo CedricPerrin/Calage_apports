@@ -22,6 +22,23 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+GARDE-FOUS DE CALCUL, PLAN VALIDE RECALE, REGLAGES HORS DEFAUT — 10 NOVEMBRE
+2026, VERSION 0.9.31 (NON PUBLIEE).
+  Incident du jour sur Ard_aval : premier calage voulu en HEC-RAS 7.0.2 ; lance
+  pour p14, Ras.exe a recalcule quatre autres plans pendant 4 h 53 sans ouvrir
+  p14. CAUSE NON ETABLIE : la sonde tools/sonde_ligne_commande.py n'a pas pu
+  tourner (symbole decimal du poste de developpement = virgule). PRIORITE :
+  la lancer sur un poste ou HEC-RAS calcule, en 7.0.1 puis 7.0.2.
+  Chaine : calculer() verifie le .prj avant de lancer et arrete HEC-RAS s'il
+  calcule un autre plan (plan_detourne) ; le pont refuse si le symbole decimal
+  n'est pas le point ; version de HEC-RAS au journal.
+  Interface : version dite a l'etape 1 et au resume ; plan de reference au
+  nom du prefixe = question au lancement, remplace seulement si le calage est
+  conforme (regle 2.5) ; « ! défaut : … », infobulles et bouton « Revenir aux
+  paramètres par défaut » sur les etapes Modele, Parametres et Lancer
+  (noyau.DEFAUTS_PARAMETRES). Banc 478 [OK]. Detail : CHECKPOINT.md.
+  Aucun calcul HEC-RAS reel lance ; rien regarde dans le QGIS du poste.
+
 ACCENTS DU PLAN AU CALCUL — 8 NOVEMBRE 2026 (SANS VERSION, NON PUBLIE).
   compute_plan (ras-commander 0.99.2, RasCmdr.py l. 954) pose TOUJOURS
   « Write Detailed= 1 » (BcoMonitor.enable_detailed_logging) avant de lancer
@@ -2147,9 +2164,15 @@ de scenario » du plugin a cote de « Premier apport ») :
   23/10. PAS DE LECTURE DES ANCIENS TITRES : un calage commence sous eux se
   relance depuis le debut (decision de l'utilisateur).
   LE PLAN FINAL PORTE LE PREFIXE SEUL, il peut donc rencontrer un plan existant.
-  Plan source de ce nom : lancement refuse (pont_hecras et plugin). Autre plan
-  de ce nom : le plugin demande confirmation, la ligne de commande avertit au
-  journal, et ce plan est remplace a la fin du calage.
+  Plan source de ce nom : DEPUIS LE 10/11/2026 (0.9.31, demande utilisateur :
+  recaler un plan valide qui garde son nom), le plugin demande au lancement
+  s'il faut le remplacer (« Remplacer_plan_source = oui »). Il n'est remplace
+  que si le calage est CONFORME — conclure() n'est appele que dans ce cas — et
+  part alors avec ses resultats et sa couche du .rasmap ; sinon il reste intact
+  et le recalage garde son titre d'etape. Sans cet accord (ligne de commande),
+  le pont refuse comme avant. Remplace le refus du 02/11/2026.
+  Autre plan de ce nom : le plugin demande confirmation, la ligne de commande
+  avertit au journal, et ce plan est remplace a la fin du calage.
   L'ELAGAGE COMPARE A LA LISTE EXACTE DES TITRES : un test sur le debut du titre
   emporterait le scenario « Q100-V2 ». Le plan de reference ne vaut pas plan final.
   PREFIXE VIDE = LES TITRES D'AVANT, AU CARACTERE PRES : un classeur ou un
@@ -2658,6 +2681,22 @@ ENVIRONNEMENT
   - Le moteur HEC-RAS exige le POINT comme separateur decimal, et c'est le
     parametre de langue pour les programmes non Unicode qui est determinant.
     Une virgule provoque des echecs de calcul silencieux.
+  - SYMBOLE DECIMAL DE WINDOWS (sDecimal de l'utilisateur) : avec la virgule,
+    Ras.exe ouvre un message « HEC-RAS requires the "." symbol be used for
+    decimals » et attend un clic, sans rien calculer ; le chien de garde de
+    ras-commander ne le ferme pas (10/11/2026, 7.0.1). Le pont refuse de
+    lancer un calage dans ce cas (pilote_hecras.symbole_decimal).
+  - HEC-RAS PEUT CALCULER UN AUTRE PLAN QUE CELUI DEMANDE, puis rendre 0.
+    Releve le 10/11/2026 en 7.0.2 (Ard_aval) : quatre plans recalcules, le
+    plan demande jamais ouvert, 4 h 53 perdues. Cause non etablie. calculer()
+    verifie le .prj avant de lancer et surveille le dossier pendant le calcul
+    (plan_detourne) : il arrete HEC-RAS au premier .tmp.hdf d'un autre plan.
+  - LA VERSION DE HEC-RAS EST LA PLUS HAUTE LUE DANS LE MODELE : c'est en
+    enregistrant son modele dans une version que l'ingenieur la choisit, et
+    une seule geometrie y suffit. Elle est dite a l'etape 1, au resume et au
+    journal (0.9.31). Le 10/11/2026, le premier calage voulu en 7.0.2 n'a pas
+    abouti (piege precedent) : la sonde tools/sonde_ligne_commande.py reste
+    a lancer avant de compter sur 7.0.2.
   - Le journal de calage est a ENCODAGE MIXTE : la chaine y ecrit en UTF-8,
     mais GDAL et HEC-RAS ecrivent en page de codes locale. Le lire exige
     errors="replace".

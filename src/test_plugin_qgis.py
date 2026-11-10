@@ -528,8 +528,17 @@ else:
              bool(dlg.version_hecras)
              and not hasattr(dlg, "edit_version_hecras"),
              f"{dlg.version_hecras} — {dlg.label_nom_projet.text()[:60]}")
+    # ET ELLE EST DITE A PART (10/11/2026) : sous le projet, et au resume.
+    verifier("la version qui calculera est dite sous le projet, et au resume",
+             dlg.label_version_calage.text()
+             == dlg._phrase_version(dlg.version_hecras,
+                                    noyau.versions_hecras_installees())
+             and not dlg.label_version_calage.isHidden()
+             and f"HEC-RAS : {dlg.version_hecras}"
+             in dlg.texte_resume.toPlainText().splitlines(),
+             dlg.label_version_calage.text())
 
-    numero_plan = (PLAN.with_suffix("").suffix.lstrip(".p")
+    numero_plan =(PLAN.with_suffix("").suffix.lstrip(".p")
                    if PLAN is not None else None)
     index_plan = next((i for i in range(dlg.combo_plan.count())
                        if dlg.combo_plan.itemData(i)["numero"] == numero_plan), 0)
@@ -2520,6 +2529,14 @@ for _nom, _version in (("Aval_ancien", "7.01"), ("Projet_choisi", "6.60")):
     (_bac_prj / f"{_nom}.p01").write_text(
         f"Plan Title=Q100\nProgram Version={_version}\n", encoding="utf-8")
 _dlg_prj = mod_plugin.DialogueParametrage(iface)
+# LA VERSION QUI CALCULERA EST DITE A PART (10/11/2026) : une ligne sous le
+# projet et une ligne du resume, absentes tant qu'aucun modele n'est charge.
+_dlg_prj._maj_resume()
+verifier("sans modele, ni la ligne de version ni celle du resume ne parlent",
+         _dlg_prj.label_version_calage.isHidden()
+         and _dlg_prj.label_version_calage.text() == ""
+         and "HEC-RAS :" not in _dlg_prj.texte_resume.toPlainText(),
+         _dlg_prj.texte_resume.toPlainText()[:80])
 fichiers.fichiers.append(str(_bac_prj / "Projet_choisi.prj"))
 _dlg_prj._parcourir_projet_hecras()
 verifier("le projet charge est le .prj designe, pas le premier du dossier",
@@ -2527,6 +2544,25 @@ verifier("le projet charge est le .prj designe, pas le premier du dossier",
          and _dlg_prj.version_hecras == "6.6",
          f"{(_dlg_prj.info_projet or {}).get('nom_projet')}, "
          f"HEC-RAS {_dlg_prj.version_hecras}")
+verifier("la version lue est dite sous le projet",
+         _dlg_prj.label_version_calage.text()
+         == _dlg_prj._phrase_version("6.6", noyau.versions_hecras_installees())
+         and not _dlg_prj.label_version_calage.isHidden(),
+         _dlg_prj.label_version_calage.text())
+# LA PHRASE NE PROMET PAS UN CALAGE QUE LE POSTE NE PEUT PAS FAIRE.
+verifier("version installee : « Le calage sera réalisé avec HEC-RAS 7.0.2. »",
+         _dlg_prj._phrase_version("7.0.2", ["7.0.1", "7.0.2"])
+         == "Le calage sera réalisé avec HEC-RAS 7.0.2."
+         and _dlg_prj._phrase_version("7.0.2", [])
+         == "Le calage sera réalisé avec HEC-RAS 7.0.2.")
+verifier("version absente du poste : la phrase dit que le calage ne calculera pas",
+         "pas installé" in _dlg_prj._phrase_version("6.6", ["7.0.1"])
+         and "sera réalisé" not in _dlg_prj._phrase_version("6.6", ["7.0.1"])
+         and _dlg_prj._phrase_version(None, ["7.0.1"]) == "",
+         _dlg_prj._phrase_version("6.6", ["7.0.1"]))
+verifier("et le resume la porte sur sa ligne « HEC-RAS : 6.6 »",
+         "HEC-RAS : 6.6" in _dlg_prj.texte_resume.toPlainText().splitlines(),
+         _dlg_prj.texte_resume.toPlainText()[:120])
 shutil.rmtree(_bac_prj, ignore_errors=True)
 # ET LE PREFIXE A QUITTE « Objectifs ». Laisse aux deux endroits, il aurait
 # donne deux champs a lire pour un seul reglage.
@@ -2712,6 +2748,11 @@ _bac_cl = Path(tempfile.mkdtemp(prefix="classeur_sauve_"))
 _paires_cl = [("A1", "S1"), ("A2", "S2")]
 _par_cl = {"Prefixe_scenario": "Q100", "Nom_projet": "Essai"}
 _cl1 = noyau.preparer_classeur(_bac_cl, _paires_cl, {}, parametres=_par_cl)
+# REMPLACER LE PLAN DE REFERENCE EST UN ACCORD DU LANCEMENT (10/11/2026) : la
+# composition ecrit « non », seule la question posee au depart ecrit « oui ».
+verifier("un paquet compose n'autorise pas a remplacer le plan de reference",
+         noyau.lire_parametres(_cl1).get("Remplacer_plan_source") == "non",
+         repr(noyau.lire_parametres(_cl1).get("Remplacer_plan_source")))
 _wb = _openpyxl.load_workbook(_cl1)
 _wb["Cibles"]["A2"], _wb["Cibles"]["B2"] = 0.0, 12.5
 _wb.create_sheet("Mes notes")["A1"] = "a garder"
@@ -2904,6 +2945,18 @@ verifier("un sens remis a celui du paquet n'est pas un ecart",
          "Sens_axe" not in _coh._ecarts_avec_le_paquet()
          and _marque_onglet(_coh, mod_plugin.ONGLET_MODELE) is None,
          str(_coh._ecarts_avec_le_paquet()))
+# ET UN REGLAGE HORS DEFAUT N'EST PAS UN ECART (10/11/2026). « aval_amont »
+# n'est pas le sens par defaut : sa marque « ! défaut : … » est allumee, mais
+# l'ecran dit ce que dit le paquet. Aucun temoin, aucun « ! » sur la bande :
+# le lancement, qui ne refuse que les ecarts, n'est pas bloque.
+_coh._maj_resume()
+_m_sens = next(m for c, _w, m in _coh._defauts if c == "Sens_axe")
+verifier("un reglage hors defaut, conforme au paquet, ne bloque pas le lancement",
+         not _m_sens.isHidden()
+         and not _coh._ecarts_avec_le_paquet()
+         and not [c for c, t in _coh._temoins if not t.isHidden()]
+         and _marque_onglet(_coh, mod_plugin.ONGLET_MODELE) is None,
+         f"marque cachee={_m_sens.isHidden()}, ecarts={_coh._ecarts_avec_le_paquet()}")
 # CHANGER LE PREFIXE FERA UN CLASSEUR NEUF, DONC VIDE (21/09/2026, signale
 # comme « supprime les apports »). Mesure : rien n'est supprime, l'ancien
 # garde ses cibles — mais le neuf nait vide et la fenetre bascule dessus.
@@ -2944,6 +2997,157 @@ verifier("sans paquet compose, aucun ecart n'est invente",
 _coh.close()
 _coh.deleteLater()
 shutil.rmtree(_coh_bac, ignore_errors=True)
+
+# LES REGLAGES HORS VALEUR PAR DEFAUT (10/11/2026, demande utilisateur) : un
+# « ! défaut : … » a droite du champ change, un bouton « Revenir aux
+# paramètres par défaut » en tete de chacune des trois etapes, et le defaut
+# dit a la derniere ligne de l'infobulle du champ. Ce n'est pas un temoin :
+# rien n'est compare au paquet, rien n'est bloque.
+_def = mod_plugin.DialogueParametrage(iface)
+_def._maj_resume()
+_ETAPES_DEFAUTS = (mod_plugin.ONGLET_MODELE, mod_plugin.ONGLET_OBJECTIFS,
+                   mod_plugin.ONGLET_LANCER)
+
+
+def _marque_de(fenetre, cle):
+    """Le « ! défaut : … » du champ qui porte cette cle."""
+    return next(m for c, _champ, m in fenetre._defauts if c == cle)
+
+
+def _texte_marque(fenetre, cle):
+    """Son texte tel qu'il se lit : sans balises, l'apostrophe rendue."""
+    from html import unescape
+    return unescape(re.sub("<[^>]+>", "", _marque_de(fenetre, cle).text()))
+
+
+def _allumees(fenetre):
+    return [c for c, _champ, m in fenetre._defauts if not m.isHidden()]
+
+
+def _boutons_defauts_actifs(fenetre):
+    """Par etape (Modele, Parametres, Lancer) : son bouton est-il actif ?"""
+    return [next(b for b in fenetre._boutons_defauts
+                 if fenetre.onglets.widget(rang).isAncestorOf(b)).isEnabled()
+            for rang in _ETAPES_DEFAUTS]
+
+
+def _cliquer_defauts(fenetre, rang):
+    next(b for b in fenetre._boutons_defauts
+         if fenetre.onglets.widget(rang).isAncestorOf(b)).click()
+
+
+_table = noyau.DEFAUTS_PARAMETRES
+verifier("defauts : une seule table, dont derivent les constantes et les champs",
+         mod_plugin.TOLERANCE_VOLUME_DEFAUT == _table["Tolerance_volume_pct"] / 100 == 0.05
+         and mod_plugin.TOLERANCE_PIC_DEFAUT == _table["Tolerance_pic_pct"] / 100 == 0.02
+         and noyau.BILAN_MASSE_DEFAUT == _table["Bilan_masse_max_pct"] == 5.0
+         and _def.spin_nb_max_essais.value()
+         == _table["Nb_max_iterations_par_apport"] == 6
+         and (_def.edit_sous_dossier_resultats.text(),
+              _def.edit_sous_dossier_suivi.text())
+         == (_table["Sous_dossier_resultats"], _table["Sous_dossier_suivi"])
+         == ("resultats_finaux", "suivi"),
+         f"{mod_plugin.TOLERANCE_VOLUME_DEFAUT} {mod_plugin.TOLERANCE_PIC_DEFAUT} "
+         f"{noyau.BILAN_MASSE_DEFAUT} {_def.spin_nb_max_essais.value()}")
+verifier("defauts : chaque reglage de la table a sa marque, une seule",
+         sorted(c for c, _w, _m in _def._defauts) == sorted(_table),
+         str(sorted(set(_table) ^ {c for c, _w, _m in _def._defauts})))
+verifier("defauts : a l'ouverture, aucune marque, et les trois boutons inactifs",
+         not _allumees(_def) and len(_def._boutons_defauts) == 3
+         and _boutons_defauts_actifs(_def) == [False, False, False],
+         f"{_allumees(_def)} {_boutons_defauts_actifs(_def)}")
+verifier("defauts : le bouton ouvre chacune des trois etapes, a l'infinitif",
+         all(_def.onglets.widget(rang).widget().layout().itemAt(0).widget()
+             in _def._boutons_defauts for rang in _ETAPES_DEFAUTS)
+         and {b.text() for b in _def._boutons_defauts}
+         == {"Revenir aux paramètres par défaut"},
+         str({b.text() for b in _def._boutons_defauts}))
+verifier("defauts : l'infobulle de chaque champ garde son texte et finit par le defaut",
+         _def.spin_tol_volume.toolTip().startswith("Écart admis sur le volume")
+         and _def.spin_tol_volume.toolTip().endswith("\n\nValeur par défaut : 5 %.")
+         and _def.edit_sim_debut.toolTip() == "Valeur par défaut : celui du plan."
+         and all(w.toolTip().splitlines()[-1].startswith("Valeur par défaut : ")
+                 for _c, w, _m in _def._defauts),
+         _def.spin_tol_volume.toolTip()[-40:])
+_def.spin_tol_volume.setValue(3.0)
+_m_volume = _marque_de(_def, "Tolerance_volume_pct")
+verifier("defauts : une valeur changee allume « ! défaut : 5 % », elle seule",
+         _allumees(_def) == ["Tolerance_volume_pct"]
+         and _texte_marque(_def, "Tolerance_volume_pct") == "! défaut : 5 %",
+         f"{_allumees(_def)} {_texte_marque(_def, 'Tolerance_volume_pct')!r}")
+verifier("defauts : la marque dit les deux valeurs et le bouton qui remet",
+         "« 3 »" in _m_volume.toolTip() and "5 % par défaut" in _m_volume.toolTip()
+         and mod_plugin.BOUTON_DEFAUTS in _m_volume.toolTip()
+         and _m_volume.accessibleDescription() == _m_volume.toolTip()
+         and _m_volume.accessibleName() == "Réglage différent de sa valeur par défaut",
+         _m_volume.toolTip())
+verifier("defauts : elle a le rouge du plugin, et suit le theme sombre comme les autres textes",
+         isinstance(_m_volume, _mod_interface_t.Etiquette)
+         and mod_plugin.ISL_ROUGE in _m_volume._texte_original,
+         _m_volume._texte_original)
+verifier("defauts : seul le bouton de l'etape Parametres devient actif",
+         _boutons_defauts_actifs(_def) == [False, True, False],
+         str(_boutons_defauts_actifs(_def)))
+verifier("defauts : ce n'est pas un temoin — ni ecart avec le paquet, ni « ! » sur la bande",
+         not _def._ecarts_avec_le_paquet()
+         and not [c for c, t in _def._temoins if not t.isHidden()]
+         and _marque_onglet(_def, mod_plugin.ONGLET_OBJECTIFS) is None,
+         str(_def._ecarts_avec_le_paquet()))
+# LES AUTRES ETAPES, ET LES DEFAUTS QUI SE DISENT EN MOTS.
+_def.spin_pk_origine.setValue(250.0)
+_def.combo_sens_axe.setCurrentIndex(_def.combo_sens_axe.findData("aval_amont"))
+_def.case_elaguer.setChecked(True)
+verifier("defauts : le PK, le sens et l'elagage s'annoncent, leur defaut en mots",
+         (_texte_marque(_def, "PK_origine_m"), _texte_marque(_def, "Sens_axe"),
+          _texte_marque(_def, "Elaguer_plans_etape"))
+         == ("! défaut : 0 m", "! défaut : de l'amont vers l'aval", "! défaut : non")
+         and _texte_marque(_def, "Coeurs_par_calcul") == "! défaut : ceux du plan"
+         and _allumees(_def) == ["Sens_axe", "PK_origine_m", "Tolerance_volume_pct",
+                                 "Elaguer_plans_etape"]
+         and _boutons_defauts_actifs(_def) == [True, True, True],
+         f"{_allumees(_def)} {_boutons_defauts_actifs(_def)}")
+# LE BOUTON NE REMET QUE SON ETAPE, ET SANS QUESTION.
+BoiteMessage.dernier = None
+_cliquer_defauts(_def, mod_plugin.ONGLET_OBJECTIFS)
+verifier("defauts : le bouton remet la valeur et eteint la marque, sans question",
+         _def.spin_tol_volume.value() == 5.0 and _m_volume.isHidden()
+         and BoiteMessage.dernier is None,
+         f"{_def.spin_tol_volume.value()} cachee={_m_volume.isHidden()}")
+verifier("defauts : il ne touche pas aux reglages des autres etapes",
+         _def.spin_pk_origine.value() == 250.0 and _def.case_elaguer.isChecked()
+         and _boutons_defauts_actifs(_def) == [True, False, True],
+         f"{_allumees(_def)} {_boutons_defauts_actifs(_def)}")
+_cliquer_defauts(_def, mod_plugin.ONGLET_MODELE)
+_cliquer_defauts(_def, mod_plugin.ONGLET_LANCER)
+verifier("defauts : les boutons des etapes Modele et Lancer remettent les leurs",
+         _def.spin_pk_origine.value() == 0.0
+         and _def.combo_sens_axe.currentData() == "amont_aval"
+         and not _def.case_elaguer.isChecked()
+         and not _allumees(_def)
+         and _boutons_defauts_actifs(_def) == [False, False, False],
+         f"{_allumees(_def)} {_boutons_defauts_actifs(_def)}")
+# UNE FENETRE DE SIMULATION PAR DEFAUT EST CELLE DU PLAN : le champ la montre
+# remplie, et seule une saisie qui s'en ecarte s'annonce.
+_def.combo_plan.addItem("p01 — Q100", {
+    "numero": "01", "titre": "Q100", "geometrie": "01", "unsteady": "01",
+    "fenetre": {"debut": "13OCT2014,00:00", "fin": "14OCT2014,04:00",
+                "intervalle_calcul": "1SEC", "intervalle_sortie": "1MIN",
+                "intervalle_instantane": "1MIN", "intervalle_mapping": "1MIN"}})
+verifier("defauts : la fenetre du plan, recopiee dans les champs, n'allume rien",
+         _def.edit_sim_fin.text() == "14OCT2014,04:00" and not _allumees(_def),
+         f"{_def.edit_sim_fin.text()!r} {_allumees(_def)}")
+_def.edit_sim_fin.setText("14OCT2014,02:00")
+verifier("defauts : une fin de simulation saisie s'annonce « celle du plan »",
+         _allumees(_def) == ["Simulation_fin"]
+         and _texte_marque(_def, "Simulation_fin") == "! défaut : celle du plan"
+         and _boutons_defauts_actifs(_def) == [True, False, False],
+         f"{_allumees(_def)} {_texte_marque(_def, 'Simulation_fin')!r}")
+_cliquer_defauts(_def, mod_plugin.ONGLET_MODELE)
+verifier("defauts : et le bouton y remet la fenetre du plan",
+         _def.edit_sim_fin.text() == "14OCT2014,04:00" and not _allumees(_def),
+         f"{_def.edit_sim_fin.text()!r} {_allumees(_def)}")
+_def.close()
+_def.deleteLater()
 
 verifier("le prefixe de scenario a quitte l'onglet Objectifs",
          "Préfixe de scénario" not in [g.title() for g in dlg.onglets.widget(
@@ -3006,8 +3210,10 @@ verifier("sans depart choisi, le recapitulatif annonce le calage complet",
          and "Q100-sans" in _recap_dlg.label_reprise.text(),
          _recap_dlg.label_reprise.text())
 # UN PLAN PORTE DEJA LE NOM DU PLAN FINAL (0.9.30). Le plan final porte le
-# prefixe seul. Le plan source est refuse ; tout autre plan demande confirmation,
-# et le talon de boite ne clique rien : cela vaut « Annuler ».
+# prefixe seul. Le plan source etait refuse ; depuis le 10/11/2026 (decision
+# utilisateur : recaler un plan valide qui garde son nom) il demande
+# confirmation, comme tout autre plan, et le talon de boite ne clique rien :
+# cela vaut « Annuler ».
 _recap_dlg.edit_projet_hecras.setText("")
 _recap_dlg.info_projet = {"plans": [{"numero": "01", "titre": "Q100"},
                                     {"numero": "07", "titre": "Q100 "},
@@ -3016,13 +3222,70 @@ _recap_dlg.combo_plan.currentData = lambda: {"numero": "01"}
 verifier("plan final : le plan source et les autres plans du nom sont distingues",
          _recap_dlg._plans_au_titre_final(_recap_dlg.info_projet) == ("01", ["07"]),
          str(_recap_dlg._plans_au_titre_final(_recap_dlg.info_projet)))
-verifier("plan final : un plan source au nom du prefixe refuse le lancement",
-         _recap_dlg._accepter_plan_final() is False)
+BoiteMessage.dernier = None
+verifier("plan final : un plan source au nom du prefixe demande, et sans clic rien ne part",
+         _recap_dlg._accepter_plan_final() is False
+         and _recap_dlg._remplacer_plan_source is False
+         and _recap_dlg.label_lancement.text() == "Lancement annulé.",
+         _recap_dlg.label_lancement.text())
+_boite_source = BoiteMessage.dernier
+verifier("plan final : la question du plan source a « Annuler » pour defaut, et des verbes",
+         _boite_source is not None and _boite_source.bouton_defaut is not None
+         and _boite_source.bouton_defaut.role == _RolesBouton.RejectRole
+         and _boite_source.bouton_echappement is _boite_source.bouton_defaut
+         and [b.text() for b in _boite_source.boutons]
+         == ["Remplacer si le calage est conforme", "Annuler"],
+         str([b.text() for b in _boite_source.boutons]) if _boite_source
+         else "aucune boite")
+verifier("plan final : elle nomme le plan de reference, et dit ce qui est supprime",
+         _boite_source is not None
+         and "Remplacer le plan de référence p01 « Q100 »" in _boite_source.texte
+         and "travaille sur une copie" in _boite_source.texte
+         and "p01 et ses résultats sont supprimés" in _boite_source.texte
+         and "p01 reste intact" in _boite_source.texte,
+         re.sub("<[^>]+>", " ", _boite_source.texte)[:140] if _boite_source else "")
 _recap_dlg._dire_titres_prefixe()
-verifier("plan final : la ligne sous le prefixe dit que le lancement sera refuse",
-         "Nom déjà pris" in _recap_dlg.label_titres_prefixe.text()
-         and "sera refusé" in _recap_dlg.label_titres_prefixe.text(),
+verifier("plan final : la ligne sous le prefixe dit que le plan de reference sera remplace",
+         "Nom déjà pris par le plan de référence p01" in _recap_dlg.label_titres_prefixe.text()
+         and "sera remplacé si le calage est conforme" in _recap_dlg.label_titres_prefixe.text()
+         and "Le lancement le redemandera" in _recap_dlg.label_titres_prefixe.text()
+         and "refusé" not in _recap_dlg.label_titres_prefixe.text()
+         # ET LES AUTRES PLANS DU NOM RESTENT ANNONCES : le lancement posera
+         # les deux questions.
+         and "le plan p07 sera" in _recap_dlg.label_titres_prefixe.text(),
          re.sub("<[^>]+>", " ", _recap_dlg.label_titres_prefixe.text())[:140])
+# L'ACCORD EST RETENU, PUIS ECRIT AU LANCEMENT avec les autres reglages. Le
+# talon clique ici le premier bouton ; l'etat des cibles, pose a la main,
+# arrete le lancement juste apres l'ecriture : aucune chaine n'est lancee.
+_clic_talon, _ecrire_noyau, _etat_noyau = (
+    BoiteMessage.clickedButton, noyau.ecrire_parametre, noyau.etat_cibles)
+_ecrits, _avertis = {}, []
+BoiteMessage.clickedButton = lambda self: self.boutons[0]
+BoiteMessage.warning = staticmethod(lambda parent, titre, texte: _avertis.append(titre))
+noyau.ecrire_parametre = lambda classeur, cle, valeur: _ecrits.update({cle: valeur})
+noyau.etat_cibles = lambda classeur: {"manquantes": ["S1"], "total": 4}
+try:
+    verifier("plan final : accepter retient le remplacement, puis demande pour les autres plans",
+             _recap_dlg._accepter_plan_final() is True
+             and _recap_dlg._remplacer_plan_source is True
+             and "p07" in BoiteMessage.dernier.texte,
+             re.sub("<[^>]+>", " ", BoiteMessage.dernier.texte)[:80])
+    _recap_dlg._lancer_calage()
+    verifier("plan final : le lancement ecrit l'accord sous « Remplacer_plan_source »",
+             _ecrits.get("Remplacer_plan_source") == "oui"
+             and _avertis == ["Hydrogrammes cibles incomplets"],
+             f"{_ecrits.get('Remplacer_plan_source')!r} {_avertis}")
+    _recap_dlg.combo_plan.currentData = lambda: {"numero": "08"}
+    _ecrits.clear()
+    _recap_dlg._lancer_calage()
+    verifier("plan final : sans plan de reference de ce nom, il ecrit « non »",
+             _ecrits.get("Remplacer_plan_source") == "non"
+             and _recap_dlg._remplacer_plan_source is False,
+             f"{_ecrits.get('Remplacer_plan_source')!r}")
+finally:
+    BoiteMessage.clickedButton = _clic_talon
+    noyau.ecrire_parametre, noyau.etat_cibles = _ecrire_noyau, _etat_noyau
+    del BoiteMessage.warning
 _recap_dlg.combo_plan.currentData = lambda: {"numero": "08"}
 verifier("plan final : un autre plan du nom demande, et sans clic rien ne part",
          _recap_dlg._plans_au_titre_final(_recap_dlg.info_projet) == (None, ["01", "07"])
@@ -3830,6 +4093,47 @@ def _eprouver_petite_fenetre(points):
             QApplication.processEvents()
             verifier(f"police {points} pt : Alt-droite revient a l'aide",
                      fenetre.onglets.currentIndex() == mod_plugin.ONGLET_AIDE)
+            # LES « ! défaut : … » NE FONT DEFILER AUCUNE ETAPE DE COTE
+            # (10/11/2026). Tous les reglages changes, groupes deplies : c'est
+            # l'etat le plus large, que la fenetre a l'ouverture ne montre pas.
+            fenetre.edit_sim_debut.setText("01JAN2000,00:00")
+            fenetre.edit_sim_fin.setText("02JAN2000,00:00")
+            for champ in fenetre.edits_intervalles.values():
+                champ.setText("2MIN")
+            fenetre.combo_sens_axe.setCurrentIndex(1)
+            fenetre.spin_pk_origine.setValue(12.0)
+            for spin in (fenetre.spin_tol_volume, fenetre.spin_tol_pic,
+                         fenetre.spin_bilan_masse, fenetre.spin_nb_max_essais):
+                spin.setValue(spin.value() + 1)
+            fenetre.edit_sous_dossier_resultats.setText("r")
+            fenetre.edit_sous_dossier_suivi.setText("s")
+            fenetre.case_coeurs.setChecked(True)
+            fenetre.case_elaguer.setChecked(True)
+            # La case des cœurs ne change rien sur un poste sans suggestion :
+            # sa marque n'est pas comptee.
+            for index, attendues in ((mod_plugin.ONGLET_MODELE, 8),
+                                     (mod_plugin.ONGLET_OBJECTIFS, 6),
+                                     (mod_plugin.ONGLET_LANCER, 1)):
+                fenetre.onglets.setCurrentIndex(index)
+                QApplication.processEvents()
+                zone = fenetre.onglets.widget(index)
+                # Un groupe repliable ne se deplie qu'a l'ecran. SANS MEMOIRE :
+                # QGIS retient l'etat d'un groupe nomme, et la fenetre
+                # suivante — comme le banc suivant — s'ouvrirait depliee.
+                for groupe in zone.findChildren(type(fenetre.groupe_fenetre)):
+                    groupe.setSaveCollapsedState(False)
+                    groupe.setCollapsed(False)
+                QApplication.processEvents()
+                marques = [m for _c, _w, m in fenetre._defauts
+                           if zone.isAncestorOf(m) and m.isVisibleTo(zone)]
+                verifier(f"{points} pt / {attendus[index]} : tous les « ! défaut » "
+                         "allumes, la page ne defile pas de cote",
+                         len(marques) >= attendues
+                         and zone.horizontalScrollBar().maximum() == 0,
+                         f"{len(marques)} marque(s) a l'ecran, defilement "
+                         f"horizontal={zone.horizontalScrollBar().maximum()} px, "
+                         f"page={zone.widget().minimumSizeHint().width()} px, "
+                         f"vue={zone.viewport().width()} px")
         finally:
             if fenetre is not None:
                 fenetre.close()

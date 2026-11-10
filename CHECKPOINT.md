@@ -1,5 +1,69 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 10 novembre 2026 : garde-fous de calcul, plan validé recalé, paramètres hors défaut (0.9.31)
+
+**L'incident.** Modèle `Ard_aval` (affaire 25F193), poste d'une collègue, reprise à ARD11
+depuis p13. Journal : `…\3-Apports\ARD-Q100-V2-modif_BC_aval\calage_20261110_091500.log`.
+L'ingénieur a choisi de calculer en HEC-RAS 7.0.2 : le matin, g06 est enregistrée dans
+l'interface de 7.0.2 (`Program Version=7.02`), et le plugin, qui retient la version la
+plus haute du modèle, lance le calage en 7.0.2. C'est le premier calage de ce projet en
+7.0.2 ; les précédents avaient tourné en 7.0.1. Lancé pour p14, `Ras.exe` 7.0.2 parcourt les plans
+du projet depuis p01 : p02, p05, p06 et p07 sont recalculés par-dessus leurs résultats,
+p14 n'est jamais ouvert, et l'arrêt tombe après 4 h 53 sur « p14.hdf est absent ».
+**La cause n'est pas établie** (constat : `0-HECRAS`, `08_constats_mesures.md`).
+
+**Fait, chaîne de calcul** (`4a5a0c8`, `8d31007`) :
+- `PiloteHecRas.calculer` : avant de lancer, le `.prj` doit déclarer le plan, sa
+  géométrie et son flux (`_manques_avant_calcul`). Pendant le calcul, un fil relit le
+  dossier toutes les 20 s et ferme les HEC-RAS nés depuis le lancement dès qu'un
+  `.pMM.tmp.hdf` d'un autre plan est **créé** sans signe de vie du plan demandé
+  (`plan_detourne`). Les dates se comparent à l'heure du disque du projet
+  (`_heure_du_dossier`), pas à celle du poste.
+- Pont : refus si le symbole décimal de Windows n'est pas le point
+  (`symbole_decimal` ; HEC-RAS ouvre alors un message et attend un clic), refus si
+  `Version_HECRAS` est vide, ligne « HEC-RAS : 7.0.2 » au journal.
+- Recalage d'un plan validé qui garde son nom (décision du 10/11, remplace le refus du
+  02/11) : clé `Remplacer_plan_source`. Le plan source qui porte le titre final n'est
+  remplacé que si le calage est **conforme** (`Configuration.remplacer_plan_source` :
+  `conclure` n'est appelé que dans ce cas) ; il part avec ses résultats et sa couche du
+  `.rasmap` (`_retirer_resultats_rasmap`). Sans la clé, le pont refuse comme avant.
+- Auto-tests : pilote 207, calage 142, pont 27 ; pytest de la CI 72.
+
+**Fait, interface** (`calage_apports/plugin.py`, `noyau.py`) :
+- Étape 1 : ligne à part « Le calage sera réalisé avec HEC-RAS 7.0.2. »
+  (`label_version_calage`, `_phrase_version`). Si la version du modèle n'est pas
+  installée sur le poste, la ligne le dit au lieu de promettre un calage. Ligne
+  « HEC-RAS : 7.0.2 » au résumé de l'étape Lancer.
+- Lancement : quand le plan de référence porte déjà le titre final, le refus devient
+  une question (`_accepter_plan_final`, « Annuler » par défaut) ; l'accord est écrit
+  sous `Remplacer_plan_source`. La ligne sous le préfixe prévient à la frappe.
+- Réglages hors défaut : une seule table, `noyau.DEFAUTS_PARAMETRES` (16 clés) ;
+  marque « ! défaut : 5 % » à droite du champ, sous la case pour les deux cases de
+  l'étape Lancer (`_marque_defaut`, `_maj_defauts`) ; infobulle « Valeur par défaut : … » ;
+  bouton « Revenir aux paramètres par défaut » en tête des étapes Modèle, Paramètres et
+  Lancer, qui ne remet que son étape (`_bouton_defauts`, `_revenir_aux_defauts`). La
+  marque n'est pas un témoin : elle ne bloque pas le lancement. La fenêtre de
+  simulation par défaut est celle du plan.
+- Banc QGIS sans modèle : 478 [OK], 0 [ECHEC]. Aperçus des trois étapes regardés hors
+  écran (greffon `offscreen`), pas dans le QGIS du poste.
+
+**Décisions de l'utilisateur, 10/11/2026** : version seulement affichée (ni choix, ni
+mention des versions mêlées) ; règle de reprise gardée (plan d'étape « préfixe-apport
+précédent » s'il existe, sinon plan de référence ; l'apport repris et l'aval sont remis
+à zéro puis recalés, l'amont reste tel quel) ; paramètres hors défaut sur les trois
+pages ; plan validé remplacé seulement sur calage conforme, après confirmation.
+
+**Pas fait.**
+- La sonde `tools/sonde_ligne_commande.py` n'a pas tourné : le poste de développement a
+  la virgule pour symbole décimal, HEC-RAS y attend un clic. À lancer sur un poste dont
+  le symbole est le point, HEC-RAS fermé, en 7.0.1 puis 7.0.2, cas `clone_fin`, `liste`,
+  `courant`, `origine`. **Priorité** : l'ingénieur veut calculer en 7.0.2, et tant que
+  la sonde n'a pas parlé, on ne sait pas faire aboutir un calage dans cette version. Les
+  garde-fous arrêtent le défaut ; ils ne le corrigent pas.
+- Aucun calcul HEC-RAS réel : les garde-fous sont éprouvés par des leurres.
+- Limite de `plan_detourne` : un collègue qui lance un autre plan du même projet pendant
+  que le nôtre n'a encore rien écrit ferait arrêter notre calcul à tort.
+
 ## 8 novembre 2026 : le plan que HEC-RAS lit garde ses accents, sans version
 
 Défaut trouvé sur Sensi le même jour (son commit `56ecafa`), présent ici.

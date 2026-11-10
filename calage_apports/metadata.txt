@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont l'étape « Suivi » montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.9.30
+version=0.9.31
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,20 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.9.30 — Titres courts et homogènes des plans et des Unsteady Flow :
+changelog=0.9.31 — Garde-fous de calcul, après un calage où HEC-RAS 7.0.2
+    avait calculé d'autres plans que le plan demandé : avant de lancer, le
+    projet doit déclarer le plan, sa géométrie et son flux ; pendant le
+    calcul, HEC-RAS est arrêté dès qu'il calcule un autre plan ; le lancement
+    est refusé si le symbole décimal de Windows n'est pas le point.
+    La version de HEC-RAS qui calculera est écrite à l'étape Modèle, dans le
+    résumé de l'étape Lancer et au journal.
+    Un plan validé peut être recalé en gardant son nom : le calage travaille
+    sur une copie, et le plan de référence n'est remplacé que si le calage
+    est conforme, après confirmation au lancement.
+    Un réglage qui n'est pas à sa valeur par défaut porte « ! défaut : … » ;
+    chaque infobulle donne la valeur par défaut ; un bouton en tête des
+    étapes Modèle, Paramètres et Lancer y revient.
+    0.9.30 — Titres courts et homogènes des plans et des Unsteady Flow :
     « Q100-sans », « Q100-A1 »… et, à l'arrivée, « Q100 », le préfixe seul.
     Un seul séparateur, « - ». En reprise : « Q100-sans A3 ». Le préfixe
     proposé devient « Riviere-Q100 ». Le lancement refuse un plan source qui

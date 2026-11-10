@@ -1377,10 +1377,37 @@ def pentes_locales_apports(dossier_projet, nom_projet, geometrie, chemin_axe,
 # sans QGIS.
 # ---------------------------------------------------------------------------
 
+# LES VALEURS PAR DEFAUT DES REGLAGES DE LA FENETRE, EN UN SEUL EXEMPLAIRE
+# (10/11/2026, demande utilisateur : signaler un reglage qui n'est pas a sa
+# valeur par defaut, et pouvoir y revenir). Cle du classeur -> valeur. La
+# fenetre y lit ses valeurs d'ouverture, ses « ! défaut : … » et son bouton
+# « Revenir aux paramètres par défaut » ; preparer_classeur y lit les siennes.
+DEFAUTS_PARAMETRES = {
+    # Fenetre de simulation : vide = celle du plan de reference.
+    "Simulation_debut": "",
+    "Simulation_fin": "",
+    "Intervalle_calcul": "",
+    "Intervalle_sortie": "",
+    "Intervalle_instantane": "",
+    "Intervalle_mapping": "",
+    "Sens_axe": "amont_aval",
+    "PK_origine_m": 0,
+    # Precision attendue, en POURCENTAGE de la cible.
+    "Tolerance_volume_pct": 5.0,
+    "Tolerance_pic_pct": 2.0,
+    "Bilan_masse_max_pct": 5.0,
+    "Nb_max_iterations_par_apport": 6,
+    "Sous_dossier_resultats": "resultats_finaux",
+    "Sous_dossier_suivi": "suivi",
+    # 0 = les plans gardent les cœurs qu'ils demandent.
+    "Coeurs_par_calcul": 0,
+    "Elaguer_plans_etape": "non",
+}
+
 # SEUIL DE QUALITE NUMERIQUE, PAS DE CONCORDANCE. Doit rester d'accord avec
 # calage.Configuration.bilan_masse_max_pct : c'est la meme grandeur, ecrite
 # ici pour que le classeur la porte sans que le plugin importe la chaine.
-BILAN_MASSE_DEFAUT = 5.0
+BILAN_MASSE_DEFAUT = DEFAUTS_PARAMETRES["Bilan_masse_max_pct"]
 
 
 def parametres_calage(dossier_projet, nom_projet, version_hecras, nom_zone_2d,
@@ -1536,12 +1563,9 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
         # Fenetre de simulation du plan de calcul. Laissees vides, celle du
         # plan de reference s'applique telle quelle — le bon defaut tant qu'on
         # ne substitue pas un unsteady flow couvrant une autre periode.
-        "Simulation_debut": "",
-        "Simulation_fin": "",
-        "Intervalle_calcul": "",
-        "Intervalle_sortie": "",
-        "Intervalle_instantane": "",
-        "Intervalle_mapping": "",
+        **{cle: DEFAUTS_PARAMETRES[cle] for cle in (
+            "Simulation_debut", "Simulation_fin", "Intervalle_calcul",
+            "Intervalle_sortie", "Intervalle_instantane", "Intervalle_mapping")},
         # Trace de la pente donnee aux injections CREEES par le plugin. Non
         # relue par le calage : elle est ecrite dans l'Unsteady Flow au moment
         # de la creation. Elle figure ici pour que le classeur porte, seul, de
@@ -1549,8 +1573,8 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
         "Pente_apport_creee_m_par_m": "",
         # Precision attendue, en POURCENTAGE de la cible, jugee sur la
         # fenetre du hydrogramme PRINCIPAL uniquement.
-        "Tolerance_volume_pct": 5.0,
-        "Tolerance_pic_pct": 2.0,
+        "Tolerance_volume_pct": DEFAUTS_PARAMETRES["Tolerance_volume_pct"],
+        "Tolerance_pic_pct": DEFAUTS_PARAMETRES["Tolerance_pic_pct"],
         # FENETRE DE JUGEMENT. Restreint le verdict et les figures a la crue
         # calee ; l'apport, lui, reste calcule sur toute la serie. Vide =
         # active, le defaut. Les deux seuils portent sur le volume cumule du
@@ -1566,20 +1590,26 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
         # du plan d'etape de l'apport precedent et tient l'amont pour cale.
         "Premier_apport": "",
         "Prefixe_scenario": "",
+        # Le plan de reference porte deja le titre du plan final : « oui »
+        # autorise la chaine a le remplacer si le calage est conforme. Reglage
+        # DU LANCEMENT : la question posee au depart l'ecrit, jamais la
+        # composition.
+        "Remplacer_plan_source": "non",
         # Cœurs demandes a HEC-RAS pour chaque calcul, ecrits par
         # ras-commander dans le plan d'etape avant son calcul. 0 = le plan
         # garde ce qu'il demande. Reglage DU LANCEMENT : la case de l'etape
         # Lancer l'ecrit au depart, avec la suggestion faite d'apres le poste.
-        "Coeurs_par_calcul": 0,
-        "Nb_max_iterations_par_apport": 6,
+        "Coeurs_par_calcul": DEFAUTS_PARAMETRES["Coeurs_par_calcul"],
+        "Nb_max_iterations_par_apport":
+            DEFAUTS_PARAMETRES["Nb_max_iterations_par_apport"],
         "Bilan_masse_max_pct": BILAN_MASSE_DEFAUT,
         "Source_geometrie": "SHP",
         "Fichier_SHP_Sections": str(chemins_shp.get("sections", "")),
         "Fichier_SHP_Apports": str(chemins_shp.get("apports", "")),
         "Fichier_SHP_Axe": str(chemins_shp.get("axe", "")),
-        "Sens_axe": "amont_aval",
+        "Sens_axe": DEFAUTS_PARAMETRES["Sens_axe"],
         "Champ_nom_SHP": "nom",
-        "PK_origine_m": 0,
+        "PK_origine_m": DEFAUTS_PARAMETRES["PK_origine_m"],
         "Pas_profil_m": 25,
         "Distance_max_axe_maillage_m": "",
     }

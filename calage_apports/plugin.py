@@ -563,6 +563,9 @@ PENTE_APPORT_DEFAUT = 0.01
 # des qu'un prealable manque, et « Ouvrir dans Excel » restait gris apres le
 # prefixe sans que rien ne dise pourquoi.
 BOUTON_GEOMETRIE = "Valider la géométrie et générer le fichier des hydrogrammes"
+# En tete des etapes Modele, Parametres et Lancer : il ne remet que les
+# reglages de SON etape (voir DialogueParametrage._bouton_defauts).
+BOUTON_DEFAUTS = "Revenir aux paramètres par défaut"
 # CE QUI SE PASSE TANT QU'IL N'Y A PAS DE PAQUET — une seule phrase, dite
 # aux deux endroits qui l'attendent (etape Lancer, coherence). Elle
 # renvoyait a « Ecrire dans la geometrie HEC-RAS » « en bas de la fenetre » :
@@ -596,8 +599,10 @@ NOM_CLONE_GEOMETRIE_DEFAUT = "Geometrie_calage"
 #     sonde de toute facon a chaque battement.
 # La friction reste, assumee : elle achete un affichage qui ne ment pas.
 
-TOLERANCE_VOLUME_DEFAUT = 0.05
-TOLERANCE_PIC_DEFAUT = 0.02
+# En FRACTIONS de la cible ; la table du noyau, qui fait foi, les porte en
+# pourcentages (noyau.DEFAUTS_PARAMETRES).
+TOLERANCE_VOLUME_DEFAUT = noyau.DEFAUTS_PARAMETRES["Tolerance_volume_pct"] / 100
+TOLERANCE_PIC_DEFAUT = noyau.DEFAUTS_PARAMETRES["Tolerance_pic_pct"] / 100
 TOLERANCE_FORME_DEFAUT = 0.03
 
 # Fenetre de crue : bornes hors desquelles il ne se passe rien d'interessant.
@@ -2118,6 +2123,9 @@ class DialogueParametrage(QDialog):
         self.instant_lance = None
         self.info_projet = None      # resultat de noyau.lister_projet_hecras
         self.version_hecras = None   # lue dans les fichiers, jamais saisie
+        # L'accord donne au lancement pour remplacer un plan de reference qui
+        # porte deja le titre du plan final (voir _accepter_plan_final).
+        self._remplacer_plan_source = False
         self.appariement = None      # apports <-> sections, deduit des PK
         # DE QUEL CLASSEUR L'APPARIEMENT PARLE. La ligne du haut de l'onglet 4
         # decrit le paquet COMPOSE ; reprendre le classeur d'un autre calcul ne
@@ -2150,6 +2158,9 @@ class DialogueParametrage(QDialog):
         # un champ que le paquet ne porte plus s'annonce par un « ! » rouge
         # (voir _temoin, _maj_temoins).
         self._temoins = []           # (cles du paquet, « ! » du champ)
+        # LES REGLAGES HORS DEFAUT (10/11/2026) : voir _marque_defaut.
+        self._defauts = []           # (cle, champ, « ! défaut : … » du champ)
+        self._boutons_defauts = []   # un « Revenir… » par etape
         self._actualiser_style()
         QApplication.instance().installEventFilter(self)
         agencement = QVBoxLayout(self)
@@ -2672,6 +2683,7 @@ class DialogueParametrage(QDialog):
         v = QVBoxLayout(page)
         v.setContentsMargins(4, 4, 4, 4)
         v.setSpacing(12)
+        v.addWidget(self._bouton_defauts(), 0, Qt.AlignmentFlag.AlignLeft)
 
         groupe_projet = QGroupBox("Projet HEC-RAS")
         f = formulaire(groupe_projet)
@@ -2711,6 +2723,11 @@ class DialogueParametrage(QDialog):
         self.label_nom_projet.setWordWrap(True)
         self.label_nom_projet.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         f.addRow(self.label_nom_projet)
+        # LA VERSION QUI CALCULERA, DITE A PART (10/11/2026, demande
+        # utilisateur). La ligne du projet la cite apres le nom, en passant ;
+        # celle-ci dit ce qu'elle engage. Masquee tant qu'elle est inconnue.
+        self.label_version_calage = texte_etat()
+        f.addRow(self.label_version_calage)
         v.addWidget(groupe_projet)
 
         groupe_plan = QGroupBox("Plan et fichiers de calcul")
@@ -3123,6 +3140,11 @@ class DialogueParametrage(QDialog):
             "Tolerance_pic_pct": self.spin_tol_pic.value(),
             "Bilan_masse_max_pct": self.spin_bilan_masse.value(),
             "Nb_max_iterations_par_apport": self.spin_nb_max_essais.value(),
+            # Les deux reglages du lancement : lus par _maj_defauts, jamais
+            # compares au paquet (ils n'y partent qu'au lancement).
+            "Coeurs_par_calcul": self._coeurs_demandes(),
+            "Elaguer_plans_etape":
+                "oui" if self.case_elaguer.isChecked() else "non",
             # LE DOSSIER VIENT DU CHAMP, PAS DE info_projet, qui ne porte que
             # le nom du projet et ses listes — c'est _dossier_projet qui sait.
             "Dossier_projet_HECRAS": str(self._dossier_projet() or ""),
@@ -3274,18 +3296,174 @@ class DialogueParametrage(QDialog):
         return temoin
 
     def _avec_temoin(self, champ, *cles):
-        """Le champ suivi de son « ! », dans une enveloppe qui lui rend le focus."""
+        """
+        Le champ suivi de son « ! », puis de « ! défaut : … » s'il a une
+        valeur par defaut, dans une enveloppe qui lui rend le focus.
+        """
         enveloppe = QWidget()
         ligne = QHBoxLayout(enveloppe)
         ligne.setContentsMargins(0, 0, 0, 0)
         ligne.setSpacing(6)
         ligne.addWidget(champ, 1)
         ligne.addWidget(self._temoin(*cles))
+        # ET « ! défaut : … », pour un reglage qui a une valeur par defaut.
+        for cle in cles:
+            if cle in noyau.DEFAUTS_PARAMETRES:
+                ligne.addWidget(self._marque_defaut(champ, cle))
         # LE RACCOURCI DU LIBELLE VISE L'ENVELOPPE, qui le passe au champ :
         # sans ce relais, Alt+V tomberait sur un cadre qui ne prend pas le
         # focus.
         enveloppe.setFocusProxy(champ)
         return enveloppe
+
+    # --- reglages hors valeur par defaut -------------------------------------
+    # 10/11/2026, demande utilisateur : « Si les paramètres ne sont pas ceux
+    # par défaut, mettre un point d'exclamation et rajouter un bouton en haut
+    # pour revenir aux paramètres par défaut. Rajouter des infobulles qui
+    # indiquent les paramètres par défaut. »
+    #
+    # Les VALEURS sont dans noyau.DEFAUTS_PARAMETRES, et la seulement. Ici, ce
+    # qu'on lit a la place d'une valeur qui ne se dit pas par elle-meme, et
+    # l'unite des nombres.
+    _DEFAUTS_EN_MOTS = {
+        "Simulation_debut": "celui du plan",
+        "Simulation_fin": "celle du plan",
+        "Intervalle_calcul": "celui du plan",
+        "Intervalle_sortie": "celui du plan",
+        "Intervalle_instantane": "celle du plan",
+        "Intervalle_mapping": "celle du plan",
+        "Sens_axe": "de l'amont vers l'aval",
+        "Coeurs_par_calcul": "ceux du plan",
+    }
+    _UNITES_DEFAUT = {
+        "PK_origine_m": " m", "Tolerance_volume_pct": " %",
+        "Tolerance_pic_pct": " %", "Bilan_masse_max_pct": " %",
+    }
+
+    @staticmethod
+    def _phrase_version(version, installees):
+        """
+        Ce que l'etape Modele dit de la version de HEC-RAS qui calculera.
+        Vide si elle est illisible. UNE VERSION ABSENTE DU POSTE NE CALCULERA
+        PAS : la phrase ne le promet pas.
+        """
+        if not version:
+            return ""
+        if installees and version not in installees:
+            return (f"HEC-RAS {version}, la version du modèle, n’est pas "
+                    "installé sur ce poste : le calage ne pourra pas calculer.")
+        return f"Le calage sera réalisé avec HEC-RAS {version}."
+
+    def _texte_defaut(self, cle):
+        """La valeur par defaut d'un reglage, telle qu'on la lit : « 5 % »."""
+        return self._DEFAUTS_EN_MOTS.get(cle) or (
+            f"{self._montrer(cle, noyau.DEFAUTS_PARAMETRES[cle])}"
+            f"{self._UNITES_DEFAUT.get(cle, '')}")
+
+    def _marque_defaut(self, champ, cle):
+        """
+        « ! défaut : 5 % », a droite du champ (sous une case a cocher) : cache
+        tant que le reglage est a sa valeur par defaut, allume par
+        _maj_defauts. L'infobulle du champ gagne une derniere ligne, « Valeur
+        par défaut : … ».
+
+        CE N'EST PAS UN TEMOIN (_temoin). Le temoin dit que l'ecran differe du
+        paquet et bloque le lancement ; cette marque dit seulement qu'un
+        reglage a ete change. Elle ne bloque rien et n'entre pas dans le « ! »
+        de la bande. Les deux se distinguent par le texte : « ! » seul pour
+        le temoin, « ! défaut : … » ici.
+
+        JAMAIS LA COULEUR SEULE : le signe et les mots portent le sens,
+        l'infobulle et la description accessible disent les deux valeurs. La
+        couleur suit le theme sombre : QLabel est ici interface.Etiquette.
+        """
+        texte = self._texte_defaut(cle)
+        marque = QLabel(f"<span style='color:{ISL_ROUGE}'><b>!</b> défaut : "
+                        f"{html.escape(texte, quote=False)}</span>")
+        marque.setAccessibleName("Réglage différent de sa valeur par défaut")
+        marque.setVisible(False)
+        infobulle = champ.toolTip()
+        champ.setToolTip((f"{infobulle}\n\n" if infobulle else "")
+                         + f"Valeur par défaut : {texte}.")
+        self._defauts.append((cle, champ, marque))
+        return marque
+
+    def _bouton_defauts(self):
+        """
+        « Revenir aux paramètres par défaut », en tete d'une etape. Il ne
+        remet que les reglages de SON etape, et n'est actif que si l'un d'eux
+        differe : _maj_defauts le tient.
+
+        SANS QUESTION : rien n'est perdu que l'on ne puisse ressaisir, et les
+        « ! » montraient deja ce qui allait changer.
+        """
+        bouton = QPushButton(BOUTON_DEFAUTS)
+        bouton.setAutoDefault(False)
+        bouton.setEnabled(False)
+        bouton.setToolTip(
+            "Remettre à leur valeur par défaut les réglages de cette étape "
+            "marqués « ! défaut ». Les autres étapes ne changent pas.")
+        bouton.clicked.connect(lambda: self._revenir_aux_defauts(bouton))
+        self._boutons_defauts.append(bouton)
+        return bouton
+
+    def _defauts_a_l_ecran(self):
+        """
+        Les valeurs par defaut, telles que l'ecran les porte. UNE FENETRE DE
+        SIMULATION PAR DEFAUT EST CELLE DU PLAN : le classeur la porte vide,
+        l'ecran la montre remplie (_remplir_fenetre_depuis_plan).
+        """
+        origine = (self.combo_plan.currentData() or {}).get("fenetre") or {}
+        return {**noyau.DEFAUTS_PARAMETRES,
+                **{parametre: origine.get(cle, "")
+                   for cle, parametre in self.PARAMETRES_FENETRE.items()}}
+
+    def _maj_defauts(self):
+        """
+        Allume « ! défaut : … » sur chaque reglage change, et le bouton de
+        l'etape qui en porte au moins un.
+
+        Un sous-dossier VIDE est signale lui aussi, alors que la composition
+        y met le nom par defaut : le bouton le remplit.
+        """
+        try:
+            vues = self._valeurs_de_la_fenetre()
+            defauts = self._defauts_a_l_ecran()
+        except (AttributeError, RuntimeError):
+            return              # fenetre pas encore entierement construite
+        allumees = []
+        for cle, _champ, marque in self._defauts:
+            change = not self._memes_valeurs(vues[cle], defauts[cle])
+            marque.setVisible(change)
+            detail = (f"Réglage changé : « {self._montrer(cle, vues[cle])} » à "
+                      f"l’écran, {self._texte_defaut(cle)} par défaut. "
+                      f"« {BOUTON_DEFAUTS} », en tête de l’étape, le remet."
+                      ) if change else ""
+            marque.setToolTip(detail)
+            marque.setAccessibleDescription(detail)
+            if change:
+                allumees.append(marque)
+        for bouton in self._boutons_defauts:
+            etape = bouton.parentWidget()
+            bouton.setEnabled(any(etape.isAncestorOf(m) for m in allumees))
+
+    def _revenir_aux_defauts(self, bouton):
+        """Remet a leur valeur par defaut les reglages de l'etape du bouton."""
+        etape = bouton.parentWidget()
+        defauts = self._defauts_a_l_ecran()
+        for cle, champ, marque in self._defauts:
+            if not etape.isAncestorOf(marque):
+                continue
+            valeur = defauts[cle]
+            if isinstance(champ, QCheckBox):
+                champ.setChecked(valeur not in (0, "non"))
+            elif isinstance(champ, QComboBox):
+                champ.setCurrentIndex(champ.findData(valeur))
+            elif isinstance(champ, QLineEdit):
+                champ.setText(valeur)
+            else:
+                champ.setValue(valeur)
+        self._maj_resume()
 
     def _maj_temoins(self, ecarts):
         """
@@ -3517,6 +3695,8 @@ class DialogueParametrage(QDialog):
                               f"{', '.join(sorted(versions_vues))})")
         self.label_nom_projet.setText(
             self.info_projet["nom_projet"] + texte_version)
+        dire(self.label_version_calage,
+             self._phrase_version(self.version_hecras, installees))
         self.combo_plan.clear()
         for p in self.info_projet["plans"]:
             self.combo_plan.addItem(f"p{p['numero']} — {p['titre']}", p)
@@ -3990,7 +4170,8 @@ class DialogueParametrage(QDialog):
 
         self.spin_nb_max_essais = QSpinBox()
         self.spin_nb_max_essais.setRange(3, 50)
-        self.spin_nb_max_essais.setValue(6)
+        self.spin_nb_max_essais.setValue(
+            noyau.DEFAUTS_PARAMETRES["Nb_max_iterations_par_apport"])
         self.spin_nb_max_essais.setToolTip(
             "Garde-fou de dernier recours, non le mode d'arrêt normal : la "
             "concordance s'obtient en trois à quatre essais.")
@@ -4149,12 +4330,12 @@ class DialogueParametrage(QDialog):
                 "calcule. Écrivez le préfixe sans accent.")
         source, autres = self._plans_au_titre_final(self.info_projet)
         if source:
+            # Plus un refus depuis le 10/11/2026 : le lancement pose la question.
             phrases.insert(0, (
-                f"<b style='color:{ISL_ROUGE}'>⚠ Nom déjà pris :</b> le plan de "
-                f"référence p{source} s’appelle déjà « {html.escape(prefixe)} », "
-                "le titre du plan final. Le lancement sera refusé : "
-                "choisissez un autre préfixe."))
-        elif autres:
+                f"<b style='color:{ISL_ROUGE}'>⚠ Nom déjà pris par le plan de "
+                f"référence p{source}.</b> Il sera remplacé si le calage est "
+                "conforme. Le lancement le redemandera."))
+        if autres:
             phrases.append(
                 f"<b>⚠ Nom déjà pris :</b> le plan p{', p'.join(autres)} sera "
                 "remplacé à la fin du calage. Le lancement le redemandera.")
@@ -4321,8 +4502,7 @@ class DialogueParametrage(QDialog):
         page = QWidget()
         v = QVBoxLayout(page)
         v.setSpacing(10)
-
-
+        v.addWidget(self._bouton_defauts(), 0, Qt.AlignmentFlag.AlignLeft)
 
         # LE CONTROLE EST REDESCENDU AU BAS DE LA FENETRE (0.7.24, demande
         # utilisateur), a cote de « Fermer », ou il vivait avant la 0.7.19.
@@ -4527,12 +4707,14 @@ class DialogueParametrage(QDialog):
         detail_dossiers.setObjectName("grpSousDossiers")
         fd = formulaire(detail_dossiers)
 
-        self.edit_sous_dossier_resultats = QLineEdit("resultats_finaux")
+        self.edit_sous_dossier_resultats = QLineEdit(
+            noyau.DEFAUTS_PARAMETRES["Sous_dossier_resultats"])
         self.edit_sous_dossier_resultats.textChanged.connect(self._maj_resume)
         fd.addRow("Résultats &finaux :", self._avec_temoin(
             self.edit_sous_dossier_resultats, "Sous_dossier_resultats"))
 
-        self.edit_sous_dossier_suivi = QLineEdit("suivi")
+        self.edit_sous_dossier_suivi = QLineEdit(
+            noyau.DEFAUTS_PARAMETRES["Sous_dossier_suivi"])
         self.edit_sous_dossier_suivi.textChanged.connect(self._maj_resume)
         # CHANGER CE CHAMP DOIT SE VOIR TOUT DE SUITE. Sans ce reveil,
         # l'onglet 5 gardait le dossier de la derniere visite jusqu'a la
@@ -4590,7 +4772,10 @@ class DialogueParametrage(QDialog):
             "Oublié ? « pont_hecras.py elaguer-etapes » le fait encore après "
             "coup, depuis une console.")
         self.case_elaguer.toggled.connect(self._dire_elagage)
+        self.case_elaguer.toggled.connect(self._maj_resume)
         fm.addRow(self.case_elaguer)
+        # SOUS LA CASE, PAS A SA DROITE : son texte tient deja la largeur.
+        fm.addRow(self._marque_defaut(self.case_elaguer, "Elaguer_plans_etape"))
         # CE QUI VA SE PASSER, EN UNE PHRASE ET EN COULEUR. Une case a cocher
         # dit ce qu'elle FERA ; elle ne dit pas ce qu'il ADVIENDRA des plans,
         # qui est la seule chose qui compte ici — et c'est irreversible.
@@ -4632,7 +4817,10 @@ class DialogueParametrage(QDialog):
             "modifié.\n\nDécochée, les plans gardent ce qu'ils demandent "
             "déjà.")
         self.case_coeurs.toggled.connect(self._dire_reprise)
+        self.case_coeurs.toggled.connect(self._maj_resume)
         fc.addRow(self.case_coeurs)
+        # Sous la case, comme pour l'elagage (_groupe_menage).
+        fc.addRow(self._marque_defaut(self.case_coeurs, "Coeurs_par_calcul"))
         # UNE SUGGESTION MUETTE PASSERAIT POUR UNE LIMITATION DU PLUGIN. Dire
         # ce qui a ete detecte, ce que le plan demande et ce que cocher
         # changera en fait un renseignement, que l'utilisateur peut contredire.
@@ -4832,6 +5020,7 @@ class DialogueParametrage(QDialog):
         page = QWidget()
         v = QVBoxLayout(page)
         v.setSpacing(10)
+        v.addWidget(self._bouton_defauts(), 0, Qt.AlignmentFlag.AlignLeft)
 
         groupe = QGroupBox("Préparation du lancement")
         f = formulaire(groupe)
@@ -6744,14 +6933,20 @@ class DialogueParametrage(QDialog):
         Le plan final porte le prefixe seul : un plan existant peut avoir ce
         nom. Rend False si le lancement s'arrete.
 
-        LE PLAN DE REFERENCE : refus. Il n'est jamais remplace, et deux plans
-        auraient le meme titre et le meme Short Identifier.
+        LE PLAN DE REFERENCE : question (10/11/2026, decision utilisateur ; un
+        refus jusque-la), pour recaler un plan valide qui garde son nom. Le
+        calage travaille sur une copie : conforme, elle prend ce nom, et le
+        plan de reference est supprime avec ses resultats ; sinon il reste
+        intact. L'accord est retenu dans _remplacer_plan_source, remis a
+        False a chaque appel, et le lancement l'ecrit dans le classeur sous
+        « Remplacer_plan_source ».
 
         UN AUTRE PLAN : question, car rien ne distingue le plan final d'une
         relance d'un plan de l'ingenieur. LUE AU LANCEMENT, PAS A L'OUVERTURE :
         un calage precedent a pu ecrire ce plan depuis. Une lecture qui rate
         n'empeche pas de lancer : le pont refusera le plan de reference.
         """
+        self._remplacer_plan_source = False
         projet = self.edit_projet_hecras.text().strip()
         try:
             info = noyau.lister_projet_hecras(projet) if projet else self.info_projet
@@ -6761,13 +6956,25 @@ class DialogueParametrage(QDialog):
         source, autres = self._plans_au_titre_final(info)
         final = self._titre_etape("avec_apports")
         if source:
-            self._signaler(
-                "Calage non lancé",
-                f"Le plan de référence p{source} s'appelle déjà « {final} », le "
-                "titre du plan final. Choisissez un autre préfixe (étape "
-                "Paramètres), ou renommez ce plan dans HEC-RAS.",
-                Qgis.MessageLevel.Warning, duree=15)
-            return False
+            # confirmer() pose « Annuler » par defaut et a l'echappement ;
+            # aucun bouton clique vaut Annuler.
+            with sans_sablier(self):
+                accepte = confirmer(
+                    self, "Le plan de référence porte déjà ce nom",
+                    f"<b>Remplacer le plan de référence p{source} « "
+                    f"{html.escape(final)} » à la fin du calage ?</b><br><br>"
+                    "Le calage travaille sur une copie.<br>"
+                    "<b>Si le calage est conforme</b> : la copie prend ce nom ; "
+                    f"p{source} et ses résultats sont supprimés ; le plan final "
+                    "porte un nouveau numéro.<br>"
+                    f"<b>Sinon</b> : p{source} reste intact.<br><br>"
+                    "Pour garder les deux plans, annulez, puis changez le "
+                    "préfixe.",
+                    oui="Remplacer si le calage est conforme", non="Annuler")
+            if not accepte:
+                dire(self.label_lancement, "Lancement annulé.")
+                return False
+            self._remplacer_plan_source = True
         if not autres:
             return True
         with sans_sablier(self):
@@ -6872,7 +7079,11 @@ class DialogueParametrage(QDialog):
                     # ecrite qu'a la composition : cochee ensuite, elle etait
                     # ignoree sans un mot (24/09/2026).
                     ("Elaguer_plans_etape",
-                     "oui" if self.case_elaguer.isChecked() else "non")):
+                     "oui" if self.case_elaguer.isChecked() else "non"),
+                    # L'ACCORD DONNE A LA QUESTION DU LANCEMENT, et lui seul :
+                    # « non » tant que _accepter_plan_final ne l'a pas recu.
+                    ("Remplacer_plan_source",
+                     "oui" if self._remplacer_plan_source else "non")):
                 noyau.ecrire_parametre(self.classeur, cle, valeur)
         except Exception as e:
             journaliser("Écriture des paramètres de lancement", e)
@@ -7164,6 +7375,9 @@ class DialogueParametrage(QDialog):
             # Les apports de la couche chargee comptent dans les titres.
             self._dire_titres_prefixe()
             self._composer_resume()
+            # Et les reglages hors valeur par defaut : leur « ! défaut : … »
+            # et le bouton « Revenir… » de leur etape.
+            self._maj_defauts()
         except RuntimeError:
             return
 
@@ -7176,6 +7390,8 @@ class DialogueParametrage(QDialog):
         if self.info_projet:
             lignes.append(f"Projet HEC-RAS : {self.info_projet['nom_projet']}"
                           f"  ({self.edit_projet_hecras.text()})")
+        if self.version_hecras:
+            lignes.append(f"HEC-RAS : {self.version_hecras}")
         plan = self.combo_plan.currentData()
         if plan:
             lignes.append(f"Plan de référence : p{plan['numero']} — {plan['titre']}")
