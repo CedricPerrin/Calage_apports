@@ -19,7 +19,7 @@ fichier de plan, et ne réécrit pas le `.prj`. Les versions antérieures garden
 
 **Éprouvé sur HEC-RAS réel** (copie de Muncie, `preparer` → `jalonner` → `calculer`) :
 7.0.2 par le contrôleur, plan cloné seul calculé en 58 s, bilan de masse 0,006 % ;
-7.0.1 par `compute_plan`, même plan seul en 60 s. Pas encore éprouvé sur un
+7.0.1, 7.0 et 6.4.1 par `compute_plan`, même plan seul en 60, 65 et 58 s. Pas encore éprouvé sur un
 calage complet ni sur le modèle Ard_aval (partage réseau, 17 plans).
 
 ## 10 novembre 2026 : garde-fous de calcul, plan validé recalé, paramètres hors défaut (0.9.31)
