@@ -1,0 +1,3788 @@
+{
+ "_a_propos": "Caracterisation de lire_serie_hdf, commande_modele et _controler_residus_unsteady (src/test_pont_lecture.py). NE PAS MODIFIER A LA MAIN : « python src/test_pont_lecture.py --figer-reference » le reecrit quand le changement de comportement est VOULU.",
+ "lire_serie_hdf": {
+  "bc/casse_differente": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.4000000000000p+3",
+    "0x1.9000000000000p+4",
+    "0x1.4000000000000p+5",
+    "0x1.b800000000000p+5",
+    "0x1.1800000000000p+6",
+    "0x1.5400000000000p+6",
+    "0x1.9000000000000p+6",
+    "0x1.6800000000000p+6",
+    "0x1.3000000000000p+6",
+    "0x1.f000000000000p+5",
+    "0x1.8000000000000p+5",
+    "0x1.1000000000000p+5",
+    "0x1.4000000000000p+4"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "Apport_X"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "bc/columns_en_chaines_variables": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.4000000000000p+3",
+    "0x1.9000000000000p+4",
+    "0x1.4000000000000p+5",
+    "0x1.b800000000000p+5",
+    "0x1.1800000000000p+6",
+    "0x1.5400000000000p+6",
+    "0x1.9000000000000p+6",
+    "0x1.6800000000000p+6",
+    "0x1.3000000000000p+6",
+    "0x1.f000000000000p+5",
+    "0x1.8000000000000p+5",
+    "0x1.1000000000000p+5",
+    "0x1.4000000000000p+4"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "APPORT_X"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "bc/deux_colonnes_sans_attribut": {
+   "exception": "ValueError",
+   "message": "« APPORT_X » : 2 colonnes sans attribut Columns — impossible d'identifier le debit sans deviner."
+  },
+  "bc/deux_colonnes_sans_flow": {
+   "exception": "ValueError",
+   "message": "« APPORT_X » : 2 colonnes ['Stage', 'Velocity'] — impossible d'identifier le debit sans deviner."
+  },
+  "bc/exact_prioritaire": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.4000000000000p+3",
+    "0x1.9000000000000p+4",
+    "0x1.4000000000000p+5",
+    "0x1.b800000000000p+5",
+    "0x1.1800000000000p+6",
+    "0x1.5400000000000p+6",
+    "0x1.9000000000000p+6",
+    "0x1.6800000000000p+6",
+    "0x1.3000000000000p+6",
+    "0x1.f000000000000p+5",
+    "0x1.8000000000000p+5",
+    "0x1.1000000000000p+5",
+    "0x1.4000000000000p+4"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "APPORT_X"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "bc/flow_stage": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.4000000000000p+3",
+    "0x1.9000000000000p+4",
+    "0x1.4000000000000p+5",
+    "0x1.b800000000000p+5",
+    "0x1.1800000000000p+6",
+    "0x1.5400000000000p+6",
+    "0x1.9000000000000p+6",
+    "0x1.6800000000000p+6",
+    "0x1.3000000000000p+6",
+    "0x1.f000000000000p+5",
+    "0x1.8000000000000p+5",
+    "0x1.1000000000000p+5",
+    "0x1.4000000000000p+4"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "APPORT_X"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "bc/negatif_inverse": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.4000000000000p+3",
+    "0x1.9000000000000p+4",
+    "0x1.4000000000000p+5",
+    "0x1.b800000000000p+5",
+    "0x1.1800000000000p+6",
+    "0x1.5400000000000p+6",
+    "0x1.9000000000000p+6",
+    "0x1.6800000000000p+6",
+    "0x1.3000000000000p+6",
+    "0x1.f000000000000p+5",
+    "0x1.8000000000000p+5",
+    "0x1.1000000000000p+5",
+    "0x1.4000000000000p+4"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "APPORT_X"
+    ],
+    "orientation_inversee": [
+     "bool",
+     true
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "bc/nom_absent": {
+   "exception": "KeyError",
+   "message": "\"« APPORT_Y » absent des resultats. Presents : ['APPORT_X']\""
+  },
+  "bc/nom_accentue": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.4000000000000p+3",
+    "0x1.9000000000000p+4",
+    "0x1.4000000000000p+5",
+    "0x1.b800000000000p+5",
+    "0x1.1800000000000p+6",
+    "0x1.5400000000000p+6",
+    "0x1.9000000000000p+6",
+    "0x1.6800000000000p+6",
+    "0x1.3000000000000p+6",
+    "0x1.f000000000000p+5",
+    "0x1.8000000000000p+5",
+    "0x1.1000000000000p+5",
+    "0x1.4000000000000p+4"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "Apport_Écluse"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "bc/nom_bourre_d_espaces": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.4000000000000p+3",
+    "0x1.9000000000000p+4",
+    "0x1.4000000000000p+5",
+    "0x1.b800000000000p+5",
+    "0x1.1800000000000p+6",
+    "0x1.5400000000000p+6",
+    "0x1.9000000000000p+6",
+    "0x1.6800000000000p+6",
+    "0x1.3000000000000p+6",
+    "0x1.f000000000000p+5",
+    "0x1.8000000000000p+5",
+    "0x1.1000000000000p+5",
+    "0x1.4000000000000p+4"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "APPORT_X        "
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "bc/stage_flow": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.4000000000000p+3",
+    "0x1.9000000000000p+4",
+    "0x1.4000000000000p+5",
+    "0x1.b800000000000p+5",
+    "0x1.1800000000000p+6",
+    "0x1.5400000000000p+6",
+    "0x1.9000000000000p+6",
+    "0x1.6800000000000p+6",
+    "0x1.3000000000000p+6",
+    "0x1.f000000000000p+5",
+    "0x1.8000000000000p+5",
+    "0x1.1000000000000p+5",
+    "0x1.4000000000000p+4"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "APPORT_X"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "bc/une_colonne_columns_sans_flow": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.4000000000000p+3",
+    "0x1.9000000000000p+4",
+    "0x1.4000000000000p+5",
+    "0x1.b800000000000p+5",
+    "0x1.1800000000000p+6",
+    "0x1.5400000000000p+6",
+    "0x1.9000000000000p+6",
+    "0x1.6800000000000p+6",
+    "0x1.3000000000000p+6",
+    "0x1.f000000000000p+5",
+    "0x1.8000000000000p+5",
+    "0x1.1000000000000p+5",
+    "0x1.4000000000000p+4"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "APPORT_X"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "bc/une_colonne_sans_attribut": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.4000000000000p+3",
+    "0x1.9000000000000p+4",
+    "0x1.4000000000000p+5",
+    "0x1.b800000000000p+5",
+    "0x1.1800000000000p+6",
+    "0x1.5400000000000p+6",
+    "0x1.9000000000000p+6",
+    "0x1.6800000000000p+6",
+    "0x1.3000000000000p+6",
+    "0x1.f000000000000p+5",
+    "0x1.8000000000000p+5",
+    "0x1.1000000000000p+5",
+    "0x1.4000000000000p+4"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "APPORT_X"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "bc/une_dimension": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.4000000000000p+3",
+    "0x1.9000000000000p+4",
+    "0x1.4000000000000p+5",
+    "0x1.b800000000000p+5",
+    "0x1.1800000000000p+6",
+    "0x1.5400000000000p+6",
+    "0x1.9000000000000p+6",
+    "0x1.6800000000000p+6",
+    "0x1.3000000000000p+6",
+    "0x1.f000000000000p+5",
+    "0x1.8000000000000p+5",
+    "0x1.1000000000000p+5",
+    "0x1.4000000000000p+4"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "APPORT_X"
+    ],
+    "orientation_inversee": [
+     "bool",
+     true
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "bc/valeurs_nan": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.4000000000000p+3",
+    "0x1.9000000000000p+4",
+    "0x1.4000000000000p+5",
+    "0x1.b800000000000p+5",
+    "nan",
+    "nan",
+    "nan",
+    "nan",
+    "nan",
+    "nan",
+    "0x1.8000000000000p+5",
+    "0x1.1000000000000p+5",
+    "0x1.4000000000000p+4"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "APPORT_X"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "fichier/absent": {
+   "exception": "FileNotFoundError",
+   "leve_par": "bibliotheque"
+  },
+  "fichier/chemin_en_texte": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.4000000000000p+3",
+    "0x1.9000000000000p+4",
+    "0x1.4000000000000p+5",
+    "0x1.b800000000000p+5",
+    "0x1.1800000000000p+6",
+    "0x1.5400000000000p+6",
+    "0x1.9000000000000p+6",
+    "0x1.6800000000000p+6",
+    "0x1.3000000000000p+6",
+    "0x1.f000000000000p+5",
+    "0x1.8000000000000p+5",
+    "0x1.1000000000000p+5",
+    "0x1.4000000000000p+4"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "SECTION_A|Perimeter 1"
+    ],
+    "orientation_inversee": [
+     "bool",
+     true
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "fichier/groupe_absent": {
+   "exception": "KeyError",
+   "message": "\"aucun resultat de type « Groupe Inexistant » dans ce fichier. Presents : ['Reference Lines', 'Time']. Si la section vient d'etre creee, le plan doit etre RECALCULE pour produire ses resultats.\""
+  },
+  "fichier/pas_un_hdf": {
+   "exception": "OSError",
+   "leve_par": "bibliotheque"
+  },
+  "fichier/sans_resultats_summary_unsteady": {
+   "exception": "KeyError",
+   "message": "\"aucun resultat de type « Reference Lines » dans ce fichier. Presents : []. Si la section vient d'etre creee, le plan doit etre RECALCULE pour produire ses resultats.\""
+  },
+  "fichier/series_sans_le_groupe_demande": {
+   "exception": "KeyError",
+   "message": "\"aucun resultat de type « Reference Lines » dans ce fichier. Presents : ['Boundary Conditions', 'Time']. Si la section vient d'etre creee, le plan doit etre RECALCULE pour produire ses resultats.\""
+  },
+  "fichier/verrouille": {
+   "exception": "BlockingIOError",
+   "leve_par": "bibliotheque"
+  },
+  "fichier/vide": {
+   "exception": "KeyError",
+   "message": "\"aucun resultat de type « Reference Lines » dans ce fichier. Presents : []. Si la section vient d'etre creee, le plan doit etre RECALCULE pour produire ses resultats.\""
+  },
+  "rl/casse_differente": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.e000000000000p+4",
+    "0x1.2c00000000000p+6",
+    "0x1.e000000000000p+6",
+    "0x1.4a00000000000p+7",
+    "0x1.a400000000000p+7",
+    "0x1.fe00000000000p+7",
+    "0x1.2c00000000000p+8",
+    "0x1.0e00000000000p+8",
+    "0x1.c800000000000p+7",
+    "0x1.7400000000000p+7",
+    "0x1.2000000000000p+7",
+    "0x1.9800000000000p+6",
+    "0x1.e000000000000p+5"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "SECTION_B|Perimeter 1"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "rl/doublon_premier_retenu": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.4000000000000p+3",
+    "0x1.9000000000000p+4",
+    "0x1.4000000000000p+5",
+    "0x1.b800000000000p+5",
+    "0x1.1800000000000p+6",
+    "0x1.5400000000000p+6",
+    "0x1.9000000000000p+6",
+    "0x1.6800000000000p+6",
+    "0x1.3000000000000p+6",
+    "0x1.f000000000000p+5",
+    "0x1.8000000000000p+5",
+    "0x1.1000000000000p+5",
+    "0x1.4000000000000p+4"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "D|Z1"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "rl/egalite_positif_negatif": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.4000000000000p+2",
+    "-0x1.4000000000000p+2",
+    "0x1.4000000000000p+2",
+    "-0x1.4000000000000p+2",
+    "0x0.0p+0",
+    "0x0.0p+0",
+    "0x0.0p+0",
+    "0x0.0p+0",
+    "0x0.0p+0",
+    "0x0.0p+0",
+    "0x0.0p+0",
+    "0x0.0p+0",
+    "0x0.0p+0"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "E|Z"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     true
+    ]
+   }
+  },
+  "rl/exact_prioritaire_sur_casse": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.4000000000000p+4",
+    "0x1.9000000000000p+5",
+    "0x1.4000000000000p+6",
+    "0x1.b800000000000p+6",
+    "0x1.1800000000000p+7",
+    "0x1.5400000000000p+7",
+    "0x1.9000000000000p+7",
+    "0x1.6800000000000p+7",
+    "0x1.3000000000000p+7",
+    "0x1.f000000000000p+6",
+    "0x1.8000000000000p+6",
+    "0x1.1000000000000p+6",
+    "0x1.4000000000000p+5"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "SEC|Z"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "rl/flow_entier": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.4000000000000p+4",
+    "0x1.3000000000000p+4",
+    "0x1.2000000000000p+4",
+    "0x1.1000000000000p+4",
+    "0x1.0000000000000p+4",
+    "0x1.e000000000000p+3",
+    "0x1.c000000000000p+3",
+    "0x1.a000000000000p+3",
+    "0x1.8000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.0000000000000p+3"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "I|Z"
+    ],
+    "orientation_inversee": [
+     "bool",
+     true
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "rl/flow_moins_de_colonnes_que_de_noms": {
+   "exception": "ValueError",
+   "message": "le jeu « Flow » a la forme (13, 1), incompatible avec 2 objet(s) nommes."
+  },
+  "rl/flow_une_dimension": {
+   "exception": "ValueError",
+   "message": "le jeu « Flow » a la forme (13,), incompatible avec 1 objet(s) nommes."
+  },
+  "rl/groupe_par_defaut": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.e000000000000p+4",
+    "0x1.2c00000000000p+6",
+    "0x1.e000000000000p+6",
+    "0x1.4a00000000000p+7",
+    "0x1.a400000000000p+7",
+    "0x1.fe00000000000p+7",
+    "0x1.2c00000000000p+8",
+    "0x1.0e00000000000p+8",
+    "0x1.c800000000000p+7",
+    "0x1.7400000000000p+7",
+    "0x1.2000000000000p+7",
+    "0x1.9800000000000p+6",
+    "0x1.e000000000000p+5"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "SECTION_B|Perimeter 1"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "rl/groupe_vide": {
+   "exception": "KeyError",
+   "message": "'« SECTION_A » absent des resultats. Presents : []'"
+  },
+  "rl/name_en_chaines_variables": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.4000000000000p+3",
+    "0x1.9000000000000p+4",
+    "0x1.4000000000000p+5",
+    "0x1.b800000000000p+5",
+    "0x1.1800000000000p+6",
+    "0x1.5400000000000p+6",
+    "0x1.9000000000000p+6",
+    "0x1.6800000000000p+6",
+    "0x1.3000000000000p+6",
+    "0x1.f000000000000p+5",
+    "0x1.8000000000000p+5",
+    "0x1.1000000000000p+5",
+    "0x1.4000000000000p+4"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "SECTION_A|Perimeter 1"
+    ],
+    "orientation_inversee": [
+     "bool",
+     true
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "rl/negatif_a_cinq_pour_cent_exactement": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x0.0p+0",
+    "0x0.0p+0",
+    "0x0.0p+0",
+    "0x1.b800000000000p+5",
+    "0x1.1800000000000p+6",
+    "0x1.5400000000000p+6",
+    "0x1.9000000000000p+6",
+    "0x1.6800000000000p+6",
+    "0x1.3000000000000p+6",
+    "0x1.f000000000000p+5",
+    "0x1.8000000000000p+5",
+    "0x1.1000000000000p+5",
+    "-0x1.0000000000000p+5"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "F|Z"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     true
+    ]
+   }
+  },
+  "rl/negatif_avec_pointe_positive_faible": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "-0x1.0000000000000p+1",
+    "0x1.9000000000000p+4",
+    "0x1.4000000000000p+5",
+    "0x1.b800000000000p+5",
+    "0x1.1800000000000p+6",
+    "0x1.5400000000000p+6",
+    "0x1.9000000000000p+6",
+    "0x1.6800000000000p+6",
+    "0x1.3000000000000p+6",
+    "0x1.f000000000000p+5",
+    "0x1.8000000000000p+5",
+    "0x1.1000000000000p+5",
+    "0x1.4000000000000p+4"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "F|Z"
+    ],
+    "orientation_inversee": [
+     "bool",
+     true
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "rl/negatif_inverse": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.4000000000000p+3",
+    "0x1.9000000000000p+4",
+    "0x1.4000000000000p+5",
+    "0x1.b800000000000p+5",
+    "0x1.1800000000000p+6",
+    "0x1.5400000000000p+6",
+    "0x1.9000000000000p+6",
+    "0x1.6800000000000p+6",
+    "0x1.3000000000000p+6",
+    "0x1.f000000000000p+5",
+    "0x1.8000000000000p+5",
+    "0x1.1000000000000p+5",
+    "0x1.4000000000000p+4"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "SECTION_A|Perimeter 1"
+    ],
+    "orientation_inversee": [
+     "bool",
+     true
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "rl/nom_absent": {
+   "exception": "KeyError",
+   "message": "\"« INCONNUE » absent des resultats de type « Reference Lines ». Presents : ['SECTION_A', 'SECTION_B']\""
+  },
+  "rl/nom_accentue_cp1252": {
+   "exception": "UnicodeDecodeError",
+   "message": "'utf-8' codec can't decode byte 0xc9 in position 10: invalid continuation byte"
+  },
+  "rl/nom_accentue_utf8": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.4000000000000p+3",
+    "0x1.9000000000000p+4",
+    "0x1.4000000000000p+5",
+    "0x1.b800000000000p+5",
+    "0x1.1800000000000p+6",
+    "0x1.5400000000000p+6",
+    "0x1.9000000000000p+6",
+    "0x1.6800000000000p+6",
+    "0x1.3000000000000p+6",
+    "0x1.f000000000000p+5",
+    "0x1.8000000000000p+5",
+    "0x1.1000000000000p+5",
+    "0x1.4000000000000p+4"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "Pont de l'Église|Zone"
+    ],
+    "orientation_inversee": [
+     "bool",
+     true
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "rl/nom_bourre_d_espaces": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.e000000000000p+4",
+    "0x1.2c00000000000p+6",
+    "0x1.e000000000000p+6",
+    "0x1.4a00000000000p+7",
+    "0x1.a400000000000p+7",
+    "0x1.fe00000000000p+7",
+    "0x1.2c00000000000p+8",
+    "0x1.0e00000000000p+8",
+    "0x1.c800000000000p+7",
+    "0x1.7400000000000p+7",
+    "0x1.2000000000000p+7",
+    "0x1.9800000000000p+6",
+    "0x1.e000000000000p+5"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "SECTION_B       |Perimeter 1     "
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "rl/nom_demande_avec_espaces": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.e000000000000p+4",
+    "0x1.2c00000000000p+6",
+    "0x1.e000000000000p+6",
+    "0x1.4a00000000000p+7",
+    "0x1.a400000000000p+7",
+    "0x1.fe00000000000p+7",
+    "0x1.2c00000000000p+8",
+    "0x1.0e00000000000p+8",
+    "0x1.c800000000000p+7",
+    "0x1.7400000000000p+7",
+    "0x1.2000000000000p+7",
+    "0x1.9800000000000p+6",
+    "0x1.e000000000000p+5"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "SECTION_B|Perimeter 1"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "rl/nom_numerique": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.4000000000000p+3",
+    "0x1.9000000000000p+4",
+    "0x1.4000000000000p+5",
+    "0x1.b800000000000p+5",
+    "0x1.1800000000000p+6",
+    "0x1.5400000000000p+6",
+    "0x1.9000000000000p+6",
+    "0x1.6800000000000p+6",
+    "0x1.3000000000000p+6",
+    "0x1.f000000000000p+5",
+    "0x1.8000000000000p+5",
+    "0x1.1000000000000p+5",
+    "0x1.4000000000000p+4"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "12|Z"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "rl/nom_sans_barre": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.e000000000000p+4",
+    "0x1.2c00000000000p+6",
+    "0x1.e000000000000p+6",
+    "0x1.4a00000000000p+7",
+    "0x1.a400000000000p+7",
+    "0x1.fe00000000000p+7",
+    "0x1.2c00000000000p+8",
+    "0x1.0e00000000000p+8",
+    "0x1.c800000000000p+7",
+    "0x1.7400000000000p+7",
+    "0x1.2000000000000p+7",
+    "0x1.9800000000000p+6",
+    "0x1.e000000000000p+5"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "SECTION_B"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "rl/nom_vide_demande": {
+   "exception": "KeyError",
+   "message": "\"«  » absent des resultats de type « Reference Lines ». Presents : ['SECTION_A', 'SECTION_B']\""
+  },
+  "rl/nul_partout": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x0.0p+0",
+    "0x0.0p+0",
+    "0x0.0p+0",
+    "0x0.0p+0",
+    "0x0.0p+0",
+    "0x0.0p+0",
+    "0x0.0p+0",
+    "0x0.0p+0",
+    "0x0.0p+0",
+    "0x0.0p+0",
+    "0x0.0p+0",
+    "0x0.0p+0",
+    "0x0.0p+0"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "N|Z"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "rl/positif_seconde_colonne": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.e000000000000p+4",
+    "0x1.2c00000000000p+6",
+    "0x1.e000000000000p+6",
+    "0x1.4a00000000000p+7",
+    "0x1.a400000000000p+7",
+    "0x1.fe00000000000p+7",
+    "0x1.2c00000000000p+8",
+    "0x1.0e00000000000p+8",
+    "0x1.c800000000000p+7",
+    "0x1.7400000000000p+7",
+    "0x1.2000000000000p+7",
+    "0x1.9800000000000p+6",
+    "0x1.e000000000000p+5"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "SECTION_B|Perimeter 1"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "rl/sans_jeu_flow": {
+   "exception": "KeyError",
+   "message": "\"les resultats « Reference Lines » ne comportent pas de jeu « Flow ». Presents : ['Name', 'Velocity']\""
+  },
+  "rl/sans_name_lu_comme_par_objet": {
+   "exception": "ValueError",
+   "message": "« Flow » : 2 colonnes sans attribut Columns — impossible d'identifier le debit sans deviner."
+  },
+  "rl/signe_variable_negatif_dominant_reversible": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.e000000000000p+3",
+    "0x1.e000000000000p+5",
+    "-0x1.6800000000000p+5",
+    "-0x1.6800000000000p+6",
+    "0x1.e000000000000p+4",
+    "0x1.2c00000000000p+6",
+    "-0x1.e000000000000p+3",
+    "0x1.e000000000000p+2",
+    "0x0.0p+0",
+    "-0x1.e000000000000p+2",
+    "0x1.6800000000000p+5",
+    "0x1.e000000000000p+3",
+    "0x0.0p+0"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "V|Z"
+    ],
+    "orientation_inversee": [
+     "bool",
+     true
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     true
+    ]
+   }
+  },
+  "rl/signe_variable_reversible": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.4000000000000p+3",
+    "0x1.4000000000000p+5",
+    "-0x1.e000000000000p+4",
+    "-0x1.e000000000000p+5",
+    "0x1.4000000000000p+4",
+    "0x1.9000000000000p+5",
+    "-0x1.4000000000000p+3",
+    "0x1.4000000000000p+2",
+    "0x0.0p+0",
+    "-0x1.4000000000000p+2",
+    "0x1.e000000000000p+4",
+    "0x1.4000000000000p+3",
+    "0x0.0p+0"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "V|Z"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     true
+    ]
+   }
+  },
+  "rl/trois_lignes_celle_du_milieu": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.4000000000000p+4",
+    "0x1.9000000000000p+5",
+    "0x1.4000000000000p+6",
+    "0x1.b800000000000p+6",
+    "0x1.1800000000000p+7",
+    "0x1.5400000000000p+7",
+    "0x1.9000000000000p+7",
+    "0x1.6800000000000p+7",
+    "0x1.3000000000000p+7",
+    "0x1.f000000000000p+6",
+    "0x1.8000000000000p+6",
+    "0x1.1000000000000p+6",
+    "0x1.4000000000000p+5"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "S2|Z"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "rl/valeurs_nan": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.4000000000000p+3",
+    "nan",
+    "0x1.4000000000000p+5",
+    "0x1.b800000000000p+5",
+    "0x1.1800000000000p+6",
+    "nan",
+    "0x1.9000000000000p+6",
+    "0x1.6800000000000p+6",
+    "0x1.3000000000000p+6",
+    "nan",
+    "0x1.8000000000000p+5",
+    "0x1.1000000000000p+5",
+    "0x1.4000000000000p+4"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "N|Z"
+    ],
+    "orientation_inversee": [
+     "bool",
+     true
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "temps/attribut_absent": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.e000000000000p+4",
+    "0x1.2c00000000000p+6",
+    "0x1.e000000000000p+6",
+    "0x1.4a00000000000p+7",
+    "0x1.a400000000000p+7",
+    "0x1.fe00000000000p+7",
+    "0x1.2c00000000000p+8",
+    "0x1.0e00000000000p+8",
+    "0x1.c800000000000p+7",
+    "0x1.7400000000000p+7",
+    "0x1.2000000000000p+7",
+    "0x1.9800000000000p+6",
+    "0x1.e000000000000p+5"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "SECTION_B|Perimeter 1"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "temps/attribut_inconnu": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.5555555555555p-5",
+    "0x1.5555555555555p-4",
+    "0x1.0000000000000p-3",
+    "0x1.5555555555555p-3",
+    "0x1.aaaaaaaaaaaaap-3",
+    "0x1.0000000000000p-2",
+    "0x1.2aaaaaaaaaaaap-2",
+    "0x1.5555555555555p-2",
+    "0x1.8000000000000p-2",
+    "0x1.aaaaaaaaaaaaap-2",
+    "0x1.d555555555555p-2",
+    "0x1.0000000000000p-1"
+   ],
+   "debit_m3s": [
+    "0x1.e000000000000p+4",
+    "0x1.2c00000000000p+6",
+    "0x1.e000000000000p+6",
+    "0x1.4a00000000000p+7",
+    "0x1.a400000000000p+7",
+    "0x1.fe00000000000p+7",
+    "0x1.2c00000000000p+8",
+    "0x1.0e00000000000p+8",
+    "0x1.c800000000000p+7",
+    "0x1.7400000000000p+7",
+    "0x1.2000000000000p+7",
+    "0x1.9800000000000p+6",
+    "0x1.e000000000000p+5"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "SECTION_B|Perimeter 1"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "temps/attribut_majuscules": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.e000000000000p+4",
+    "0x1.2c00000000000p+6",
+    "0x1.e000000000000p+6",
+    "0x1.4a00000000000p+7",
+    "0x1.a400000000000p+7",
+    "0x1.fe00000000000p+7",
+    "0x1.2c00000000000p+8",
+    "0x1.0e00000000000p+8",
+    "0x1.c800000000000p+7",
+    "0x1.7400000000000p+7",
+    "0x1.2000000000000p+7",
+    "0x1.9800000000000p+6",
+    "0x1.e000000000000p+5"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "SECTION_B|Perimeter 1"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "temps/attribut_texte": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.e000000000000p+4",
+    "0x1.2c00000000000p+6",
+    "0x1.e000000000000p+6",
+    "0x1.4a00000000000p+7",
+    "0x1.a400000000000p+7",
+    "0x1.fe00000000000p+7",
+    "0x1.2c00000000000p+8",
+    "0x1.0e00000000000p+8",
+    "0x1.c800000000000p+7",
+    "0x1.7400000000000p+7",
+    "0x1.2000000000000p+7",
+    "0x1.9800000000000p+6",
+    "0x1.e000000000000p+5"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "SECTION_B|Perimeter 1"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "temps/debit_vide_temps_present": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=0, step=1)",
+   "temps": [],
+   "debit_m3s": [],
+   "attrs": {
+    "objet": [
+     "str",
+     "SECTION_B|Perimeter 1"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "temps/en_heures": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.0000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.8000000000000p+3",
+    "0x1.c000000000000p+3",
+    "0x1.0000000000000p+4",
+    "0x1.2000000000000p+4",
+    "0x1.4000000000000p+4",
+    "0x1.6000000000000p+4",
+    "0x1.8000000000000p+4"
+   ],
+   "debit_m3s": [
+    "0x1.e000000000000p+4",
+    "0x1.2c00000000000p+6",
+    "0x1.e000000000000p+6",
+    "0x1.4a00000000000p+7",
+    "0x1.a400000000000p+7",
+    "0x1.fe00000000000p+7",
+    "0x1.2c00000000000p+8",
+    "0x1.0e00000000000p+8",
+    "0x1.c800000000000p+7",
+    "0x1.7400000000000p+7",
+    "0x1.2000000000000p+7",
+    "0x1.9800000000000p+6",
+    "0x1.e000000000000p+5"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "SECTION_B|Perimeter 1"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "temps/jeu_absent": {
+   "exception": "KeyError",
+   "leve_par": "bibliotheque"
+  },
+  "temps/jeu_vide": {
+   "exception": "IndexError",
+   "message": "index 0 is out of bounds for axis 0 with size 0"
+  },
+  "temps/origine_non_nulle": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.ffffffff80000p-1",
+    "0x1.0000000020000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.ffffffffe0000p+1",
+    "0x1.4000000010000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffff0000p+2",
+    "0x1.0000000008000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.3ffffffff8000p+3",
+    "0x1.6000000008000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.e000000000000p+4",
+    "0x1.2c00000000000p+6",
+    "0x1.e000000000000p+6",
+    "0x1.4a00000000000p+7",
+    "0x1.a400000000000p+7",
+    "0x1.fe00000000000p+7",
+    "0x1.2c00000000000p+8",
+    "0x1.0e00000000000p+8",
+    "0x1.c800000000000p+7",
+    "0x1.7400000000000p+7",
+    "0x1.2000000000000p+7",
+    "0x1.9800000000000p+6",
+    "0x1.e000000000000p+5"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "SECTION_B|Perimeter 1"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "temps/pas_irreguliers": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.eb851eb851eb8p-3",
+    "0x1.eb851eb851eb8p-2",
+    "0x1.3333333333334p+0",
+    "0x1.3333333333334p+1",
+    "0x1.51eb851eb851fp+1",
+    "0x1.3333333333334p+2",
+    "0x1.8000000000000p+2",
+    "0x1.cccccccccccccp+2",
+    "0x1.dc28f5c28f5c2p+2",
+    "0x1.3333333333334p+3",
+    "0x1.599999999999ap+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.e000000000000p+4",
+    "0x1.2c00000000000p+6",
+    "0x1.e000000000000p+6",
+    "0x1.4a00000000000p+7",
+    "0x1.a400000000000p+7",
+    "0x1.fe00000000000p+7",
+    "0x1.2c00000000000p+8",
+    "0x1.0e00000000000p+8",
+    "0x1.c800000000000p+7",
+    "0x1.7400000000000p+7",
+    "0x1.2000000000000p+7",
+    "0x1.9800000000000p+6",
+    "0x1.e000000000000p+5"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "SECTION_B|Perimeter 1"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  },
+  "temps/plus_court_que_le_debit": {
+   "exception": "ValueError",
+   "leve_par": "bibliotheque"
+  },
+  "temps/plus_long_que_le_debit": {
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.e000000000000p+4",
+    "0x1.2c00000000000p+6",
+    "0x1.e000000000000p+6",
+    "0x1.4a00000000000p+7",
+    "0x1.a400000000000p+7",
+    "0x1.fe00000000000p+7",
+    "0x1.2c00000000000p+8",
+    "0x1.0e00000000000p+8",
+    "0x1.c800000000000p+7",
+    "0x1.7400000000000p+7",
+    "0x1.2000000000000p+7",
+    "0x1.9800000000000p+6",
+    "0x1.e000000000000p+5"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "SECTION_B|Perimeter 1"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
+  }
+ },
+ "commande_modele": {
+  "colonne_nom_NOM": {
+   "code": 0,
+   "exception": null,
+   "reponse": {
+    "ok": true,
+    "crs": "EPSG:2154",
+    "sections": [
+     {
+      "nom": "S1",
+      "wkt": "LINESTRING (100 0, 100 800)"
+     },
+     {
+      "nom": "S_Église",
+      "wkt": "LINESTRING (500.0 0.0, 500.0 800.0)"
+     }
+    ],
+    "injections": [
+     {
+      "nom": "A1",
+      "wkt": "LINESTRING (50 100, 60 200)"
+     },
+     {
+      "nom": "A2",
+      "wkt": "LINESTRING (400 100, 410 200)"
+     }
+    ],
+    "perimetres": [
+     {
+      "zone": "Perimeter 1",
+      "wkt": "POLYGON ((0 0, 1000 0, 1000 800, 0 800, 0 0))"
+     }
+    ],
+    "en_attente_pretraitement": [
+     "S_Église"
+    ],
+    "objets_illisibles": [],
+    "geometrie_pretraitee": true
+   },
+   "autres_lignes": [],
+   "appels": [
+    [
+     "HdfBndry.get_bc_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfBndry.get_reference_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfMesh.get_mesh_areas",
+     "<TMP>/Essai.g01.hdf"
+    ]
+   ]
+  },
+  "colonne_nom_Nom": {
+   "code": 0,
+   "exception": null,
+   "reponse": {
+    "ok": true,
+    "crs": "EPSG:2154",
+    "sections": [
+     {
+      "nom": "S1",
+      "wkt": "LINESTRING (100 0, 100 800)"
+     },
+     {
+      "nom": "S_Église",
+      "wkt": "LINESTRING (500.0 0.0, 500.0 800.0)"
+     }
+    ],
+    "injections": [
+     {
+      "nom": "A1",
+      "wkt": "LINESTRING (50 100, 60 200)"
+     },
+     {
+      "nom": "A2",
+      "wkt": "LINESTRING (400 100, 410 200)"
+     }
+    ],
+    "perimetres": [
+     {
+      "zone": "Perimeter 1",
+      "wkt": "POLYGON ((0 0, 1000 0, 1000 800, 0 800, 0 0))"
+     }
+    ],
+    "en_attente_pretraitement": [
+     "S_Église"
+    ],
+    "objets_illisibles": [],
+    "geometrie_pretraitee": true
+   },
+   "autres_lignes": [],
+   "appels": [
+    [
+     "HdfBndry.get_bc_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfBndry.get_reference_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfMesh.get_mesh_areas",
+     "<TMP>/Essai.g01.hdf"
+    ]
+   ]
+  },
+  "colonne_nom_inconnue": {
+   "code": 0,
+   "exception": null,
+   "reponse": {
+    "ok": true,
+    "crs": "EPSG:2154",
+    "sections": [
+     {
+      "nom": "Section_01",
+      "wkt": "LINESTRING (100 0, 100 800)"
+     },
+     {
+      "nom": "S1",
+      "wkt": "LINESTRING (100.0 0.0, 100.0 800.0)"
+     },
+     {
+      "nom": "S_Église",
+      "wkt": "LINESTRING (500.0 0.0, 500.0 800.0)"
+     }
+    ],
+    "injections": [
+     {
+      "nom": "Apport_01",
+      "wkt": "LINESTRING (50 100, 60 200)"
+     },
+     {
+      "nom": "Apport_02",
+      "wkt": "LINESTRING (400 100, 410 200)"
+     },
+     {
+      "nom": "A1",
+      "wkt": "LINESTRING (50.0 100.0, 60.0 200.0)"
+     },
+     {
+      "nom": "A2",
+      "wkt": "LINESTRING (400.0 100.0, 410.0 200.0)"
+     }
+    ],
+    "perimetres": [
+     {
+      "zone": "Perimeter 1",
+      "wkt": "POLYGON ((0 0, 1000 0, 1000 800, 0 800, 0 0))"
+     }
+    ],
+    "en_attente_pretraitement": [
+     "S1",
+     "S_Église",
+     "A1",
+     "A2"
+    ],
+    "objets_illisibles": [],
+    "geometrie_pretraitee": true
+   },
+   "autres_lignes": [],
+   "appels": [
+    [
+     "HdfBndry.get_bc_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfBndry.get_reference_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfMesh.get_mesh_areas",
+     "<TMP>/Essai.g01.hdf"
+    ]
+   ]
+  },
+  "colonne_nom_name": {
+   "code": 0,
+   "exception": null,
+   "reponse": {
+    "ok": true,
+    "crs": "EPSG:2154",
+    "sections": [
+     {
+      "nom": "S1",
+      "wkt": "LINESTRING (100 0, 100 800)"
+     },
+     {
+      "nom": "S_Église",
+      "wkt": "LINESTRING (500.0 0.0, 500.0 800.0)"
+     }
+    ],
+    "injections": [
+     {
+      "nom": "A1",
+      "wkt": "LINESTRING (50 100, 60 200)"
+     },
+     {
+      "nom": "A2",
+      "wkt": "LINESTRING (400 100, 410 200)"
+     }
+    ],
+    "perimetres": [
+     {
+      "zone": "Perimeter 1",
+      "wkt": "POLYGON ((0 0, 1000 0, 1000 800, 0 800, 0 0))"
+     }
+    ],
+    "en_attente_pretraitement": [
+     "S_Église"
+    ],
+    "objets_illisibles": [],
+    "geometrie_pretraitee": true
+   },
+   "autres_lignes": [],
+   "appels": [
+    [
+     "HdfBndry.get_bc_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfBndry.get_reference_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfMesh.get_mesh_areas",
+     "<TMP>/Essai.g01.hdf"
+    ]
+   ]
+  },
+  "crs_differents_ref_prioritaire": {
+   "code": 0,
+   "exception": null,
+   "reponse": {
+    "ok": true,
+    "crs": "EPSG:2154",
+    "sections": [
+     {
+      "nom": "S1",
+      "wkt": "LINESTRING (100 0, 100 800)"
+     },
+     {
+      "nom": "S_Église",
+      "wkt": "LINESTRING (500.0 0.0, 500.0 800.0)"
+     }
+    ],
+    "injections": [
+     {
+      "nom": "A1",
+      "wkt": "LINESTRING (50 100, 60 200)"
+     },
+     {
+      "nom": "A2",
+      "wkt": "LINESTRING (400 100, 410 200)"
+     }
+    ],
+    "perimetres": [
+     {
+      "zone": "Perimeter 1",
+      "wkt": "POLYGON ((0 0, 1000 0, 1000 800, 0 800, 0 0))"
+     }
+    ],
+    "en_attente_pretraitement": [
+     "S_Église"
+    ],
+    "objets_illisibles": [],
+    "geometrie_pretraitee": true
+   },
+   "autres_lignes": [],
+   "appels": [
+    [
+     "HdfBndry.get_bc_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfBndry.get_reference_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfMesh.get_mesh_areas",
+     "<TMP>/Essai.g01.hdf"
+    ]
+   ]
+  },
+  "crs_nulle_part": {
+   "code": 0,
+   "exception": null,
+   "reponse": {
+    "ok": true,
+    "crs": null,
+    "sections": [
+     {
+      "nom": "S1",
+      "wkt": "LINESTRING (100 0, 100 800)"
+     },
+     {
+      "nom": "S_Église",
+      "wkt": "LINESTRING (500.0 0.0, 500.0 800.0)"
+     }
+    ],
+    "injections": [
+     {
+      "nom": "A1",
+      "wkt": "LINESTRING (50 100, 60 200)"
+     },
+     {
+      "nom": "A2",
+      "wkt": "LINESTRING (400 100, 410 200)"
+     }
+    ],
+    "perimetres": [
+     {
+      "zone": "Perimeter 1",
+      "wkt": "POLYGON ((0 0, 1000 0, 1000 800, 0 800, 0 0))"
+     }
+    ],
+    "en_attente_pretraitement": [
+     "S_Église"
+    ],
+    "objets_illisibles": [],
+    "geometrie_pretraitee": true
+   },
+   "autres_lignes": [],
+   "appels": [
+    [
+     "HdfBndry.get_bc_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfBndry.get_reference_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfMesh.get_mesh_areas",
+     "<TMP>/Essai.g01.hdf"
+    ]
+   ]
+  },
+  "crs_ref_vide_ignore": {
+   "code": 0,
+   "exception": null,
+   "reponse": {
+    "ok": true,
+    "crs": "EPSG:2154",
+    "sections": [
+     {
+      "nom": "S1",
+      "wkt": "LINESTRING (100.0 0.0, 100.0 800.0)"
+     },
+     {
+      "nom": "S_Église",
+      "wkt": "LINESTRING (500.0 0.0, 500.0 800.0)"
+     }
+    ],
+    "injections": [
+     {
+      "nom": "A1",
+      "wkt": "LINESTRING (50 100, 60 200)"
+     },
+     {
+      "nom": "A2",
+      "wkt": "LINESTRING (400 100, 410 200)"
+     }
+    ],
+    "perimetres": [
+     {
+      "zone": "Perimeter 1",
+      "wkt": "POLYGON ((0 0, 1000 0, 1000 800, 0 800, 0 0))"
+     }
+    ],
+    "en_attente_pretraitement": [
+     "S1",
+     "S_Église"
+    ],
+    "objets_illisibles": [],
+    "geometrie_pretraitee": true
+   },
+   "autres_lignes": [],
+   "appels": [
+    [
+     "HdfBndry.get_bc_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfBndry.get_reference_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfMesh.get_mesh_areas",
+     "<TMP>/Essai.g01.hdf"
+    ]
+   ]
+  },
+  "crs_seulement_sur_bc": {
+   "code": 0,
+   "exception": null,
+   "reponse": {
+    "ok": true,
+    "crs": "EPSG:3943",
+    "sections": [
+     {
+      "nom": "S1",
+      "wkt": "LINESTRING (100 0, 100 800)"
+     },
+     {
+      "nom": "S_Église",
+      "wkt": "LINESTRING (500.0 0.0, 500.0 800.0)"
+     }
+    ],
+    "injections": [
+     {
+      "nom": "A1",
+      "wkt": "LINESTRING (50 100, 60 200)"
+     },
+     {
+      "nom": "A2",
+      "wkt": "LINESTRING (400 100, 410 200)"
+     }
+    ],
+    "perimetres": [
+     {
+      "zone": "Perimeter 1",
+      "wkt": "POLYGON ((0 0, 1000 0, 1000 800, 0 800, 0 0))"
+     }
+    ],
+    "en_attente_pretraitement": [
+     "S_Église"
+    ],
+    "objets_illisibles": [],
+    "geometrie_pretraitee": true
+   },
+   "autres_lignes": [],
+   "appels": [
+    [
+     "HdfBndry.get_bc_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfBndry.get_reference_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfMesh.get_mesh_areas",
+     "<TMP>/Essai.g01.hdf"
+    ]
+   ]
+  },
+  "crs_seulement_sur_zones": {
+   "code": 0,
+   "exception": null,
+   "reponse": {
+    "ok": true,
+    "crs": "EPSG:27572",
+    "sections": [
+     {
+      "nom": "S1",
+      "wkt": "LINESTRING (100 0, 100 800)"
+     },
+     {
+      "nom": "S_Église",
+      "wkt": "LINESTRING (500.0 0.0, 500.0 800.0)"
+     }
+    ],
+    "injections": [
+     {
+      "nom": "A1",
+      "wkt": "LINESTRING (50 100, 60 200)"
+     },
+     {
+      "nom": "A2",
+      "wkt": "LINESTRING (400 100, 410 200)"
+     }
+    ],
+    "perimetres": [
+     {
+      "zone": "Perimeter 1",
+      "wkt": "POLYGON ((0 0, 1000 0, 1000 800, 0 800, 0 0))"
+     }
+    ],
+    "en_attente_pretraitement": [
+     "S_Église"
+    ],
+    "objets_illisibles": [],
+    "geometrie_pretraitee": true
+   },
+   "autres_lignes": [],
+   "appels": [
+    [
+     "HdfBndry.get_bc_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfBndry.get_reference_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfMesh.get_mesh_areas",
+     "<TMP>/Essai.g01.hdf"
+    ]
+   ]
+  },
+  "hdf_illisible": {
+   "code": null,
+   "exception": {
+    "exception": "OSError",
+    "leve_par": "bibliotheque"
+   },
+   "reponse": null,
+   "autres_lignes": [],
+   "appels": [
+    [
+     "HdfBndry.get_bc_lines",
+     "<TMP>/Essai.g01.hdf"
+    ]
+   ]
+  },
+  "hdf_vide_partout": {
+   "code": 0,
+   "exception": null,
+   "reponse": {
+    "ok": true,
+    "crs": null,
+    "sections": [
+     {
+      "nom": "S1",
+      "wkt": "LINESTRING (100.0 0.0, 100.0 800.0)"
+     },
+     {
+      "nom": "S_Église",
+      "wkt": "LINESTRING (500.0 0.0, 500.0 800.0)"
+     }
+    ],
+    "injections": [
+     {
+      "nom": "A1",
+      "wkt": "LINESTRING (50.0 100.0, 60.0 200.0)"
+     },
+     {
+      "nom": "A2",
+      "wkt": "LINESTRING (400.0 100.0, 410.0 200.0)"
+     }
+    ],
+    "perimetres": [
+     {
+      "zone": "Perimeter 1",
+      "wkt": "POLYGON ((0.0 0.0, 1000.0 0.0, 1000.0 800.0, 0.0 800.0, 0.0 0.0))"
+     }
+    ],
+    "en_attente_pretraitement": [
+     "S1",
+     "S_Église",
+     "A1",
+     "A2"
+    ],
+    "objets_illisibles": [],
+    "geometrie_pretraitee": true
+   },
+   "autres_lignes": [],
+   "appels": [
+    [
+     "HdfBndry.get_bc_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfBndry.get_reference_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfMesh.get_mesh_areas",
+     "<TMP>/Essai.g01.hdf"
+    ]
+   ]
+  },
+  "ligne_hdf_geometrie_nulle": {
+   "code": 0,
+   "exception": null,
+   "reponse": {
+    "ok": true,
+    "crs": "EPSG:2154",
+    "sections": [
+     {
+      "nom": "S1",
+      "wkt": "LINESTRING (100.0 0.0, 100.0 800.0)"
+     },
+     {
+      "nom": "S_Église",
+      "wkt": "LINESTRING (500.0 0.0, 500.0 800.0)"
+     }
+    ],
+    "injections": [
+     {
+      "nom": "A1",
+      "wkt": "LINESTRING (50 100, 60 200)"
+     },
+     {
+      "nom": "A2",
+      "wkt": "LINESTRING (400 100, 410 200)"
+     }
+    ],
+    "perimetres": [
+     {
+      "zone": "Perimeter 1",
+      "wkt": "POLYGON ((0 0, 1000 0, 1000 800, 0 800, 0 0))"
+     }
+    ],
+    "en_attente_pretraitement": [
+     "S_Église"
+    ],
+    "objets_illisibles": [],
+    "geometrie_pretraitee": true
+   },
+   "autres_lignes": [],
+   "appels": [
+    [
+     "HdfBndry.get_bc_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfBndry.get_reference_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfMesh.get_mesh_areas",
+     "<TMP>/Essai.g01.hdf"
+    ]
+   ]
+  },
+  "ligne_hdf_sans_trace": {
+   "code": 0,
+   "exception": null,
+   "reponse": {
+    "ok": true,
+    "crs": "EPSG:2154",
+    "sections": [
+     {
+      "nom": "S1",
+      "wkt": "LINESTRING (100.0 0.0, 100.0 800.0)"
+     },
+     {
+      "nom": "S_Église",
+      "wkt": "LINESTRING (500.0 0.0, 500.0 800.0)"
+     }
+    ],
+    "injections": [
+     {
+      "nom": "A1",
+      "wkt": "LINESTRING (50 100, 60 200)"
+     },
+     {
+      "nom": "A2",
+      "wkt": "LINESTRING (400 100, 410 200)"
+     }
+    ],
+    "perimetres": [
+     {
+      "zone": "Perimeter 1",
+      "wkt": "POLYGON ((0 0, 1000 0, 1000 800, 0 800, 0 0))"
+     }
+    ],
+    "en_attente_pretraitement": [],
+    "objets_illisibles": [],
+    "geometrie_pretraitee": true
+   },
+   "autres_lignes": [],
+   "appels": [
+    [
+     "HdfBndry.get_bc_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfBndry.get_reference_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfMesh.get_mesh_areas",
+     "<TMP>/Essai.g01.hdf"
+    ]
+   ]
+  },
+  "ligne_hdf_sans_trace_ni_texte": {
+   "code": 0,
+   "exception": null,
+   "reponse": {
+    "ok": true,
+    "crs": "EPSG:2154",
+    "sections": [
+     {
+      "nom": "S1",
+      "wkt": "LINESTRING (100 0, 100 800)"
+     },
+     {
+      "nom": "S_Église",
+      "wkt": "LINESTRING (500.0 0.0, 500.0 800.0)"
+     }
+    ],
+    "injections": [
+     {
+      "nom": "A1",
+      "wkt": "LINESTRING (50 100, 60 200)"
+     },
+     {
+      "nom": "A2",
+      "wkt": "LINESTRING (400 100, 410 200)"
+     }
+    ],
+    "perimetres": [
+     {
+      "zone": "Perimeter 1",
+      "wkt": "POLYGON ((0 0, 1000 0, 1000 800, 0 800, 0 0))"
+     }
+    ],
+    "en_attente_pretraitement": [
+     "S_Église"
+    ],
+    "objets_illisibles": [],
+    "geometrie_pretraitee": true
+   },
+   "autres_lignes": [],
+   "appels": [
+    [
+     "HdfBndry.get_bc_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfBndry.get_reference_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfMesh.get_mesh_areas",
+     "<TMP>/Essai.g01.hdf"
+    ]
+   ]
+  },
+  "nominal_pretraitee": {
+   "code": 0,
+   "exception": null,
+   "reponse": {
+    "ok": true,
+    "crs": "EPSG:2154",
+    "sections": [
+     {
+      "nom": "S1",
+      "wkt": "LINESTRING (100 0, 100 800)"
+     },
+     {
+      "nom": "S_Église",
+      "wkt": "LINESTRING (500.0 0.0, 500.0 800.0)"
+     }
+    ],
+    "injections": [
+     {
+      "nom": "A1",
+      "wkt": "LINESTRING (50 100, 60 200)"
+     },
+     {
+      "nom": "A2",
+      "wkt": "LINESTRING (400 100, 410 200)"
+     }
+    ],
+    "perimetres": [
+     {
+      "zone": "Perimeter 1",
+      "wkt": "POLYGON ((0 0, 1000 0, 1000 800, 0 800, 0 0))"
+     }
+    ],
+    "en_attente_pretraitement": [
+     "S_Église"
+    ],
+    "objets_illisibles": [],
+    "geometrie_pretraitee": true
+   },
+   "autres_lignes": [],
+   "appels": [
+    [
+     "HdfBndry.get_bc_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfBndry.get_reference_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfMesh.get_mesh_areas",
+     "<TMP>/Essai.g01.hdf"
+    ]
+   ]
+  },
+  "noms_hdf_avec_espaces": {
+   "code": 0,
+   "exception": null,
+   "reponse": {
+    "ok": true,
+    "crs": "EPSG:2154",
+    "sections": [
+     {
+      "nom": "S1",
+      "wkt": "LINESTRING (100 0, 100 800)"
+     },
+     {
+      "nom": "S_Église",
+      "wkt": "LINESTRING (500.0 0.0, 500.0 800.0)"
+     }
+    ],
+    "injections": [
+     {
+      "nom": "A1",
+      "wkt": "LINESTRING (50 100, 60 200)"
+     },
+     {
+      "nom": "A2",
+      "wkt": "LINESTRING (400 100, 410 200)"
+     }
+    ],
+    "perimetres": [
+     {
+      "zone": "Perimeter 1",
+      "wkt": "POLYGON ((0 0, 1000 0, 1000 800, 0 800, 0 0))"
+     }
+    ],
+    "en_attente_pretraitement": [
+     "S_Église"
+    ],
+    "objets_illisibles": [],
+    "geometrie_pretraitee": true
+   },
+   "autres_lignes": [],
+   "appels": [
+    [
+     "HdfBndry.get_bc_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfBndry.get_reference_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfMesh.get_mesh_areas",
+     "<TMP>/Essai.g01.hdf"
+    ]
+   ]
+  },
+  "non_pretraitee": {
+   "code": 0,
+   "exception": null,
+   "reponse": {
+    "ok": true,
+    "crs": null,
+    "sections": [
+     {
+      "nom": "S1",
+      "wkt": "LINESTRING (100.0 0.0, 100.0 800.0)"
+     },
+     {
+      "nom": "S_Église",
+      "wkt": "LINESTRING (500.0 0.0, 500.0 800.0)"
+     }
+    ],
+    "injections": [
+     {
+      "nom": "A1",
+      "wkt": "LINESTRING (50.0 100.0, 60.0 200.0)"
+     },
+     {
+      "nom": "A2",
+      "wkt": "LINESTRING (400.0 100.0, 410.0 200.0)"
+     }
+    ],
+    "perimetres": [
+     {
+      "zone": "Perimeter 1",
+      "wkt": "POLYGON ((0.0 0.0, 1000.0 0.0, 1000.0 800.0, 0.0 800.0, 0.0 0.0))"
+     }
+    ],
+    "en_attente_pretraitement": [],
+    "objets_illisibles": [],
+    "geometrie_pretraitee": false
+   },
+   "autres_lignes": [],
+   "appels": []
+  },
+  "non_pretraitee_texte_sans_objets": {
+   "code": 0,
+   "exception": null,
+   "reponse": {
+    "ok": true,
+    "crs": null,
+    "sections": [],
+    "injections": [],
+    "perimetres": [
+     {
+      "zone": "Z",
+      "wkt": "POLYGON ((0.0 0.0, 5.0 0.0, 5.0 5.0, 0.0 0.0))"
+     }
+    ],
+    "en_attente_pretraitement": [],
+    "objets_illisibles": [],
+    "geometrie_pretraitee": false
+   },
+   "autres_lignes": [],
+   "appels": []
+  },
+  "objet_declare_illisible": {
+   "code": 0,
+   "exception": null,
+   "reponse": {
+    "ok": true,
+    "crs": "EPSG:2154",
+    "sections": [
+     {
+      "nom": "S1",
+      "wkt": "LINESTRING (100 0, 100 800)"
+     },
+     {
+      "nom": "S_Église",
+      "wkt": "LINESTRING (500.0 0.0, 500.0 800.0)"
+     }
+    ],
+    "injections": [
+     {
+      "nom": "A1",
+      "wkt": "LINESTRING (50 100, 60 200)"
+     },
+     {
+      "nom": "A2",
+      "wkt": "LINESTRING (400 100, 410 200)"
+     }
+    ],
+    "perimetres": [
+     {
+      "zone": "Perimeter 1",
+      "wkt": "POLYGON ((0 0, 1000 0, 1000 800, 0 800, 0 0))"
+     }
+    ],
+    "en_attente_pretraitement": [
+     "S_Église"
+    ],
+    "objets_illisibles": [
+     "ILLISIBLE",
+     "SANS_TRACE"
+    ],
+    "geometrie_pretraitee": true
+   },
+   "autres_lignes": [],
+   "appels": [
+    [
+     "HdfBndry.get_bc_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfBndry.get_reference_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfMesh.get_mesh_areas",
+     "<TMP>/Essai.g01.hdf"
+    ]
+   ]
+  },
+  "objet_ecrit_pas_encore_pretraite": {
+   "code": 0,
+   "exception": null,
+   "reponse": {
+    "ok": true,
+    "crs": "EPSG:2154",
+    "sections": [
+     {
+      "nom": "S1",
+      "wkt": "LINESTRING (100.0 0.0, 100.0 800.0)"
+     },
+     {
+      "nom": "S_Église",
+      "wkt": "LINESTRING (500.0 0.0, 500.0 800.0)"
+     }
+    ],
+    "injections": [
+     {
+      "nom": "A1",
+      "wkt": "LINESTRING (50 100, 60 200)"
+     },
+     {
+      "nom": "A2",
+      "wkt": "LINESTRING (400.0 100.0, 410.0 200.0)"
+     }
+    ],
+    "perimetres": [
+     {
+      "zone": "Perimeter 1",
+      "wkt": "POLYGON ((0 0, 1000 0, 1000 800, 0 800, 0 0))"
+     }
+    ],
+    "en_attente_pretraitement": [
+     "S1",
+     "S_Église",
+     "A2"
+    ],
+    "objets_illisibles": [],
+    "geometrie_pretraitee": true
+   },
+   "autres_lignes": [],
+   "appels": [
+    [
+     "HdfBndry.get_bc_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfBndry.get_reference_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfMesh.get_mesh_areas",
+     "<TMP>/Essai.g01.hdf"
+    ]
+   ]
+  },
+  "sans_colonne_nom": {
+   "code": 0,
+   "exception": null,
+   "reponse": {
+    "ok": true,
+    "crs": "EPSG:2154",
+    "sections": [
+     {
+      "nom": "Section_01",
+      "wkt": "LINESTRING (100 0, 100 800)"
+     },
+     {
+      "nom": "S1",
+      "wkt": "LINESTRING (100.0 0.0, 100.0 800.0)"
+     },
+     {
+      "nom": "S_Église",
+      "wkt": "LINESTRING (500.0 0.0, 500.0 800.0)"
+     }
+    ],
+    "injections": [
+     {
+      "nom": "Apport_01",
+      "wkt": "LINESTRING (50 100, 60 200)"
+     },
+     {
+      "nom": "Apport_02",
+      "wkt": "LINESTRING (400 100, 410 200)"
+     },
+     {
+      "nom": "A1",
+      "wkt": "LINESTRING (50.0 100.0, 60.0 200.0)"
+     },
+     {
+      "nom": "A2",
+      "wkt": "LINESTRING (400.0 100.0, 410.0 200.0)"
+     }
+    ],
+    "perimetres": [
+     {
+      "zone": "Perimeter 1",
+      "wkt": "POLYGON ((0 0, 1000 0, 1000 800, 0 800, 0 0))"
+     }
+    ],
+    "en_attente_pretraitement": [
+     "S1",
+     "S_Église",
+     "A1",
+     "A2"
+    ],
+    "objets_illisibles": [],
+    "geometrie_pretraitee": true
+   },
+   "autres_lignes": [],
+   "appels": [
+    [
+     "HdfBndry.get_bc_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfBndry.get_reference_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfMesh.get_mesh_areas",
+     "<TMP>/Essai.g01.hdf"
+    ]
+   ]
+  },
+  "texte_absent": {
+   "code": 1,
+   "exception": null,
+   "reponse": {
+    "ok": false,
+    "erreur": "geometrie introuvable : Essai.g01. Verifier le numero de geometrie choisi."
+   },
+   "autres_lignes": [],
+   "appels": []
+  },
+  "zones_absentes_perimetre_du_texte": {
+   "code": 0,
+   "exception": null,
+   "reponse": {
+    "ok": true,
+    "crs": "EPSG:2154",
+    "sections": [
+     {
+      "nom": "S1",
+      "wkt": "LINESTRING (100 0, 100 800)"
+     },
+     {
+      "nom": "S_Église",
+      "wkt": "LINESTRING (500.0 0.0, 500.0 800.0)"
+     }
+    ],
+    "injections": [
+     {
+      "nom": "A1",
+      "wkt": "LINESTRING (50 100, 60 200)"
+     },
+     {
+      "nom": "A2",
+      "wkt": "LINESTRING (400 100, 410 200)"
+     }
+    ],
+    "perimetres": [
+     {
+      "zone": "Perimeter 1",
+      "wkt": "POLYGON ((0.0 0.0, 1000.0 0.0, 1000.0 800.0, 0.0 800.0, 0.0 0.0))"
+     }
+    ],
+    "en_attente_pretraitement": [
+     "S_Église"
+    ],
+    "objets_illisibles": [],
+    "geometrie_pretraitee": true
+   },
+   "autres_lignes": [],
+   "appels": [
+    [
+     "HdfBndry.get_bc_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfBndry.get_reference_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfMesh.get_mesh_areas",
+     "<TMP>/Essai.g01.hdf"
+    ]
+   ]
+  },
+  "zones_vides_perimetre_du_texte": {
+   "code": 0,
+   "exception": null,
+   "reponse": {
+    "ok": true,
+    "crs": "EPSG:2154",
+    "sections": [
+     {
+      "nom": "S1",
+      "wkt": "LINESTRING (100 0, 100 800)"
+     },
+     {
+      "nom": "S_Église",
+      "wkt": "LINESTRING (500.0 0.0, 500.0 800.0)"
+     }
+    ],
+    "injections": [
+     {
+      "nom": "A1",
+      "wkt": "LINESTRING (50 100, 60 200)"
+     },
+     {
+      "nom": "A2",
+      "wkt": "LINESTRING (400 100, 410 200)"
+     }
+    ],
+    "perimetres": [
+     {
+      "zone": "Perimeter 1",
+      "wkt": "POLYGON ((0.0 0.0, 1000.0 0.0, 1000.0 800.0, 0.0 800.0, 0.0 0.0))"
+     }
+    ],
+    "en_attente_pretraitement": [
+     "S_Église"
+    ],
+    "objets_illisibles": [],
+    "geometrie_pretraitee": true
+   },
+   "autres_lignes": [],
+   "appels": [
+    [
+     "HdfBndry.get_bc_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfBndry.get_reference_lines",
+     "<TMP>/Essai.g01.hdf"
+    ],
+    [
+     "HdfMesh.get_mesh_areas",
+     "<TMP>/Essai.g01.hdf"
+    ]
+   ]
+  }
+ },
+ "controler_residus_unsteady": {
+  "classeur_illisible": {
+   "anomalies": []
+  },
+  "deux_series_aberrantes_au_pas_6min": {
+   "anomalies": [
+    [
+     "AVERTISSEMENT",
+     "serie(s) beaucoup plus longues que la simulation (24.00 h) : « L1 » 250 h, « L2 » 300 h. Verifier qu'il ne s'agit pas d'un hydrogramme herite d'un autre evenement : seul le debut sera lu, et rien ne le signalera."
+    ]
+   ]
+  },
+  "dossier_projet_absent": {
+   "anomalies": []
+  },
+  "fenetre_2400_fin_de_journee": {
+   "anomalies": [
+    [
+     "AVERTISSEMENT",
+     "serie(s) beaucoup plus longues que la simulation (24.00 h) : « LONG » 399 h. Verifier qu'il ne s'agit pas d'un hydrogramme herite d'un autre evenement : seul le debut sera lu, et rien ne le signalera."
+    ]
+   ]
+  },
+  "fenetre_absente": {
+   "anomalies": []
+  },
+  "fenetre_inversee": {
+   "anomalies": []
+  },
+  "fenetre_nulle": {
+   "anomalies": []
+  },
+  "geom_file_designe_absent": {
+   "anomalies": []
+  },
+  "geometrie_absente_aucun_filtre": {
+   "anomalies": []
+  },
+  "lecture_d_une_serie_en_echec_ignoree": {
+   "anomalies": [
+    [
+     "AVERTISSEMENT",
+     "serie(s) beaucoup plus longues que la simulation (24.00 h) : « LONG2 » 499 h. Verifier qu'il ne s'agit pas d'un hydrogramme herite d'un autre evenement : seul le debut sera lu, et rien ne le signalera."
+    ]
+   ]
+  },
+  "meme_nom_plusieurs_zones": {
+   "anomalies": [
+    [
+     "AVERTISSEMENT",
+     "condition(s) limite(s) declaree(s) dans PLUSIEURS zones 2D : A1, A2. Le calage retient celle de « Perimeter 1 ». Si HEC-RAS ouvrait l'autre, le debit ecrit n'aurait aucun effet et la boucle tournerait sans jamais progresser."
+    ]
+   ]
+  },
+  "meme_nom_plusieurs_zones_orphelin_ignore": {
+   "anomalies": [
+    [
+     "AVERTISSEMENT",
+     "1 bloc(s) du fichier Unsteady sans ligne correspondante dans la geometrie, donc IGNORE(S) par HEC-RAS comme par le calage : ANCIEN. Residus d'une version anterieure du modele — sans effet, mais ils rendent le fichier difficile a relire."
+    ]
+   ]
+  },
+  "nominal_rien_a_dire": {
+   "anomalies": []
+  },
+  "orphelin_hors_zone_ignore": {
+   "anomalies": []
+  },
+  "orphelins": {
+   "anomalies": [
+    [
+     "AVERTISSEMENT",
+     "2 bloc(s) du fichier Unsteady sans ligne correspondante dans la geometrie, donc IGNORE(S) par HEC-RAS comme par le calage : ANCIEN_1, ANCIEN_2. Residus d'une version anterieure du modele — sans effet, mais ils rendent le fichier difficile a relire."
+    ]
+   ]
+  },
+  "override_plan_absent": {
+   "anomalies": []
+  },
+  "plan_sans_geom_file": {
+   "anomalies": []
+  },
+  "pretraitement_a_jour": {
+   "anomalies": []
+  },
+  "pretraitement_jamais_fait": {
+   "anomalies": []
+  },
+  "pretraitement_perime": {
+   "anomalies": [
+    [
+     "AVERTISSEMENT",
+     "le pretraitement 2D de Essai.g01 est PERIME : le fichier texte a ete modifie il y a 2.0 h, son .hdf date de 5.5 h. C'est NORMAL apres une composition — ecrire les sections et les injections perime les tables 2D. HEC-RAS les refera au premier calcul ; sur un modele lourd (gros terrain, projet sur un partage reseau) cela peut echouer sur « Geometry Writer Failed », et le calage s'arretera avant tout resultat. Dans le doute : ouvrir le modele dans HEC-RAS et lancer le plan une fois a la main, puis lancer le calage SANS recomposer."
+    ]
+   ]
+  },
+  "sans_zone_aucun_controle_de_zones": {
+   "anomalies": [
+    [
+     "AVERTISSEMENT",
+     "1 bloc(s) du fichier Unsteady sans ligne correspondante dans la geometrie, donc IGNORE(S) par HEC-RAS comme par le calage : ANCIEN. Residus d'une version anterieure du modele — sans effet, mais ils rendent le fichier difficile a relire."
+    ]
+   ]
+  },
+  "serie_aberrante": {
+   "anomalies": [
+    [
+     "AVERTISSEMENT",
+     "serie(s) beaucoup plus longues que la simulation (24.00 h) : « LONG » 399 h. Verifier qu'il ne s'agit pas d'un hydrogramme herite d'un autre evenement : seul le debut sera lu, et rien ne le signalera."
+    ]
+   ]
+  },
+  "serie_au_seuil_exact": {
+   "anomalies": []
+  },
+  "serie_sans_intervalle_ignoree": {
+   "anomalies": []
+  },
+  "tout_a_la_fois": {
+   "anomalies": [
+    [
+     "AVERTISSEMENT",
+     "le pretraitement 2D de Essai.g01 est PERIME : le fichier texte a ete modifie il y a 1.0 h, son .hdf date de 30.2 h. C'est NORMAL apres une composition — ecrire les sections et les injections perime les tables 2D. HEC-RAS les refera au premier calcul ; sur un modele lourd (gros terrain, projet sur un partage reseau) cela peut echouer sur « Geometry Writer Failed », et le calage s'arretera avant tout resultat. Dans le doute : ouvrir le modele dans HEC-RAS et lancer le plan une fois a la main, puis lancer le calage SANS recomposer."
+    ],
+    [
+     "AVERTISSEMENT",
+     "1 bloc(s) du fichier Unsteady sans ligne correspondante dans la geometrie, donc IGNORE(S) par HEC-RAS comme par le calage : ANCIEN. Residus d'une version anterieure du modele — sans effet, mais ils rendent le fichier difficile a relire."
+    ],
+    [
+     "AVERTISSEMENT",
+     "condition(s) limite(s) declaree(s) dans PLUSIEURS zones 2D : A1. Le calage retient celle de « Perimeter 1 ». Si HEC-RAS ouvrait l'autre, le debit ecrit n'aurait aucun effet et la boucle tournerait sans jamais progresser."
+    ],
+    [
+     "AVERTISSEMENT",
+     "serie(s) beaucoup plus longues que la simulation (24.00 h) : « LONG » 399 h. Verifier qu'il ne s'agit pas d'un hydrogramme herite d'un autre evenement : seul le debut sera lu, et rien ne le signalera."
+    ]
+   ]
+  },
+  "unsteady_absent": {
+   "anomalies": []
+  },
+  "unsteady_dossier_illisible_garde_le_pretraitement": {
+   "anomalies": [
+    [
+     "AVERTISSEMENT",
+     "le pretraitement 2D de Essai.g01 est PERIME : le fichier texte a ete modifie il y a 2.0 h, son .hdf date de 5.5 h. C'est NORMAL apres une composition — ecrire les sections et les injections perime les tables 2D. HEC-RAS les refera au premier calcul ; sur un modele lourd (gros terrain, projet sur un partage reseau) cela peut echouer sur « Geometry Writer Failed », et le calage s'arretera avant tout resultat. Dans le doute : ouvrir le modele dans HEC-RAS et lancer le plan une fois a la main, puis lancer le calage SANS recomposer."
+    ]
+   ]
+  },
+  "unsteady_illisible_garde_le_pretraitement": {
+   "anomalies": [
+    [
+     "AVERTISSEMENT",
+     "le pretraitement 2D de Essai.g01 est PERIME : le fichier texte a ete modifie il y a 2.0 h, son .hdf date de 5.5 h. C'est NORMAL apres une composition — ecrire les sections et les injections perime les tables 2D. HEC-RAS les refera au premier calcul ; sur un modele lourd (gros terrain, projet sur un partage reseau) cela peut echouer sur « Geometry Writer Failed », et le calage s'arretera avant tout resultat. Dans le doute : ouvrir le modele dans HEC-RAS et lancer le plan une fois a la main, puis lancer le calage SANS recomposer."
+    ]
+   ]
+  }
+ }
+}
