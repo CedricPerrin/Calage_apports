@@ -1164,158 +1164,7 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
         dire(f"\n=== Apport {i + 1}/{len(apports)} : {apport} -> {section} ===")
 
         # --- etape 1 : estimation initiale --------------------------------
-        # L'hydrogramme de depart de l'apport n'a AUCUNE importance : la
-        # correction additive le remplace entierement des le premier essai
-        # par ce qui manque a la section.
-        #
-        # LIRE LE RESIDUEL AVANT D'OUVRIR L'ETAPE. Il se lit dans les
-        # RESULTATS du dernier calcul — l'etat de reference pour le premier
-        # apport, l'apport precedent valide pour les suivants. Or jalonner()
-        # CLONE le plan et fait pointer le modele sur un plan NEUF, qui n'a
-        # pas encore de fichier de resultats. Lire apres le jalon revenait
-        # donc a chercher l'etat de reference dans un .hdf qui n'existe pas.
-        try:
-            etat.temps_residuel, etat.residuel = modele.lire_section(etat.section)
-            echec_lecture = ""
-        except Exception as e:                              # noqa: BLE001
-            etat.temps_residuel, etat.residuel = None, None
-            echec_lecture = f"{type(e).__name__}: {e}"
-
-        # NOUVELLE ETAPE AVANT LA PREMIERE ECRITURE de cet apport : ce qui
-        # precede — etat de reference ou apport precedent valide — reste ainsi
-        # fige dans ses propres fichiers, relisible tel quel.
-        _jalonner(modele, etape_apport(etat.apport, config.prefixe_etape), dire)
-
-        # --- premiere estimation : CE QUI MANQUE, apport a zero -----------
-        #
-        # Pas un facteur applique a une forme supposee, mais l'ecart mesure
-        # lui-meme. C'est deja la bonne forme au premier ordre : le deficit
-        # porte l'information de volume, de pointe ET d'allure.
-        if etat.residuel is None:
-            # LA CAUSE EST DITE. Le message ne portait que le symptome, et
-            # une lecture qui echoue a dix raisons possibles — section absente
-            # du modele, nom mal orthographie, resultats non ecrits. Sans la
-            # phrase de l'exception, chaque diagnostic repartait de zero.
-            etat.issue, etat.motif = "arret", (
-                f"impossible de lire le debit a la section « {etat.section} » "
-                f"avec l'apport a zero : sans cet etat de reference, aucune "
-                f"estimation n'est possible."
-                + (f" Cause : {echec_lecture}" if echec_lecture else ""))
-            etat.manquant = None
-            etat.decalage_zero = 0.0
-            etat.bornes_fenetre = None
-            # DEFINI DANS LES DEUX BRANCHES. Sans cela il garderait la valeur
-            # de l'apport PRECEDENT — la boucle porte sur les apports, et une
-            # variable laissee de cote y traverse les tours sans bruit.
-            # (Ecrit quand c'etait une variable locale de caler(). L'etat est
-            # desormais NEUF a chaque apport — voir _EtatApport : une branche
-            # qui l'oublierait laisserait None, et cela se verrait.)
-            etat.cliquet = 1.0
-            etat.part_apport = None
-        else:
-            # Meme raisonnement que pour les corrections suivantes : le
-            # residuel arrive decale, et le soustraire tel quel melerait un
-            # dephasage au deficit reel.
-            #
-            # MESURE UNE SEULE FOIS, ICI, PUIS FIGEE pour tous les essais
-            # suivants (voir decalage_minimisant_ecart). C'est exactement le
-            # geste manuel : lire l'heure du pic dans le calcul a apport nul,
-            # la comparer a celle du pic cible, une fois pour toutes.
-            etat.decalage_zero = decalage_minimisant_ecart(
-                etat.temps_cible, etat.debit_cible,
-                etat.temps_residuel, etat.residuel)
-            etat.manquant = ecart_a_la_cible(etat.temps_cible, etat.debit_cible,
-                                             etat.temps_residuel, etat.residuel,
-                                             etat.decalage_zero)
-            dire(f"    la section recoit deja "
-                 f"{float(np.max(etat.residuel)):.1f} m3/s sans cet apport, "
-                 f"pour une cible a {float(np.max(etat.debit_cible)):.1f} "
-                 f"(decalage retenu {etat.decalage_zero:+.2f} h)")
-            # CE QUE LE RETARD DE L'AXE N'A PAS COUVERT : il a ete mesure a
-            # apports nuls, et Δt se remesure ici, l'amont cale.
-            avance = avance_hors_simulation(
-                etat.temps_cible, etat.debit_cible,
-                etat.decalage_zero, etat.temps_residuel[0])
-            if avance > 1e-6:
-                dire(f"    ATTENTION — la cible decalee commence "
-                     f"{avance:.2f} h avant le debut de la simulation : sa "
-                     f"montee de crue ne peut pas etre injectee.")
-
-            # L'APPORT EST-IL SEULEMENT IDENTIFIABLE A CETTE TOLERANCE ? La
-            # regle, sa mesure (08/08/2026 : 2 % de part, +200 % sur l'apport,
-            # section a 100,5 %) et son texte vivent dans
-            # criteres.reserve_identifiabilite. Ici on mesure la PART, on
-            # l'annonce au journal avant tout essai, et on la passe a chaque
-            # diagnostic : c'est lui qui la porte jusqu'au classeur, a la
-            # note de synthese et au suivi (07/09/2026).
-            pic_cible = float(np.max(etat.debit_cible))
-            pic_residuel = float(np.max(etat.residuel))
-            etat.part_apport = ((pic_cible - pic_residuel) / pic_cible
-                                if pic_cible else 0.0)
-            _reserve = reserve_identifiabilite(etat.part_apport,
-                                               config.tolerance_volume)
-            if _reserve:
-                dire(f"    ATTENTION — {_reserve}")
-
-            # FENETRE DE L'EVENEMENT PRINCIPAL — voir fenetre_injection() et
-            # Configuration. Restreint le jugement et la presentation des
-            # resultats, pas l'apport injecte.
-            if _fenetre_demandee(config):
-                etat.bornes_fenetre = fenetre_injection(
-                    etat.temps_cible, etat.manquant,
-                    seuil_bas=config.fenetre_seuil_bas,
-                    seuil_haut=config.fenetre_seuil_haut,
-                    t0_impose=config.fenetre_t0_h,
-                    tf_impose=config.fenetre_tf_h,
-                    volume_reference=_volume(etat.temps_cible, etat.debit_cible),
-                    perte_max=config.tolerance_volume)
-                if config.fenetre_marge_h:
-                    t_min, t_max = (float(etat.temps_cible[0]),
-                                    float(etat.temps_cible[-1]))
-                    etat.bornes_fenetre = (
-                        max(etat.bornes_fenetre[0] - config.fenetre_marge_h,
-                            t_min),
-                        min(etat.bornes_fenetre[1] + config.fenetre_marge_h,
-                            t_max))
-                dire(f"    hydrogramme principal "
-                     f"{etat.bornes_fenetre[0]:.2f} h -> "
-                     f"{etat.bornes_fenetre[1]:.2f} h — seule cette fenetre est "
-                     f"jugee et presentee ; l'apport reste calcule sur toute "
-                     f"la serie")
-            else:
-                etat.bornes_fenetre = None
-
-            # POUR LA COHERENCE DU DECALAGE LE LONG DE L'AXE, jugee a la fin
-            # du calage : le Dt RETENU et la fenetre jugee, tels que la
-            # correction les emploie — voir _coherence_points.
-            if etat.bornes_fenetre is not None:
-                points_axe.append((
-                    float(etat.temps_cible[int(np.nanargmax(etat.debit_cible))]),
-                    float(etat.decalage_zero),
-                    float(etat.bornes_fenetre[1]) - float(etat.bornes_fenetre[0])))
-
-            # LE CLIQUET : JUSQU'OU CE CALAGE PEUT-IL DESCENDRE ?
-            #
-            # Apres la fenetre, parce qu'il se mesure la ou le volume se juge.
-            # Ne coute aucun calcul : tout est deja en main a l'iteration 0.
-            #
-            # ALERTE, PUIS CONTINUE — meme regle que pour un apport peu
-            # identifiable. La section restera peut-etre conforme en pointe et
-            # en forme, et c'est a l'operateur de decider si un volume plancher
-            # a 107 % lui convient. Ce qui n'etait pas admissible, c'est de le
-            # lui apprendre apres six essais et autant de simulations.
-            etat.cliquet = cliquet_volume(
-                etat.temps_cible, etat.debit_cible, etat.manquant,
-                etat.decalage_zero, etat.bornes_fenetre)
-            if etat.cliquet > 1.0 + config.tolerance_volume:
-                dire(f"    ATTENTION — VOLUME PLANCHER : la section donne "
-                     f"deja plus que la cible sur une partie de la fenetre, "
-                     f"et un apport ne sait qu'ajouter du debit. Le rapport "
-                     f"de volume ne descendra pas au-dessous d'environ "
-                     f"{100 * etat.cliquet:.1f} %, pour une tolerance de "
-                     f"{100 * config.tolerance_volume:.1f} %. Aucun essai n'y "
-                     f"changera rien : c'est le residuel qu'il faut reprendre "
-                     f"— apports amont deja cales, ou la cible elle-meme.")
+        _estimer_apport(modele, etat, config, points_axe, dire)
 
         # --- duree simulee ajustee a CET apport ---------------------------
         #
@@ -1763,6 +1612,173 @@ def _calculer_reference(modele, apports, sections, cibles, config, suivi,
              f"decalee commencait {retard:.2f} h avant la simulation) — "
              f"nouveau calcul de reference")
     return residuels_reference
+
+
+def _estimer_apport(modele, etat, config, points_axe, dire):
+    """
+    Etape 1 : lit le residuel de la section, ouvre l'etape de l'apport et
+    mesure CE QUI MANQUE, apport a zero — le manque, le decalage, la fenetre
+    jugee, le cliquet, la part de l'apport. Tout est ecrit dans l'etat.
+
+    Sans residuel lisible, l'issue de la recherche est deja « arret », et le
+    motif dit pourquoi.
+
+    points_axe : recoit le point de cet apport (heure du pic cible, Dt
+    retenu, largeur de la fenetre jugee), pour la coherence du decalage que
+    caler() juge a la fin.
+    """
+    # L'hydrogramme de depart de l'apport n'a AUCUNE importance : la
+    # correction additive le remplace entierement des le premier essai
+    # par ce qui manque a la section.
+    #
+    # LIRE LE RESIDUEL AVANT D'OUVRIR L'ETAPE. Il se lit dans les
+    # RESULTATS du dernier calcul — l'etat de reference pour le premier
+    # apport, l'apport precedent valide pour les suivants. Or jalonner()
+    # CLONE le plan et fait pointer le modele sur un plan NEUF, qui n'a
+    # pas encore de fichier de resultats. Lire apres le jalon revenait
+    # donc a chercher l'etat de reference dans un .hdf qui n'existe pas.
+    try:
+        etat.temps_residuel, etat.residuel = modele.lire_section(etat.section)
+        echec_lecture = ""
+    except Exception as e:                              # noqa: BLE001
+        etat.temps_residuel, etat.residuel = None, None
+        echec_lecture = f"{type(e).__name__}: {e}"
+
+    # NOUVELLE ETAPE AVANT LA PREMIERE ECRITURE de cet apport : ce qui
+    # precede — etat de reference ou apport precedent valide — reste ainsi
+    # fige dans ses propres fichiers, relisible tel quel.
+    _jalonner(modele, etape_apport(etat.apport, config.prefixe_etape), dire)
+
+    # --- premiere estimation : CE QUI MANQUE, apport a zero -----------
+    #
+    # Pas un facteur applique a une forme supposee, mais l'ecart mesure
+    # lui-meme. C'est deja la bonne forme au premier ordre : le deficit
+    # porte l'information de volume, de pointe ET d'allure.
+    if etat.residuel is None:
+        # LA CAUSE EST DITE. Le message ne portait que le symptome, et
+        # une lecture qui echoue a dix raisons possibles — section absente
+        # du modele, nom mal orthographie, resultats non ecrits. Sans la
+        # phrase de l'exception, chaque diagnostic repartait de zero.
+        etat.issue, etat.motif = "arret", (
+            f"impossible de lire le debit a la section « {etat.section} » "
+            f"avec l'apport a zero : sans cet etat de reference, aucune "
+            f"estimation n'est possible."
+            + (f" Cause : {echec_lecture}" if echec_lecture else ""))
+        etat.manquant = None
+        etat.decalage_zero = 0.0
+        etat.bornes_fenetre = None
+        # DEFINI DANS LES DEUX BRANCHES. Sans cela il garderait la valeur
+        # de l'apport PRECEDENT — la boucle porte sur les apports, et une
+        # variable laissee de cote y traverse les tours sans bruit.
+        # (Ecrit quand c'etait une variable locale de caler(). L'etat est
+        # desormais NEUF a chaque apport — voir _EtatApport : une branche
+        # qui l'oublierait laisserait None, et cela se verrait.)
+        etat.cliquet = 1.0
+        etat.part_apport = None
+    else:
+        # Meme raisonnement que pour les corrections suivantes : le
+        # residuel arrive decale, et le soustraire tel quel melerait un
+        # dephasage au deficit reel.
+        #
+        # MESURE UNE SEULE FOIS, ICI, PUIS FIGEE pour tous les essais
+        # suivants (voir decalage_minimisant_ecart). C'est exactement le
+        # geste manuel : lire l'heure du pic dans le calcul a apport nul,
+        # la comparer a celle du pic cible, une fois pour toutes.
+        etat.decalage_zero = decalage_minimisant_ecart(
+            etat.temps_cible, etat.debit_cible,
+            etat.temps_residuel, etat.residuel)
+        etat.manquant = ecart_a_la_cible(etat.temps_cible, etat.debit_cible,
+                                         etat.temps_residuel, etat.residuel,
+                                         etat.decalage_zero)
+        dire(f"    la section recoit deja "
+             f"{float(np.max(etat.residuel)):.1f} m3/s sans cet apport, "
+             f"pour une cible a {float(np.max(etat.debit_cible)):.1f} "
+             f"(decalage retenu {etat.decalage_zero:+.2f} h)")
+        # CE QUE LE RETARD DE L'AXE N'A PAS COUVERT : il a ete mesure a
+        # apports nuls, et Δt se remesure ici, l'amont cale.
+        avance = avance_hors_simulation(
+            etat.temps_cible, etat.debit_cible,
+            etat.decalage_zero, etat.temps_residuel[0])
+        if avance > 1e-6:
+            dire(f"    ATTENTION — la cible decalee commence "
+                 f"{avance:.2f} h avant le debut de la simulation : sa "
+                 f"montee de crue ne peut pas etre injectee.")
+
+        # L'APPORT EST-IL SEULEMENT IDENTIFIABLE A CETTE TOLERANCE ? La
+        # regle, sa mesure (08/08/2026 : 2 % de part, +200 % sur l'apport,
+        # section a 100,5 %) et son texte vivent dans
+        # criteres.reserve_identifiabilite. Ici on mesure la PART, on
+        # l'annonce au journal avant tout essai, et on la passe a chaque
+        # diagnostic : c'est lui qui la porte jusqu'au classeur, a la
+        # note de synthese et au suivi (07/09/2026).
+        pic_cible = float(np.max(etat.debit_cible))
+        pic_residuel = float(np.max(etat.residuel))
+        etat.part_apport = ((pic_cible - pic_residuel) / pic_cible
+                            if pic_cible else 0.0)
+        _reserve = reserve_identifiabilite(etat.part_apport,
+                                           config.tolerance_volume)
+        if _reserve:
+            dire(f"    ATTENTION — {_reserve}")
+
+        # FENETRE DE L'EVENEMENT PRINCIPAL — voir fenetre_injection() et
+        # Configuration. Restreint le jugement et la presentation des
+        # resultats, pas l'apport injecte.
+        if _fenetre_demandee(config):
+            etat.bornes_fenetre = fenetre_injection(
+                etat.temps_cible, etat.manquant,
+                seuil_bas=config.fenetre_seuil_bas,
+                seuil_haut=config.fenetre_seuil_haut,
+                t0_impose=config.fenetre_t0_h,
+                tf_impose=config.fenetre_tf_h,
+                volume_reference=_volume(etat.temps_cible, etat.debit_cible),
+                perte_max=config.tolerance_volume)
+            if config.fenetre_marge_h:
+                t_min, t_max = (float(etat.temps_cible[0]),
+                                float(etat.temps_cible[-1]))
+                etat.bornes_fenetre = (
+                    max(etat.bornes_fenetre[0] - config.fenetre_marge_h,
+                        t_min),
+                    min(etat.bornes_fenetre[1] + config.fenetre_marge_h,
+                        t_max))
+            dire(f"    hydrogramme principal "
+                 f"{etat.bornes_fenetre[0]:.2f} h -> "
+                 f"{etat.bornes_fenetre[1]:.2f} h — seule cette fenetre est "
+                 f"jugee et presentee ; l'apport reste calcule sur toute "
+                 f"la serie")
+        else:
+            etat.bornes_fenetre = None
+
+        # POUR LA COHERENCE DU DECALAGE LE LONG DE L'AXE, jugee a la fin
+        # du calage : le Dt RETENU et la fenetre jugee, tels que la
+        # correction les emploie — voir _coherence_points.
+        if etat.bornes_fenetre is not None:
+            points_axe.append((
+                float(etat.temps_cible[int(np.nanargmax(etat.debit_cible))]),
+                float(etat.decalage_zero),
+                float(etat.bornes_fenetre[1]) - float(etat.bornes_fenetre[0])))
+
+        # LE CLIQUET : JUSQU'OU CE CALAGE PEUT-IL DESCENDRE ?
+        #
+        # Apres la fenetre, parce qu'il se mesure la ou le volume se juge.
+        # Ne coute aucun calcul : tout est deja en main a l'iteration 0.
+        #
+        # ALERTE, PUIS CONTINUE — meme regle que pour un apport peu
+        # identifiable. La section restera peut-etre conforme en pointe et
+        # en forme, et c'est a l'operateur de decider si un volume plancher
+        # a 107 % lui convient. Ce qui n'etait pas admissible, c'est de le
+        # lui apprendre apres six essais et autant de simulations.
+        etat.cliquet = cliquet_volume(
+            etat.temps_cible, etat.debit_cible, etat.manquant,
+            etat.decalage_zero, etat.bornes_fenetre)
+        if etat.cliquet > 1.0 + config.tolerance_volume:
+            dire(f"    ATTENTION — VOLUME PLANCHER : la section donne "
+                 f"deja plus que la cible sur une partie de la fenetre, "
+                 f"et un apport ne sait qu'ajouter du debit. Le rapport "
+                 f"de volume ne descendra pas au-dessous d'environ "
+                 f"{100 * etat.cliquet:.1f} %, pour une tolerance de "
+                 f"{100 * config.tolerance_volume:.1f} %. Aucun essai n'y "
+                 f"changera rien : c'est le residuel qu'il faut reprendre "
+                 f"— apports amont deja cales, ou la cible elle-meme.")
 
 
 def _ajuster_duree_simulee(modele, durees_simulees, i, duree_en_vigueur,
