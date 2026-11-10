@@ -2,25 +2,25 @@
   "reference_version": "0.1.0",
   "rules": [
     {
-      "file": "calage_apports/plugin.py",
+      "file": "calage_apports/socle.py",
       "binding": "ISL_TEAL",
       "source": "brand.teal",
       "expected": "#3A8D94"
     },
     {
-      "file": "calage_apports/plugin.py",
+      "file": "calage_apports/socle.py",
       "binding": "ISL_TEAL_SOMBRE",
       "source": "themes.light.action",
       "expected": "#2E7176"
     },
     {
-      "file": "calage_apports/plugin.py",
+      "file": "calage_apports/socle.py",
       "binding": "ISL_ROUGE",
       "source": "themes.light.error",
       "expected": "#A03028"
     },
     {
-      "file": "calage_apports/plugin.py",
+      "file": "calage_apports/socle.py",
       "binding": "ISL_VERT",
       "source": "themes.light.success",
       "expected": "#386F55"
