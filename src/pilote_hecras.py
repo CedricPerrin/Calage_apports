@@ -25,6 +25,7 @@ import difflib
 import math
 import re
 import subprocess
+import threading
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -1279,6 +1280,85 @@ def fermer_processus(pids):
     return fermes
 
 
+def symbole_decimal():
+    """
+    Symbole decimal de Windows pour cet utilisateur, ou None si on ne sait pas.
+
+    HEC-RAS EXIGE LE POINT. Avec la virgule — le reglage francais d'origine —
+    Ras.exe ouvre un message « HEC-RAS requires the "." symbol be used for
+    decimals » et attend un clic. Releve le 10/11/2026 (7.0.1) : dix minutes
+    plus tard le calcul n'avait pas commence, et le chien de garde de
+    ras-commander n'avait pas ferme le message.
+    """
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                            r"Control Panel\International") as cle:
+            return winreg.QueryValueEx(cle, "sDecimal")[0]
+    except (ImportError, OSError):
+        return None
+
+
+# Cadence, en secondes, a laquelle calculer() regarde ce que HEC-RAS ecrit.
+PERIODE_SURVEILLANCE_S = 20
+
+
+def _heure_du_dossier(dossier):
+    """
+    Heure du disque qui porte le projet — celle des dates de ses fichiers.
+
+    Un partage reseau n'a pas l'horloge du poste : comparer une date de
+    fichier a time.time() fausse plan_detourne() de tout leur ecart.
+    """
+    jalon = Path(dossier) / "_jalon_calcul.tmp"
+    try:
+        jalon.write_bytes(b"")
+        return jalon.stat().st_mtime
+    except OSError:
+        return time.time()
+    finally:
+        try:
+            jalon.unlink()
+        except OSError:
+            pass
+
+
+def plan_detourne(dossier, nom_projet, plan, depuis):
+    """
+    HEC-RAS calcule-t-il un AUTRE plan que celui qu'on lui a demande ?
+    Retourne le numero de cet autre plan, ou None.
+
+    RELEVE LE 10/11/2026 (HEC-RAS 7.0.2, projet de 17 plans) : lance pour
+    p14, Ras.exe a parcouru les plans du projet depuis p01 et en a recalcule
+    quatre par-dessus leurs resultats ; p14 n'a jamais ete ouvert. La chaine
+    n'en a rien su pendant 4 h 53 : compute_plan ne rend la main qu'a la fin.
+
+    DEUX CONDITIONS, ENSEMBLE : un .pMM.tmp.hdf d'un autre plan CREE depuis
+    le lancement, et aucun signe de vie du notre (.bNN, .pNN.tmp.hdf ou
+    .pNN.hdf ecrits depuis). La seconde epargne notre calcul quand un
+    collegue calcule un autre plan du meme projet depuis son poste ; la date
+    de CREATION ecarte son calcul deja en cours au lancement.
+    """
+    dossier, plan = Path(dossier), str(plan).zfill(2)
+
+    def depuis_le_lancement(chemin, creation=False):
+        try:
+            etat = chemin.stat()
+        except OSError:
+            return False
+        return (getattr(etat, "st_birthtime", etat.st_ctime) if creation
+                else etat.st_mtime) >= depuis
+
+    if any(depuis_le_lancement(dossier / f"{nom_projet}.{suffixe}")
+           for suffixe in (f"b{plan}", f"p{plan}.tmp.hdf", f"p{plan}.hdf")):
+        return None
+    for chemin in sorted(dossier.glob(f"{nom_projet}.p[0-9][0-9].tmp.hdf")):
+        numero = chemin.name[len(nom_projet) + 2:len(nom_projet) + 4]
+        if numero != plan and depuis_le_lancement(chemin, creation=True):
+            return numero
+    return None
+
+
 def hecras_ouvert():
     """
     HEC-RAS tourne-t-il ? Retourne True, False, ou None si on ne sait pas.
@@ -1377,8 +1457,13 @@ class PiloteHecRas(Modele):
                  nom_clone_geometrie=None, activer_courant=True,
                  fenetre_simulation=None, fermer_orphelins=True,
                  pas_travail_h=None, apports_a_caler=None,
-                 plan_fenetre_pleine=None, coeurs=None):
+                 plan_fenetre_pleine=None, coeurs=None,
+                 plan_a_remplacer=None):
         """
+        plan_a_remplacer : numero du plan SOURCE que l'ingenieur a accepte de
+            voir remplace par le plan final (recalage d'un plan valide qui
+            garde son nom, 10/11/2026). None = le plan de reference n'est
+            jamais efface. Voir _remplacer_homonymes().
         geometrie_override / unsteady_override : numero ("01", "g01"... les
             deux formes sont acceptees) d'une geometrie ou d'un unsteady
             DIFFERENT de ceux du plan de reference. None = on garde ceux du
@@ -1423,6 +1508,8 @@ class PiloteHecRas(Modele):
         self.plan_fenetre_pleine = (
             str(plan_fenetre_pleine).lstrip("pP").zfill(2)
             if plan_fenetre_pleine else None)
+        self.plan_a_remplacer = (str(plan_a_remplacer).lstrip("pP").zfill(2)
+                                 if plan_a_remplacer else None)
         self.coeurs = int(coeurs) if coeurs else None
         self.version = version
         self.nom_zone_2d = nom_zone_2d
@@ -2117,11 +2204,55 @@ class PiloteHecRas(Modele):
                     f"— les resultats sont bons, RAS Mapper ne les listera "
                     f"pas tant que le plan n'y est pas declare")
 
+    def _retirer_resultats_rasmap(self, numero):
+        """
+        Retire du .rasmap la couche de resultats d'un plan qu'on vient
+        d'effacer : RAS Mapper la montrerait encore, sans fichier derriere
+        elle, a cote de celle du plan qui le remplace.
+
+        NE LEVE JAMAIS, comme _declarer_resultats_rasmap. Le .rasmap n'est
+        reecrit que s'il se reparse.
+        """
+        chemin = self.dossier / f"{self.nom_projet}.rasmap"
+        try:
+            texte = _lire_texte(chemin)
+            ouverture = re.search(
+                r'[ \t]*<Layer\s[^>]*?Type="RASResults"[^>]*?'
+                + re.escape(f'Filename=".\\{self.nom_projet}.p{numero}.hdf"')
+                + r'[^>]*>', texte)
+            if not ouverture:
+                return
+            fin = ouverture.end()
+            if not ouverture.group().endswith("/>"):
+                # Une couche de resultats porte des couches filles : on compte
+                # les ouvertures jusqu'a SA balise fermante.
+                niveau = 1
+                for balise in re.finditer(r"<Layer\b[^>]*?(/?)>|</Layer>",
+                                          texte[fin:]):
+                    if balise.group().startswith("</"):
+                        niveau -= 1
+                    elif not balise.group(1):
+                        niveau += 1
+                    if niveau == 0:
+                        fin += balise.end()
+                        break
+                else:
+                    return
+            fin += len(re.match(r"[ \t]*\r?\n?", texte[fin:]).group())
+            neuf = texte[:ouverture.start()] + texte[fin:]
+            from xml.etree import ElementTree
+            ElementTree.fromstring(neuf)
+            _ecrire_texte(chemin, neuf)
+        except Exception:                                    # noqa: BLE001
+            return
+
     def _remplacer_homonymes(self, titre):
         """
         Efface les plans d'un calage PRECEDENT portant le titre de l'etape.
 
-        Le plan de reference et le plan de travail sont intouchables. L'unsteady
+        Le plan de reference et le plan de travail sont intouchables — sauf le
+        plan source que l'ingenieur a accepte de remplacer (plan_a_remplacer),
+        qui part ici avec ses resultats et sa couche du .rasmap. L'unsteady
         et la geometrie QUE CES PLANS DESIGNAIENT partent avec eux, si plus
         aucun plan survivant ne les designe : sans cela, chaque relance
         laisserait derriere elle un jeu complet de fichiers que personne ne
@@ -2134,7 +2265,9 @@ class PiloteHecRas(Modele):
         efface, designes = [], set()
         for chemin in sorted(self.dossier.glob(f"{self.nom_projet}.p[0-9][0-9]")):
             numero = chemin.suffix[2:]
-            if numero in (str(self.plan_travail).zfill(2), self.plan_reference):
+            if numero == str(self.plan_travail).zfill(2) or (
+                    numero == self.plan_reference
+                    and numero != self.plan_a_remplacer):
                 continue
             if self._titre(chemin, "Plan Title") != titre:
                 continue
@@ -2146,6 +2279,7 @@ class PiloteHecRas(Modele):
                 if trouve:
                     designes.add(f"{lettre}{trouve.group(1)}")
             self._effacer_objet(f"p{numero}")
+            self._retirer_resultats_rasmap(numero)
             efface.append(f"p{numero}")
         if not efface:
             return []
@@ -2837,12 +2971,53 @@ class PiloteHecRas(Modele):
                   f"{', '.join(fermes)}", flush=True)
         return fermes
 
+    def _manques_avant_calcul(self):
+        """
+        Ce que HEC-RAS ne trouverait pas en ouvrant le projet pour calculer
+        le plan de travail : liste de textes, vide si tout y est.
+
+        Le .prj est relu AU MOMENT DE LANCER : une interface HEC-RAS ouverte
+        sur le projet le reecrit depuis sa memoire, sans les plans que la
+        chaine vient d'y declarer (voir hecras_ouvert).
+        """
+        prj = self.dossier / f"{self.nom_projet}.prj"
+        declares = set(re.findall(r"^(?:Plan|Geom|Unsteady|Flow) File=(\w+)",
+                                  _lire_texte(prj), re.M))
+        plan = str(self.plan_travail).zfill(2)
+        manques = []
+        if f"p{plan}" not in declares:
+            manques.append(f"« Plan File=p{plan} » absent de {prj.name}")
+        for lire in (self._geometrie_du_plan, self._unsteady_du_plan):
+            try:
+                chemin = lire(plan)
+            except ValueError as e:
+                manques.append(str(e))
+                continue
+            if not chemin.is_file():
+                manques.append(f"{chemin.name} absent")
+            elif chemin.suffix[1:] not in declares:
+                manques.append(f"« {chemin.suffix[1:]} » absent de {prj.name}")
+        return manques
+
     def calculer(self):
         """Lance le calcul et rapporte sa qualite numerique."""
         from ras_commander import HdfResultsPlan, RasCmdr, RasPlan
         from ras_commander.RasBco import BcoMonitor
 
         debut = time.time()
+        # AVANT DE LANCER : HEC-RAS a-t-il de quoi calculer CE plan ? Un plan
+        # que le .prj ne declare plus ne se calcule pas, et HEC-RAS ne le dit
+        # pas.
+        manques = self._manques_avant_calcul()
+        if manques:
+            return ResultatCalcul(
+                reussi=False, duree_s=time.time() - debut,
+                message=f"le projet n'est plus en etat de calculer le plan "
+                        f"p{self.plan_travail} : {' ; '.join(manques)}. "
+                        f"Quelque chose a reecrit le projet depuis que la "
+                        f"chaine a cree ce plan — le cas connu est "
+                        f"l'interface HEC-RAS restee ouverte. La fermer, "
+                        f"puis relancer le calage.")
         self.nb_calculs += 1
         # Empreinte du resultat AVANT calcul : un calcul qui echouerait en
         # laissant en place le HDF de l'essai precedent serait indetectable
@@ -2856,6 +3031,26 @@ class PiloteHecRas(Modele):
         # NOTRE calcul, et de personne d'autre.
         processus_avant = pids_hecras() if self.fermer_orphelins else None
         plan = self.dossier / f"{self.nom_projet}.p{self.plan_travail}"
+        # PENDANT LE CALCUL : voir plan_detourne(). compute_plan ne rend la
+        # main qu'a la fin ; ce fil arrete un HEC-RAS parti sur d'autres plans
+        # avant qu'il ne les recalcule tous. Il ne ferme que les HEC-RAS nes
+        # depuis le lancement, jamais une session de l'utilisateur.
+        depart = _heure_du_dossier(self.dossier)
+        pids_au_depart = (processus_avant if processus_avant is not None
+                          else pids_hecras())
+        detourne, fin = [], threading.Event()
+
+        def surveiller():
+            while not fin.wait(PERIODE_SURVEILLANCE_S):
+                autre = plan_detourne(self.dossier, self.nom_projet,
+                                      self.plan_travail, depart)
+                if autre:
+                    detourne.append((autre, fermer_processus(
+                        orphelins_du_calcul(pids_au_depart, pids_hecras()))))
+                    return
+
+        fil = threading.Thread(target=surveiller, daemon=True)
+        fil.start()
         try:
             # « Write Detailed= 1 » : compute_plan le pose TOUJOURS avant de
             # lancer HEC-RAS (0.99.2, RasCmdr.py l. 954), en relisant le plan
@@ -2879,13 +3074,34 @@ class PiloteHecRas(Modele):
                                                   self.coeurs), plan)
             reussi = RasCmdr.compute_plan(self.plan_travail,
                                           overwrite_dest=True)
+            erreur = ""
         except Exception as e:
-            self._fermer_orphelins(processus_avant)
-            return ResultatCalcul(reussi=False, duree_s=time.time() - debut,
-                                  message=f"{type(e).__name__}: {e}")
+            reussi, erreur = False, f"{type(e).__name__}: {e}"
+        finally:
+            fin.set()
+            fil.join(60)
         self._fermer_orphelins(processus_avant)
 
         duree = time.time() - debut
+        if detourne:
+            autre, fermes = detourne[0]
+            titre = self._titre(self.dossier / f"{self.nom_projet}.p{autre}",
+                                "Plan Title")
+            return ResultatCalcul(
+                reussi=False, duree_s=duree,
+                message=f"HEC-RAS {self.version} a calcule le plan p{autre} "
+                        f"« {titre} » au lieu du plan p{self.plan_travail} "
+                        f"demande. "
+                        + (f"Calcul arrete ({', '.join(fermes)}) : p{autre} "
+                           f"garde ses resultats d'avant. " if fermes else
+                           "HEC-RAS n'a pas pu etre arrete : verifier les "
+                           "resultats des autres plans du projet. ")
+                        + "Constat du 10/11/2026 sous HEC-RAS 7.0.2. Fermer "
+                          "HEC-RAS, puis relancer ; si le defaut revient, "
+                          "enregistrer le modele avec la version de HEC-RAS "
+                          "des calages precedents.")
+        if erreur:
+            return ResultatCalcul(reussi=False, duree_s=duree, message=erreur)
         if not reussi:
             return ResultatCalcul(reussi=False, duree_s=duree,
                                   message="compute_plan a retourne un echec")
@@ -4339,6 +4555,31 @@ if __name__ == "__main__":
     _verifier("plan final : le plan de reference homonyme reste, l'autre part",
               (_bac / f"{_NOM}.p01").exists()
               and not (_bac / f"{_NOM}.p11").exists(), str(_efface))
+    # SAUF SI L'INGENIEUR L'A ACCEPTE (10/11/2026) : recalage d'un plan valide
+    # qui garde son nom. Le plan source part alors avec ses resultats et sa
+    # couche du .rasmap ; la couche voisine reste.
+    _batir_projet()
+    _titrer("11", "Q100", "g11", "u11")
+    (_bac / f"{_NOM}.rasmap").write_text(
+        "<RASMapper>\n  <Results>\n"
+        + PiloteHecRas._GABARIT_RASRESULTS.format(
+            titre="Q100", fichier=f".\\{_NOM}.p01.hdf")
+        + PiloteHecRas._GABARIT_RASRESULTS.format(
+            titre="Autre", fichier=f".\\{_NOM}.p02.hdf")
+        + "  </Results>\n</RASMapper>\n", encoding="utf-8")
+    _p = PiloteHecRas(_bac, _NOM, plan_reference="01", plan_a_remplacer="p01")
+    _p.plan_travail = "11"
+    _efface = _p._remplacer_homonymes("Q100")
+    _rasmap = (_bac / f"{_NOM}.rasmap").read_text(encoding="utf-8")
+    _verifier("plan final : le plan source a remplacer part, resultats compris",
+              not (_bac / f"{_NOM}.p01").exists()
+              and not (_bac / f"{_NOM}.p01.hdf").exists()
+              and (_bac / f"{_NOM}.p11").exists(), str(_efface))
+    _verifier("plan final : sa couche quitte le .rasmap, la voisine reste",
+              f"{_NOM}.p01.hdf" not in _rasmap and f"{_NOM}.p02.hdf" in _rasmap
+              and _rasmap.count('Type="RASResults"') == 1
+              and _ET.fromstring(_rasmap) is not None,
+              _rasmap[:300].replace("\n", " "))
 
     _verifier("detection de HEC-RAS ouvert : repond sans lever",
               hecras_ouvert() in (True, False, None), str(hecras_ouvert()))
@@ -4562,6 +4803,37 @@ if __name__ == "__main__":
     _verifier("ras-commander : plan, geometrie et unsteady de reference "
               "intacts", all(_octets.get(s) == _origine[s]
                              for s in (".p01", ".g01", ".u01")))
+    # HEC-RAS PARTI SUR UN AUTRE PLAN, PUIS PLAN RETIRE DU .prj (10/11/2026).
+    # Le leurre ecrit le .tmp.hdf d'un AUTRE plan, comme l'a fait HEC-RAS
+    # 7.0.2. fermer_processus est remplace : aucun processus n'est ferme.
+    _fermes, _lances = [], []
+    _vraie_fermeture, _vraie_periode = fermer_processus, PERIODE_SURVEILLANCE_S
+
+    def _leurre_detour(*a, **k):
+        (_bac / "ESSAI.p01.tmp.hdf").write_bytes(b"x")
+        time.sleep(1.0)
+        return True
+
+    try:
+        fermer_processus = lambda pids: _fermes.append(pids) or []  # noqa: E731
+        PERIODE_SURVEILLANCE_S = 0.2
+        RasCmdr.compute_plan = staticmethod(_leurre_detour)
+        _detour = _p.calculer()
+        (_bac / "ESSAI.p01.tmp.hdf").unlink()
+        RasCmdr.compute_plan = staticmethod(lambda *a, **k: _lances.append(a))
+        (_bac / "ESSAI.prj").write_bytes((_bac / "ESSAI.prj").read_bytes()
+                                         .replace(b"Plan File=p03\r\n", b""))
+        _retire = _p.calculer()
+    finally:
+        fermer_processus, PERIODE_SURVEILLANCE_S = (_vraie_fermeture,
+                                                    _vraie_periode)
+        RasCmdr.compute_plan = _vrai_calcul
+    _verifier("un HEC-RAS parti sur un autre plan arrete le calcul et le nomme",
+              not _detour.reussi and "p01" in _detour.message
+              and len(_fermes) == 1, _detour.message[:150])
+    _verifier("un plan que le .prj ne declare plus n'est pas lance",
+              not _retire.reussi and "Plan File=p03" in _retire.message
+              and not _lances, _retire.message[:150])
     # Ce que ras-commander n'a pas change garde AUSSI sa fin de ligne, LF
     # comme CRLF ; une ligne qu'il a changee prend la sienne.
     _f = _bac / "melange.p09"
@@ -4603,6 +4875,37 @@ if __name__ == "__main__":
               str(pids_hecras()))
     _verifier("fermer_processus ne leve pas sur un PID inexistant",
               fermer_processus({999999: "Fantome.exe"}) == [])
+
+    # -----------------------------------------------------------------------
+    # HEC-RAS PARTI SUR UN AUTRE PLAN : la regle de plan_detourne()
+    #
+    # Comme ci-dessus, c'est la REGLE qui est eprouvee. Le cas qui compte est
+    # le premier : le calcul qu'un collegue a lance avant le notre, sur un
+    # autre plan du meme projet, ne doit JAMAIS faire arreter le notre.
+    # -----------------------------------------------------------------------
+    print("\n--- HEC-RAS parti sur un autre plan ---")
+    _bac = Path(tempfile.mkdtemp(prefix="_essai_detour_"))
+    (_bac / "ESSAI.p05.tmp.hdf").write_bytes(b"x")
+    time.sleep(0.05)
+    _t0 = _heure_du_dossier(_bac)
+    time.sleep(0.05)
+    (_bac / "ESSAI.p05.tmp.hdf").write_bytes(b"xx")          # il ecrit toujours
+    _verifier("un calcul deja en cours au lancement n'arrete pas le notre",
+              plan_detourne(_bac, "ESSAI", "03", _t0) is None)
+    (_bac / "ESSAI.p02.tmp.hdf").write_bytes(b"x")
+    _verifier("un autre plan commence depuis le lancement, sans signe du "
+              "notre : detournement",
+              plan_detourne(_bac, "ESSAI", "03", _t0) == "02",
+              str(plan_detourne(_bac, "ESSAI", "03", _t0)))
+    (_bac / "ESSAI.p03.tmp.hdf").write_bytes(b"x")
+    _verifier("notre plan donne signe de vie : plus de detournement",
+              plan_detourne(_bac, "ESSAI", 3, _t0) is None)
+    _verifier("le jalon d'horloge ne reste pas dans le projet",
+              not (_bac / "_jalon_calcul.tmp").exists())
+    _verifier("le symbole decimal de Windows se lit sans lever",
+              symbole_decimal() is None or len(symbole_decimal()) == 1,
+              repr(symbole_decimal()))
+    shutil.rmtree(_bac, ignore_errors=True)
 
     # EN REPRISE, LA BORNE HAUTE RESTE CELLE DU PLAN DE REFERENCE. Le plan
     # d'etape dont une reprise repart a pu etre raccourci par le calage

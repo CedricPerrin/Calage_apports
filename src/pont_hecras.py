@@ -1515,8 +1515,19 @@ def commande_caler(args):
                         caler, etape_apport, produire_livrables_finaux,
                         titre_etape)
     from criteres import pas_serie_h
-    from pilote_hecras import PiloteHecRas, plan_par_titre, plans_par_titre
+    from pilote_hecras import (PiloteHecRas, plan_par_titre, plans_par_titre,
+                               symbole_decimal)
     from suivi import Suivi
+
+    # AVANT TOUT : HEC-RAS peut-il seulement demarrer ? Voir symbole_decimal().
+    decimal = symbole_decimal()
+    if decimal not in (None, "."):
+        return repondre(ok=False, erreur=(
+            f"Windows emploie « {decimal} » comme symbole decimal : HEC-RAS "
+            f"exige le point, et attendrait un clic sur un message au lieu "
+            f"de calculer. Mettre « . » dans les options regionales de "
+            f"Windows (Format, Parametres supplementaires, Symbole decimal), "
+            f"puis relancer le calage."))
 
     chemin_template = Path(args.template)
     valeurs = parametres.lire(chemin_template)
@@ -1635,11 +1646,20 @@ def commande_caler(args):
                                   ("intervalle_mapping", "Intervalle_mapping"))
                if texte(param)}
 
+    # VERSION DE HEC-RAS : le plugin la lit dans les fichiers du modele. Une
+    # cellule VIDE (version illisible) partait telle quelle a ras-commander.
+    version = texte("Version_HECRAS", "7.0.1")
+    if not version:
+        return repondre(ok=False, erreur=(
+            "Version_HECRAS est vide : la version de HEC-RAS n'a pas pu etre "
+            "lue dans les fichiers du modele. La renseigner dans le classeur, "
+            "par exemple 7.0.1."))
+
     pilote = PiloteHecRas(
         dossier_projet=texte("Dossier_projet_HECRAS"),
         nom_projet=texte("Nom_projet"),
         plan_reference=plan_reference,
-        version=texte("Version_HECRAS", "7.0.1"),
+        version=version,
         nom_zone_2d=texte("Nom_zone_2D") or None,
         geometrie_override=texte("Geometrie_reference") if surcharge else None,
         unsteady_override=texte("Unsteady_reference") if surcharge else None,
@@ -1667,23 +1687,37 @@ def commande_caler(args):
         return repondre(ok=False, erreur=f"Prefixe_scenario : {e}")
 
     # LE PLAN FINAL PORTE LE PREFIXE SEUL : il peut rencontrer un plan existant.
-    # Le plan source n'est jamais remplace : deux plans porteraient le meme
-    # titre et le meme Short Identifier, donc le meme dossier sous RAS Mapper.
-    # On refuse avant le premier calcul. Tout autre plan de ce nom est remplace
-    # a la fin du calage : le plugin a demande confirmation, la ligne de
-    # commande ne le peut pas et le dit au journal.
+    # Deux plans ne gardent jamais ce titre : ils auraient le meme Short
+    # Identifier, donc le meme dossier sous RAS Mapper.
+    #   LE PLAN SOURCE n'est remplace que si l'ingenieur l'a accepte au
+    # lancement (« Remplacer_plan_source = oui », recalage d'un plan valide
+    # qui garde son nom, 10/11/2026), et seulement sur un calage conforme.
+    # Sans ce oui, on refuse avant le premier calcul.
+    #   TOUT AUTRE PLAN de ce nom est remplace a la fin du calage : le plugin
+    # a demande confirmation, la ligne de commande ne le peut pas et le dit
+    # au journal.
     titre_final = titre_etape(ETAPE_AVEC_APPORTS, prefixe_etape)
     homonymes = plans_par_titre(texte("Dossier_projet_HECRAS"),
                                 texte("Nom_projet"), titre_final)
     plan_source = str(plan_fenetre_pleine or plan_reference).lstrip("pP").zfill(2)
-    if plan_source in homonymes:
+    remplacer_source = (
+        plan_source in homonymes
+        and texte("Remplacer_plan_source", "non").lower() in ("oui", "true", "1"))
+    if plan_source in homonymes and not remplacer_source:
         return repondre(ok=False, erreur=(
             f"Prefixe_scenario : le plan source p{plan_source} s'appelle deja "
             f"« {titre_final} », le titre du plan final. Choisir un autre "
-            f"prefixe, ou renommer ce plan dans HEC-RAS."))
-    if homonymes:
+            f"prefixe, renommer ce plan dans HEC-RAS, ou accepter son "
+            f"remplacement (Remplacer_plan_source = oui)."))
+    if remplacer_source:
+        pilote.plan_a_remplacer = plan_source
+        print(f"AVERTISSEMENT : le plan source p{plan_source} « {titre_final} » "
+              f"sera remplace par le plan final si le calage est conforme. "
+              f"Sinon il reste intact.", flush=True)
+    autres = [n for n in homonymes if n != plan_source]
+    if autres:
         print(f"AVERTISSEMENT : le plan final remplacera a la fin du calage "
-              f"{', '.join(f'p{n}' for n in homonymes)} « {titre_final} », avec "
+              f"{', '.join(f'p{n}' for n in autres)} « {titre_final} », avec "
               f"ses resultats.", flush=True)
 
     config = Configuration(
@@ -1707,7 +1741,8 @@ def commande_caler(args):
         fenetre_active=_oui_non_ou_defaut(texte("Fenetre_active", "")),
         # Prefixe pose devant chaque titre d'etape. Vide = comportement
         # d'avant. C'est ce qui separe les plans du Q10 de ceux du Q100.
-        prefixe_etape=prefixe_etape)
+        prefixe_etape=prefixe_etape,
+        remplacer_plan_source=remplacer_source)
 
     dossier_sortie = Path(texte("Dossier_sortie") or chemin_template.parent)
     sous_suivi = texte("Sous_dossier_suivi", "suivi")
@@ -1736,6 +1771,10 @@ def commande_caler(args):
     # 0.99.2 au journal, 0.99.1 dans le venv du projet — et rien dans le
     # journal ne disait lequel. Une ligne, et l'on sait quoi corriger.
     print(f"Interpreteur : {sys.executable}", flush=True)
+    # AVEC QUEL HEC-RAS. Le 10/11/2026, un calage est passe de 7.0.1 a 7.0.2
+    # parce qu'une geometrie venait d'etre enregistree en 7.0.2 : personne ne
+    # l'avait choisi, et le journal ne le disait qu'en anglais, plus haut.
+    print(f"HEC-RAS : {version}", flush=True)
     resultat = caler(pilote, apports, sections, cibles, config, suivi=suivi,
                      journal=_dire_horodate,
                      etape_reference=etape_reference)

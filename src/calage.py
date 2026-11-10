@@ -197,8 +197,10 @@ def titre_etape(nom, prefixe=""):
     remplacerait ni ne retrouverait — le doublon meme que le prefixe supprime.
 
     LE PLAN FINAL PORTE LE PREFIXE SEUL. Il perd le suffixe qui l'empechait de
-    rencontrer un plan de l'ingenieur : le pont refuse un plan source de ce
-    nom, et le plugin demande confirmation pour tout autre.
+    rencontrer un plan de l'ingenieur : le plugin demande confirmation avant
+    d'en remplacer un. Le plan SOURCE de ce nom n'est remplace que sur un
+    calage conforme (Configuration.remplacer_plan_source, 10/11/2026) ; sans
+    cet accord, le pont le refuse.
 
     COPIE dans calage_apports/plugin.py (_titre_etape), qui ne peut pas
     importer la chaine : changer l'une, c'est changer l'autre.
@@ -420,6 +422,11 @@ class Configuration:
     # du Q100 : jalonner() remplace les homonymes, et les deux calages titrent
     # leurs etapes pareil.
     prefixe_etape: str = ""
+    # RECALAGE D'UN PLAN VALIDE QUI GARDE SON NOM (10/11/2026). Le plan source
+    # porte deja le titre final et l'ingenieur a accepte, au lancement, de le
+    # voir remplace. Le plan final ne prend alors ce titre que si le calage
+    # est CONFORME : sinon le plan valide reste seul a le porter, intact.
+    remplacer_plan_source: bool = False
 
     # ------------------------------------------------------------------
     # FENETRE DE L'EVENEMENT PRINCIPAL. Restreint le JUGEMENT (diagnostiquer,
@@ -1686,8 +1693,19 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
         # ce nom le renverrait a la confusion qu'on corrige. En revanche rien
         # n'est retitre si la sequence s'est arretee en chemin : on n'entre
         # dans ce bloc que si tous les apports sont valides.
-        _conclure(modele, titre_etape(ETAPE_AVEC_APPORTS, config.prefixe_etape),
-                  dire)
+        #
+        # UNE EXCEPTION : le plan source porte deja ce titre et doit etre
+        # remplace (config.remplacer_plan_source). Conclure l'efface avec ses
+        # resultats ; on ne le fait donc que sur un calage CONFORME.
+        if config.remplacer_plan_source and not resultat.conforme:
+            dire(f"    Calage non conforme : le plan valide « "
+                 f"{titre_etape(ETAPE_AVEC_APPORTS, config.prefixe_etape)} » "
+                 f"n'est pas remplace. Ce recalage reste dans le plan de sa "
+                 f"derniere etape.")
+        else:
+            _conclure(modele,
+                      titre_etape(ETAPE_AVEC_APPORTS, config.prefixe_etape),
+                      dire)
 
     # --- coherence du decalage le long de l'axe : A LA FIN, SUR LES Dt RETENUS
     # Quel que soit le verdict : un calage arrete en chemin a quand meme ses
@@ -2744,6 +2762,32 @@ if __name__ == "__main__":
     controler("l'etat final est titre « avec_apports », pas du nom du dernier "
               "apport",
               modele.etapes[-1] == ETAPE_AVEC_APPORTS, modele.etapes[-1])
+
+    # RECALAGE D'UN PLAN VALIDE QUI GARDE SON NOM (10/11/2026). Poser le titre
+    # final efface le plan valide : on ne le fait que sur un calage CONFORME.
+    # Le verdict est force a « non conforme » pour le second passage.
+    _vraie_verification = _verifier_globalement
+
+    def _recaler(conforme):
+        global _verifier_globalement
+        m = ModeleFictif(apports, sections, temps, formes)
+        if not conforme:
+            def _verifier_globalement(*a, **k):
+                _vraie_verification(*a, **k)
+                a[4].conforme = False
+        try:
+            caler(m, apports, sections, cibles,
+                  Configuration(nb_max_essais=8, remplacer_plan_source=True),
+                  journal=lambda *a, **k: None)
+        finally:
+            _verifier_globalement = _vraie_verification
+        return m.etapes[-1]
+
+    controler("plan source a remplacer : calage conforme, le titre final est "
+              "pose", _recaler(True) == ETAPE_AVEC_APPORTS)
+    controler("plan source a remplacer : calage NON conforme, le plan garde "
+              "son titre d'etape", _recaler(False) == etape_apport(apports[-1]),
+              _recaler(False))
 
     # --- PREFIXE DE SCENARIO -----------------------------------------------
     print("\n--- PREFIXE DE SCENARIO ---")
