@@ -736,30 +736,8 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
                            debut_v + dc0, fin_v + dc1, pas_h)
     rapport_vol = (vol_calcule / vol_cible if vol_cible else float("nan"))
 
-    # CE QUE LA FENETRE LAISSE DEHORS — MESURE, PAS VERDICT.
-    #
-    # Le meme rapport de volume, pris sur toute la fenetre commune aux deux
-    # series : c'est la grandeur que le verdict n'a PAS regardee. Elle se
-    # calcule exactement comme celle du verdict — memes bornes decalees de la
-    # meme part — pour que les deux soient comparables ligne a ligne.
-    #
-    # ON NE JUGE PAS SUR ELLE, et ce n'est pas une prudence de facade : un
-    # apport ne sait qu'AJOUTER du debit. La ou le modele depasse deja la
-    # cible, aucune valeur d'apport ne le corrige — juger sur ce nombre
-    # poserait une cible impossible par construction, que la boucle epuiserait
-    # en essais sans que rien ne dise pourquoi (invariant 11).
-    rapport_volume_serie = part_cible_jugee = None
-    if fenetre is not None and np.isfinite(vol_cible):
-        debut_s, fin_s = fenetre_commune(temps_cible, temps_calcule)
-        if (np.isfinite(debut_s)
-                and (fin_s + retard) - (debut_s + avance) > 0):
-            vol_calcule_s = volume(temps_calcule, debit_calcule,
-                                   debut_s + avance, fin_s + retard, pas_h)
-            vol_cible_s = volume(temps_cible, debit_cible,
-                                 debut_s - retard, fin_s - avance, pas_h)
-            if vol_cible_s:
-                rapport_volume_serie = vol_calcule_s / vol_cible_s
-                part_cible_jugee = vol_cible / vol_cible_s
+    rapport_volume_serie, part_cible_jugee = _volume_de_la_serie(
+        comparaison, vol_cible)
 
     # DEUX FAMILLES — voir Diagnostic.converge pour la ligne de partage.
     # « alertes » porte tout ce qui est signale ; « bloquantes » le seul
@@ -932,6 +910,52 @@ def _forme_et_pointes(comparaison, c_a, s_a):
         pic_cible = float(np.max(debit_cible))
         pic_calcule = float(np.max(debit_calcule))
     return r, pic_cible, pic_calcule
+
+
+def _volume_de_la_serie(comparaison, vol_cible):
+    """
+    Ce que la fenetre jugee laisse dehors : le rapport de volume pris sur
+    TOUTE la fenetre commune aux deux series, et la part du volume de la
+    cible que la fenetre retient. Mesures, jamais verdict.
+
+    vol_cible : le volume de la cible sur la fenetre jugee, tel que
+    _volume_juge() l'a integre.
+
+    Rend (rapport_volume_serie, part_cible_jugee) — (None, None) sans
+    fenetre, ou quand rien n'est mesurable.
+    """
+    temps_cible, debit_cible = comparaison.temps_cible, comparaison.debit_cible
+    temps_calcule, debit_calcule = (comparaison.temps_calcule,
+                                    comparaison.debit_calcule)
+    fenetre, pas_h, decalage_h = (comparaison.fenetre, comparaison.pas_h,
+                                  comparaison.decalage_h)
+    # La part que chaque serie cede, comme dans _volume_juge().
+    avance, retard = max(decalage_h, 0.0), min(decalage_h, 0.0)
+    # CE QUE LA FENETRE LAISSE DEHORS — MESURE, PAS VERDICT.
+    #
+    # Le meme rapport de volume, pris sur toute la fenetre commune aux deux
+    # series : c'est la grandeur que le verdict n'a PAS regardee. Elle se
+    # calcule exactement comme celle du verdict — memes bornes decalees de la
+    # meme part — pour que les deux soient comparables ligne a ligne.
+    #
+    # ON NE JUGE PAS SUR ELLE, et ce n'est pas une prudence de facade : un
+    # apport ne sait qu'AJOUTER du debit. La ou le modele depasse deja la
+    # cible, aucune valeur d'apport ne le corrige — juger sur ce nombre
+    # poserait une cible impossible par construction, que la boucle epuiserait
+    # en essais sans que rien ne dise pourquoi (invariant 11).
+    rapport_volume_serie = part_cible_jugee = None
+    if fenetre is not None and np.isfinite(vol_cible):
+        debut_s, fin_s = fenetre_commune(temps_cible, temps_calcule)
+        if (np.isfinite(debut_s)
+                and (fin_s + retard) - (debut_s + avance) > 0):
+            vol_calcule_s = volume(temps_calcule, debit_calcule,
+                                   debut_s + avance, fin_s + retard, pas_h)
+            vol_cible_s = volume(temps_cible, debit_cible,
+                                 debut_s - retard, fin_s - avance, pas_h)
+            if vol_cible_s:
+                rapport_volume_serie = vol_calcule_s / vol_cible_s
+                part_cible_jugee = vol_cible / vol_cible_s
+    return rapport_volume_serie, part_cible_jugee
 
 
 # ---------------------------------------------------------------------------
