@@ -102,7 +102,7 @@ lignes 3440 et 3465) ; il resterait donc au dialogue.
 |---:|---|---:|---|---|
 | 0 | **Socle** | 145 + 140 → `socle.py` | — | **fait** (phases 2 et 3) |
 | 1 | **Suivi** | ~700 → `page_suivi.py` | 9 noms (§ 5) | **fait** (phase 2) |
-| 2 | **Aide** | ~430 → `page_aide.py` (`AIDE_HTML` reste dans `plugin.py`) | 4 noms, plus 4 valeurs reçues (§ 7) | **fait** (phase 3) |
+| 2 | **Aide** | ~430 → `page_aide.py` (`AIDE_HTML` reste dans `plugin.py`) | 10 noms, plus 4 valeurs reçues (§ 7) | **fait** (phase 3) |
 | 3 | Lancer | ~650 | ~20 noms : 8 états (`bande`, `label_fil`, `_temoins`, `appariement`, `_cibles_manquantes`…) et 12 méthodes du dialogue (`_maj_fil`, `_maj_resume`, `_ecarts_avec_le_paquet`, `_titre_etape`, `_dossier_suivi`, `classeur`…) ; 4 relais pour le banc | élevé |
 | 4 | Modèle | ~930 | ~21 noms : 11 états (couches, `info_projet`, `version_hecras`, `crs_modele`, défauts) et 10 méthodes ; 14 relais pour le banc ; méthodes décorées `@avec_sablier` (le sablier vit sur la fenêtre) | élevé |
 | 5 | Paramètres | ~970 | ~19 noms, dont la propriété `classeur` (32 réf. du banc) et 13 méthodes ; `_composition_en_cours` réaffecté par le banc ; « ±200 m » épinglé dans le texte de `plugin.py` | le plus élevé |
@@ -165,6 +165,22 @@ textes, infobulles, géométrie, police, visibilité) et capture pixel à
   `src/test_lexique.py` (chaque terme du lexique, retient `AIDE_HTML`).
   Chaque page doit d'abord recenser ce que TOUS les bancs relisent dans le
   texte, pytest compris.
+- **Et ce que TOUS les tests appellent, lisent ou remplacent sur le dialogue
+  et sur le module `plugin`** — pas seulement `test_plugin_qgis.py`. La
+  phase 3 l'a appris à ses dépens : `src/test_installation_qgis.py`, joué par
+  la CI sous QGIS et absent alors du banc de l'arbitre, appelle
+  `_suivre_installation` et `_reprendre_installation`, lit les états
+  `_tache_installation`, `_python_en_attente`, `_erreur_installation`, et
+  REMPLACE `_proposer_python` sur l'instance et `confirmer` sur le module.
+  Un relais suffit pour un appel ; un état réaffecté reste au dialogue ; et
+  ce qu'un test remplace, la page doit l'appeler PAR le dialogue, sans quoi
+  la doublure n'est jamais vue. Le recensement se fait par script, sur
+  `src/test_*.py`, `src/bancs/`, `tools/` et le paquet lui-même.
+- **Relais réels sur le dialogue** : 5 pour le Suivi (`_rafraichir_suivi`,
+  méthode véritable, et 4 relais) ; 9 pour l'Aide (`_survol_aide`,
+  `_diagnostic`, `_installer_interpreteur`, `_choisir_python_recherche`,
+  `_detacher_installation`, `_suivre_installation`, `_reprendre_installation`,
+  `_proposer_python`, et `_confirmer`, qui mène à `plugin.confirmer`).
 - **Les doublures du banc** (`QMessageBox`, `QFileDialog`, `QInputDialog`)
   ne valent que pour les noms du module `plugin`. Toute page qui ouvre une
   boîte — Aide, Lancer, Modèle, Paramètres, et `confirmer` s'il quittait
@@ -191,7 +207,8 @@ textes, infobulles, géométrie, police, visibilité) et capture pixel à
 Banc QGIS vert après chaque commit (470 → 472 `[OK]` : le contrôle des
 doublures, puis « aucun chemin de données dans page_aide.py »).
 
-Ce que la page emploie du dialogue — quatre noms :
+Ce que la page emploie du dialogue — dix noms, dont six imposés par
+`src/test_installation_qgis.py` (voir § 6) :
 
 | Nom | Pourquoi il reste au dialogue |
 |---|---|
@@ -199,6 +216,9 @@ Ce que la page emploie du dialogue — quatre noms :
 | `isVisible()` | c'est la visibilité de la FENÊTRE qui décide d'ouvrir une boîte, pas celle de l'onglet |
 | `_signaler` | barre de messages du dialogue |
 | `_installation_occupe` | le lancement et `@avec_sablier` la consultent aussi |
+| `_tache_installation`, `_python_en_attente`, `_choix_python_ouvert`, `_erreur_installation` | états lus par le test d'installation ; réaffectés, ils ne peuvent pas être des alias |
+| `_proposer_python` | le test le remplace sur l'instance : la page l'appelle par le dialogue |
+| `_confirmer` | le test remplace `plugin.confirmer` : la page passe par le dialogue, qui le lit dans le module à l'appel |
 
 Ce qu'elle reçoit à la construction, faute de pouvoir importer `plugin.py`
 qui l'importe : `AIDE_HTML`, `journaliser` (il nomme `NOM_PLUGIN`, épinglé
@@ -212,10 +232,13 @@ lexique dans le TEXTE de `plugin.py`, et « Δt », « fenêtre de l'événement
 tous les `.py` du paquet dans ce test, comme les gardes élargies, le
 libérerait ; c'est hors du périmètre de ce chantier.
 
-**Le nœud attendu — l'installation — s'est dénoué sans reste** : les tâches de
-`installation.py`, leurs signaux et l'ordre de connexion sont inchangés ;
-les trois états d'installation sont à la page seule ; `PluginCalage.unload`
-détache par un relais du dialogue. Identité vérifiée hors banc, depuis le
+**Le nœud attendu — l'installation — ne s'est dénoué qu'en partie** : les
+tâches de `installation.py`, leurs signaux et l'ordre de connexion sont
+inchangés, et `PluginCalage.unload` détache par un relais du dialogue ; mais
+les états d'installation restent au dialogue et deux appels y repassent, parce
+que `src/test_installation_qgis.py` les y lit ou les y remplace (§ 6). La
+première livraison les avait emportés dans la page : deux tests sur onze
+échouaient, corrigé au commit suivant. Identité vérifiée hors banc, depuis le
 même dossier : arbre des 19 widgets de l'onglet, capture pixel, et parcours
 d'installation simulé (phases, détachement, échec fenêtre cachée, réussite,
 journal QGIS, sablier suspendu pendant la question), identiques.
