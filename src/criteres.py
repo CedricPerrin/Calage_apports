@@ -499,6 +499,39 @@ def reserve_identifiabilite(part_apport, tolerance_volume):
             f"pese davantage, ou une tolerance plus serree.")
 
 
+@dataclass(frozen=True)
+class _Comparaison:
+    """
+    Ce que diagnostiquer() compare : les deux series, le decalage qui les
+    apparie, le pas, et la fenetre jugee dite dans les DEUX bases de temps.
+
+    Etabli une fois, en tete de diagnostiquer(), puis LU par chacune des
+    grandeurs du verdict — forme, pointes, volumes, couverture. Aucune ne le
+    modifie (il est fige), et ce qu'elles calculent est rendu, pas range ici.
+
+    POURQUOI UN OBJET PLUTOT QUE DIX ARGUMENTS. f0/f1 et f0c/f1c designent
+    la MEME fenetre sur deux bases de temps, et les confondre est le defaut
+    du 08/09/2026 (voir diagnostiquer, « decalage_fenetre_h ») : une section
+    juste a 0,1 % pres annoncee a 350 %. Passes un a un a cinq fonctions, ces
+    quatre flottants s'echangeraient a l'appel sans que rien ne le dise ; lus
+    ici par leur nom, ils ne le peuvent pas.
+    """
+    temps_cible: object
+    debit_cible: object
+    temps_calcule: object
+    debit_calcule: object
+    tc: object                  # temps_cible, en tableau de flottants
+    ts: object                  # temps_calcule, de meme
+    pas_h: float
+    decalage_h: float           # mesure par recaler() ; positif = calcul en retard
+    fenetre: object = None      # telle que recue ; None = pas de fenetre
+    f0: float = None            # la fenetre en temps de SIMULATION : la ou
+    f1: float = None            # se lit le calcul
+    f0c: float = None           # la meme sur la base de temps de la CIBLE
+    f1c: float = None           # (f0 - Dt de fenetre, f1 - Dt de fenetre)
+
+
+
 def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
                   pas_h=PAS_RECALAGE_H,
                   couverture_min=0.9, tolerance_volume=0.05,
@@ -583,12 +616,78 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
 
     tc = np.asarray(temps_cible, dtype=float)
     ts = np.asarray(temps_calcule, dtype=float)
+    f0 = f1 = f0c = f1c = None
     if fenetre is not None:
         f0, f1 = float(fenetre[0]), float(fenetre[1])
         # LA MEME FENETRE, SUR LA BASE DE TEMPS DE LA CIBLE. Tout ce qui lit
         # la cible passe par f0c/f1c ; tout ce qui lit le calcul, par f0/f1.
         f0c, f1c = f0 - dec_f, f1 - dec_f
+    comparaison = _Comparaison(
+        temps_cible, debit_cible, temps_calcule, debit_calcule, tc, ts,
+        pas_h, decalage_h, fenetre, f0, f1, f0c, f1c)
 
+    r, pic_cible, pic_calcule = _forme_et_pointes(comparaison, c_a, s_a)
+
+    debut, fin, vol_cible, rapport_vol, decalage_hors_fenetre = _volume_juge(
+        comparaison)
+
+    rapport_volume_serie, part_cible_jugee = _volume_de_la_serie(
+        comparaison, vol_cible)
+
+    # DEUX FAMILLES — voir Diagnostic.converge pour la ligne de partage.
+    # « alertes » porte tout ce qui est signale ; « bloquantes » le seul
+    # sous-ensemble qui invalide la comparaison.
+    alertes, bloquantes = [], []
+    if decalage_hors_fenetre:
+        alertes.append(decalage_hors_fenetre)
+        bloquantes.append(decalage_hors_fenetre)
+    if not np.isfinite(r):
+        alertes.append("forme non calculable (serie constante)")
+
+    _juger_couverture(comparaison, debut, fin, couverture_min,
+                      alertes, bloquantes)
+
+    _dire_perimetre(comparaison, rapport_vol, rapport_volume_serie,
+                    part_cible_jugee, tolerance_volume, alertes)
+    # L'APPORT EST-IL IDENTIFIABLE ? NON BLOQUANTE, meme famille que PERIMETRE
+    # DU VERDICT : elle dit le perimetre de ce qui est publie, elle ne denonce
+    # rien. Avant les bloquantes, pour que celles-ci restent en queue.
+    _reserve = reserve_identifiabilite(part_apport, tolerance_volume)
+    if _reserve:
+        alertes.append(_reserve)
+    alertes.extend(bloquantes)
+
+    return Diagnostic(
+        r=r, decalage_h=decalage_h,
+        rapport_pic=pic_calcule / pic_cible if pic_cible else float("nan"),
+        rapport_volume=rapport_vol,
+        alertes=alertes, alertes_bloquantes=bloquantes,
+        tolerance_volume=tolerance_volume, tolerance_pic=tolerance_pic,
+        r_min=r_min, fenetre=fenetre,
+        rapport_volume_serie=rapport_volume_serie,
+        part_cible_jugee=part_cible_jugee,
+        part_apport=part_apport,
+    )
+
+
+def _forme_et_pointes(comparaison, c_a, s_a):
+    """
+    La FORME (r) et les deux POINTES — sur la fenetre jugee quand il y en a
+    une, sur les series entieres sinon.
+
+    c_a, s_a : les series recalees sur toute la grille commune, telles que
+    recaler() les rend. Elles ne servent que sans fenetre.
+
+    Rend (r, pic_cible, pic_calcule).
+    """
+    fenetre, pas_h, decalage_h = (comparaison.fenetre, comparaison.pas_h,
+                                  comparaison.decalage_h)
+    tc, ts = comparaison.tc, comparaison.ts
+    debit_cible, debit_calcule = (comparaison.debit_cible,
+                                  comparaison.debit_calcule)
+    f0, f1, f0c, f1c = (comparaison.f0, comparaison.f1,
+                        comparaison.f0c, comparaison.f1c)
+    if fenetre is not None:
         # LA FORME EST JUGEE SUR LA MEME FENETRE QUE LA POINTE ET LE VOLUME,
         # PAS SUR c_a/s_a — qui portent toute la grille commune aux deux
         # series. Sans cette restriction, une mini-crue isolee hors de
@@ -625,7 +724,31 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
         r = correlation(c_a, s_a)
         pic_cible = float(np.max(debit_cible))
         pic_calcule = float(np.max(debit_calcule))
+    return r, pic_cible, pic_calcule
 
+
+def _volume_juge(comparaison):
+    """
+    Le rapport de VOLUME du verdict, et l'intervalle sur lequel il est pris.
+
+    Rend (debut, fin, vol_cible, rapport_vol, decalage_hors_fenetre) :
+      - [debut, fin] : l'intervalle juge, sur la base de temps de la cible —
+        la fenetre, retrecie a ce que les deux series couvrent une fois
+        appariees ; (nan, nan) quand il n'en reste rien. C'est aussi sur lui
+        que se juge la COUVERTURE ;
+      - vol_cible : le volume de la cible qui y a ete integre ;
+      - rapport_vol : calcule / cible, nan si rien n'est comparable ;
+      - decalage_hors_fenetre : le texte de la bloquante, quand le decalage
+        excede l'intervalle juge et que les volumes ont du etre repris sur
+        toute la fenetre commune ; None sinon.
+    """
+    temps_cible, debit_cible = comparaison.temps_cible, comparaison.debit_cible
+    temps_calcule, debit_calcule = (comparaison.temps_calcule,
+                                    comparaison.debit_calcule)
+    tc, ts = comparaison.tc, comparaison.ts
+    fenetre, pas_h, decalage_h = (comparaison.fenetre, comparaison.pas_h,
+                                  comparaison.decalage_h)
+    f0c, f1c = comparaison.f0c, comparaison.f1c
     # Volumes compares sur la fenetre ou les deux series existent, jamais
     # chacun sur sa propre etendue — ET APRES NEUTRALISATION DU DECALAGE.
     #
@@ -733,7 +856,28 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
         vol_cible = volume(temps_cible, debit_cible,
                            debut_v + dc0, fin_v + dc1, pas_h)
     rapport_vol = (vol_calcule / vol_cible if vol_cible else float("nan"))
+    return debut, fin, vol_cible, rapport_vol, decalage_hors_fenetre
 
+
+def _volume_de_la_serie(comparaison, vol_cible):
+    """
+    Ce que la fenetre jugee laisse dehors : le rapport de volume pris sur
+    TOUTE la fenetre commune aux deux series, et la part du volume de la
+    cible que la fenetre retient. Mesures, jamais verdict.
+
+    vol_cible : le volume de la cible sur la fenetre jugee, tel que
+    _volume_juge() l'a integre.
+
+    Rend (rapport_volume_serie, part_cible_jugee) — (None, None) sans
+    fenetre, ou quand rien n'est mesurable.
+    """
+    temps_cible, debit_cible = comparaison.temps_cible, comparaison.debit_cible
+    temps_calcule, debit_calcule = (comparaison.temps_calcule,
+                                    comparaison.debit_calcule)
+    fenetre, pas_h, decalage_h = (comparaison.fenetre, comparaison.pas_h,
+                                  comparaison.decalage_h)
+    # La part que chaque serie cede, comme dans _volume_juge().
+    avance, retard = max(decalage_h, 0.0), min(decalage_h, 0.0)
     # CE QUE LA FENETRE LAISSE DEHORS — MESURE, PAS VERDICT.
     #
     # Le meme rapport de volume, pris sur toute la fenetre commune aux deux
@@ -758,17 +902,21 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
             if vol_cible_s:
                 rapport_volume_serie = vol_calcule_s / vol_cible_s
                 part_cible_jugee = vol_cible / vol_cible_s
+    return rapport_volume_serie, part_cible_jugee
 
-    # DEUX FAMILLES — voir Diagnostic.converge pour la ligne de partage.
-    # « alertes » porte tout ce qui est signale ; « bloquantes » le seul
-    # sous-ensemble qui invalide la comparaison.
-    alertes, bloquantes = [], []
-    if decalage_hors_fenetre:
-        alertes.append(decalage_hors_fenetre)
-        bloquantes.append(decalage_hors_fenetre)
-    if not np.isfinite(r):
-        alertes.append("forme non calculable (serie constante)")
 
+def _juger_couverture(comparaison, debut, fin, couverture_min,
+                      alertes, bloquantes):
+    """
+    La simulation couvre-t-elle l'evenement juge ? Ajoute ce qu'il y a a en
+    dire : a « bloquantes » quand les series ne se recouvrent pas ou que la
+    couverture tombe sous couverture_min, a « alertes » quand il en manque
+    un peu — ce que le rapport de volume ne peut pas reveler.
+
+    [debut, fin] : l'intervalle juge, tel que _volume_juge() le rend.
+    """
+    fenetre, tc = comparaison.fenetre, comparaison.tc
+    f0c, f1c = comparaison.f0c, comparaison.f1c
     # Une fenetre de simulation qui ne couvre pas tout l'hydrogramme cible est
     # une erreur de configuration courante et couteuse : le volume manquant
     # est attribue a tort a un defaut d'apport, et le calage cherche a le
@@ -821,6 +969,15 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
             f"rapport de volume ne peut PAS le reveler, cible et calcul etant "
             f"integres sur le meme intervalle rogne")
 
+
+def _dire_perimetre(comparaison, rapport_vol, rapport_volume_serie,
+                    part_cible_jugee, tolerance_volume, alertes):
+    """
+    Ajoute a « alertes » la reserve PERIMETRE DU VERDICT, quand le volume
+    juge tient dans la bande et que la serie entiere en sort. Jamais
+    bloquante.
+    """
+    f0, f1 = comparaison.f0, comparaison.f1
     # LE VERDICT DE VOLUME TIENT, ET LA SERIE ENTIERE LE DEMENT.
     #
     # ELLE ENONCE UN PERIMETRE, ELLE NE DENONCE PAS UN DEFAUT — et c'est ce
@@ -854,25 +1011,6 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
             f"+/-{100 * tolerance_volume:.0f} %. Ce qui est dehors n'est pas "
             f"juge, et ne peut pas l'etre ici : un apport ne sait qu'ajouter "
             f"du debit, un excedent hors fenetre se corrige en amont")
-    # L'APPORT EST-IL IDENTIFIABLE ? NON BLOQUANTE, meme famille que PERIMETRE
-    # DU VERDICT : elle dit le perimetre de ce qui est publie, elle ne denonce
-    # rien. Avant les bloquantes, pour que celles-ci restent en queue.
-    _reserve = reserve_identifiabilite(part_apport, tolerance_volume)
-    if _reserve:
-        alertes.append(_reserve)
-    alertes.extend(bloquantes)
-
-    return Diagnostic(
-        r=r, decalage_h=decalage_h,
-        rapport_pic=pic_calcule / pic_cible if pic_cible else float("nan"),
-        rapport_volume=rapport_vol,
-        alertes=alertes, alertes_bloquantes=bloquantes,
-        tolerance_volume=tolerance_volume, tolerance_pic=tolerance_pic,
-        r_min=r_min, fenetre=fenetre,
-        rapport_volume_serie=rapport_volume_serie,
-        part_cible_jugee=part_cible_jugee,
-        part_apport=part_apport,
-    )
 
 
 # ---------------------------------------------------------------------------
