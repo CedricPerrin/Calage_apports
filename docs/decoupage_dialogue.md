@@ -96,52 +96,86 @@ objet. Un **état** partagé ne se résout pas ainsi : il reste au dialogue.
 de la règle, mais **réaffecté par le banc** (`dlg._cle_journal_lu = None`,
 lignes 3440 et 3465) ; il resterait donc au dialogue.
 
-## 4. Ordre de sortie proposé
+## 4. Ordre de sortie — état au soir du 10 novembre 2026 (phase 2)
 
-| Rang | Page | Lignes déplacées (est.) | Partagés à trancher | Risque |
+| Rang | Page | Lignes déplacées | Partagés à trancher | État / risque |
 |---:|---|---:|---|---|
-| 0 | **Socle** (préalable) | ~200 | aides d'affichage et constantes partagées (`compte`, `nombre`, `dire`, `formulaire`, `texte_aide`, `texte_etat`, `journaliser`, `duree_lisible`, `date_lisible`, couleurs `ISL_*`, tolérances) vers un module ré-exporté par `plugin.py` ; deux décisions sur le banc (§ 5) | faible : déplacement pur, ré-exports |
-| 1 | **Suivi** | ~770 | 5 états (`pid_lance`, `instant_lance`, `journal_lance`, `_suivi_du_classeur`, `_cle_journal_lu`) ; 4 méthodes du dialogue (`classeur`, `_dossier_suivi`, `_dossier_suivi_de_l_onglet_3`, `_signaler`) ; 5 relais pour le banc (`_rafraichir_suivi` ×24, `_remplir_table_suivi`, `_peindre_journal`, `_peindre_alertes`, `_banniere`) | moyen : minuteur de 2 s et ordre de connexion à garder ; aucune boîte de dialogue |
-| 2 | Aide | ~460 | 3 états d'installation (`_tache_installation`, `_python_en_attente`, `_choix_python_ouvert`) ; nomme `PluginCalage`, `confirmer` et les trois doublures du banc | élevé tant que le banc substitue au niveau du module `plugin` |
-| 3 | Lancer | ~650 | 8 états dont `bande`, `label_fil`, `_temoins`, `appariement` ; `_lancer_calage` (168 l.) reste au commun : il touche trois étapes | élevé |
-| 4 | Modèle | ~930 | 11 états (couches, `info_projet`, `version_hecras`, défauts) ; 14 méthodes appelées par le banc | élevé |
-| 5 | Paramètres | ~970 | propriété `classeur` (32 réf. du banc), `_composition_en_cours` réaffecté par le banc ; la composition (211 l.) reste au commun | le plus élevé |
+| 0 | **Socle** | 145 → `socle.py` | — | **fait** (phase 2) : déplacement pur, ré-exports |
+| 1 | **Suivi** | ~700 → `page_suivi.py` | — (tranché, § 5) | **fait** (phase 2) |
+| 2 | Aide | ~460 | 3 états d'installation (`_tache_installation`, `_python_en_attente`, `_choix_python_ouvert`) ; nomme `PluginCalage` (ses clés de réglage, 3 fois), `confirmer` (2) et les trois doublures du banc (`QMessageBox` 10, `QFileDialog` 3, `QInputDialog` 1) | élevé tant que les doublures ne valent que pour le module `plugin` (§ 6) |
+| 3 | Lancer | ~650 | 8 états dont `bande`, `label_fil`, `_temoins`, `appariement` ; `QMessageBox` ; `_lancer_calage` (168 l.) reste au commun : il touche trois étapes | élevé |
+| 4 | Modèle | ~930 | 11 états (couches, `info_projet`, `version_hecras`, défauts) ; 14 méthodes appelées par le banc ; `QFileDialog`, `QMessageBox` | élevé |
+| 5 | Paramètres | ~970 | propriété `classeur` (32 réf. du banc), `_composition_en_cours` réaffecté par le banc ; la composition (211 l.) reste au commun ; le banc cherche « ±200 m » dans le texte de `plugin.py` | le plus élevé |
 
 Après les cinq pages, le dialogue garderait ~1 500 lignes : navigation, fil,
 bandeau, défauts et témoins, composition, lancement.
 
-## 5. Ce qui bloque la page Suivi aujourd'hui (phase 1 : non extraite)
+## 5. La page Suivi — ce qui a été fait (phase 2)
 
-La matrice la désigne comme la plus autonome, et elle l'est. Elle n'est
-pourtant pas extraite dans cette phase, pour trois raisons de fond :
+| | Avant (main, 58fefa1) | Après la phase 2 |
+|---|---:|---:|
+| `plugin.py` | 7 823 l. | 6 432 l. |
+| `DialogueParametrage` | 5 619 l. | 4 947 l. |
+| `widgets.py` / `socle.py` / `page_suivi.py` | — | 598 / 169 / 768 l. |
 
-1. **Import circulaire.** Ses 17 méthodes nomment 28 globaux de `plugin.py`
-   (couleurs, tolérances, `compte`, `nombre`, `duree_lisible`, `dire`,
-   `formulaire`, `texte_aide`, `journaliser`, `courbe_retenue`,
-   `CourbeComparaison`…). Un module `page_suivi.py` devrait importer
-   `plugin`, qui l'importe : le préalable est le **socle** (rang 0).
-2. **Plus qu'une poignée d'attributs du dialogue** : 5 états, 4 méthodes et
-   5 relais pour le banc. Faisable, mais pas « propre » sans le socle.
-3. **Le banc relit le TEXTE de `plugin.py`**, et ses gardes deviendraient
-   aveugles au code déplacé sans échouer :
-   - qualification des énumérations Qt (Qt 6), `test_plugin_qgis.py:2147-2152` ;
-   - aucun texte en teal institutionnel, `:4192-4194` ;
-   - aucun `QMessageBox.question`, `:4311-4313` ;
-   - fenêtre de crue : `SEUIL_CRUE`, `MARGE_CRUE_H` et la signature de
-     `_fenetre_crue` cherchés dans `plugin.py`, `:2161-2189`. Ceux-là
-     ÉCHOUERAIENT : c'est pourquoi `CourbeComparaison` reste dans
-     `plugin.py` à l'étape 2.
+Quatre commits, banc QGIS vert après chacun (468 → 470 `[OK]` : un contrôle
+« aucun chemin de données » par nouveau fichier `.py`) :
 
-**À trancher par l'arbitre :**
-- autoriser, dans le banc, la lecture des gardes textuelles sur
-  `Path(mod_plugin.__file__).parent.glob("*.py")` plutôt que sur le seul
-  `plugin.py` (même expression, couverture rétablie) ; deux contrôles le font
-  déjà ainsi (chemins du poste, noms d'affaires, `:1966` et `:1984`) ;
-- autoriser le contrôle de la fenêtre de crue à lire le module où vivront
-  `CourbeComparaison` et `_fenetre_crue` ;
-- garder `_cle_journal_lu`, `pid_lance`, `instant_lance`, `journal_lance`
-  au dialogue (état réaffecté par le banc et par `_lancer_calage`), la page
-  les lisant par `self.dialogue`.
+1. **Socle** (`socle.py`) : seulement ce que la page nomme — `BOUTON_GEOMETRIE`,
+   tolérances, palette `ISL_*` (bloc entier, sous son commentaire), rôles,
+   `COULEUR_STATUT`, `date_lisible`, `duree_lisible`, `courbe_retenue`,
+   `texte_aide`, `dire`, `formulaire`, `DELAI_PREMIER_ETAT_S`, `_cle_fichier`.
+   **`journaliser` n'y est pas** : il nomme `NOM_PLUGIN`, dont le banc exige
+   l'unique définition dans le texte de `plugin.py`.
+2. **Banc** : les gardes « teal institutionnel » et « `QMessageBox.question` »
+   lisent tous les `.py` du plugin ; le contrôle de la fenêtre de crue lit le
+   fichier qui définit `_fenetre_crue`. Essais adverses : chaque garde rougit
+   sur une faute injectée dans un nouveau module. **La garde « énumérations Qt
+   qualifiées » n'est pas élargie** : elle dénonce dans `bande.py`
+   `Qt.TextFlag.TextDontClip`, pourtant qualifié (`TextFlag` manque à
+   `_PORTEES_CONNUES`). Elle a été rejouée à la main sur les trois nouveaux
+   modules : propres.
+3. **`CourbeComparaison`**, `_fenetre_crue`, `SEUIL_CRUE`, `MARGE_CRUE_H`
+   rejoignent `widgets.py`.
+4. **`PageSuivi`** (`page_suivi.py`) : construction, lecture du journal,
+   peinture (`_peindre_suivi` tel quel), bannière, tableau, boutons.
+
+Ce que la page lit sur le dialogue — neuf noms, et rien d'autre :
+
+| Nom | Nature | Pourquoi il reste au dialogue |
+|---|---|---|
+| `pid_lance`, `instant_lance`, `journal_lance` | état | écrits par `_lancer_calage` et par le banc |
+| `_cle_journal_lu` | état | remis à `None` par le banc pour forcer une relecture |
+| `classeur` | propriété | état du dialogue, lu par toutes les étapes |
+| `_dossier_suivi`, `_origine_dossier_suivi`, `_detail_desaccord_suivi` | méthodes | lisent l'étape Paramètres et le classeur ; `_dossier_suivi` sert aussi au Lancer |
+| `_signaler` | méthode | barre de messages du dialogue ; le banc la remplace par instance |
+
+Restent aussi au dialogue : le **minuteur** (même parent, intervalle, slot
+et moment de création ; la navigation le démarre et l'arrête) et le **filet**
+de `_rafraichir_suivi`, qui journalise. Quatorze widgets y sont des alias
+(mêmes objets), lus par le banc ou par `_oublier_dossier_suivi` ; quatre
+méthodes y sont des relais pour le banc (`_peindre_journal`,
+`_peindre_alertes`, `_banniere`, `_remplir_table_suivi`).
+
+Identité vérifiée hors banc : arbre des 65 widgets de l'onglet (classe, nom,
+textes, infobulles, géométrie, police, visibilité) et capture pixel à
+1 200 × 900, identiques avant et après.
+
+## 6. Ce que cette extraction apprend pour la suite
+
+- **Le banc épingle des textes dans `plugin.py`** : `NOM_PLUGIN` écrit une
+  seule fois (retient `journaliser`), « ±200 m » (étape Paramètres), la garde
+  Qt. Chaque page doit d'abord recenser ce que le banc relit dans le texte.
+- **Les doublures du banc** (`QMessageBox`, `QFileDialog`, `QInputDialog`)
+  ne valent que pour les noms du module `plugin`. Toute page qui ouvre une
+  boîte — Aide, Lancer, Modèle, Paramètres, et `confirmer` s'il quittait
+  `plugin.py` — les contournerait. À trancher avant la prochaine page :
+  étendre les doublures aux modules de pages (renforcement du banc), ou faire
+  passer les boîtes par le dialogue.
+- **La règle de rattachement a tenu** : la matrice annonçait 5 états et 4
+  méthodes pour le Suivi ; il en a fallu 4 et 5 (`_suivi_du_classeur` reste
+  derrière `_dossier_suivi` ; `_origine_dossier_suivi` et
+  `_detail_desaccord_suivi` remplacent `_dossier_suivi_de_l_onglet_3`).
 
 ## Annexe — matrice complète
 

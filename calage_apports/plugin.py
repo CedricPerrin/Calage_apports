@@ -25,7 +25,7 @@ import os
 import shutil
 import tempfile
 import traceback
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 from qgis.core import (
@@ -46,13 +46,11 @@ from qgis.core import (
 )
 from qgis.gui import (QgsCollapsibleGroupBox, QgsFieldComboBox, QgsGui,
                       QgsMapLayerComboBox, QgsMessageBar)
-from qgis.PyQt.QtCore import (QEvent, QMetaType, QPointF, QRectF, QSettings,
+from qgis.PyQt.QtCore import (QEvent, QMetaType, QSettings,
                               QSizeF, Qt, QTimer)
-from qgis.PyQt.QtGui import (QColor, QCursor, QFont, QFontDatabase, QFontMetrics,
-                             QIcon, QKeySequence, QPen,
-                             QPolygonF, QTextCursor)
+from qgis.PyQt.QtGui import (QColor, QCursor, QFont, QFontMetrics,
+                             QIcon, QKeySequence)
 from qgis.PyQt.QtWidgets import (
-    QAbstractItemView,
     QAction,
     QApplication,
     QCheckBox,
@@ -76,7 +74,6 @@ from qgis.PyQt.QtWidgets import (
     QSizePolicy,
     QSpacerItem,
     QSpinBox,
-    QTableWidgetItem,
     QTabWidget,
     QTextEdit,
     QToolTip,
@@ -84,18 +81,25 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
-from . import cpn, lexique, materiel, noyau, registre, retour
+from . import cpn, lexique, materiel, noyau, retour
+from . import registre  # noqa: F401  (ré-exporté : le banc lit mod_plugin.registre)
 from .bande import Bande
 from .installation import TacheInstallation, TacheRecherchePython, installation_en_cours
 from .interface import Etiquette as QLabel, EtiquetteLexique, Manuel as QTextBrowser
-from .interface import TableauTriable
+from .interface import TableauTriable  # noqa: F401  (ré-exporté : le banc le lit sur ce module)
 from .interface import couleur as couleur_theme
 from .interface import feuille as feuille_interface
-from .widgets import (GLYPHE_STATUT, STATUT_REPRIS, BarreTexte, JaugeAtteinte,
-                      RubanApports, _carte, _taille_police, compte, nombre)
+from .widgets import BarreTexte, compte, nombre
+from .page_suivi import PageSuivi
 # Ré-exportés : le banc (test_plugin_qgis.py) les lit sur ce module, par leur nom.
-from .widgets import (OPACITE_SEGMENT, OPACITE_SEGMENT_DEFAUT,  # noqa: F401
-                      TEINTE_STATUT)
+from .widgets import (GLYPHE_STATUT, OPACITE_SEGMENT, OPACITE_SEGMENT_DEFAUT,  # noqa: F401
+                      TEINTE_STATUT, _fenetre_crue)
+from .socle import (BOUTON_GEOMETRIE, ISL_ARDOISE, ISL_ROUGE, ISL_TEAL_SOMBRE, ISL_VERT,
+                    ROLE_AIDE, ROLE_ETAT, TOLERANCE_PIC_DEFAUT, TOLERANCE_VOLUME_DEFAUT,
+                    _cle_fichier, dire, formulaire, texte_aide)
+# Ré-exportés, comme ci-dessus.
+from .socle import (COULEUR_STATUT, DELAI_PREMIER_ETAT_S, ISL_TEAL,  # noqa: F401
+                    date_lisible)
 
 DOSSIER = os.path.dirname(__file__)
 
@@ -557,13 +561,6 @@ PENTE_APPORT_DEFAUT = 0.01
 # l'interface : le clonage ne se pilote pas, il n'a lieu que si la geometrie
 # est surchargee a l'onglet 1, et l'utilisateur n'avait rien a decider ici.
 # Le parametre reste ecrit dans le classeur, ou le pont le relit.
-# UN SEUL BOUTON, SOUS LE PREFIXE (22/09/2026, demande utilisateur) : ecrire
-# la geometrie, composer le classeur des hydrogrammes, controler — et le dire.
-# Il s'appelait « Ecrire dans la geometrie HEC-RAS » depuis la 0.9.5, quand la
-# composition est devenue automatique ; mais l'automatique renonce EN SILENCE
-# des qu'un prealable manque, et « Ouvrir dans Excel » restait gris apres le
-# prefixe sans que rien ne dise pourquoi.
-BOUTON_GEOMETRIE = "Valider la géométrie et générer le fichier des hydrogrammes"
 # En tete des etapes Modele, Parametres et Lancer : il ne remet que les
 # reglages de SON etape (voir DialogueParametrage._bouton_defauts).
 BOUTON_DEFAUTS = "Revenir aux paramètres par défaut"
@@ -600,336 +597,11 @@ NOM_CLONE_GEOMETRIE_DEFAUT = "Geometrie_calage"
 #     sonde de toute facon a chaque battement.
 # La friction reste, assumee : elle achete un affichage qui ne ment pas.
 
-# En FRACTIONS de la cible ; la table du noyau, qui fait foi, les porte en
-# pourcentages (noyau.DEFAUTS_PARAMETRES).
-TOLERANCE_VOLUME_DEFAUT = noyau.DEFAUTS_PARAMETRES["Tolerance_volume_pct"] / 100
-TOLERANCE_PIC_DEFAUT = noyau.DEFAUTS_PARAMETRES["Tolerance_pic_pct"] / 100
-TOLERANCE_FORME_DEFAUT = 0.03
 
-# Fenetre de crue : bornes hors desquelles il ne se passe rien d'interessant.
-#
-# LA REGLE EXISTE EN DEUX EXEMPLAIRES, ET C'EST ASSUME. Le plugin la traite
-# dans un paintEvent rafraichi toutes les deux secondes ; livrables.py la
-# traite sur des tableaux numpy, pour une figure matplotlib. Fusionner les
-# deux ferait entrer matplotlib — et la chaine entiere — dans le fil
-# graphique de QGIS, pour cadrer un trace de deux courbes.
-#
-# CE QUI EST INTERDIT, C'EST QU'ELLES DIVERGENT. Les deux valeurs sont donc
-# NOMMEES des deux cotes, et test_plugin_qgis.py verifie qu'elles sont
-# egales : le jour ou l'une bouge, le banc le dit, au lieu de laisser la
-# courbe du suivi et la figure du livrable cadrer deux fenetres differentes
-# sans que rien ne le signale.
-SEUIL_CRUE = 0.02      # fraction du debit de pointe sous laquelle on coupe
-MARGE_CRUE_H = 0.5     # heures conservees de part et d'autre
-
-
-ISL_TEAL = "#3A8D94"          # institutionnel (Pantone 5483 C)
-ISL_TEAL_SOMBRE = "#2E7176"
-ISL_ARDOISE = "#526B7A"       # variante lisible sur le fond clair de QGIS
-ISL_ARDOISE_CLAIR = "#526B7A"  # les étapes en attente restent lisibles
-# Hors charte, et volontairement : la charte n'a pas de couleur d'etat, et
-# reserver le teal institutionnel a l'erreur le banaliserait. Ces deux tons
-# ne servent QU'A dire si une saisie est fautive ou une etape franchie.
-ISL_ROUGE = "#A03028"
-ISL_VERT = "#386F55"
-ISL_VERT_SOMBRE = "#33654E"    # survol du bouton de controle, quand il est vert
 POLICE_ISL = '"Helvetica Neue", "Helvetica", "Arial", sans-serif'
-
-# Deux registres de texte, et deux seulement, en plus des libelles de champs :
-#   AIDE — une phrase grise sous un groupe, qui explique un choix ;
-#   ETAT — le compte rendu de ce qui vient d'etre fait, encadre.
-# Les distinguer par un ROLE plutot que par une feuille de style ecrite a
-# chaque endroit evite qu'un texte d'aide finisse en corps de texte, ce qui
-# etait arrive : la propriete etait posee, mais aucune regle ne la lisait.
-ROLE_AIDE = "aide"
-ROLE_ETAT = "etat"
 
 # Alias conserv? pour les outils de recette ; la fen?tre lit sa palette QGIS.
 STYLE_ISL = feuille_interface(QApplication.palette())
-
-
-# ---------------------------------------------------------------------------
-# Suivi en temps reel — couleurs d'etat
-#
-# Un calage dure des heures. Ce qui manquait n'est pas l'information — suivi.py
-# l'ecrit depuis toujours — mais un endroit ou la voir : le calcul s'arretait
-# sans donner de nouvelles. Ces quatre couleurs sont le vocabulaire de
-# l'affichage, et il n'y en a pas d'autre.
-# ---------------------------------------------------------------------------
-
-# « EN COURS » EST LE TEAL SOMBRE, PAS LE TEAL INSTITUTIONNEL (0.8.5). Ces
-# teintes servent de couleur de TEXTE — colonne Statut du tableau, ligne de
-# position — et « #3A8D94 » sur le fond clair de QGIS rend 3,4:1, sous les
-# 4,5:1 que WCAG 1.4.3 demande a un texte de 10 pt ; « #2E7176 » rend 4,9:1.
-# Le teal institutionnel reste celui des TRAITS (courbe du suivi), ou 3:1
-# suffit. En theme sombre, interface.COULEURS_SOMBRES ramene les deux au
-# meme « #7CC4C8 ».
-COULEUR_STATUT = {
-    "validé": ISL_VERT,
-    "en cours": ISL_TEAL_SOMBRE,
-    "échoué": ISL_ROUGE,
-    "en attente": ISL_ARDOISE_CLAIR,
-    STATUT_REPRIS: ISL_ARDOISE,
-}
-
-
-def date_lisible(iso):
-    """« 24/10/2026 à 03 h 15 » depuis l'ISO de l'avancement ; le texte tel
-    quel s'il ne se lit pas."""
-    try:
-        return datetime.fromisoformat(str(iso)).strftime("%d/%m/%Y à %H h %M")
-    except ValueError:
-        return str(iso)
-
-
-def _fenetre_crue(tc, qc, ts, qs, q_max, seuil=SEUIL_CRUE,
-                  marge_h=MARGE_CRUE_H):
-    """
-    Bornes temporelles ou la crue est effectivement significative.
-
-    L'hydrogramme saisi peut couvrir 24 h alors que la crue elle-meme ne
-    dure que quelques heures : le trace ne doit pas s'etendre au-dela de ce
-    qui se passe reellement, sous peine d'ecraser la courbe contre l'axe.
-    Seuil relatif au pic (2 %) plutot qu'un debit de base absolu, pour
-    marcher aussi bien sur un petit affluent que sur un cours d'eau majeur.
-    """
-    borne_totale = (min(min(tc), min(ts)), max(max(tc), max(ts)))
-    seuil_q = seuil * q_max
-    instants = [t for t, q in zip(tc, qc) if q >= seuil_q]
-    instants += [t for t, q in zip(ts, qs) if q >= seuil_q]
-    if not instants:
-        return borne_totale
-    t_debut = max(min(instants) - marge_h, borne_totale[0])
-    t_fin = min(max(instants) + marge_h, borne_totale[1])
-    return t_debut, t_fin
-
-
-class CourbeComparaison(QWidget):
-    """
-    Hydrogramme CIBLE et hydrogramme MESURE a la section, du dernier essai.
-
-    Les trois jauges disent DE COMBIEN on s'ecarte ; elles ne disent pas OU.
-    Un volume a 103 % avec une pointe a 94 % peut venir d'un pic trop bas ou
-    d'une decrue trop longue — ce sont deux diagnostics opposes, et seule la
-    courbe les distingue. C'est aussi ce qui permet de voir, sans attendre la
-    fin, qu'un apport part de travers.
-
-    LA CIBLE TRACEE EST LA CIBLE DECALEE DE -Δt, celle que la methode compare
-    a la section et que le classeur d'iterations consigne (suivi.py la publie
-    ainsi). Tracee brute, elle apparaissait translatee de Δt — 3,8 h sur le
-    premier apport d'un calage reel — juste sous trois jauges affichant
-    99,9 %, et l'oeil concluait a un calage faux la ou il etait juste. La
-    legende NOMME le
-    decalage : le taire reviendrait a laisser croire que les deux courbes sont
-    sur la meme origine des temps.
-    """
-
-    _TEXTE_ATTENTE = "La comparaison apparaît après le premier essai évalué."
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.courbes = None
-        self.precedentes = []
-        self._ajuster_hauteur()
-        self.setAccessibleName("Cible et débit calculé à la section")
-        self.setAccessibleDescription(self._TEXTE_ATTENTE)
-
-    def _ajuster_hauteur(self):
-        # 190 px a 10 pt — la valeur qui etait ecrite en dur —, davantage
-        # quand la police grandit ; 16 px est la hauteur de ligne de la
-        # police de reference.
-        self.setMinimumHeight(
-            max(190, round(190 * self.fontMetrics().height() / 16)))
-
-    def changeEvent(self, evenement):                       # noqa: N802
-        super().changeEvent(evenement)
-        if evenement.type() == QEvent.Type.FontChange:
-            self._ajuster_hauteur()
-
-    def actualiser(self, courbes, precedentes=None):
-        self.courbes = courbes or None
-        self.precedentes = list(precedentes or [])
-        if not self.courbes:
-            description = self._TEXTE_ATTENTE
-        else:
-            decalage = float(self.courbes.get("decalage_h") or 0.0)
-            deja = sum(1 for c in self.precedentes
-                       if len(c.get("debit") or []) > 1)
-            description = (
-                "Cible et débit calculé au dernier essai évalué"
-                + (f", cible décalée de {nombre(decalage, 2, signe=True)} h"
-                   if abs(decalage) >= 0.005 else "")
-                + (f", {compte(deja, 'section calée', 'sections calées')} derrière"
-                   if deja else ""))
-        self.setAccessibleDescription(description)
-        self.update()
-
-    def paintEvent(self, evenement):                        # noqa: N802
-        peintre, zone = _carte(self)
-        police = peintre.font()
-        police.setPointSizeF(_taille_police(self, 0.75))
-        peintre.setFont(police)
-        metriques = QFontMetrics(police)
-        h_texte = metriques.height()
-
-        if not self.courbes:
-            # Message EXPLICITE sur ce qu'on attend : « au premier essai » se
-            # lisait comme une panne au bout de la troisieme heure de calcul.
-            peintre.setPen(QColor(registre.TEXTE_SECONDAIRE))
-            peintre.drawText(zone, Qt.AlignmentFlag.AlignCenter,
-                             self._TEXTE_ATTENTE)
-            peintre.end()
-            return
-
-        tc = self.courbes.get("temps_cible") or []
-        qc = self.courbes.get("debit_cible") or []
-        ts = self.courbes.get("temps_calcule") or []
-        qs = self.courbes.get("debit_calcule") or []
-        if len(tc) < 2 or len(ts) < 2:
-            peintre.end()
-            return
-
-        # LES SECTIONS DEJA CALEES ENTRENT DANS L'ECHELLE, mais PAS dans la
-        # fenetre de crue : celle-ci se calcule sur la paire courante, qui est
-        # ce qu'on juge. Les couper a l'echelle les ecraserait ; les laisser
-        # commander la fenetre deplacerait le regard vers un apport clos.
-        deja = [c for c in self.precedentes if len(c.get("debit") or []) > 1]
-        courantes = [c for c in deja if not c.get("anterieur")]
-        anterieures = [c for c in deja if c.get("anterieur")]
-
-        # DEUX FAMILLES DERRIERE, ET ELLES NE SE CONFONDENT PAS : ce que CE
-        # calage a cale, a l'accent adouci en pointille ; ce que le PRECEDENT
-        # avait cale et qu'on ne refait pas, au neutre fonce en tiret-point.
-        # Deux teintes ET deux styles de trait — la teinte seule ne porte
-        # jamais le sens.
-        cale = QColor(registre.ACCENT)
-        cale.setAlpha(130)
-        stylo_cale = QPen(cale, 1.2, Qt.PenStyle.DotLine)
-        stylo_avant = QPen(QColor(registre.NEUTRE_FONCE), 1.2, Qt.PenStyle.DashDotLine)
-        stylo_cible = QPen(QColor(registre.ENCRE), 1.6, Qt.PenStyle.DashLine)
-        stylo_mesure = QPen(QColor(registre.ACCENT), 2.2)
-
-        # LA LEGENDE A SES PROPRES LIGNES, AU-DESSUS DU TRACE. Posee dans le
-        # trace, en haut a droite, elle passait sous les pointes des courbes
-        # des que la police grandissait (13 pt : « cible décalée » coupee par le
-        # pic). Le libelle de la cible DIT son decalage des qu'il n'est pas nul
-        # — sans quoi le lecteur croirait les deux courbes sur la meme origine
-        # des temps. La troisieme et la quatrieme entree n'apparaissent QUE
-        # s'il y a quelque chose derriere : au premier apport, une legende
-        # annoncant des sections calees qui n'existent pas ferait chercher des
-        # courbes absentes. Les entrees passent a la ligne quand la largeur
-        # manque.
-        decalage = float(self.courbes.get("decalage_h") or 0.0)
-        entrees = [(stylo_mesure, "calculé"),
-                   (stylo_cible, "cible" if abs(decalage) < 0.005
-                    else f"cible décalée de {nombre(decalage, 2, signe=True)} h")]
-        if courantes:
-            entrees.append((stylo_cale, compte(len(courantes), "section calée",
-                                               "sections calées")))
-        if anterieures:
-            entrees.append((stylo_avant, compte(len(anterieures), "section")
-                            + " du calage précédent"))
-        lignes, x = [[]], 0.0
-        for stylo, libelle in entrees:
-            place = 22 + metriques.horizontalAdvance(libelle) + 14
-            if lignes[-1] and x + place > zone.width():
-                lignes.append([])
-                x = 0.0
-            lignes[-1].append((x, stylo, libelle))
-            x += place
-        for rang, ligne in enumerate(lignes):
-            y = zone.top() + rang * (h_texte + 2)
-            for x, stylo, libelle in ligne:
-                gauche_entree = zone.left() + x
-                peintre.setPen(stylo)
-                peintre.drawLine(QPointF(gauche_entree, y + h_texte / 2),
-                                 QPointF(gauche_entree + 18, y + h_texte / 2))
-                peintre.setPen(QColor(registre.ENCRE))
-                peintre.drawText(QRectF(gauche_entree + 22, y, zone.width(), h_texte),
-                                 int(Qt.AlignmentFlag.AlignLeft
-                                     | Qt.AlignmentFlag.AlignVCenter), libelle)
-
-        q_max = max([max(qc), max(qs)]
-                    + [max(c["debit"]) for c in deja]) or 1.0
-        # LES MARGES SUIVENT LA POLICE : la gauche loge la plus large des
-        # graduations, le bas une ligne de texte, le haut la legende.
-        gauche = zone.left() + max(metriques.horizontalAdvance(f"{q_max:.0f}"),
-                                   metriques.horizontalAdvance("m³/s")) + 8
-        haut = zone.top() + len(lignes) * (h_texte + 2) + 6
-        largeur = max(zone.right() - gauche, 10)
-        hauteur = max(zone.bottom() - h_texte - 4 - haut, 10)
-        t_min, t_max = _fenetre_crue(tc, qc, ts, qs, max(max(qc), max(qs)) or 1.0)
-        etendue_t = (t_max - t_min) or 1.0
-
-        def point(t, q):
-            return QPointF(gauche + largeur * (t - t_min) / etendue_t,
-                           haut + hauteur * (1.0 - q / (1.08 * q_max)))
-
-        # Repere discret : graduations de debit sur la grille fine du
-        # registre, l'axe des temps.
-        peintre.setPen(QPen(QColor(registre.GRILLE), 1))
-        for fraction in (0.25, 0.5, 0.75, 1.0):
-            y = haut + hauteur * (1.0 - fraction / 1.08)
-            peintre.drawLine(QPointF(gauche, y), QPointF(gauche + largeur, y))
-        peintre.setPen(QColor(registre.TEXTE_SECONDAIRE))
-        a_droite = int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        for fraction in (0.5, 1.0):
-            y = haut + hauteur * (1.0 - fraction / 1.08)
-            peintre.drawText(QRectF(zone.left(), y - h_texte / 2,
-                                    gauche - zone.left() - 5, h_texte),
-                             a_droite, f"{fraction * q_max:.0f}")
-        peintre.drawText(QRectF(zone.left(), haut + hauteur - h_texte / 2,
-                                gauche - zone.left() - 5, h_texte), a_droite, "m³/s")
-        peintre.drawText(QRectF(gauche, haut + hauteur + 2, largeur, h_texte),
-                         int(Qt.AlignmentFlag.AlignLeft), f"{t_min:.0f} h")
-        peintre.drawText(QRectF(gauche, haut + hauteur + 2, largeur, h_texte),
-                         int(Qt.AlignmentFlag.AlignRight), f"{t_max:.0f} h")
-
-        # DERRIERE, ET CLIPPEES. Une section calee peut deborder la fenetre de
-        # crue courante : sans decoupe, sa polyligne irait ecrire par-dessus
-        # les graduations et la legende.
-        peintre.setClipRect(QRectF(gauche, haut, largeur, hauteur))
-        for courbe in deja:
-            peintre.setPen(stylo_avant if courbe.get("anterieur") else stylo_cale)
-            peintre.drawPolyline(QPolygonF(
-                [point(t, q) for t, q in zip(courbe["temps"],
-                                             courbe["debit"])]))
-        for temps, debits, stylo in ((tc, qc, stylo_cible), (ts, qs, stylo_mesure)):
-            peintre.setPen(stylo)
-            peintre.drawPolyline(QPolygonF(
-                [point(t, q) for t, q in zip(temps, debits)]))
-        peintre.setClipping(False)
-        peintre.end()
-
-
-def duree_lisible(secondes):
-    """« 2 h 14 » plutot que « 8040 s » : c'est ce qu'on lit d'un coup d'oeil."""
-    if secondes is None:
-        return "—"
-    secondes = int(secondes)
-    if secondes < 60:
-        return f"{secondes} s"
-    if secondes < 3600:
-        return f"{secondes // 60} min"
-    return f"{secondes // 3600} h {(secondes % 3600) // 60:02d}"
-
-
-def courbe_retenue(courbes):
-    """
-    La serie CALCULEE d'une paire publiee, au format des courbes precedentes.
-
-    Le suivi publie deux choses de forme differente : « courbes », la paire
-    cible/section que l'on regarde, et « courbes_precedentes », la famille des
-    sections deja calees. Pour rejouer un calage archive, il faut les deux —
-    la derniere section validee n'est que dans la premiere. None si la paire
-    n'a pas ete validee : un apport en echec ou en recherche n'a pas
-    d'hydrogramme retenu, et le tracer laisserait croire a un resultat.
-    """
-    if not courbes or courbes.get("statut") != "validé":
-        return None
-    return {"apport": courbes.get("apport"), "section": courbes.get("section"),
-            "temps": courbes.get("temps_calcule") or [],
-            "debit": courbes.get("debit_calcule") or []}
 
 
 def plan_de_reprise(apports, valides, premier):
@@ -1142,19 +814,6 @@ class _SablierSuspendu:
 # fois, la mise en forme finissait par differer d'un onglet a l'autre.
 # ---------------------------------------------------------------------------
 
-def texte_aide(contenu, infobulle=None):
-    """
-    Phrase d'accompagnement : grise, plus petite, jamais indispensable. Ses
-    termes techniques renvoient au lexique de l'aide (EtiquetteLexique).
-    """
-    label = EtiquetteLexique(contenu)
-    label.setWordWrap(True)
-    label.setProperty("role", ROLE_AIDE)
-    if infobulle:
-        label.setToolTip(infobulle)
-    return label
-
-
 def texte_etat(contenu=""):
     """
     Compte rendu d'une action, selectionnable a la souris.
@@ -1170,23 +829,6 @@ def texte_etat(contenu=""):
                                   | Qt.TextInteractionFlag.LinksAccessibleByMouse)
     label.setVisible(bool(contenu))
     return label
-
-
-def dire(label, contenu):
-    """Renseigne un compte rendu, et le fait apparaitre ou disparaitre."""
-    label.setText(contenu)
-    label.setVisible(bool(contenu))
-
-
-def formulaire(parent=None):
-    """QFormLayout au rythme commun ; les champs occupent toute la largeur."""
-    f = QFormLayout(parent) if parent is not None else QFormLayout()
-    f.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
-    f.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
-    f.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-    f.setHorizontalSpacing(12)
-    f.setVerticalSpacing(9)
-    return f
 
 
 # ---------------------------------------------------------------------------
@@ -1672,17 +1314,6 @@ def etiqueter_pk_sur_carte(chemins, sens, bases):
 # d'elle-meme (24/09/2026, demande utilisateur).
 # ---------------------------------------------------------------------------
 
-# COMBIEN DE TEMPS ON LAISSE AU CALAGE POUR ECRIRE SON PREMIER ETAT avant de
-# le declarer mort. Il lui faut ouvrir le classeur, initialiser ras-commander
-# et titrer sa premiere etape — une trentaine de secondes sur un modele leger,
-# davantage sur un partage reseau. Mesure du 08/09/2026 sur un modele reel :
-# 1 min 55 entre le lancement et la premiere ligne d'etape.
-#   ET IL FAUT CETTE PATIENCE : le PID rendu par Popen n'est pas celui du
-# calage quand l'interpreteur est un relais (voir _maj_suivi), si bien qu'il
-# disparait aussitot. Sans delai, le suivi annoncait « mort au demarrage »
-# trois secondes apres un lancement qui se deroulait bien.
-DELAI_PREMIER_ETAT_S = 240
-
 # LES CINQ ONGLETS QUI PORTENT UN NUMERO. « Aide et configuration » n'en a
 # pas : il n'est pas une etape.
 #   ILS SONT NOMMES PARCE QUE L'ORDRE A DEJA CHANGE DEUX FOIS — 0.7.0, puis
@@ -1701,14 +1332,6 @@ ONGLET_SUIVI = 3
 # sur leur onglet.
 ONGLET_AIDE = 4
 DERNIER_ONGLET = ONGLET_AIDE
-
-
-def _cle_fichier(chemin):
-    """(chemin, date de modification) — ce qui dit qu'un fichier a change."""
-    try:
-        return (str(chemin), os.path.getmtime(chemin))
-    except OSError:
-        return None
 
 
 class DialogueParametrage(QDialog):
@@ -4764,191 +4387,27 @@ class DialogueParametrage(QDialog):
         Cet onglet relit le fichier d'etat que suivi.py reecrit a chaque
         essai, et signale de lui-meme la fin, l'echec — et l'interruption,
         qui ne s'annonce pas.
+
+        La page vit dans page_suivi.py (PageSuivi). Ses widgets restent
+        lisibles ici sous leurs noms — memes objets —, parce que le banc et
+        _oublier_dossier_suivi les y lisent.
         """
-        page = QWidget()
-        v = QVBoxLayout(page)
-        v.setSpacing(10)
-
-        self.label_suivi_banniere = QLabel()
-        self.label_suivi_banniere.setWordWrap(True)
-        self.label_suivi_banniere.setTextFormat(Qt.TextFormat.RichText)
-        self.label_suivi_banniere.setObjectName("banniereSuivi")
-        v.addWidget(self.label_suivi_banniere)
-
-        # LE DOSSIER SURVEILLE, EN PERMANENCE. Il n'etait nomme que dans la
-        # branche « Aucun calage suivi » : l'information disparaissait
-        # precisement pendant les heures ou cet onglet sert. Le manque mord
-        # apres une reprise de classeur, apres une retouche des champs de
-        # l'onglet 3 en cours de calcul, ou devant deux calages menes de
-        # front — soit chaque fois qu'on peut douter d'ou viennent les
-        # chiffres qu'on lit.
-        self.label_suivi_dossier = texte_aide("")
-        self.label_suivi_dossier.setWordWrap(True)
-        self.label_suivi_dossier.setTextFormat(Qt.TextFormat.RichText)
-        v.addWidget(self.label_suivi_dossier)
-
-        # ERREURS ET AVERTISSEMENTS, SOUS LA BANNIERE (0.8.4, demande
-        # utilisateur). Ils ne vivaient que dans le journal de lancement —
-        # un fichier .log dont la banniere donnait le CHEMIN. Un chemin
-        # n'est pas un message : le 14/09/2026, un calage repris s'est
-        # arrete sur un calcul de reference sans resultats, et les douze
-        # avertissements de recadencement des cibles qui le precedaient
-        # n'ont jamais paru a l'ecran.
-        #   REPLIE PAR DEFAUT, ET DEPLIE TOUT SEUL QUAND QUELQUE CHOSE
-        # ARRIVE : un encadre vide et ouvert en permanence apprend a ne plus
-        # etre lu.
-        self.groupe_alertes = QgsCollapsibleGroupBox(
-            "Erreurs et avertissements")
-        self.groupe_alertes.setObjectName("grpAlertesSuivi")
-        self.groupe_alertes.setToolTip(
-            "Les lignes du journal de lancement qui portent un arrêt, une "
-            "erreur ou un avertissement. Le journal entier est dans le "
-            "dossier de l'Excel des objectifs.")
-        va_alertes = QVBoxLayout(self.groupe_alertes)
-        self.texte_alertes = QTextEdit()
-        self.texte_alertes.setReadOnly(True)
-        self.texte_alertes.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
-        self.texte_alertes.setMinimumHeight(110)
-        va_alertes.addWidget(self.texte_alertes)
-        self.groupe_alertes.setCollapsed(True)
-        self.groupe_alertes.setVisible(False)
-        v.addWidget(self.groupe_alertes)
-
-        # LE JOURNAL TEL QU'IL S'ECRIT (20/09/2026, demande utilisateur).
-        # L'encadre ci-dessus ne retient que les lignes portant un mot
-        # d'alerte ; celui-ci montre le fil, et c'est lui qui dit OU le
-        # calage en etait. Voir _peindre_journal.
-        self.groupe_journal = QgsCollapsibleGroupBox("Journal en cours")
-        self.groupe_journal.setObjectName("grpJournalSuivi")
-        self.groupe_journal.setToolTip(
-            "Les dernières lignes du journal de lancement, rafraîchies "
-            "pendant le calcul. Le fichier entier est dans le dossier de "
-            "l'Excel des objectifs.")
-        vj = QVBoxLayout(self.groupe_journal)
-        self.texte_journal = QTextEdit()
-        self.texte_journal.setReadOnly(True)
-        self.texte_journal.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
-        self.texte_journal.setMinimumHeight(150)
-        self.texte_journal.setAccessibleName("Journal du calage en cours")
-        # POLICE A CHASSE FIXE : un journal s'aligne. On demande la famille
-        # au systeme plutot que d'en nommer une — « Consolas » n'existe pas
-        # partout, et QGIS suit la police du poste.
-        self.texte_journal.setFont(
-            QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont))
-        vj.addWidget(self.texte_journal)
-        self.groupe_journal.setCollapsed(True)
-        self.groupe_journal.setVisible(False)
-        v.addWidget(self.groupe_journal)
-
-        groupe_avancement = QGroupBox("Avancement")
-        va = QVBoxLayout(groupe_avancement)
-        va.setSpacing(9)
-        self.ruban_apports = RubanApports()
-        va.addWidget(self.ruban_apports)
-        self.barre_suivi = QProgressBar()
-        self.barre_suivi.setRange(0, 100)
-        self.barre_suivi.setTextVisible(True)
-        self.barre_suivi.setFormat("%p %")
-        va.addWidget(self.barre_suivi)
-        self.label_suivi_position = QLabel("—")
-        self.label_suivi_position.setWordWrap(True)
-        self.label_suivi_position.setTextFormat(Qt.TextFormat.RichText)
-        va.addWidget(self.label_suivi_position)
-        v.addWidget(groupe_avancement)
-
-        groupe_jauges = QGroupBox("Atteinte de la cible — dernier essai évalué")
-        vj = QVBoxLayout(groupe_jauges)
-        vj.setSpacing(10)
-        ligne_jauges = QHBoxLayout()
-        ligne_jauges.setSpacing(18)
-        self.jauges = {}
-        for cle, libelle in (("volume_pct", "Volume"),
-                             ("pic_pct", "Débit de pointe"),
-                             ("forme_pct", "Forme")):
-            jauge = JaugeAtteinte(libelle)
-            self.jauges[cle] = jauge
-            ligne_jauges.addWidget(jauge, 1)
-        vj.addLayout(ligne_jauges)
-        # LA COURBE SOUS LES JAUGES : les chiffres disent de combien on
-        # s'ecarte, le trace dit ou. Un volume excedentaire avec une pointe
-        # basse peut venir d'un pic trop faible ou d'une decrue trop longue —
-        # deux diagnostics opposes que seule la courbe separe.
-        # DE QUEL APPORT viennent les chiffres et les courbes affiches. Ce
-        # n'est pas toujours celui qui calcule : tant que son premier essai
-        # n'est pas evalue, c'est le dernier apport chiffre qui est montre.
-        self.label_jauges = texte_aide("")
-        vj.addWidget(self.label_jauges)
-        # BILAN DE MASSE DU DERNIER CALCUL — VOISIN DES JAUGES, MAIS PAS UNE
-        # QUATRIEME JAUGE. Il ne dit rien de l'atteinte de la cible : c'est
-        # la conservation du solveur. Il figure ici parce que c'est lui qui
-        # peut faire REJETER un essai avant toute comparaison, et qu'un arrêt
-        # « qualité numérique » ne se lisait alors que dans le journal texte.
-        self.label_bilan_masse = texte_aide("")
-        vj.addWidget(self.label_bilan_masse)
-        self.courbe_suivi = CourbeComparaison()
-        vj.addWidget(self.courbe_suivi)
-        vj.addWidget(texte_aide(
-            "Débit à la section de contrôle au dernier essai évalué, face à "
-            "l'hydrogramme visé, décalé du Δt de propagation."))
-        v.addWidget(groupe_jauges)
-
-        groupe_temps = QGroupBox("Temps")
-        ft = formulaire(groupe_temps)
-        self.label_suivi_ecoule = QLabel("—")
-        self.label_suivi_reste = QLabel("—")
-        self.label_suivi_fin = QLabel("—")
-        ft.addRow("Écoulé :", self.label_suivi_ecoule)
-        ft.addRow("Reste estimé :", self.label_suivi_reste)
-        ft.addRow("Fin prévisible :", self.label_suivi_fin)
-        ft.addRow(texte_aide(
-            "Estimé d'après la durée moyenne des apports déjà achevés. "
-            "L'estimation vaut ce que vaut l'hypothèse d'apports de coût "
-            "comparable, mais c'est le seul chiffre qui permette de décider "
-            "s'il faut attendre."))
-        v.addWidget(groupe_temps)
-
-        groupe_detail = QGroupBox("Apports")
-        vd = QVBoxLayout(groupe_detail)
-        # TRIABLE (27/10/2026, comme Rhoe) : l'ordre du calage, de l'amont
-        # vers l'aval, revient au troisieme double-clic.
-        self.table_suivi = TableauTriable(0, 6)
-        self.table_suivi.setHorizontalHeaderLabels(
-            ["Apport", "Section", "Statut", "Essais", "Volume",
-             "Pointe"])
-        self.table_suivi.horizontalHeader().setToolTip(
-            "Double-cliquer sur un en-tête pour classer, une deuxième fois "
-            "pour inverser, une troisième pour revenir à l'ordre du calage.")
-        self.table_suivi.verticalHeader().setVisible(False)
-        self.table_suivi.setEditTriggers(
-            QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.table_suivi.setSelectionMode(
-            QAbstractItemView.SelectionMode.NoSelection)
-        self.table_suivi.setAlternatingRowColors(True)
-        self.table_suivi.setMinimumHeight(150)
-        self.table_suivi.horizontalHeader().setStretchLastSection(True)
-        vd.addWidget(self.table_suivi)
-        v.addWidget(groupe_detail, 1)
-
-        ligne = QHBoxLayout()
-        ligne.setSpacing(8)
-        bouton_dossier = QPushButton("Ouvrir le dossier de suivi")
-        bouton_dossier.clicked.connect(self._ouvrir_dossier_suivi)
-        ligne.addWidget(bouton_dossier)
-        bouton_figure = QPushButton("Ouvrir la figure d’avancement")
-        bouton_figure.setToolTip(
-            "La figure produite par la chaîne : état de chaque apport, et "
-            "volume et débit de pointe atteints face aux 100 % visés.")
-        bouton_figure.clicked.connect(self._ouvrir_figure_suivi)
-        ligne.addWidget(bouton_figure)
-        ligne.addStretch(1)
-        self.label_suivi_maj = QLabel("")
-        self.label_suivi_maj.setProperty("role", ROLE_AIDE)
-        # Sous la rangee, pas dedans : a 13 pt sur 720 px, a cote de la bande,
-        # la rangee faisait defiler l'etape, de 9 px encore avec « Ouvrir la
-        # figure d'avancement » et l'heure repliee (23/10/2026).
-        self.label_suivi_maj.setWordWrap(True)
-        v.addLayout(ligne)
-        v.addWidget(self.label_suivi_maj)
+        page = PageSuivi(self)
+        self.page_suivi = page
+        self.label_suivi_banniere = page.label_suivi_banniere
+        self.label_suivi_dossier = page.label_suivi_dossier
+        self.groupe_alertes = page.groupe_alertes
+        self.texte_alertes = page.texte_alertes
+        self.groupe_journal = page.groupe_journal
+        self.texte_journal = page.texte_journal
+        self.ruban_apports = page.ruban_apports
+        self.barre_suivi = page.barre_suivi
+        self.label_suivi_position = page.label_suivi_position
+        self.jauges = page.jauges
+        self.label_jauges = page.label_jauges
+        self.courbe_suivi = page.courbe_suivi
+        self.label_suivi_reste = page.label_suivi_reste
+        self.table_suivi = page.table_suivi
 
         # RAFRAICHISSEMENT AUTOMATIQUE. Deux secondes : assez pour que l'ecran
         # suive un essai qui dure des minutes, assez peu pour ne rien couter —
@@ -5136,25 +4595,6 @@ class DialogueParametrage(QDialog):
             f"« {titre} » tourne encore (processus {pid}).\n\n{consequence}",
             oui=f"{geste} quand même", non="Attendre la fin du calage")
 
-    def _ouvrir_dossier_suivi(self):
-        dossier = self._dossier_suivi()
-        if dossier is None or not dossier.is_dir():
-            self._signaler(
-                "Suivi", "Aucun dossier de suivi : renseigner le dossier de "
-                f"sortie (étape Paramètres), puis cliquer « {BOUTON_GEOMETRIE} ».",
-                Qgis.MessageLevel.Warning)
-            return
-        os.startfile(str(dossier))  # noqa: S606 (usage Windows assume)
-
-    def _ouvrir_figure_suivi(self):
-        dossier = self._dossier_suivi()
-        figure = (dossier / "avancement.png") if dossier else None
-        if figure is None or not figure.is_file():
-            self._signaler("Suivi", "avancement.png n'existe pas encore : il "
-                           "est écrit dès le premier essai.")
-            return
-        os.startfile(str(figure))  # noqa: S606
-
     def _detail_desaccord_suivi(self, dossier):
         """
         Dit que l'onglet 3 designe un AUTRE dossier, quand c'est le cas.
@@ -5172,175 +4612,6 @@ class DialogueParametrage(QDialog):
                 f"qui n'est pas surveillé : c'est l'Excel lancé qui fait foi. "
                 f"Cliquer « {BOUTON_GEOMETRIE} » pour que les deux s'accordent.")
 
-    def _banniere(self, couleur, titre, detail="", glyphe=""):
-        """
-        Bandeau d'etat : fond NEUTRE, filet de couleur, titre colore.
-
-        Un aplat sature sur toute la largeur criait sans rien dire de plus, et
-        forcait un texte blanc qui devenait illisible des que QGIS passe en
-        theme clair. Ici le fond vient de la palette — il suit donc le theme —
-        et la couleur ne sert qu'a marquer : un filet a gauche et le titre.
-        C'est la regle que suit tout le reste de la fenetre, et la seule qui
-        tienne en theme clair comme en theme sombre.
-        """
-        # LE FILET SUIT LE THEME COMME LE TITRE (0.8.5) : le titre passe par
-        # Etiquette, qui remappe ses couleurs en sombre ; le filet, ecrit dans
-        # une feuille de style, ne passait par rien.
-        filet = couleur_theme(couleur, self.label_suivi_banniere).name()
-        self.label_suivi_banniere.setStyleSheet(
-            f"background-color: palette(base);"
-            # border: none d'abord : sous Qt 5.15, border-left seul ne dessine
-            # rien sur un QLabel (Arche, 13/10/2026 ; revu le 08/11/2026).
-            f"border: none; border-left: 5px solid {filet};"
-            f"border-radius: 3px; padding: 12px 16px;")
-        self.label_suivi_banniere.setText(
-            f"<span style='font-size:13pt; font-weight:bold; color:{couleur}'>"
-            f"{glyphe + '  ' if glyphe else ''}{titre}</span>"
-            + (f"<br><span style='font-size:9pt; color:{ISL_ARDOISE}'>"
-               f"{detail}</span>" if detail else ""))
-
-    # Ce qui fait qu'une ligne du journal merite l'ecran. Volontairement
-    # COURT : tout ce qui est ajoute ici rapproche l'encadre du journal
-    # entier, que personne ne lit. « Traceback » y figure parce qu'une pile
-    # d'appels annonce toujours un arret, et sa premiere ligne suffit a
-    # savoir qu'il y en a une.
-    MARQUEURS_ALERTE = ("AVERTISSEMENT", "ARRET", "ERREUR", "ECHEC",
-                        "Traceback", "Error:")
-    # Le journal d'un calage de quatorze heures pese plusieurs mega-octets :
-    # ras-commander y reecrit sa banniere a chaque calcul. On n'en lit que la
-    # fin, et l'on n'affiche que les dernieres lignes retenues.
-    OCTETS_JOURNAL_LUS = 1_000_000
-    LIGNES_ALERTE_MAX = 60
-    # LE JOURNAL EN COURS EN MONTRE PLUS QUE LES ALERTES, et pour la meme
-    # lecture : c'est un fil qu'on remonte pour comprendre ou le calage en
-    # etait, non une liste de motifs. Borne quand meme — un QTextEdit de
-    # dix mille lignes se repeint a chaque tour du minuteur.
-    LIGNES_JOURNAL_MAX = 400
-
-    def _journal_du_calage(self):
-        """
-        Le journal de lancement le plus recent, ou None.
-
-        CELUI DE LA SESSION D'ABORD — self.journal_lance, pose au lancement.
-        A defaut, le plus recent a cote de l'Excel des objectifs, la ou
-        noyau.lancer_calage les ecrit et ou noyau.dernier_journal sait les
-        retrouver : c'est ce qui permet de lire l'echec d'hier apres avoir
-        rouvert QGIS.
-        """
-        if self.journal_lance and Path(self.journal_lance).exists():
-            return Path(self.journal_lance)
-        if not self.classeur:
-            return None
-        try:
-            return noyau.dernier_journal(self.classeur)
-        except OSError:
-            return None
-
-    def _lire_journal(self):
-        """
-        La queue du journal de lancement : (toutes les lignes, les alertes).
-
-        UNE SEULE LECTURE POUR DEUX VUES — l'encadre des alertes et le
-        journal en cours. Les separer en ferait deux, toutes les deux
-        secondes, sur un fichier de partage reseau.
-
-        NE LEVE JAMAIS : appelee par le minuteur du suivi, toutes les deux
-        secondes, sur un fichier qu'un autre processus est en train d'ecrire.
-
-        ET NE RELIT QUE CE QUI A CHANGE. Un calcul HEC-RAS dure des minutes
-        sans qu'une ligne s'ecrive, et le journal est le plus souvent sur un
-        partage reseau : relire un mega-octet toutes les deux secondes pour
-        n'y rien trouver de neuf, c'est ce que _dossier_suivi evite deja
-        pour l'avancement. Meme cle — taille et date —, un stat par tour.
-        """
-        chemin = self._journal_du_calage()
-        if chemin is None:
-            return [], []
-        try:
-            st = os.stat(chemin)
-            cle = (str(chemin), st.st_size, st.st_mtime_ns)
-            if cle == getattr(self, "_cle_journal_lu", None):
-                return self._journal_lu, self._alertes_lues
-            debut = max(0, st.st_size - self.OCTETS_JOURNAL_LUS)
-            with open(chemin, "rb") as f:
-                f.seek(debut)
-                brut = f.read().decode("utf-8", "replace")
-        except OSError:
-            return [], []
-        lignes = [ligne.rstrip() for ligne in brut.splitlines()]
-        if debut:
-            del lignes[:1]      # coupee au milieu par la lecture tronquee
-        retenues = [ligne for ligne in lignes
-                    if any(m in ligne for m in self.MARQUEURS_ALERTE)]
-        self._cle_journal_lu = cle
-        self._journal_lu = lignes[-self.LIGNES_JOURNAL_MAX:]
-        self._alertes_lues = retenues[-self.LIGNES_ALERTE_MAX:]
-        return self._journal_lu, self._alertes_lues
-
-    def _lignes_alerte(self):
-        """Les lignes du journal qui portent un arret, une erreur ou un
-        avertissement. Liste vide si le journal manque ou ne dit rien."""
-        return self._lire_journal()[1]
-
-    def _peindre_journal(self):
-        """
-        Le journal de lancement tel qu'il s'ecrit, deroulant, dans la page.
-
-        POURQUOI, ALORS QUE L'ENCADRE DES ALERTES EXISTE (20/09/2026, demande
-        utilisateur). Celui-ci ne montre que les lignes qui portent un mot
-        d'alerte : ce qui echoue SANS l'un de ces mots n'y parait pas, et
-        l'on ne voit pas non plus ou le calage en etait quand il s'est
-        arrete. La banniere donnait le chemin du .log — un chemin n'est pas
-        un message ; c'est deja ce que la 0.8.4 reprochait au diagnostic.
-
-        REPLIE PAR DEFAUT : on ne lit un journal que lorsqu'on le cherche.
-        Il ne se deplie JAMAIS tout seul, a la difference des alertes — un
-        journal qui s'ouvre a chaque ligne ecrite rendrait la page sautante
-        pendant des heures.
-
-        TOUJOURS DEROULE EN BAS, sauf si l'on a fait defiler soi-meme : la
-        derniere ligne est celle qu'on vient lire, mais reprendre la main a
-        quelqu'un qui remonte dans l'historique serait pire que de ne rien
-        montrer.
-        """
-        lignes, _ = self._lire_journal()
-        self.groupe_journal.setVisible(bool(lignes))
-        if not lignes:
-            self.texte_journal.setPlainText("")
-            return
-        chemin = self._journal_du_calage()
-        self.groupe_journal.setTitle(
-            f"Journal en cours ({len(lignes)} dernières lignes"
-            + (f" — {Path(chemin).name}" if chemin else "") + ")")
-        texte = "\n".join(lignes)
-        if texte == self.texte_journal.toPlainText():
-            return
-        ascenseur = self.texte_journal.verticalScrollBar()
-        colle_en_bas = ascenseur.value() >= ascenseur.maximum() - 2
-        self.texte_journal.setPlainText(texte)
-        if colle_en_bas:
-            self.texte_journal.moveCursor(QTextCursor.MoveOperation.End)
-            ascenseur.setValue(ascenseur.maximum())
-
-    def _peindre_alertes(self):
-        """Remplit l'encadre des alertes, et l'efface du regard s'il est vide."""
-        groupe = self.groupe_alertes
-        lignes = self._lignes_alerte()
-        groupe.setVisible(bool(lignes))
-        if not lignes:
-            self.texte_alertes.setPlainText("")
-            return
-        groupe.setTitle(f"Erreurs et avertissements ({len(lignes)})")
-        # SEUL UN CONTENU NOUVEAU DEPLIE, et une seule fois : deplier a
-        # chaque tour du minuteur empecherait de replier l'encadre.
-        texte = "\n".join(lignes)
-        if texte != self.texte_alertes.toPlainText():
-            self.texte_alertes.setPlainText(texte)
-            self.texte_alertes.moveCursor(QTextCursor.MoveOperation.End)
-            if not getattr(self, "_alertes_depliees", False):
-                self._alertes_depliees = True
-                groupe.setCollapsed(False)
-
     def _rafraichir_suivi(self):
         """
         Relit l'etat et redessine. Ne leve jamais : c'est un affichage
@@ -5348,11 +4619,11 @@ class DialogueParametrage(QDialog):
         d'evenements de QGIS.
         """
         try:
-            self._peindre_suivi()
+            self.page_suivi._peindre_suivi()
             # APRES la peinture, et hors de son chemin : un journal illisible
             # ne doit pas emporter l'avancement, qui est ce qu'on vient voir.
-            self._peindre_alertes()
-            self._peindre_journal()
+            self.page_suivi._peindre_alertes()
+            self.page_suivi._peindre_journal()
         except Exception as e:                              # noqa: BLE001
             # Le filet reste — il est necessaire. Ce qui change, c'est qu'il
             # laisse desormais un temoin : un onglet Suivi devenu muet le
@@ -5371,339 +4642,19 @@ class DialogueParametrage(QDialog):
                 journaliser("Rafraichissement du suivi", e)
             return
 
-    def _peindre_suivi(self):
-        dossier = self._dossier_suivi()
-        etat = noyau.lire_avancement(dossier) if dossier else None
+    # RELAIS VERS LA PAGE SUIVI (page_suivi.py). Le banc appelle ces methodes
+    # sur le dialogue, par leur nom : elles ne font que transmettre.
+    def _peindre_journal(self):
+        self.page_suivi._peindre_journal()
 
-        # L'ETAT LU EST-IL CELUI DU CALAGE QU'ON VIENT DE LANCER ? Apres un
-        # relancement, le dossier porte encore l'avancement.json du calage
-        # PRECEDENT tant que le nouveau n'a pas ecrit le sien : on peignait
-        # « Calage terminé — conforme » ou « Calage interrompu » comme reponse
-        # au lancement qui venait d'aboutir.
-        #
-        # C'EST L'HEURE QUI TRANCHE, PAS LE PID — et il a fallu un vrai calage
-        # pour le decouvrir (08/09/2026, Q20 sur poste distant). Le PID rendu
-        # par Popen n'est PAS celui qui ecrit l'etat des que l'interpreteur
-        # HEC-RAS est un RELAIS : un venv cree depuis le Python de QGIS — ce
-        # que le bouton « Installer… » propose lui-meme — a un python.exe de
-        # 256 ko qui relance le vrai interpreteur dans un AUTRE processus.
-        # Mesure : Popen rend 55160, le processus qui tourne est 23284.
-        #   Consequence, vue a l'ecran : le suivi refusait d'afficher le calage
-        # EN COURS en le prenant pour celui d'avant, pendant toute sa duree.
-        #   L'etat est donc a nous s'il a commence APRES notre lancement. La
-        # tolerance d'une seconde couvre l'arrondi de « debut », ecrit a la
-        # seconde par suivi.py.
-        perime = False
-        if self.instant_lance and etat and etat.get("debut"):
-            try:
-                debut = datetime.fromisoformat(etat["debut"])
-                perime = debut < self.instant_lance - timedelta(seconds=1)
-            except ValueError:
-                # Un « debut » illisible ne doit pas masquer un calage qui
-                # tourne : on prefere afficher un etat douteux a ne rien
-                # afficher pendant des heures.
-                perime = False
+    def _peindre_alertes(self):
+        self.page_suivi._peindre_alertes()
 
-        # LE DOSSIER SURVEILLE EST NOMME A CHAQUE PASSAGE, avant tout test :
-        # la branche « Aucun calage suivi » sort plus bas, et c'est elle qui
-        # le disait — donc jamais quand un calage tourne. Voir la construction
-        # de ce label.
-        # LE CHEMIN PEUT PASSER A LA LIGNE APRES CHAQUE SEPARATEUR (23/10/2026) :
-        # un espace sans chasse le permet. Sans lui, Qt ne coupe pas un chemin
-        # sans espace et la page Suivi defilait de 69 px a 13 pt sur 720 px.
-        # Ce texte n'est pas selectionnable ; l'espace ne gene aucune copie.
-        coupable = str(dossier).replace("\\", "\\\u200b").replace("/", "/\u200b")
-        dire(self.label_suivi_dossier,
-             (f"Dossier surveillé ({self._origine_dossier_suivi()}) : {coupable}"
-              + self._detail_desaccord_suivi(dossier)) if dossier
-             else "Aucun dossier de suivi désigné.")
-
-        if etat is None or perime:
-            # LE DOSSIER SURVEILLE EST NOMME : un suivi muet parce qu'il
-            # regardait le mauvais dossier ne se distinguait en rien d'un
-            # calage pas encore parti.
-            #
-            # ET « PAS ENCORE DEMARRE » SE DISTINGUE DE « MORT AU DEMARRAGE ».
-            # Cette branche promettait « quelques secondes après le
-            # lancement » POUR TOUJOURS, y compris devant un sous-processus
-            # mort avant d'avoir rien ecrit — cas des refus precoces, qui
-            # rendent la main avant que suivi.py n'ecrive son premier etat. Et
-            # le seul document qui dit pourquoi, le journal de lancement, ne
-            # se lisait que dans une boite d'information depuis longtemps
-            # fermee.
-            titre, glyphe, couleur = "Aucun calage suivi", "·", ISL_ARDOISE_CLAIR
-            detail = ("Le suivi apparaît ici dès que le calage écrit son "
-                      "premier état, quelques secondes après le lancement.")
-            if self.pid_lance:
-                journal = (f"<br>Journal de lancement : {self.journal_lance}"
-                           if self.journal_lance else "")
-                # « MORT AU DEMARRAGE » NE SE PRONONCE PLUS SUR LE PID DE
-                # POPEN. Avec un interpreteur-relais, ce processus-la rend la
-                # main aussitot apres avoir lance le vrai : le suivi annoncait
-                # un calage mort alors qu'il demarrait. On ne conclut donc a la
-                # mort que si l'on a laisse au calage le temps d'ecrire —
-                # DELAI_PREMIER_ETAT_S — et qu'il n'a toujours rien ecrit.
-                depuis = ((datetime.now() - self.instant_lance).total_seconds()
-                          if self.instant_lance else 0.0)
-                mort = (noyau.processus_vivant(self.pid_lance) is False
-                        and depuis > DELAI_PREMIER_ETAT_S)
-                if mort:
-                    titre, glyphe, couleur = (
-                        "Calage arrêté sans avoir rien écrit", "✕", ISL_ROUGE)
-                    detail = (f"Rien n'a été écrit en "
-                              f"{int(depuis)} s : le calage est mort au "
-                              f"démarrage." + journal)
-                else:
-                    detail = (f"Calage lancé (processus {self.pid_lance}) — le "
-                              f"suivi apparaît ici dès qu'il écrit son premier "
-                              f"état." + journal)
-            if perime:
-                detail += (f"<br>Le dossier porte encore l'état d'un calage "
-                           f"précédent, commencé le {date_lisible(etat.get('debut'))} : il "
-                           f"n'est pas affiché, pour ne pas se lire comme "
-                           f"celui du calage en cours.")
-            # Le dossier surveille n'est plus recopie ici : il vit desormais
-            # sous la banniere, a chaque passage.
-            self._banniere(couleur, titre, glyphe=glyphe, detail=detail)
-            self.barre_suivi.setValue(0)
-            self.ruban_apports.actualiser([], None)
-            self.courbe_suivi.actualiser(None, None)
-            self.label_suivi_position.setText("—")
-            self.table_suivi.setRowCount(0)
-            for jauge in self.jauges.values():
-                jauge.actualiser(None)
-            return
-
-        apports = etat.get("apports") or []
-        en_cours = etat.get("en_cours")
-        # LE CALAGE PRECEDENT RESTE A L'ECRAN, DERRIERE CELUI-CI (demande
-        # utilisateur, 13/09/2026). Relancer remettait l'onglet a zero :
-        # les apports deja cales disparaissaient du ruban et du tableau,
-        # leurs hydrogrammes du trace, et rien ne disait qu'ils avaient
-        # existe. C'est le plus visible sur une REPRISE, ou le calage en
-        # cours ne porte volontairement que les apports restants.
-        #   ON NE GARDE QUE CE QUE CE CALAGE NE TRAITE PAS : un apport
-        # present dans les deux est celui qu'on refait, et c'est l'etat
-        # COURANT qui fait foi pour lui.
-        #   ILS N'ENTRENT NI DANS « en_cours », NI DANS LES JAUGES, NI
-        # DANS LES COMPTES : le ruban et le tableau les montrent, tout le
-        # reste de cette methode continue de ne parler que du calage qui
-        # tourne. Melanger les deux ferait lire les chiffres d'hier comme
-        # ceux du calcul en cours.
-        repris, courbes_reprises = self._suivi_precedent(dossier)
-        noms_courants = {a.get("apport") for a in apports}
-        repris = [a for a in repris if a.get("apport") not in noms_courants]
-        courbes_reprises = [c for c in courbes_reprises
-                            if c.get("apport") not in noms_courants]
-        # Les jauges jugent sur LES TOLERANCES DE L'ETUDE, publiees par le
-        # suivi. Figees a 2 %, elles coloraient en rouge des valeurs admises
-        # par une etude qui en tolere 5.
-        # Les defauts sont CEUX DE LA CHAINE, repris des constantes du module :
-        # ecrits en dur ici, ils divergeaient — la jauge « Volume » jugeait a
-        # 0,5 % ce que la boucle admet a 5 %, et virait au rouge sur un apport
-        # parfaitement conforme des que le suivi ne publiait pas ses seuils.
-        tolerances = etat.get("tolerances_pct") or {}
-        for cle, defaut in (("volume_pct", 100 * TOLERANCE_VOLUME_DEFAUT),
-                            ("pic_pct", 100 * TOLERANCE_PIC_DEFAUT),
-                            ("forme_pct", 100 * TOLERANCE_FORME_DEFAUT)):
-            self.jauges[cle].tolerance = float(
-                tolerances.get(cle.replace("_pct", ""), defaut))
-        comptes = etat.get("comptes") or {}
-        fraction = float(etat.get("fraction") or 0.0)
-        self.barre_suivi.setValue(int(round(100 * fraction)))
-        self.ruban_apports.actualiser(
-            repris + apports,
-            en_cours if en_cours is None else en_cours + len(repris))
-        self.courbe_suivi.actualiser(
-            etat.get("courbes"),
-            courbes_reprises + (etat.get("courbes_precedentes") or []))
-
-        # BANNIERE : l'etat en un mot, et sa couleur avant meme la lecture.
-        if etat.get("termine"):
-            if etat.get("conforme"):
-                self._banniere(
-                    ISL_VERT, "Calage terminé — conforme", glyphe="✔",
-                    detail=f"{compte(comptes.get('validé', 0), 'apport calé', 'apports calés')} en "
-                    f"{duree_lisible(etat.get('ecoule_s'))}"
-                    + (f", {compte(etat['nb_calculs'], 'calcul')}"
-                       if etat.get("nb_calculs") else "")
-                    + ". Les livrables sont dans le dossier de résultats.")
-            else:
-                self._banniere(
-                    ISL_ROUGE, "Calage terminé — NON conforme", glyphe="✕",
-                    detail=etat.get("motif_final")
-                    or "voir avancement.md pour le détail.")
-        else:
-            vivant = noyau.processus_vivant(etat.get("pid"))
-            if vivant is False:
-                # LE CAS QUI MANQUAIT : plus personne n'ecrit, et rien ne le
-                # disait. Le dernier etat connu reste affiche, mais il est
-                # annonce comme tel.
-                self._banniere(
-                    ISL_ROUGE, "Calage interrompu", glyphe="⏹",
-                    detail=f"Le processus {etat.get('pid')} n'existe plus et le "
-                    f"calage n'a pas rendu de verdict. Dernier état connu "
-                    f"ci-dessous ; le journal de lancement dit pourquoi.")
-            else:
-                nom = (apports[en_cours]["apport"]
-                       if en_cours is not None and en_cours < len(apports)
-                       else "—")
-                self._banniere(
-                    ISL_TEAL_SOMBRE, "Calage en cours", glyphe="▶",
-                    detail=f"Apport {(en_cours or 0) + 1} sur {etat.get('total')} — "
-                    f"{nom}. Mis à jour "
-                    f"{etat.get('maj', '')[11:]}.")
-
-        # Ligne « ou en est-on », la phrase que l'on vient chercher.
-        if en_cours is not None and en_cours < len(apports):
-            a = apports[en_cours]
-            self.label_suivi_position.setText(
-                f"<b style='color:{ISL_TEAL_SOMBRE}'>{a['apport']} → "
-                f"{a['section']}</b> &nbsp;·&nbsp; essai <b>{a['essais']}</b>"
-                f" &nbsp;·&nbsp; apport <b>{a['ordre']}</b> sur "
-                f"<b>{etat.get('total')}</b>")
-        else:
-            self.label_suivi_position.setText(
-                f"{compte(comptes.get('validé', 0), 'validé')}, "
-                f"{compte(comptes.get('échoué', 0), 'échoué')}, "
-                f"{comptes.get('en attente', 0)} en attente")
-
-        # LES JAUGES SE REPLIENT SUR LE DERNIER APPORT CHIFFRE. Un apport dont
-        # le premier essai n'est pas encore evalue — soit toute la duree de son
-        # calcul HEC-RAS, environ trois heures — n'a aucun chiffre a montrer :
-        # les trois jauges restaient donc vides pendant exactement les heures
-        # ou on les regarde. Le repli dit de QUEL apport il s'agit, sans quoi
-        # on lirait les chiffres du precedent comme ceux du calcul en cours.
-        montre = (apports[en_cours]
-                  if en_cours is not None and en_cours < len(apports)
-                  and apports[en_cours].get("volume_pct") is not None
-                  else next((a for a in reversed(apports)
-                             if a.get("volume_pct") is not None), None))
-        for cle, jauge in self.jauges.items():
-            jauge.actualiser(montre.get(cle) if montre else None)
-        self.label_jauges.setText(
-            "en attente du premier essai" if montre is None
-            else (f"<b>{montre['apport']} → {montre['section']}</b>, essai "
-                  f"{montre['essais']}"
-                  + ("" if en_cours is not None
-                     and en_cours < len(apports)
-                     and montre is apports[en_cours]
-                     else " — dernier essai évalué ; le calcul en cours n'a "
-                          "pas encore rendu le sien")))
-
-        self._afficher_bilan_masse(etat.get("bilan_masse"))
-
-        self.label_suivi_ecoule.setText(duree_lisible(etat.get("ecoule_s")))
-        self.label_suivi_reste.setText(
-            "—" if etat.get("termine") else duree_lisible(etat.get("reste_s")))
-        fin = etat.get("fin") or etat.get("fin_prevue")
-        self.label_suivi_fin.setText(
-            date_lisible(fin) if fin else "—")
-        self.label_suivi_maj.setText(
-            f"actualisé {etat.get('maj', '')[11:]}"
-            + (f" · {compte(etat['incidents'], 'incident')}"
-               if etat.get("incidents") else ""))
-        self._remplir_table_suivi(repris + apports)
-
-    def _suivi_precedent(self, dossier):
-        """
-        Ce que le calage PRECEDENT a obtenu, tel que l'ecran doit le garder.
-
-        Rend (apports, courbes) : les apports qu'il a VALIDES, marques
-        « repris », et les hydrogrammes retenus a leurs sections, marques
-        « anterieur ». Deux listes vides quand il n'y a pas d'archive — le cas
-        du premier calage.
-
-        L'appelant retire ensuite ceux que le calage EN COURS traite : c'est
-        lui qui sait lesquels, et les garder en double ferait un ruban ou le
-        meme apport apparait deux fois.
-
-        RELU SEULEMENT QUAND L'ARCHIVE CHANGE, c'est-a-dire au demarrage d'un
-        calage et jamais ensuite. Cette methode est appelee toutes les deux
-        secondes tant que l'onglet est a l'ecran, et le dossier de suivi est le
-        plus souvent sur un partage reseau — meme raison que _dossier_suivi.
-        """
-        if not dossier:
-            return [], []
-        chemin = Path(dossier) / noyau.ETAT_SUIVI_PRECEDENT
-        cle = _cle_fichier(chemin)
-        cache = getattr(self, "_archive_suivi", None)
-        if cache is None or cache[0] != cle:
-            cache = (cle, noyau.lire_avancement(dossier,
-                                                noyau.ETAT_SUIVI_PRECEDENT))
-            self._archive_suivi = cache
-        etat = cache[1]
-        if not etat:
-            return [], []
-        apports = [dict(a, statut=STATUT_REPRIS)
-                   for a in (etat.get("apports") or [])
-                   if a.get("statut") == "validé"]
-        noms = {a.get("apport") for a in apports}
-        derniere = courbe_retenue(etat.get("courbes"))
-        courbes = [dict(c, anterieur=True)
-                   for c in list(etat.get("courbes_precedentes") or [])
-                   + ([derniere] if derniere else [])
-                   if c.get("apport") in noms]
-        return apports, courbes
-
-    def _afficher_bilan_masse(self, bilan):
-        """
-        Bilan de masse du dernier calcul, sous les jauges.
-
-        TROIS ETATS, ET LE TROISIEME COMPTE AUTANT QUE LES DEUX AUTRES :
-        pas encore mesuré (aucun calcul n'a rendu la valeur), dans le seuil,
-        au-delà du seuil. Le dernier explique à lui seul un calage qui
-        s'arrête sans qu'aucune jauge n'ait bougé.
-
-        Un état publié par une version ANTERIEURE du suivi n'a pas la clé :
-        la ligne reste alors vide plutôt que d'annoncer une mesure absente.
-        """
-        if not isinstance(bilan, dict):
-            self.label_bilan_masse.setText("")
-            return
-        try:
-            pct = float(bilan["pct"])
-            seuil = float(bilan["seuil_pct"])
-        except (KeyError, TypeError, ValueError):
-            self.label_bilan_masse.setText("")
-            return
-        depasse = abs(pct) > seuil
-        couleur = ISL_ROUGE if depasse else ISL_VERT
-        self.label_bilan_masse.setText(
-            f"Bilan de masse du dernier calcul : "
-            f"<b style='color:{couleur}'>{nombre(pct, 3, signe=True)} %</b> "
-            f"(seuil {format(seuil, 'g').replace('.', ',')} %)"
-            + (" — au-delà du seuil : l'essai est rejeté sans être comparé "
-               "à la cible. Resserrer le pas de calcul du plan."
-               if depasse else
-               " — qualité du calcul, pas écart à la cible."))
+    def _banniere(self, couleur, titre, detail="", glyphe=""):
+        self.page_suivi._banniere(couleur, titre, detail=detail, glyphe=glyphe)
 
     def _remplir_table_suivi(self, apports):
-        self.table_suivi.setRowCount(len(apports))
-        for ligne, a in enumerate(apports):
-            statut = a.get("statut", "")
-            valeurs = [
-                a.get("apport", ""), a.get("section", ""),
-                f"{GLYPHE_STATUT.get(statut, '')}  {statut}",
-                str(a.get("essais") or ""),
-                "—" if a.get("volume_pct") is None else f"{nombre(a['volume_pct'])} %",
-                "—" if a.get("pic_pct") is None else f"{nombre(a['pic_pct'])} %",
-            ]
-            for colonne, valeur in enumerate(valeurs):
-                cellule = QTableWidgetItem(str(valeur))
-                if colonne == 2:
-                    # Remappee en theme sombre, comme les widgets peints :
-                    # l'ardoise sur le fond Night Mapping rendait 2,3:1.
-                    cellule.setForeground(couleur_theme(
-                        COULEUR_STATUT.get(statut, ISL_ARDOISE), self.table_suivi))
-                    police = cellule.font()
-                    police.setBold(True)
-                    cellule.setFont(police)
-                if colonne >= 3:
-                    cellule.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.table_suivi.setItem(ligne, colonne, cellule)
-        self.table_suivi.reclasser()
-        self.table_suivi.resizeColumnsToContents()
+        self.page_suivi._remplir_table_suivi(apports)
 
     def _onglet_aide(self):
         """
