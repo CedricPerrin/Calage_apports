@@ -29,6 +29,33 @@ jobs:
         run: python tools/check_isl_identity.py
       - run: python calage_apports/noyau.py
       - run: python -m pytest src/test_installation_cible.py src/test_recherche_python.py src/test_projet_hecras.py src/test_lexique.py src/test_calcul_accents.py -q
+      # Bancs embarqués de la chaîne qui n'exigent que requirements-dev.txt (ni h5py ni
+      # ras-commander). Chacun sort en code 1 sur un [ECHEC] : éprouvé par une faute injectée.
+      - name: Bancs de la chaîne
+        run: |
+          for banc in criteres calage controle_donnees suivi livrables parametres; do
+            echo "=== src/$banc.py"
+            python src/$banc.py
+          done
+
+  chaine-hdf:
+    # Hors QGIS, à dessein : h5py entre en conflit avec la bibliothèque HDF5 de QGIS
+    # (voir requirements-dev.txt), donc ces deux bancs ne rejoignent pas le job « qgis ».
+    # pilote_hecras.py n'est PAS joué ici : 6 de ses contrôles échouent hors Windows (CRLF,
+    # compute_plan, processus Windows), ce qui ferait rougir la CI sans défaut du code.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      # Version minimale annoncée par le plugin : noyau.RAS_COMMANDER_MINIMUM.
+      - run: python -m pip install -r requirements-dev.txt "ras-commander>=0.99" h5py
+      - run: python src/geometrie.py
+      - run: python src/pont_hecras.py autotest
 
   qgis:
     runs-on: ubuntu-latest
