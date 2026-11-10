@@ -1469,68 +1469,15 @@ def parametres_calage(dossier_projet, nom_projet, version_hecras, nom_zone_2d,
     return parametres
 
 
-def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
-                      pentes=None):
+def _saisie_a_preserver(chemin):
     """
-    Ecrit le classeur de saisie, PRE-REMPLI a partir de ce qui a ete designe
-    dans QGIS : la feuille Correspondance contient deja les noms reels et
-    l'ordre, la feuille Cibles deja une colonne par section.
-
-    C'est le point ou le plugin fait gagner le plus de temps : recopier vingt
-    noms a la main est long et fautif, alors qu'ils sont deja connus.
-
-    paires : [(nom_apport, nom_section), ...] de l'amont vers l'aval, tel que
-        le produit geometrie.apparier_amont_aval(). Ce n'est PLUS deux listes
-        de meme longueur : les lignes d'injection d'un modele ne sont pas
-        toutes des apports a caler — s'y trouvent aussi les debits d'entree
-        permanents et les conditions limites aval. Exiger autant de sections
-        que d'injections revenait a compter ces dernieres comme des apports,
-        et refusait de composer un paquet pourtant valide.
-
-    Si le classeur EXISTE DEJA, les hydrogrammes cibles deja saisis a la main
-    dans la feuille Cibles sont PRESERVES pour les sections qui persistent
-    d'une composition a l'autre : recomposer ne doit jamais effacer un
-    travail de saisie deja fait. Seules les colonnes des sections retirees
-    disparaissent, et les sections nouvelles arrivent vides. La meme regle
-    vaut pour la pente saisie par apport (Pente_m_par_m, feuille
-    Correspondance) : preservee pour les couples apport/section qui
-    persistent, retrouvee par leur NOM (l'ordre peut changer d'une
-    composition a l'autre).
-
-    pentes : {nom_apport: pente} deduit du profil en long
-        (pentes_locales_apports). Sert a PRE-REMPLIR la colonne
-        Pente_m_par_m des apports qui n'en ont pas deja une. Ordre de
-        priorite, du plus fort au plus faible : valeur deja saisie dans le
-        classeur precedent > pente deduite du profil > case vide. Une saisie
-        de l'utilisateur n'est donc JAMAIS ecrasee par une recomposition, et
-        une case vide reste possible — c'est le cas ou le profil ne couvre
-        pas l'apport, et le calage deduira la pente comme avant.
-
-    Le nom du fichier porte le PREFIXE DE SCENARIO — « donnees_calage_Q100
-    .xlsx » : deux scenarios d'un meme dossier de sortie ont deux classeurs,
-    et composer l'un n'ecrase pas l'autre. Voir nom_classeur.
-
-    Retourne le chemin du classeur.
+    Ce qui a deja ete saisi dans le classeur a recomposer : (cibles, pentes).
+    cibles : la feuille Cibles telle que pandas la lit, None si le classeur
+    n'existe pas ou si elle est illisible. pentes : {(apport, section):
+    pente}, vide si rien n'est relisible.
     """
     import pandas as pd
 
-    paires = [(str(a), str(s)) for a, s in paires]
-    if not paires:
-        raise ValueError(
-            "aucun apport à caler : aucune section de contrôle n'a de ligne "
-            "d'injection en amont d'elle. Vérifier le tracé de l'axe "
-            "hydraulique et la position des objets.")
-    noms_apports = [a for a, _ in paires]
-    noms_sections = [s for _, s in paires]
-
-    dossier = Path(dossier_sortie)
-    dossier.mkdir(parents=True, exist_ok=True)
-    # LE NOM PORTE LE PREFIXE DE SCENARIO (0.8.4) — voir nom_classeur. Le
-    # prefixe est lu dans les parametres, la ou le lancement le relira : un
-    # second argument le laisserait diverger de ce que le classeur declare.
-    chemin = dossier / nom_classeur((parametres or {}).get("Prefixe_scenario"))
-
-    # Cibles et pentes deja saisies dans un classeur precedent, a preserver.
     cibles_existantes = None
     pentes_existantes = {}
     if chemin.exists():
@@ -1549,7 +1496,11 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
                         pentes_existantes[cle] = valeur
         except Exception:
             pentes_existantes = {}
+    return cibles_existantes, pentes_existantes
 
+
+def _parametres_du_classeur(chemins_shp, parametres):
+    """Les parametres ecrits dans le JSON voisin : defauts, puis ceux transmis."""
     valeurs = {
         "Dossier_projet_HECRAS": "",
         "Nom_projet": "",
@@ -1612,9 +1563,15 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
         "Distance_max_axe_maillage_m": "",
     }
     valeurs.update(parametres or {})
+    return valeurs
+
+
+def _feuille_correspondance(noms_apports, noms_sections, noms_cibles,
+                            pentes_existantes, pentes):
+    """La feuille Correspondance, pentes reportees ou pre-remplies."""
+    import pandas as pd
 
     n = len(noms_sections)
-    noms_cibles = [f"Cible_{s}" for s in noms_sections]
     # Priorite : saisie precedente, puis pente deduite du profil en long,
     # puis vide. Le pre-remplissage ne doit jamais ecraser une saisie.
     deduites = {str(k): v for k, v in (pentes or {}).items()}
@@ -1633,7 +1590,12 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
         # PRESERVEE au lieu d'etre effacee par une recomposition.
         "Pente_m_par_m": colonne_pente,
     })
+    return correspondance
 
+
+def _refuser_cibles_illisibles(chemin, cibles_existantes, noms_cibles):
+    """Leve ValueError si la feuille Cibles porte une saisie qu'on ne sait
+    pas relire : la recomposer l'effacerait."""
     # UNE SAISIE QU'ON NE SAIT PAS RELIRE NE S'EFFACE PAS. Les cibles deja
     # collees sont retrouvees sous l'en-tete « Temps_h » ; sans lui, la
     # branche suivante reecrivait la feuille VIDE, sans un mot — le geste
@@ -1659,6 +1621,12 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
                 f"n'est pas touche, mais la geometrie et les couches viennent "
                 f"d'etre reecrites, et la composition s'arrete ici.")
 
+
+def _feuille_cibles(cibles_existantes, noms_cibles):
+    """La feuille Cibles : la saisie precedente reconciliee avec les sections
+    courantes, ou une feuille vide."""
+    import pandas as pd
+
     if cibles_existantes is not None and "Temps_h" in cibles_existantes.columns:
         # Meme grille de temps qu'auparavant ; seules les colonnes de section
         # sont reconciliees avec la liste courante.
@@ -1671,7 +1639,12 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
         cibles = pd.DataFrame({"Temps_h": []})
         for nom_cible in noms_cibles:
             cibles[nom_cible] = []
+    return cibles
 
+
+def _mettre_de_cote(chemin):
+    """Renomme l'ancien classeur en « .precedent.xlsx » ; rend ce nom, ou
+    None s'il n'y avait rien a mettre de cote ou si le renommage est refuse."""
     # APRES LE GARDE-FOU Temps_h, PAS AVANT (23/09/2026) : la 0.9.2 mettait
     # l'ancien classeur de cote en tete de fonction ; sur un refus, le
     # fichier canonique avait donc disparu alors que le message promettait
@@ -1705,6 +1678,12 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
             # Windows. On ne fait pas echouer la composition pour cela : le
             # geste suivant — l'ecriture — dira lui-meme qu'il ne peut pas.
             sauvegarde = None
+    return sauvegarde
+
+
+def _ecrire_classeur(chemin, correspondance, cibles, valeurs):
+    """Ecrit le classeur, puis le JSON des parametres, puis l'habille."""
+    import pandas as pd
 
     # LE CLASSEUR NE PORTE PLUS QUE CE QU'ON Y ECRIT (20 septembre 2026,
     # demande utilisateur) : la correspondance et les cibles. Les parametres
@@ -1725,6 +1704,82 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
         style_classeur.mettre_en_forme(chemin)
     except Exception:                                       # noqa: BLE001
         pass
+
+
+def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
+                      pentes=None):
+    """
+    Ecrit le classeur de saisie, PRE-REMPLI a partir de ce qui a ete designe
+    dans QGIS : la feuille Correspondance contient deja les noms reels et
+    l'ordre, la feuille Cibles deja une colonne par section.
+
+    C'est le point ou le plugin fait gagner le plus de temps : recopier vingt
+    noms a la main est long et fautif, alors qu'ils sont deja connus.
+
+    paires : [(nom_apport, nom_section), ...] de l'amont vers l'aval, tel que
+        le produit geometrie.apparier_amont_aval(). Ce n'est PLUS deux listes
+        de meme longueur : les lignes d'injection d'un modele ne sont pas
+        toutes des apports a caler — s'y trouvent aussi les debits d'entree
+        permanents et les conditions limites aval. Exiger autant de sections
+        que d'injections revenait a compter ces dernieres comme des apports,
+        et refusait de composer un paquet pourtant valide.
+
+    Si le classeur EXISTE DEJA, les hydrogrammes cibles deja saisis a la main
+    dans la feuille Cibles sont PRESERVES pour les sections qui persistent
+    d'une composition a l'autre : recomposer ne doit jamais effacer un
+    travail de saisie deja fait. Seules les colonnes des sections retirees
+    disparaissent, et les sections nouvelles arrivent vides. La meme regle
+    vaut pour la pente saisie par apport (Pente_m_par_m, feuille
+    Correspondance) : preservee pour les couples apport/section qui
+    persistent, retrouvee par leur NOM (l'ordre peut changer d'une
+    composition a l'autre).
+
+    pentes : {nom_apport: pente} deduit du profil en long
+        (pentes_locales_apports). Sert a PRE-REMPLIR la colonne
+        Pente_m_par_m des apports qui n'en ont pas deja une. Ordre de
+        priorite, du plus fort au plus faible : valeur deja saisie dans le
+        classeur precedent > pente deduite du profil > case vide. Une saisie
+        de l'utilisateur n'est donc JAMAIS ecrasee par une recomposition, et
+        une case vide reste possible — c'est le cas ou le profil ne couvre
+        pas l'apport, et le calage deduira la pente comme avant.
+
+    Le nom du fichier porte le PREFIXE DE SCENARIO — « donnees_calage_Q100
+    .xlsx » : deux scenarios d'un meme dossier de sortie ont deux classeurs,
+    et composer l'un n'ecrase pas l'autre. Voir nom_classeur.
+
+    Retourne le chemin du classeur.
+    """
+    paires = [(str(a), str(s)) for a, s in paires]
+    if not paires:
+        raise ValueError(
+            "aucun apport à caler : aucune section de contrôle n'a de ligne "
+            "d'injection en amont d'elle. Vérifier le tracé de l'axe "
+            "hydraulique et la position des objets.")
+    noms_apports = [a for a, _ in paires]
+    noms_sections = [s for _, s in paires]
+
+    dossier = Path(dossier_sortie)
+    dossier.mkdir(parents=True, exist_ok=True)
+    # LE NOM PORTE LE PREFIXE DE SCENARIO (0.8.4) — voir nom_classeur. Le
+    # prefixe est lu dans les parametres, la ou le lancement le relira : un
+    # second argument le laisserait diverger de ce que le classeur declare.
+    chemin = dossier / nom_classeur((parametres or {}).get("Prefixe_scenario"))
+
+    # Cibles et pentes deja saisies dans un classeur precedent, a preserver.
+    cibles_existantes, pentes_existantes = _saisie_a_preserver(chemin)
+    valeurs = _parametres_du_classeur(chemins_shp, parametres)
+
+    noms_cibles = [f"Cible_{s}" for s in noms_sections]
+    correspondance = _feuille_correspondance(
+        noms_apports, noms_sections, noms_cibles, pentes_existantes, pentes)
+
+    # LE GARDE-FOU D'ABORD, LA MISE DE COTE ENSUITE, L'ECRITURE ENFIN : un
+    # refus ne doit rien avoir deplace (defaut de la 0.9.2, corrige en
+    # 0.9.12 — voir _mettre_de_cote).
+    _refuser_cibles_illisibles(chemin, cibles_existantes, noms_cibles)
+    cibles = _feuille_cibles(cibles_existantes, noms_cibles)
+    _mettre_de_cote(chemin)
+    _ecrire_classeur(chemin, correspondance, cibles, valeurs)
     return chemin
 
 
