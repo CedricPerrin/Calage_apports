@@ -740,9 +740,10 @@ if __name__ == "__main__":
     import sys
     from pathlib import Path
 
-    _banc = Path(__file__).resolve().parent / "bancs" / "banc_livrables.py"
+    _banc = (Path(__file__).resolve().parent / "bancs"
+             / "banc_livrables.py")
     if not _banc.is_file():
-        print("Le banc de livrables n'est pas livre avec cette installation.",
+        print("Le banc d'auto-test n'est pas livre avec cette installation.",
               file=sys.stderr)
         raise SystemExit(2)
     runpy.run_path(str(_banc), run_name="__main__")
