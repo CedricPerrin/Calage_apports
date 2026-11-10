@@ -96,19 +96,16 @@ objet. Un **état** partagé ne se résout pas ainsi : il reste au dialogue.
 de la règle, mais **réaffecté par le banc** (`dlg._cle_journal_lu = None`,
 lignes 3440 et 3465) ; il resterait donc au dialogue.
 
-## 4. Ordre de sortie — état au soir du 10 novembre 2026 (phase 2)
+## 4. Ordre de sortie — état après la phase 3 (10 novembre 2026)
 
-| Rang | Page | Lignes déplacées | Partagés à trancher | État / risque |
+| Rang | Page | Lignes | Références au dialogue | État / risque |
 |---:|---|---:|---|---|
-| 0 | **Socle** | 145 → `socle.py` | — | **fait** (phase 2) : déplacement pur, ré-exports |
-| 1 | **Suivi** | ~700 → `page_suivi.py` | — (tranché, § 5) | **fait** (phase 2) |
-| 2 | Aide | ~460 | 3 états d'installation (`_tache_installation`, `_python_en_attente`, `_choix_python_ouvert`) ; nomme `PluginCalage` (ses clés de réglage, 3 fois), `confirmer` (2) et les trois doublures du banc (`QMessageBox` 10, `QFileDialog` 3, `QInputDialog` 1) | élevé tant que les doublures ne valent que pour le module `plugin` (§ 6) |
-| 3 | Lancer | ~650 | 8 états dont `bande`, `label_fil`, `_temoins`, `appariement` ; `QMessageBox` ; `_lancer_calage` (168 l.) reste au commun : il touche trois étapes | élevé |
-| 4 | Modèle | ~930 | 11 états (couches, `info_projet`, `version_hecras`, défauts) ; 14 méthodes appelées par le banc ; `QFileDialog`, `QMessageBox` | élevé |
-| 5 | Paramètres | ~970 | propriété `classeur` (32 réf. du banc), `_composition_en_cours` réaffecté par le banc ; la composition (211 l.) reste au commun ; le banc cherche « ±200 m » dans le texte de `plugin.py` | le plus élevé |
-
-Après les cinq pages, le dialogue garderait ~1 500 lignes : navigation, fil,
-bandeau, défauts et témoins, composition, lancement.
+| 0 | **Socle** | 145 + 140 → `socle.py` | — | **fait** (phases 2 et 3) |
+| 1 | **Suivi** | ~700 → `page_suivi.py` | 9 noms (§ 5) | **fait** (phase 2) |
+| 2 | **Aide** | ~430 → `page_aide.py` (`AIDE_HTML` reste dans `plugin.py`) | 4 noms, plus 4 valeurs reçues (§ 7) | **fait** (phase 3) |
+| 3 | Lancer | ~650 | ~20 noms : 8 états (`bande`, `label_fil`, `_temoins`, `appariement`, `_cibles_manquantes`…) et 12 méthodes du dialogue (`_maj_fil`, `_maj_resume`, `_ecarts_avec_le_paquet`, `_titre_etape`, `_dossier_suivi`, `classeur`…) ; 4 relais pour le banc | élevé |
+| 4 | Modèle | ~930 | ~21 noms : 11 états (couches, `info_projet`, `version_hecras`, `crs_modele`, défauts) et 10 méthodes ; 14 relais pour le banc ; méthodes décorées `@avec_sablier` (le sablier vit sur la fenêtre) | élevé |
+| 5 | Paramètres | ~970 | ~19 noms, dont la propriété `classeur` (32 réf. du banc) et 13 méthodes ; `_composition_en_cours` réaffecté par le banc ; « ±200 m » épinglé dans le texte de `plugin.py` | le plus élevé |
 
 ## 5. La page Suivi — ce qui a été fait (phase 2)
 
@@ -164,8 +161,10 @@ textes, infobulles, géométrie, police, visibilité) et capture pixel à
 ## 6. Ce que cette extraction apprend pour la suite
 
 - **Le banc épingle des textes dans `plugin.py`** : `NOM_PLUGIN` écrit une
-  seule fois (retient `journaliser`), « ±200 m » (étape Paramètres), la garde
-  Qt. Chaque page doit d'abord recenser ce que le banc relit dans le texte.
+  seule fois (retient `journaliser`), « ±200 m » (étape Paramètres), et
+  `src/test_lexique.py` (chaque terme du lexique, retient `AIDE_HTML`).
+  Chaque page doit d'abord recenser ce que TOUS les bancs relisent dans le
+  texte, pytest compris.
 - **Les doublures du banc** (`QMessageBox`, `QFileDialog`, `QInputDialog`)
   ne valent que pour les noms du module `plugin`. Toute page qui ouvre une
   boîte — Aide, Lancer, Modèle, Paramètres, et `confirmer` s'il quittait
@@ -176,6 +175,67 @@ textes, infobulles, géométrie, police, visibilité) et capture pixel à
   méthodes pour le Suivi ; il en a fallu 4 et 5 (`_suivi_du_classeur` reste
   derrière `_dossier_suivi` ; `_origine_dossier_suivi` et
   `_detail_desaccord_suivi` remplacent `_dossier_suivi_de_l_onglet_3`).
+
+- **Les doublures du banc couvrent désormais tout module du paquet** qui
+  nomme `QMessageBox`, `QFileDialog` ou `QInputDialog` (phase 3) ; la garde
+  « énumérations Qt qualifiées » lit tous les `.py` et connaît `TextFlag`.
+
+## 7. La page Aide — ce qui a été fait (phase 3)
+
+| | Après la phase 2 | Après la phase 3 |
+|---|---:|---:|
+| `plugin.py` | 6 432 l. | 5 862 l. |
+| `DialogueParametrage` | 4 947 l. | 4 519 l. |
+| `socle.py` / `page_aide.py` | 169 / — l. | 309 / 516 l. |
+
+Banc QGIS vert après chaque commit (470 → 472 `[OK]` : le contrôle des
+doublures, puis « aucun chemin de données dans page_aide.py »).
+
+Ce que la page emploie du dialogue — quatre noms :
+
+| Nom | Pourquoi il reste au dialogue |
+|---|---|
+| la fenêtre elle-même | parent des boîtes (le centrage et la modalité suivent la fenêtre) ; porteuse de `_sablier_pose`, que `sans_sablier` et `rendre_la_main` suspendent et rétablissent |
+| `isVisible()` | c'est la visibilité de la FENÊTRE qui décide d'ouvrir une boîte, pas celle de l'onglet |
+| `_signaler` | barre de messages du dialogue |
+| `_installation_occupe` | le lancement et `@avec_sablier` la consultent aussi |
+
+Ce qu'elle reçoit à la construction, faute de pouvoir importer `plugin.py`
+qui l'importe : `AIDE_HTML`, `journaliser` (il nomme `NOM_PLUGIN`, épinglé
+dans le texte de `plugin.py` par le banc) et les deux clés de réglage de
+`PluginCalage`.
+
+**`AIDE_HTML` reste dans `plugin.py`**, et c'est une épingle de plus :
+`src/test_lexique.py` (joué par le pytest du banc) cherche chaque terme du
+lexique dans le TEXTE de `plugin.py`, et « Δt », « fenêtre de l'événement »,
+« HDF5 » n'y figurent que par lui. Le sortir faisait échouer trois cas. Lire
+tous les `.py` du paquet dans ce test, comme les gardes élargies, le
+libérerait ; c'est hors du périmètre de ce chantier.
+
+**Le nœud attendu — l'installation — s'est dénoué sans reste** : les tâches de
+`installation.py`, leurs signaux et l'ordre de connexion sont inchangés ;
+les trois états d'installation sont à la page seule ; `PluginCalage.unload`
+détache par un relais du dialogue. Identité vérifiée hors banc, depuis le
+même dossier : arbre des 19 widgets de l'onglet, capture pixel, et parcours
+d'installation simulé (phases, détachement, échec fenêtre cachée, réussite,
+journal QGIS, sablier suspendu pendant la question), identiques.
+
+## 8. Avis : le découpage a atteint son bon niveau
+
+Le Suivi et l'Aide étaient des pages PÉRIPHÉRIQUES : chacune a sa source de
+données (l'avancement du calage ; le poste) et ne partage presque rien avec
+les étapes. Les trois restantes sont le cœur du flux : elles écrivent et
+lisent le même état (couches, projet, classeur, témoins, défauts), que la
+composition et le lancement relisent ensemble. Les sortir en `QWidget`
+donnerait des pages d'une vingtaine de références chacune vers le dialogue,
+plus des relais et des alias — de la plomberie, pas de l'indépendance.
+
+Ce qui vaudrait encore son coût, si l'on continue : non plus des pages, mais
+**l'état partagé du modèle** (couches, `info_projet`, `version_hecras`,
+`crs_modele`, défauts) dans un objet à lui, puis, en fonctions pures et
+testables hors QGIS, les deux gros traitements du commun —
+`_composer_et_controler_interne` (211 l.) et `_lancer_calage` (168 l.). C'est
+un autre chantier, à instruire par sa propre matrice.
 
 ## Annexe — matrice complète
 
