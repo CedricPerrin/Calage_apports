@@ -41,10 +41,10 @@ jobs:
       # src/reference_controle_donnees.json (chantier B, 10/11/2026).
       - run: python -m pytest src/test_controle_donnees.py -q
       # Filets de caler() (57 scénarios ModeleFictif) et de diagnostiquer() (94 scénarios et un
-      # lot de 400 entrées), figés au bit près les 10 et 11/11/2026. Hors du socle où la
+      # lot de 400 entrées), figés au bit près le 10/11/2026. Hors du socle où la
       # référence a été figée, ils comparent en mode de repli, et le disent.
       - run: python -m pytest src/test_caracterisation_caler.py src/test_caracterisation_diagnostic.py -q
-      # Filets de la vague 3 (11/11/2026) : les deux fonctions de classeur du noyau (57 cas)
+      # Filets de la vague 3 (10/11/2026) : les deux fonctions de classeur du noyau (64 cas)
       # et commande_caler du pont (98 cas, pilote et caler() doublés).
       - run: python -m pytest src/test_noyau_classeur.py src/test_pont_caler.py -q
       # Filet de la chaîne des livrables (vague 5, 10/11/2026) : 39 cas, contenu des figures,
@@ -69,7 +69,7 @@ jobs:
       - run: python -m pip install -r requirements-dev.txt "ras-commander>=0.99" h5py
       - run: python src/geometrie.py
       - run: python src/pont_hecras.py autotest
-      # Filets de la vague 4 (11/11/2026) qui demandent h5py ou ras-commander : les trois
+      # Filets de la vague 4 (10/11/2026) qui demandent h5py ou ras-commander : les trois
       # lecteurs du pont (HDF fabriqués) et le recadencement des apports du pilote.
       - run: python -m pip install pytest
       - run: python -m pytest src/test_pont_lecture.py src/test_pilote_recadence.py -q

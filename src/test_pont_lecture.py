@@ -6,7 +6,7 @@ CE TEST NE DIT PAS CE QUE CES FONCTIONS DEVRAIENT FAIRE. Il enregistre ce
 qu'elles FONT — la serie lue AU BIT PRES (chaque flottant en hexadecimal), ses
 attributs et leurs types, le JSON rendu, les anomalies, l'exception levee le
 cas echeant — dans une reference versionnee, et refuse toute difference.
-C'est le filet tendu AVANT de les decouper (chantier du 11/11/2026).
+C'est le filet tendu AVANT de les decouper (chantier du 10/11/2026).
 
     python -m pytest src/test_pont_lecture.py -q
 

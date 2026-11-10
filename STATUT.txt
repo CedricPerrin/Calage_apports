@@ -22,6 +22,40 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+REMANIEMENT DU CODE, SANS CHANGEMENT DE COMPORTEMENT — 10 NOVEMBRE 2026,
+BRANCHE claude/optimisation-code, PR 8 EN BROUILLON (NON FUSIONNEE, SANS VERSION).
+  Rien n'est sur main : ni fusion, ni montee de version, ni archive. La
+  branche part de main 58fefa1 (0.9.32) ; elle attend une relecture.
+  Fait par des sous-agents sous arbitrage, un chantier par fusion. Regle
+  tenue partout : un filet fige le comportement sur le code INCHANGE, puis
+  le decoupage est un deplacement pur ; aucune formule, aucun ordre
+  d'operations flottantes, aucun message n'a change.
+  Decoupes en fonctions nommees (complexite cyclomatique avant -> apres) :
+  caler 80 -> 19, diagnostiquer 35 -> 7, commande_caler 49 -> 18, les trois
+  controles de controle_donnees 45/39/34 -> 7/15/6, importer_hydrogrammes
+  40 -> 10, preparer_classeur 31 -> 7, lire_serie_hdf 28 -> 5,
+  _recadencer_apports 24 -> 3, _peindre_suivi 53 -> 6, paintEvent de la
+  courbe 35 -> 15, produire_livrables_finaux 30 -> 6, _onglet_iterations
+  29 -> 3, figure_profil_en_long 22 -> 6.
+  Plugin : plugin.py 7 823 -> 5 880 lignes ; widgets.py (widgets peints),
+  socle.py (palette, aides de fenetre), page_suivi.py et page_aide.py
+  sortent du dialogue, qui garde des relais. Le decoupage en pages S'ARRETE
+  LA (docs/decoupage_dialogue.md, § 7) : Lancer, Modele et Parametres
+  demandent d'abord un objet d'etat partage — decision de conception ouverte.
+  Bancs embarques : sortis des modules vers src/bancs/banc_<module>.py ;
+  « python src/<module>.py » les joue toujours (relais). L'archive du
+  plugin ne les embarque plus : 561 -> 478 ko.
+  Filets ajoutes : huit fichiers pytest hors QGIS et un sous QGIS
+  (src/test_*.py, references src/reference_*.json, 4,5 Mo en tout, hors
+  archive). pytest hors QGIS : 71 -> 801 passed. Tous joues par la CI,
+  QGIS 3.44 et 4.2 (Qt 6) compris.
+  LIMITES. Les filets « au bit pres » ne le sont que sur le socle ou ils ont
+  ete figes (Linux, numpy 2.5.3) ; ailleurs ils comparent a 1e-9 pres et le
+  disent : A REFIGER SUR LE POSTE WINDOWS. Aucun calcul HEC-RAS reel lance ;
+  les HDF des filets sont synthetiques ; rien regarde dans le QGIS du poste.
+  Les defauts releves en chemin ne sont PAS corriges (ce serait changer le
+  comportement) : section 6. Detail : CHECKPOINT.md.
+
 HEC-RAS 7.0.2 — 10 NOVEMBRE 2026, VERSION 0.9.32 (NON PUBLIEE).
   CAUSE DE L'INCIDENT ETABLIE PAR LA SONDE (Muncie) : en 7.0.2, « Ras.exe -c
   projet plan » calcule TOUS les plans du projet, dans l'ordre du .prj, quelle
@@ -2751,6 +2785,13 @@ La note, le template et ce fichier restent a la racine.
     essai_garde_fou_archive.py  Essai ADVERSE : injecte trois fautes et
                          verifie que l'archive est refusee.
     test_plugin_qgis.py  Suite du plugin, sous le Python de QGIS.
+    bancs/               Bancs embarques des modules, sortis le 10/11/2026 :
+                         banc_<module>.py, joue par « python src/<module>.py »
+                         (relais). Absents de l'archive du plugin.
+    test_*.py, reference_*.json
+                         Filets pytest et leurs references figees. Une
+                         reference ne se refige que si le comportement doit
+                         changer, jamais pour faire passer un test.
     verification_environnement.py
     figures_note/        Scripts de la note : figures matplotlib, contenu et
                          reconstruction du .docx.
@@ -2761,6 +2802,9 @@ La note, le template et ce fichier restent a la racine.
                          onglets. plugin.py est une enveloppe mince ; noyau.py
                          porte la logique, testable hors QGIS. Aucune regle de
                          controle n'y est reecrite.
+                         Depuis le 10/11/2026 (branche non fusionnee) :
+                         socle.py (palette ISL, aides de fenetre), widgets.py
+                         (widgets peints), page_suivi.py, page_aide.py.
   calage_apports_0.8.6.zip  Archive d'installation, VERSIONNEE : c'est ce
                          qu'on installe dans QGIS, telechargeable depuis
                          le depot sans rien reconstruire.
@@ -3747,6 +3791,47 @@ dates fictives au 1er janvier.
 
 6. POINTS OUVERTS
 ================================================================================
+
+  - DEFAUTS RELEVES PENDANT LE REMANIEMENT DU 10/11/2026, NON CORRIGES.
+    Les filets FIGENT le comportement actuel, defauts compris : corriger l'un
+    d'eux demande de refiger sa reference. Par ordre d'enjeu.
+      1. noyau.importer_hydrogrammes : les lignes au-dela de la source ne sont
+         jamais videes (ws.cell(row, column, value=None) n'ecrit rien sous
+         openpyxl 3.1.5). Un hydrogramme importe PLUS COURT que le precedent
+         garde la queue de l'ancien. Correction d'une ligne (.value = None).
+      2. pilote._recadencer_apports : volume exact quand le pas de travail
+         divise le pas d'origine (30 -> 6 min) ; 1 a 2 % d'ecart sinon
+         (15 -> 6, 10 -> 6, 5 -> 6 min). Sans nom de zone 2D, c'est le bloc
+         de la premiere zone qui est recadence.
+      3. pont.lire_serie_hdf : un seul nom cp1252 dans « Name » rend TOUTES
+         les sections illisibles (decodage UTF-8) ; unite de temps inconnue
+         lue comme des heures. A verifier sur un vrai .pNN.hdf.
+      4. noyau.preparer_classeur : si l'ecriture echoue apres la mise de
+         cote, le classeur canonique n'existe plus ; une pente saisie a 0
+         cede a la pente deduite.
+      5. calage.caler : apports et sections de longueurs differentes tronques
+         en silence. criteres.diagnostiquer : alerte en double quand le
+         decalage sort de la fenetre ; NaN dans une serie -> message « serie
+         constante » ; axe des temps decroissant non refuse.
+      6. controle_donnees : l'avertissement « valeurs manquantes
+         intercalees » ne voit que les trous de fin ; Ordre non numerique,
+         JSON de parametres corrompu, Nom_Section absent levent une exception
+         au lieu d'une anomalie.
+      7. Suivi : l'avertissement de _detail_desaccord_suivi ne s'affiche
+         jamais ; avancement.json illisible -> la page repasse a « Aucun
+         calage suivi », contre la docstring de noyau.lire_avancement.
+      8. pont.commande_caler : objets_retires toujours [] ; Temps_h ou
+         classeur absent levent au lieu de rendre ok:false.
+      9. Note de synthese : « ras-commander v0.99.1 » en dur.
+    TROUS DES ESSAIS, constates : aucun test ne verifie sous quelle cle
+    QSettings l'interpreteur est memorise ; test_plugin_qgis.py ne tourne pas
+    sous QGIS 3.34, minimum declare (QgsField(..., QMetaType.Type.QString)
+    demande 3.38) ; les tests d'installation enchaines dans UN processus sous
+    QGIS plantent au hasard (la CI les joue en deux pas, elle n'y est pas
+    exposee).
+    DECISIONS EN ATTENTE : corriger ces defauts ; l'objet d'etat partage du
+    dialogue ; QGIS 3.34 dans la matrice de la CI ; convertir les bancs en
+    pytest ; sort de masque_fenetre ; alleger les references (4,5 Mo).
 
 
   - LE CALAGE REPRIS DE SUHIHANDIA S'ARRETE AU CALCUL DE REFERENCE (14/09).

@@ -3,7 +3,7 @@ Caracterisation de la chaine des livrables d'un calage : ce que l'ingenieur
 livre et relit a la fin de plusieurs heures de calcul.
 
 TROIS FONCTIONS, ET TOUT CE QU'ELLES PRODUISENT, figes AVANT de les decouper
-(11/11/2026) :
+(10/11/2026) :
   - calage.produire_livrables_finaux : fichiers ecrits (noms, ordre, contenu),
     valeur rendue, messages (avertissements de queue, figures non produites),
     exception ;

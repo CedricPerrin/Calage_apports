@@ -1,5 +1,82 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 10 novembre 2026 (soir) : remaniement du code sans changement de comportement (branche `claude/optimisation-code`, PR 8 en brouillon, sans version)
+
+**Rien n'est sur `main`.** Pas de fusion, pas de montée de version, pas d'archive, pas de
+publication. La branche part de `main` `58fefa1` (0.9.32) ; la PR 8 attend une relecture.
+
+**Méthode.** Session autonome : des sous-agents (Haiku pour l'inventaire, Sonnet pour le
+mécanique, Opus pour les remaniements, Fable pour `caler()` et `diagnostiquer()`), chacun
+dans son worktree et sur ses fichiers ; un arbitre qui vérifie chaque rendu avant de le
+fusionner (`--no-ff`, un chantier par fusion). Deux temps partout : un **filet** qui fige le
+comportement, commité sur le code inchangé, puis un **découpage par déplacement pur**. Preuves
+de l'arbitre à chaque chantier : le filet passe sur le code d'origine et sur le code découpé,
+fautes injectées de son cru, comparaison différentielle ancien/nouveau pour les cœurs
+numériques (`caler()` : 1 606 exécutions sur 400 scénarios tirés au hasard, 0 écart ;
+`diagnostiquer()` : 4 000 entrées, 0 écart), CI lue après chaque poussée.
+
+**Mesures, `main` → branche.**
+
+| | `main` | Branche |
+|---|---|---|
+| Fonctions de rang D / E / F (hors bancs et tests) | 15 / 6 / 5 | 6 / 0 / 1 |
+| Plus longue fonction | `caler` 689 lignes | `DialogueParametrage.__init__` 262 |
+| `plugin.py` | 7 823 lignes | 5 880 |
+| `DialogueParametrage` | 5 619 lignes | 4 537 |
+| Constats ruff (F, E9) | 21 | 2 |
+| pytest hors QGIS | 71 passed | 801 passed |
+| Archive du plugin | 561 ko | 478 ko |
+
+**Chantiers intégrés.**
+- `controle_donnees.py` : une fonction par règle (45 / 39 / 34 → 7 / 15 / 6).
+- `calage.caler()` : 689 → 169 lignes, 80 → 19 ; un état par apport (`_EtatApport`) et huit
+  fonctions d'étape. `criteres.diagnostiquer()` : 35 → 7.
+- `noyau.py` : `importer_hydrogrammes` 40 → 10, `preparer_classeur` 31 → 7.
+- `pont_hecras.py` : `commande_caler` 49 → 18, `lire_serie_hdf` 28 → 5, `commande_modele`
+  23 → 16. `pilote_hecras.py` : `_recadencer_apports` 24 → 3, `_messages_hecras` 21 → 3.
+- Livrables : `produire_livrables_finaux` 30 → 6, `_onglet_iterations` 29 → 3,
+  `figure_profil_en_long` 22 → 6.
+- Plugin : `widgets.py`, `socle.py`, `page_suivi.py` (`PageSuivi`), `page_aide.py`
+  (`PageAide`) sortent de `plugin.py` ; `_peindre_suivi` 53 → 6, `paintEvent` de la courbe
+  35 → 15. Le dialogue garde des relais vers les pages : le banc et les tests d'installation
+  y appellent, lisent ou remplacent ces noms.
+- Bancs embarqués de dix modules sortis dans `src/bancs/banc_<module>.py` ;
+  `python src/<module>.py` les joue toujours. `pont_hecras.py autotest` et
+  `elaguer_projet.autotest()` restent en place.
+- CI : bancs de la chaîne et tous les filets joués (jobs `noyau`, `chaine-hdf`, `qgis` 3.44
+  et 4.2). Verte sur le dernier commit de code.
+
+**Filets ajoutés** (`src/test_*.py`, références `src/reference_*.json`, 4,5 Mo, hors archive) :
+`test_controle_donnees` (143 cas), `test_caracterisation_caler` (57 scénarios),
+`test_caracterisation_diagnostic` (94 scénarios et un lot de 400), `test_noyau_classeur`
+(64), `test_pont_caler` (98), `test_pilote_recadence` (100), `test_pont_lecture` (116),
+`test_livrables_chaine` (39), `test_peinture_suivi` (90, sous QGIS).
+
+**Écarté, avec raison.** `elaguer_projet.main` (42, outil de rattrapage) ;
+`installer_interpreteur` (24, installation déjà couverte) ; `couche_vers_gdf`,
+`controler_shp`, `reconstruire_livrables.main` (gain faible). Le découpage du dialogue en
+pages s'arrête après l'Aide (`docs/decoupage_dialogue.md`, § 7) : les étapes Lancer, Modèle
+et Paramètres demandent d'abord un objet d'état partagé ; `_composer_et_controler_interne`
+(24) et `_confirmer_reprise` (21) en dépendent. **Décision de conception ouverte.**
+
+**Non vérifié.** Aucun calcul HEC-RAS réel ; HDF des filets synthétiques (ils reproduisent ce
+que le code lit, pas ce que HEC-RAS écrit) ; rien regardé dans le QGIS du poste ; rien joué
+sous Windows. Les filets « au bit près » ne le sont que sur le socle où ils ont été figés
+(Linux, numpy 2.5.3) : ailleurs, CI comprise, ils comparent à 1e-9 près et le disent. Les
+pixels de la peinture du Suivi ne sont comparés que sur ce même poste. **À refiger sur le
+poste Windows.**
+
+**Défauts relevés en chemin, NON corrigés** (les corriger change le comportement, et
+demande de refiger la référence concernée) : liste complète dans `STATUT.txt`, section 6.
+Le premier : `importer_hydrogrammes` ne vide pas les lignes au-delà de la source — un
+hydrogramme importé plus court que le précédent garde la queue de l'ancien (une ligne à
+corriger : `.value = None`).
+
+**Pour reprendre.** Relire la PR 8 ; décider des corrections de la section 6 de
+`STATUT.txt` ; refiger les références sur le poste Windows
+(l'en-tête de chaque `test_*.py` dit par quelle option) ; trancher l'objet d'état partagé du
+dialogue.
+
 ## 10 novembre 2026 : HEC-RAS 7.0.2 calcule tous les plans, la chaîne passe par le contrôleur (0.9.32)
 
 **Cause de l'incident du matin, établie par la sonde** (`tools/sonde_ligne_commande.py`,

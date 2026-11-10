@@ -789,7 +789,7 @@ def _(d):
 
 
 # ===========================================================================
-# Cas ajoutes le 11/11/2026 : chacun ferme une faute injectee que les 57
+# Cas ajoutes le 10/11/2026 : chacun ferme une faute injectee que les 57
 # premiers laissaient passer (methode : une faute a la fois sur chaque
 # condition, borne, strip, indice ou valeur par defaut des deux fonctions et
 # de leurs etapes). La faute fermee est nommee en tete de chaque cas.
