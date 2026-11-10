@@ -788,6 +788,90 @@ def _(d):
     return preparer(d)
 
 
+# ===========================================================================
+# Cas ajoutes le 11/11/2026 : chacun ferme une faute injectee que les 57
+# premiers laissaient passer (methode : une faute a la fois sur chaque
+# condition, borne, strip, indice ou valeur par defaut des deux fonctions et
+# de leurs etapes). La faute fermee est nommee en tete de chaque cas.
+# ===========================================================================
+
+@cas("importer/pente_nom_avec_espaces_sans_homonyme")
+def _(d):
+    # Ferme : « .strip() » retire sur le nom d'apport LU DANS LA SOURCE, et
+    # celui retire sur le nom d'apport DE CE CALCUL. Aucun homonyme propre
+    # plus bas ne masque l'effet (ce que faisait pentes_noms_et_valeurs).
+    src = excel(Path(d) / "s.xlsx", {
+        "Correspondance": [["Ordre", COL_A, COL_S, "Nom_Cible", "Pente_m_par_m"],
+                           [1, " A5 ", "S5", "Cible_S5", 0.05],
+                           [2, "A3", "S3", "Cible_S3", 0.03]],
+        "Cibles": cibles({"Temps_h": [0.0, 1.0], "Cible_S1": [1.0, 2.0]})})
+    dst = excel(Path(d) / "c.xlsx", {
+        "Correspondance": [["Ordre", COL_A, COL_S, "Nom_Cible", "Pente_m_par_m"],
+                           [1, "A5", "S5", "Cible_S5", None],
+                           [2, " A3 ", "S3", "Cible_S3", None]],
+        "Cibles": cibles({"Temps_h": [], "Cible_S1": []})})
+    return importer(d, src, dst)
+
+
+@cas("importer/entete_blanc_arrete_les_colonnes")
+def _(d):
+    # Ferme : un en-tete fait de BLANCS n'arretait plus la lecture des
+    # colonnes, et la cible situee au-dela (dans l'apercu) etait importee.
+    src = excel(Path(d) / "s.xlsx", {
+        "Correspondance": correspondance(PAIRES),
+        "Cibles": cibles({"Temps_h": [0.0, 1.0], "Cible_S1": [1.0, 2.0],
+                          "Cible_S2": [3.0, 4.0]})})
+    dst = excel(Path(d) / "c.xlsx", {
+        "Correspondance": correspondance(PAIRES),
+        "Cibles": [["Temps_h", "Cible_S1", "   ", "Cible_S2"]]})
+    return importer(d, src, dst)
+
+
+@cas("importer/colonne_de_travail_non_cible")
+def _(d):
+    # Ferme : « attendues » sans le filtre « Cible_ » — une colonne de
+    # travail de ce calcul serait comptee comme une cible restee vide.
+    src, dst = deux_excels(
+        d, [("A1", "S1")], {"Temps_h": [0.0, 1.0], "Cible_S1": [1.0, 2.0]},
+        dst_cibles={"Temps_h": [], "Cible_S1": [], "Notes": []})
+    return importer(d, src, dst)
+
+
+@cas("preparer/pente_vide_cede_a_la_deduite")
+def _(d):
+    # Ferme : « pd.notna » retire — une case de pente VIDE du classeur
+    # precedent (NaN) passait pour une saisie et masquait la pente deduite.
+    composer_avant(d)
+    return preparer(d, pentes={"A2": 0.5})
+
+
+@cas("preparer/cle_de_pente_deduite_numerique")
+def _(d):
+    # Ferme : les cles de « pentes » plus converties en texte — un apport
+    # au nom numerique perdait sa pente deduite.
+    return preparer(d, paires=[(7, "S7"), ("A8", "S8")],
+                    pentes={7: 0.3, "A8": 0.4})
+
+
+@cas("preparer/refus_saisie_dans_la_derniere_cible_seule")
+def _(d):
+    # Ferme : zone de saisie retrecie d'une colonne — une saisie portee par
+    # la DERNIERE colonne de cible seule n'empechait plus l'ecrasement.
+    excel(Path(d) / "sortie" / "donnees_calage.xlsx", {
+        "Cibles": [["x", "Cible_S1", "Cible_S2"], [None, None, 4.0],
+                   [None, None, 5.0]]})
+    return preparer(d, paires=PAIRES[:2])
+
+
+@cas("preparer/refus_une_seule_valeur")
+def _(d):
+    # Ferme : seuil du garde-fou porte de « > 0 » a « > 1 » — une seule
+    # valeur saisie est deja une saisie a ne pas perdre.
+    excel(Path(d) / "sortie" / "donnees_calage.xlsx", {
+        "Cibles": [["x", "Cible_S1", "Cible_S2"], [None, 4.0, None]]})
+    return preparer(d, paires=PAIRES[:2])
+
+
 # ---------------------------------------------------------------------------
 # Execution
 # ---------------------------------------------------------------------------
