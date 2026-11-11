@@ -1,6 +1,6 @@
 {
  "_a_propos": "Caracterisation de la chaine des livrables (produire_livrables_finaux, figure_profil_en_long, _onglet_iterations). NE PAS MODIFIER A LA MAIN : « python src/test_livrables_chaine.py --figer » la reecrit, quand le changement de comportement est VOULU.",
- "_produit_par": {"python": "3.13.18", "numpy": "2.5.3", "matplotlib": "3.11.2", "openpyxl": "3.1.5", "pandas": "3.0.5", "systeme": "Linux", "machine": "x86_64"},
+ "_produit_par": {"python": "3.13.18", "numpy": "2.5.3", "matplotlib": "3.11.2", "openpyxl": "3.1.5", "pandas": "3.0.5", "systeme": "Linux", "machine": "x86_64", "simd": "X86_V3+X86_V4+AVX512_ICL+AVX512_SPR"},
  "cas": {
   "calage/conforme_quatre_apports_suivi_profil_km": {
    "calage": {"conforme": true, "motif": "", "essais": [1, 1, 1, 1], "retard_axe_h": "f:0x0.0p+0"},

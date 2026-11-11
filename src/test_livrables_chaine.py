@@ -1005,25 +1005,83 @@ def _rejouer(famille, nom, dossier):
 # La reference, et le repli hors socle
 # ---------------------------------------------------------------------------
 
+def _simd():
+    """
+    Les jeux d'instructions vectorielles que numpy EMPLOIE sur ce processeur.
+
+    Ils font partie du socle (11/11/2026) : numpy choisit ses noyaux de calcul
+    selon le processeur, et une somme faite avec ou sans AVX-512 differe d'un
+    dernier bit. A versions egales, deux machines ne rendent donc PAS les
+    memes octets ; sans cette ligne, le filet « au bit pres » echouait a tort
+    sur un processeur different de celui qui a fige la reference.
+    """
+    try:
+        from numpy._core._multiarray_umath import (__cpu_dispatch__ as cibles,
+                                                   __cpu_features__ as vus)
+    except ImportError:
+        return "inconnu"
+    return "+".join(c for c in cibles if vus.get(c)) or "base"
+
+
 def _socle():
     return {"python": platform.python_version(), "numpy": np.__version__,
             "matplotlib": matplotlib.__version__,
             "openpyxl": openpyxl.__version__, "pandas": pd.__version__,
-            "systeme": platform.system(), "machine": platform.machine()}
+            "systeme": platform.system(), "machine": platform.machine(),
+            "simd": _simd()}
 
 
 def _meme_socle(produit_par):
     ici = _socle()
     return all(produit_par.get(c) == ici[c]
                for c in ("numpy", "matplotlib", "openpyxl", "pandas",
-                         "systeme", "machine"))
+                         "systeme", "machine", "simd"))
+
+
+def _types_sans_int_ni_float(plages):
+    """Les plages de types d'une colonne, « int » et « float » confondus."""
+    fusion = []
+    for debut, fin, nom in plages:
+        nom = "nombre" if nom in ("int", "float") else nom
+        if fusion and fusion[-1][2] == nom and fusion[-1][1] == debut - 1:
+            fusion[-1][1] = fin
+        else:
+            fusion.append([debut, fin, nom])
+    return fusion
 
 
 def _transportable(fige):
-    """Sans les empreintes ni ce qui depend de la version d'une bibliotheque."""
+    """
+    Sans les empreintes, ni ce qui depend de la version d'une bibliotheque,
+    NI CE QU'UN DERNIER BIT FAIT BASCULER (11/11/2026).
+
+    numpy choisit ses noyaux de calcul selon le PROCESSEUR : avec ou sans
+    AVX-512, une somme differe d'un dernier bit. La tolerance de 1e-9 absorbe
+    l'ecart sur les nombres, pas ses deux effets DISCRETS, constates sur les
+    machines de la CI (trois cas rouges sur un processeur sans AVX-512, verts
+    sur un autre, a code identique) :
+      - le TYPE d'une cellule : openpyxl relit « 3 » en entier et
+        « 2.9999999999999996 » en flottant. Hors socle, int et float sont
+        donc un seul type, « nombre » ;
+      - le NOMBRE DE SOMMETS d'une zone coloree (fill_between sous un
+        seuil) : un point de plus ou de moins quand la comparaison bascule.
+        Hors socle, les sommets des polygones ne sont pas compares — leur
+        legende, leur couleur et leur ordre de trace le restent.
+    Se rejoue ici en retirant AVX-512 a numpy :
+        NPY_DISABLE_CPU_FEATURES="X86_V4 AVX512_ICL AVX512_SPR"
+    """
     if isinstance(fige, dict):
-        return {c: _transportable(v) for c, v in fige.items()
-                if not c.startswith("~") and c != "sha"}
+        polygones = fige.get("genre") == "polygones"
+        sortie = {}
+        for c, v in fige.items():
+            if c.startswith("~") or c == "sha":
+                continue
+            if polygones and c in ("x", "y"):
+                continue
+            if c == "types" and isinstance(v, list):
+                v = _types_sans_int_ni_float(v)
+            sortie[c] = _transportable(v)
+        return sortie
     if isinstance(fige, list):
         return [_transportable(v) for v in fige]
     return fige
