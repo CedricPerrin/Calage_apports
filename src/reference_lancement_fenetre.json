@@ -1,0 +1,1389 @@
+{
+ "calage_deja_en_cours_on_attend": {
+  "apres": {
+   "etiquette": "",
+   "instant_pose": false,
+   "journal_lance": null,
+   "pid_lance": null
+  },
+  "trace": [
+   {
+    "appel": "_installation_occupe",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_ecarts_avec_le_paquet",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_confirmer_malgre_calage",
+    "arguments": [
+     "Lancer maintenant ferait travailler deux calages sur les mêmes plans du même modèle, et le second écraserait les étapes du premier."
+    ],
+    "nommes": {
+     "geste": "Lancer"
+    }
+   }
+  ]
+ },
+ "deux_cibles_manquantes": {
+  "apres": {
+   "etiquette": "",
+   "instant_pose": false,
+   "journal_lance": null,
+   "pid_lance": null
+  },
+  "trace": [
+   {
+    "appel": "_installation_occupe",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_ecarts_avec_le_paquet",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_confirmer_malgre_calage",
+    "arguments": [
+     "Lancer maintenant ferait travailler deux calages sur les mêmes plans du même modèle, et le second écraserait les étapes du premier."
+    ],
+    "nommes": {
+     "geste": "Lancer"
+    }
+   },
+   {
+    "appel": "_accepter_plan_final",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_confirmer_reprise",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "etat_cibles",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Premier_apport",
+     ""
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Prefixe_scenario",
+     "R-Q100"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Tolerance_volume_pct",
+     5.0
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Tolerance_pic_pct",
+     2.0
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Bilan_masse_max_pct",
+     5.0
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Nb_max_iterations_par_apport",
+     6
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Coeurs_par_calcul",
+     0
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Elaguer_plans_etape",
+     "non"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Remplacer_plan_source",
+     "non"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "rendre_la_main",
+    "arguments": [
+     "<DialogueParametrage>"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "QMessageBox.warning",
+    "arguments": [
+     "<DialogueParametrage>",
+     "Hydrogrammes cibles incomplets",
+     "2 sections sur 3 sans hydrogramme cible exploitable : S2, S3.\n\nLe calage n'est pas lancé : la chaîne refuse un classeur incomplet, elle n'ignore pas les apports concernés. Compléter la feuille « Cibles » — une colonne « Temps_h » et au moins deux instants en face des débits — puis relancer."
+    ],
+    "nommes": {}
+   }
+  ]
+ },
+ "ecriture_des_reglages_en_echec": {
+  "apres": {
+   "etiquette": "",
+   "instant_pose": false,
+   "journal_lance": null,
+   "pid_lance": null
+  },
+  "trace": [
+   {
+    "appel": "_installation_occupe",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_ecarts_avec_le_paquet",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_confirmer_malgre_calage",
+    "arguments": [
+     "Lancer maintenant ferait travailler deux calages sur les mêmes plans du même modèle, et le second écraserait les étapes du premier."
+    ],
+    "nommes": {
+     "geste": "Lancer"
+    }
+   },
+   {
+    "appel": "_accepter_plan_final",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_confirmer_reprise",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "etat_cibles",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Premier_apport",
+     ""
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Prefixe_scenario",
+     "R-Q100"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Tolerance_volume_pct",
+     5.0
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "journaliser",
+    "arguments": [
+     "Écriture des paramètres de lancement",
+     "RuntimeError: echec simule de ecrire_parametre"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "QMessageBox.critical",
+    "arguments": [
+     "<DialogueParametrage>",
+     "Réglages de lancement",
+     "Les réglages de lancement n'ont pas pu être écrits dans le classeur : echec simule de ecrire_parametre\n\nLe calage n'est pas lancé — il serait parti sur un réglage autre que celui affiché."
+    ],
+    "nommes": {}
+   }
+  ]
+ },
+ "etat_des_cibles_illisible": {
+  "apres": {
+   "etiquette": "",
+   "instant_pose": false,
+   "journal_lance": null,
+   "pid_lance": null
+  },
+  "trace": [
+   {
+    "appel": "_installation_occupe",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_ecarts_avec_le_paquet",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_confirmer_malgre_calage",
+    "arguments": [
+     "Lancer maintenant ferait travailler deux calages sur les mêmes plans du même modèle, et le second écraserait les étapes du premier."
+    ],
+    "nommes": {
+     "geste": "Lancer"
+    }
+   },
+   {
+    "appel": "_accepter_plan_final",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_confirmer_reprise",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "etat_cibles",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "journaliser",
+    "arguments": [
+     "État des cibles avant lancement",
+     "RuntimeError: echec simule de etat_cibles"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "QMessageBox.critical",
+    "arguments": [
+     "<DialogueParametrage>",
+     "Calage",
+     "echec simule de etat_cibles"
+    ],
+    "nommes": {}
+   }
+  ]
+ },
+ "hecras_indetermine": {
+  "apres": {
+   "etiquette": "Calage lancé en arrière-plan (processus 4242).\nSuivre l'avancement à l'étape « 4. Suivi », qui se rafraîchit toute seule quand elle est affichée.\nJournal de lancement : D:/calage/sortie/calage_1.log",
+   "instant_pose": true,
+   "journal_lance": "D:/calage/sortie/calage_1.log",
+   "pid_lance": 4242
+  },
+  "trace": [
+   {
+    "appel": "_installation_occupe",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_ecarts_avec_le_paquet",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_confirmer_malgre_calage",
+    "arguments": [
+     "Lancer maintenant ferait travailler deux calages sur les mêmes plans du même modèle, et le second écraserait les étapes du premier."
+    ],
+    "nommes": {
+     "geste": "Lancer"
+    }
+   },
+   {
+    "appel": "_accepter_plan_final",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_confirmer_reprise",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "etat_cibles",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Premier_apport",
+     ""
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Prefixe_scenario",
+     "R-Q100"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Tolerance_volume_pct",
+     5.0
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Tolerance_pic_pct",
+     2.0
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Bilan_masse_max_pct",
+     5.0
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Nb_max_iterations_par_apport",
+     6
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Coeurs_par_calcul",
+     0
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Elaguer_plans_etape",
+     "non"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Remplacer_plan_source",
+     "non"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "hecras_ouvert",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "lancer_calage",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "_signaler",
+    "arguments": [
+     "Calage lancé",
+     "Le calcul tourne en arrière-plan ; l'étape Suivi montre son avancement.",
+     3,
+     12
+    ],
+    "nommes": {}
+   }
+  ]
+ },
+ "hecras_ouvert": {
+  "apres": {
+   "etiquette": "Lancement refusé — fermer HEC-RAS, puis relancer.",
+   "instant_pose": false,
+   "journal_lance": null,
+   "pid_lance": null
+  },
+  "trace": [
+   {
+    "appel": "_installation_occupe",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_ecarts_avec_le_paquet",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_confirmer_malgre_calage",
+    "arguments": [
+     "Lancer maintenant ferait travailler deux calages sur les mêmes plans du même modèle, et le second écraserait les étapes du premier."
+    ],
+    "nommes": {
+     "geste": "Lancer"
+    }
+   },
+   {
+    "appel": "_accepter_plan_final",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_confirmer_reprise",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "etat_cibles",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Premier_apport",
+     ""
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Prefixe_scenario",
+     "R-Q100"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Tolerance_volume_pct",
+     5.0
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Tolerance_pic_pct",
+     2.0
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Bilan_masse_max_pct",
+     5.0
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Nb_max_iterations_par_apport",
+     6
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Coeurs_par_calcul",
+     0
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Elaguer_plans_etape",
+     "non"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Remplacer_plan_source",
+     "non"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "hecras_ouvert",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "QMessageBox.warning",
+    "arguments": [
+     "<DialogueParametrage>",
+     "HEC-RAS est ouvert",
+     "HEC-RAS est ouvert sur ce poste. Ce n'est pas permis par le plugin. Fermer HEC-RAS et relancer le calage.",
+     1024
+    ],
+    "nommes": {}
+   }
+  ]
+ },
+ "installation_en_cours": {
+  "apres": {
+   "etiquette": "",
+   "instant_pose": false,
+   "journal_lance": null,
+   "pid_lance": null
+  },
+  "trace": [
+   {
+    "appel": "_installation_occupe",
+    "arguments": [],
+    "nommes": {}
+   }
+  ]
+ },
+ "lancement_en_echec": {
+  "apres": {
+   "etiquette": "",
+   "instant_pose": false,
+   "journal_lance": null,
+   "pid_lance": null
+  },
+  "trace": [
+   {
+    "appel": "_installation_occupe",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_ecarts_avec_le_paquet",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_confirmer_malgre_calage",
+    "arguments": [
+     "Lancer maintenant ferait travailler deux calages sur les mêmes plans du même modèle, et le second écraserait les étapes du premier."
+    ],
+    "nommes": {
+     "geste": "Lancer"
+    }
+   },
+   {
+    "appel": "_accepter_plan_final",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_confirmer_reprise",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "etat_cibles",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Premier_apport",
+     ""
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Prefixe_scenario",
+     "R-Q100"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Tolerance_volume_pct",
+     5.0
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Tolerance_pic_pct",
+     2.0
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Bilan_masse_max_pct",
+     5.0
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Nb_max_iterations_par_apport",
+     6
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Coeurs_par_calcul",
+     0
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Elaguer_plans_etape",
+     "non"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Remplacer_plan_source",
+     "non"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "hecras_ouvert",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "lancer_calage",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "journaliser",
+    "arguments": [
+     "Lancement du calage",
+     "RuntimeError: echec simule de lancer_calage"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "QMessageBox.critical",
+    "arguments": [
+     "<DialogueParametrage>",
+     "Lancement du calage",
+     "echec simule de lancer_calage"
+    ],
+    "nommes": {}
+   }
+  ]
+ },
+ "nominal": {
+  "apres": {
+   "etiquette": "Calage lancé en arrière-plan (processus 4242).\nSuivre l'avancement à l'étape « 4. Suivi », qui se rafraîchit toute seule quand elle est affichée.\nJournal de lancement : D:/calage/sortie/calage_1.log",
+   "instant_pose": true,
+   "journal_lance": "D:/calage/sortie/calage_1.log",
+   "pid_lance": 4242
+  },
+  "trace": [
+   {
+    "appel": "_installation_occupe",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_ecarts_avec_le_paquet",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_confirmer_malgre_calage",
+    "arguments": [
+     "Lancer maintenant ferait travailler deux calages sur les mêmes plans du même modèle, et le second écraserait les étapes du premier."
+    ],
+    "nommes": {
+     "geste": "Lancer"
+    }
+   },
+   {
+    "appel": "_accepter_plan_final",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_confirmer_reprise",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "etat_cibles",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Premier_apport",
+     ""
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Prefixe_scenario",
+     "R-Q100"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Tolerance_volume_pct",
+     5.0
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Tolerance_pic_pct",
+     2.0
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Bilan_masse_max_pct",
+     5.0
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Nb_max_iterations_par_apport",
+     6
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Coeurs_par_calcul",
+     0
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Elaguer_plans_etape",
+     "non"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Remplacer_plan_source",
+     "non"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "hecras_ouvert",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "lancer_calage",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "_signaler",
+    "arguments": [
+     "Calage lancé",
+     "Le calcul tourne en arrière-plan ; l'étape Suivi montre son avancement.",
+     3,
+     12
+    ],
+    "nommes": {}
+   }
+  ]
+ },
+ "paquet_non_compose": {
+  "apres": {
+   "etiquette": "",
+   "instant_pose": false,
+   "journal_lance": null,
+   "pid_lance": null
+  },
+  "trace": [
+   {
+    "appel": "_installation_occupe",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_signaler",
+    "arguments": [
+     "Calage",
+     "Composer d'abord le paquet (bouton « Valider la géométrie et générer le fichier des hydrogrammes », étape Paramètres).",
+     1
+    ],
+    "nommes": {}
+   }
+  ]
+ },
+ "plan_final_refuse": {
+  "apres": {
+   "etiquette": "",
+   "instant_pose": false,
+   "journal_lance": null,
+   "pid_lance": null
+  },
+  "trace": [
+   {
+    "appel": "_installation_occupe",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_ecarts_avec_le_paquet",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_confirmer_malgre_calage",
+    "arguments": [
+     "Lancer maintenant ferait travailler deux calages sur les mêmes plans du même modèle, et le second écraserait les étapes du premier."
+    ],
+    "nommes": {
+     "geste": "Lancer"
+    }
+   },
+   {
+    "appel": "_accepter_plan_final",
+    "arguments": [],
+    "nommes": {}
+   }
+  ]
+ },
+ "plan_source_remplace_et_elagage": {
+  "apres": {
+   "etiquette": "Calage lancé en arrière-plan (processus 4242).\nSuivre l'avancement à l'étape « 4. Suivi », qui se rafraîchit toute seule quand elle est affichée.\nJournal de lancement : D:/calage/sortie/calage_1.log",
+   "instant_pose": true,
+   "journal_lance": "D:/calage/sortie/calage_1.log",
+   "pid_lance": 4242
+  },
+  "trace": [
+   {
+    "appel": "_installation_occupe",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_ecarts_avec_le_paquet",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_confirmer_malgre_calage",
+    "arguments": [
+     "Lancer maintenant ferait travailler deux calages sur les mêmes plans du même modèle, et le second écraserait les étapes du premier."
+    ],
+    "nommes": {
+     "geste": "Lancer"
+    }
+   },
+   {
+    "appel": "_accepter_plan_final",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_confirmer_reprise",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "etat_cibles",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Premier_apport",
+     ""
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Prefixe_scenario",
+     "R-Q100"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Tolerance_volume_pct",
+     5.0
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Tolerance_pic_pct",
+     2.0
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Bilan_masse_max_pct",
+     5.0
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Nb_max_iterations_par_apport",
+     6
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Coeurs_par_calcul",
+     0
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Elaguer_plans_etape",
+     "oui"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Remplacer_plan_source",
+     "oui"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "hecras_ouvert",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "lancer_calage",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "_signaler",
+    "arguments": [
+     "Calage lancé",
+     "Le calcul tourne en arrière-plan ; l'étape Suivi montre son avancement.",
+     3,
+     12
+    ],
+    "nommes": {}
+   }
+  ]
+ },
+ "reprise_refusee": {
+  "apres": {
+   "etiquette": "",
+   "instant_pose": false,
+   "journal_lance": null,
+   "pid_lance": null
+  },
+  "trace": [
+   {
+    "appel": "_installation_occupe",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_ecarts_avec_le_paquet",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_confirmer_malgre_calage",
+    "arguments": [
+     "Lancer maintenant ferait travailler deux calages sur les mêmes plans du même modèle, et le second écraserait les étapes du premier."
+    ],
+    "nommes": {
+     "geste": "Lancer"
+    }
+   },
+   {
+    "appel": "_accepter_plan_final",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_confirmer_reprise",
+    "arguments": [],
+    "nommes": {}
+   }
+  ]
+ },
+ "trois_reglages_changes": {
+  "apres": {
+   "etiquette": "",
+   "instant_pose": false,
+   "journal_lance": null,
+   "pid_lance": null
+  },
+  "trace": [
+   {
+    "appel": "_installation_occupe",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_ecarts_avec_le_paquet",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_signaler",
+    "arguments": [
+     "Calage non lancé",
+     "3 réglages changés depuis la composition (« ! » rouge) : Tolérance volume, Tolérance pointe, Préfixe. Cliquer « Valider la géométrie et générer le fichier des hydrogrammes » (étape Paramètres) pour les reporter, puis relancer.",
+     1
+    ],
+    "nommes": {
+     "duree": 15
+    }
+   }
+  ]
+ },
+ "un_reglage_change": {
+  "apres": {
+   "etiquette": "",
+   "instant_pose": false,
+   "journal_lance": null,
+   "pid_lance": null
+  },
+  "trace": [
+   {
+    "appel": "_installation_occupe",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_ecarts_avec_le_paquet",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_signaler",
+    "arguments": [
+     "Calage non lancé",
+     "1 réglage changé depuis la composition (« ! » rouge) : Tolérance volume. Cliquer « Valider la géométrie et générer le fichier des hydrogrammes » (étape Paramètres) pour les reporter, puis relancer.",
+     1
+    ],
+    "nommes": {
+     "duree": 15
+    }
+   }
+  ]
+ },
+ "une_cible_manquante": {
+  "apres": {
+   "etiquette": "",
+   "instant_pose": false,
+   "journal_lance": null,
+   "pid_lance": null
+  },
+  "trace": [
+   {
+    "appel": "_installation_occupe",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_ecarts_avec_le_paquet",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_confirmer_malgre_calage",
+    "arguments": [
+     "Lancer maintenant ferait travailler deux calages sur les mêmes plans du même modèle, et le second écraserait les étapes du premier."
+    ],
+    "nommes": {
+     "geste": "Lancer"
+    }
+   },
+   {
+    "appel": "_accepter_plan_final",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "_confirmer_reprise",
+    "arguments": [],
+    "nommes": {}
+   },
+   {
+    "appel": "etat_cibles",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Premier_apport",
+     ""
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Prefixe_scenario",
+     "R-Q100"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Tolerance_volume_pct",
+     5.0
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Tolerance_pic_pct",
+     2.0
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Bilan_masse_max_pct",
+     5.0
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Nb_max_iterations_par_apport",
+     6
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Coeurs_par_calcul",
+     0
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Elaguer_plans_etape",
+     "non"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Remplacer_plan_source",
+     "non"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "rendre_la_main",
+    "arguments": [
+     "<DialogueParametrage>"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "QMessageBox.warning",
+    "arguments": [
+     "<DialogueParametrage>",
+     "Hydrogrammes cibles incomplets",
+     "1 section sur 3 sans hydrogramme cible exploitable : S2.\n\nLe calage n'est pas lancé : la chaîne refuse un classeur incomplet, elle n'ignore pas les apports concernés. Compléter la feuille « Cibles » — une colonne « Temps_h » et au moins deux instants en face des débits — puis relancer."
+    ],
+    "nommes": {}
+   }
+  ]
+ }
+}
