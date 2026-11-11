@@ -1549,12 +1549,31 @@ def _cibles_depuis_classeur(chemin_template, journal=None):
 
     from criteres import PAS_ENTREE_H, normaliser_entree
 
+    # LES FEUILLES ET LES COLONNES, NOMMEES, OU RIEN : pandas dirait « Worksheet
+    # named 'Cibles' not found », et next() leverait StopIteration.
+    with pd.ExcelFile(chemin_template) as classeur:
+        feuilles = classeur.sheet_names
+    for nom in ("Correspondance", "Cibles"):
+        if nom not in feuilles:
+            raise ValueError(f"le classeur n'a pas de feuille « {nom} » "
+                             f"(feuilles trouvees : {feuilles})")
     corr = pd.read_excel(chemin_template, sheet_name="Correspondance")
     cib = pd.read_excel(chemin_template, sheet_name="Cibles")
     col_ordre = "Ordre"
-    col_apport = next(c for c in corr.columns if c.startswith("Nom_Apport"))
-    col_section = next(c for c in corr.columns if c.startswith("Nom_Section"))
-    col_cible = next(c for c in corr.columns if c.startswith("Nom_Cible"))
+
+    def colonne(prefixe):
+        trouvee = next((c for c in corr.columns if c.startswith(prefixe)),
+                       None)
+        if trouvee is None:
+            raise ValueError(
+                f"la feuille Correspondance n'a pas de colonne « {prefixe} » "
+                f"(en-tete A1). En-tetes trouves : "
+                f"{[str(c) for c in corr.columns]}")
+        return trouvee
+
+    col_apport = colonne("Nom_Apport")
+    col_section = colonne("Nom_Section")
+    col_cible = colonne("Nom_Cible")
     corr = corr.dropna(subset=[col_ordre, col_apport, col_section, col_cible]
                        ).sort_values(col_ordre)
 
