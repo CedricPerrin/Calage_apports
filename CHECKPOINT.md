@@ -1,5 +1,32 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 11 novembre 2026 (version) : 0.9.37, pour que l'essai porte sur le code actuel (branche `claude/version-0.9.37`)
+
+Demandée par Cédric (« Oui ») : la 0.9.36 ne contenait ni les cinq derniers points (PR 22) ni
+la frontière fenêtre / noyau (PR 23 à 25).
+
+**Version 0.9.37, non publiée.** `metadata.txt`, `LISEZMOI.md` et `README.md` la portent, et
+`calage_apports_0.9.37.zip` est à la racine ; elle remplace la 0.9.36. **L'archive est
+construite sur un poste sans `.affaires`** : avant de publier dans le dépôt PIO, rejouer
+`python src/faire_zip.py` sur le poste qui le porte.
+
+**Essai de l'archive.** Dépaquetée à part, chargée sous QGIS 3.44 hors écran : la fenêtre se
+construit, une fenêtre vide rend le refus de `noyau.py`, et la chaîne **embarquée** compose
+pour de vrai un paquet depuis des couches fabriquées (appariement, classeur écrit, contrôle),
+écrit puis relit les réglages de lancement. `faire_zip.py` a d'abord refusé l'archive : un
+« % » dans l'entrée du journal des versions rendait `metadata.txt` illisible par QGIS —
+corrigé, le garde-fou a fait son travail.
+
+**Ce qu'elle change pour l'utilisateur** : cinq corrections de messages et de refus (alerte de
+couverture, trou au début d'une cible, Excel illisible au lancement, instant de plan mal
+formé, import d'un Excel aux formules jamais calculées). Aucun résultat numérique ne change.
+Le reste est une réorganisation sans changement de comportement.
+
+**Pour reprendre.** C'est cette version qu'il faut essayer sous Windows, dans le QGIS du
+poste, sur un calcul HEC-RAS réel : rien de tout cela n'a encore été fait. Puis refiger les
+références des filets sur ce poste, et relire le refigeage avec
+`python tools/comparer_references.py`.
+
 ## 11 novembre 2026 (conception, décision 4) : les références ne sont pas allégées ; l'outil qui relit un refigeage entre au dépôt (branche `claude/relire-references`)
 
 Dernière des quatre décisions de conception.
