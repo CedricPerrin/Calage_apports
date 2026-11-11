@@ -23,7 +23,6 @@ sys.path.insert(0, str(SRC))
 
 import test_controle_donnees as tcd  # noqa: E402
 import test_pont_caler as tpc  # noqa: E402
-import test_pont_lecture as tpl  # noqa: E402
 
 
 def _anomalies(rendu):
@@ -307,6 +306,11 @@ def test_caler_objets_retires(tmp_path, capsys):
 # --- 6. commande_modele : colonne de nom absente -----------------------------------
 
 def test_modele_sans_colonne_nom_ne_double_rien(tmp_path, capsys):
+    # test_pont_lecture fabrique ses .hdf avec h5py, absent du job « noyau » :
+    # ce test-ci se joue dans le job « chaine-hdf ».
+    pytest.importorskip("h5py")
+    import test_pont_lecture as tpl
+
     reponse = tpl.jouer_modele("sans_colonne_nom", tmp_path, capsys)["reponse"]
     assert [o["nom"] for o in reponse["sections"]] == ["S1", "S_\u00c9glise"]
     assert [o["nom"] for o in reponse["injections"]] == ["A1", "A2"]
