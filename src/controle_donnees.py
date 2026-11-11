@@ -11,6 +11,7 @@ reellement (controle 5).
 Usage :  python controle_donnees.py [chemin_du_template.xlsx]
 """
 
+import json
 from pathlib import Path
 
 import numpy as np
@@ -329,7 +330,16 @@ def controler_template(chemin):
         return [(ERREUR, f"classeur illisible : {e}")]
 
     # --- 1. Parametres -----------------------------------------------------
-    valeurs = parametres.lire(chemin)
+    try:
+        valeurs = parametres.lire(chemin)
+    except json.JSONDecodeError as e:
+        # Comme controler_geometrie : sans parametres lisibles, le reste du
+        # controle ne dirait que « tout est manquant ».
+        return [(ERREUR,
+                 f"parametres du calage illisibles : "
+                 f"« {parametres.chemin(chemin).name} » n'est pas un JSON "
+                 f"valide (ligne {e.lineno}, colonne {e.colno}). Le corriger "
+                 f"avant de relancer le controle.")]
     anomalies += _regle_parametres_trouves(chemin, valeurs)
     anomalies += _regle_parametres_requis(valeurs)
     anomalies += _regle_nb_max_iterations(valeurs)
