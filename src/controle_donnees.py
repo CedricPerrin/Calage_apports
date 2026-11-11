@@ -37,8 +37,6 @@ def _controler_fenetre_simulation(valeurs, erreur):
     finirait par diverger. On appelle donc sa validation et on traduit
     l'exception en anomalie de classeur.
     """
-    from pilote_hecras import valider_fenetre_simulation
-
     correspondance = (("debut", "Simulation_debut"),
                       ("fin", "Simulation_fin"),
                       ("intervalle_calcul", "Intervalle_calcul"),
@@ -55,6 +53,9 @@ def _controler_fenetre_simulation(valeurs, erreur):
     if not fenetre:
         return
     try:
+        # L'import est DANS le try pour que le rattrapage ci-dessous soit
+        # atteignable.
+        from pilote_hecras import valider_fenetre_simulation
         valider_fenetre_simulation(fenetre)
     except ValueError as e:
         erreur(f"fenetre de simulation : {e}")
