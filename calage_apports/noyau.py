@@ -2270,6 +2270,41 @@ def _verifier_temps_h(source, cols_src, cible, cols_dst):
                              f"colonne « Temps_h ».")
 
 
+def _refuser_formules_non_calculees(source, src, cols_src, cols_dst):
+    """
+    Leve ValueError si Temps_h ou une cible a importer porte des FORMULES
+    qu'Excel n'a jamais calculees.
+
+    Un classeur ecrit par un script et jamais ouvert dans Excel porte ses
+    formules sans leur resultat : lu « en valeurs », chaque cellule vaut
+    None. Jusqu'au 11/11/2026 l'import prenait ces colonnes pour des colonnes
+    VIDES — « aucun hydrogramme ne correspond », ou pire une colonne Temps_h
+    videe dans l'Excel du calcul. Le classeur n'est relu avec ses formules
+    que si une cellule vide le rend possible.
+    """
+    import openpyxl
+
+    entetes = ["Temps_h"] + [e for e in cols_src
+                             if e.startswith("Cible_") and e in cols_dst]
+    vides = [(e, ligne) for e in entetes
+             for ligne in range(2, src.max_row + 1)
+             if src.cell(row=ligne, column=cols_src[e]).value is None]
+    if not vides:
+        return
+    brut = openpyxl.load_workbook(source)["Cibles"]
+    fautives = {}
+    for entete, ligne in vides:
+        valeur = brut.cell(row=ligne, column=cols_src[entete]).value
+        if isinstance(valeur, str) and valeur.startswith("="):
+            fautives.setdefault(entete, ligne)
+    if fautives:
+        detail = ", ".join(f"{e} (ligne {l})" for e, l in fautives.items())
+        raise ValueError(
+            f"{source.name} porte des formules qu’Excel n’a jamais "
+            f"calculées : {detail}. L’ouvrir dans Excel, l’enregistrer, puis "
+            f"recommencer.")
+
+
 def _cibles_communes(source, src, cols_src, cols_dst):
     """(attendues, portees, importees) ; leve ValueError si aucune cible de
     ce calcul n'est renseignee dans la source."""
@@ -2374,6 +2409,7 @@ def importer_hydrogrammes(source, cible):
     src, dst = lu["Cibles"], ecrit["Cibles"]
     cols_src, cols_dst = _colonnes_entete(src), _colonnes_entete(dst)
     _verifier_temps_h(source, cols_src, cible, cols_dst)
+    _refuser_formules_non_calculees(source, src, cols_src, cols_dst)
     attendues, portees, importees = _cibles_communes(source, src, cols_src,
                                                      cols_dst)
     restantes = [e for e in attendues if e not in importees]

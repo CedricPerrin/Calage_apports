@@ -1,5 +1,40 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 11 novembre 2026 (clôture) : les derniers points (PR 22, fusionnée dans `main` le jour même ; pas de montée de version)
+
+Demandé par Cédric (« Oui », pour les traiter tous dans une seule PR ; puis « Traite tout, merge
+toutes les PR et ne monte pas de version »). **Pas de montée de version, sur sa décision : les
+sources restent en 0.9.36, et l'archive `calage_apports_0.9.36.zip`, construite avant, ne
+contient pas ces correctifs.** La prochaine montée de version les livrera.
+
+| Point | Avant | Après |
+|---|---|---|
+| Alerte de couverture | « 0.0 h ne sont pas simulées (100 % de couverture) » | plus d'alerte sous un demi-pas de la cible ; au-delà, minutes ou secondes, et jamais « 100 % » |
+| Trou en tête d'une colonne cible | non signalé | avertissement : la cible ne commence qu'à la ligne N |
+| `.xlsx` illisible au lancement | `BadZipFile`, ou la phrase anglaise de pandas | `ok: false`, en clair |
+| Instant de plan invalide | refus après la réécriture du fichier de travail | refus avant toute écriture |
+| Source d'import aux formules jamais calculées | colonnes prises pour vides | refus par une phrase, rien n'est écrit |
+
+**L'alerte de couverture : une mesure, puis un seuil.** Sur les filets, les alertes « 0.0 h »
+venaient d'écarts de **0,2 à 2 secondes** pour une cible au pas de 12 minutes — l'arrondi d'un
+recalage, pas un morceau d'événement non simulé. Elle figurait douze fois dans un même
+classeur. Le seuil retenu est le **demi-pas de temps de la cible** (`_DEMI_PAS`) : en dessous,
+rien ; au-dessus, l'alerte reste. Elle n'a jamais été bloquante : aucun verdict ne change.
+
+Essais d'intention : `src/test_defauts_mineurs.py` et `src/test_exceptions_brutes.py`
+(17 rouges avant, verts après). Filets refigés, écarts prouvés par script, **aucun nombre de
+résultat ne change** : `journal_caler` (2), `diagnostic` (1 scénario, 3 entrées du lot),
+`livrables_chaine` (2), `controle_donnees` (1), `noyau_classeur` (1), `pilote_recadence` (1).
+
+**Deux ajouts, sur « Traite tout ».** `objets_retires` de `commande_caler` compte aussi ce
+que l'élagage a retiré, après les reliquats du ménage (six cas du filet du pont refigés, ce
+champ seul). Et la clé `QSettings` sous laquelle l'interpréteur et la chaîne sont mémorisés est
+enfin vérifiée (`src/test_installation_qgis.py`, deux tests : la page écrit sous les clés que le
+plugin relit à l'ouverture ; une clé différente est attrapée).
+
+**Plus aucun défaut connu n'est ouvert.** Reste un trou des essais : les tests d'installation
+enchaînés dans un seul processus sous QGIS plantent au hasard (la CI les joue en deux pas).
+
 ## 11 novembre 2026 (fin, suite) : zone 2D non nommée et plusieurs zones, une erreur du contrôle (PR 21, fusionnée dans `main` le jour même ; version 0.9.36, non publiée)
 
 Décision de Cédric (« Oui »), ainsi que la fusion dans `main` et la montée de version.

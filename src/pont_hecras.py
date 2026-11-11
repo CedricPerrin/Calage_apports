@@ -1579,8 +1579,25 @@ def _cibles_depuis_classeur(chemin_template, journal=None):
 
     # LES FEUILLES ET LES COLONNES, NOMMEES, OU RIEN : pandas dirait « Worksheet
     # named 'Cibles' not found », et next() leverait StopIteration.
-    with pd.ExcelFile(chemin_template) as classeur:
-        feuilles = classeur.sheet_names
+    import zipfile
+
+    try:
+        with pd.ExcelFile(chemin_template) as classeur:
+            feuilles = classeur.sheet_names
+    except (zipfile.BadZipFile, KeyError, OSError, ValueError) as e:
+        # UN FICHIER PRESENT MAIS QUI N'EST PAS UN .xlsx LISIBLE (tronque par
+        # une copie, enregistre sous un autre format) : pandas leve BadZipFile,
+        # que rien n'attrapait, ou un ValueError en anglais (« Excel file
+        # format cannot be determined ») rendu tel quel (11/11/2026). Un
+        # fichier ABSENT reste FileNotFoundError, que commande_caler dit a sa
+        # facon.
+        if isinstance(e, FileNotFoundError):
+            raise
+        raise ValueError(
+            f"« {Path(chemin_template).name} » n'est pas un classeur Excel "
+            f"(.xlsx) lisible ({type(e).__name__}). Le rouvrir dans Excel et "
+            f"l'enregistrer au format .xlsx, ou le recomposer depuis le "
+            f"plugin.") from e
     for nom in ("Correspondance", "Cibles"):
         if nom not in feuilles:
             raise ValueError(f"le classeur n'a pas de feuille « {nom} » "
@@ -1916,15 +1933,16 @@ def _produire_rapport(pilote, chemin_template, resultat, dossier_resultats):
 def _ranger_plans(pilote, resultat, prefixe_etape, tous_apports, elaguer):
     """
     Menage des traces de preparation puis, si « elaguer », elagage des plans
-    d'etape — sur un calage conforme seulement. Rend le bilan du menage, ou
-    None s'il n'a pas eu lieu.
+    d'etape — sur un calage conforme seulement. Rend (menage, elagues) : le
+    bilan du menage, ou None s'il n'a pas eu lieu, et les objets que
+    l'elagage a retires ([] s'il n'a rien retire).
     """
     # MENAGE. LES PLANS D'ETAPE SONT CONSERVES — « sans_apport », puis un par
     # apport : ils documentent le calage et permettent de le reprendre sans
     # repartir du premier apport. Ne partent que les traces de preparation, et
     # seulement si le calage a abouti : tant qu'il n'a pas abouti, les
     # sauvegardes horodatees sont le seul retour en arriere sur le modele.
-    menage = None
+    menage, elagues = None, []
     if resultat.conforme:
         try:
             menage = pilote.nettoyer_reliquats()
@@ -1947,20 +1965,20 @@ def _ranger_plans(pilote, resultat, prefixe_etape, tous_apports, elaguer):
         # d'etape. Les retirer d'abord rendrait un rapport ampute sur un
         # calage reussi, ce qui est pire que garder des plans.
         if elaguer:
-            _elaguer_plans_etape(pilote, prefixe_etape, tous_apports)
+            elagues = _elaguer_plans_etape(pilote, prefixe_etape, tous_apports)
     elif elaguer:
         # La case etait cochee : dire pourquoi rien n'est retire, sinon
         # l'utilisateur croit l'option cassee (modele reel, 28/09/2026).
         print("AVERTISSEMENT : elagage non fait — le calage n'est pas "
               "conforme, et ses plans d'etape sont ce qui permet de le "
               "reprendre.", flush=True)
-    return menage
+    return menage, elagues
 
 
 def _elaguer_plans_etape(pilote, prefixe_etape, tous_apports):
     """
     Retire les plans d'etape d'un calage conforme ; un echec n'est qu'un
-    avertissement.
+    avertissement. Rend les objets retires, [] si rien ne l'a ete.
     """
     try:
         elagage = pilote.elaguer_etapes(prefixe_etape, tous_apports,
@@ -1972,11 +1990,13 @@ def _elaguer_plans_etape(pilote, prefixe_etape, tous_apports):
                   f"retire(s) — "
                   f"{', '.join(elagage['supprimes'])}. Le plan "
                   f"« {elagage['final']} » est conserve.", flush=True)
+            return list(elagage["supprimes"])
     except Exception as e:
         # Comme le menage : un calage abouti ne se perd pas sur un
         # confort de rangement.
         print(f"AVERTISSEMENT : elagage non effectue : {e}",
               flush=True)
+    return []
 
 
 def commande_caler(args):
@@ -2129,8 +2149,8 @@ def commande_caler(args):
     rapport = _produire_rapport(pilote, chemin_template, resultat,
                                 dossier_sortie / sous_resultats)
     elaguer = texte("Elaguer_plans_etape", "non").lower() in ("oui", "true", "1")
-    menage = _ranger_plans(pilote, resultat, prefixe_etape, tous_apports,
-                           elaguer)
+    menage, elagues = _ranger_plans(pilote, resultat, prefixe_etape,
+                                    tous_apports, elaguer)
 
     return repondre(
         ok=True, conforme=resultat.conforme, motif=resultat.motif,
@@ -2139,10 +2159,13 @@ def commande_caler(args):
         apports_total=len(apports),
         dossier_suivi=str(dossier_sortie / sous_suivi),
         plan_conserve=(menage or {}).get("conserve"),
-        # « reliquats » : ce que nettoyer_reliquats() rend et retire. La cle
-        # « supprimes » est celle d'elaguer_etapes(), qui ne passe pas par ici :
-        # le champ valait toujours [].
-        objets_retires=(menage or {}).get("reliquats") or [],
+        # TOUT CE QUI A ETE RETIRE DU PROJET : les reliquats de preparation
+        # (nettoyer_reliquats, cle « reliquats »), PUIS ce que l'elagage a
+        # retire (elaguer_etapes, cle « supprimes »). Le champ lisait la cle
+        # de l'elagage dans le bilan du menage : il valait toujours [] ; puis,
+        # jusqu'au 11/11/2026, il ne comptait que les reliquats.
+        objets_retires=(list((menage or {}).get("reliquats") or [])
+                        + elagues),
         dossier_resultats=(str(dossier_sortie / sous_resultats)
                           if rapport else None),
         # ALERTES QUI VISENT LE CALAGE ENTIER, pas un apport. Non bloquantes :

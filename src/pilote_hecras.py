@@ -1937,6 +1937,10 @@ class PiloteHecRas(Modele):
         intervalle_cible = (intervalle_hecras_depuis_heures(self.pas_travail_h)
                             if self.pas_travail_h else INTERVALLE_APPORT)
 
+        # AVANT D'ECRIRE (11/11/2026) : _controler_couverture(), en fin de
+        # passe, leve sur un instant de plan invalide — apres que toutes les
+        # conditions ont ete reecrites. Le meme refus, tout de suite.
+        self._refuser_fenetre_de_plan_invalide()
         duree_simulation = self._duree_a_couvrir()
         convertis = self._recadencer_chaque_condition(intervalle_cible,
                                                       duree_simulation)
@@ -1949,6 +1953,23 @@ class PiloteHecRas(Modele):
         self._controler_pas_apres_recadencage(intervalle_cible)
         self._controler_couverture()
         return convertis
+
+    def _refuser_fenetre_de_plan_invalide(self):
+        """
+        Leve ValueError si la fenetre de simulation du plan de travail porte
+        un instant mal forme. Etape de _recadencer_apports(), AVANT toute
+        ecriture. Memes conditions que conditions_trop_courtes() : pas de
+        plan, ou une fenetre absente, ne bloquent rien.
+        """
+        if not self.plan_travail:
+            return
+        plan = self.dossier / f"{self.nom_projet}.p{self.plan_travail}"
+        if not plan.is_file():
+            return
+        fenetre = fenetre_simulation_du_plan(plan)
+        if fenetre.get("debut") and fenetre.get("fin"):
+            instant_hecras(fenetre["debut"])
+            instant_hecras(fenetre["fin"])
 
     def _duree_a_couvrir(self):
         """
