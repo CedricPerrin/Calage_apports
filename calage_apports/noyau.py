@@ -2223,6 +2223,32 @@ def _valeurs_colonne(feuille, colonne):
     return serie
 
 
+def _ouvrir_excel_importe(source):
+    """
+    Le classeur choisi a l'import, en valeurs ; ValueError s'il n'est pas un
+    Excel.
+
+    Jusqu'au 11/11/2026 un fichier qui n'etait pas un .xlsx (un .xls renomme,
+    un .csv, un fichier tronque) levait BadZipFile : la fenetre affichait
+    alors « File is not a zip file », suivi du conseil de fermer l'Excel du
+    calcul — qui n'y etait pour rien. La docstring d'importer_hydrogrammes
+    promettait deja un ValueError. Un fichier VERROUILLE ou illisible
+    (OSError) n'est PAS converti : la, le conseil de la fenetre est le bon.
+    """
+    import zipfile
+
+    import openpyxl
+    from openpyxl.utils.exceptions import InvalidFileException
+
+    try:
+        return openpyxl.load_workbook(source, data_only=True)
+    except (zipfile.BadZipFile, InvalidFileException, KeyError) as e:
+        raise ValueError(
+            f"{source.name} n’est pas un classeur Excel (.xlsx) lisible : "
+            f"l’enregistrer au format .xlsx depuis Excel, puis "
+            f"recommencer.") from e
+
+
 def _verifier_excels_objectifs(source, lu, cible, ecrit):
     """Leve ValueError si l'un des deux classeurs n'a pas les feuilles d'un
     Excel des objectifs."""
@@ -2341,7 +2367,7 @@ def importer_hydrogrammes(source, cible):
     source, cible = Path(source), Path(cible)
     if source.resolve() == cible.resolve():
         raise ValueError(f"{source.name} est déjà l’Excel de ce calcul.")
-    lu = openpyxl.load_workbook(source, data_only=True)
+    lu = _ouvrir_excel_importe(source)
     ecrit = openpyxl.load_workbook(cible)
     _verifier_excels_objectifs(source, lu, cible, ecrit)
 

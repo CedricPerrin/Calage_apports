@@ -927,9 +927,15 @@ def _jouer(nom, dossier):
 
     figures, graphiques, ecritures, sortie = [], {}, [], io.StringIO()
     pannes = montage.get("pannes", contextlib.nullcontext)()
+    # LA NOTE CITE LA VERSION DE ras-commander INSTALLEE : elle differe d'un
+    # poste a l'autre (et le job « noyau » n'en a pas). Fixee ici, pour que la
+    # reference ne depende pas du poste ; test_defauts_mineurs.py verifie que
+    # la note porte bien la version reelle.
+    version_fixe = mock.patch.object(liv, "_version_ras_commander",
+                                     lambda: "0.0.filet")
     with _capter_figures(figures, neutre, ecritures), \
             _capter_graphiques(graphiques, ecritures, neutre), \
-            _capter_textes(ecritures, neutre), \
+            _capter_textes(ecritures, neutre), version_fixe, \
             pannes, contextlib.redirect_stdout(sortie):
         try:
             rendu = cg.produire_livrables_finaux(

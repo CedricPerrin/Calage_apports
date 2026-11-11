@@ -652,6 +652,30 @@ def exporter_excel(chemin, **tableaux):
 # SYNTHESE
 # ---------------------------------------------------------------------------
 
+def _version_ras_commander():
+    """Version de ras-commander installee dans CET interpreteur, ou None."""
+    try:
+        from importlib import metadata
+        return metadata.version("ras-commander")
+    except Exception:                                       # noqa: BLE001
+        return None
+
+
+def _mention_ras_commander():
+    """
+    « ras-commander vX.Y.Z », la version etant celle QUI A TOURNE.
+
+    Jusqu'au 11/11/2026 la note citait « v0.99.1 » en dur : elle l'a encore
+    ecrit sous la 0.99.2, puis sous la 0.117. Une note destinee a un rapport
+    citait donc une version qui n'avait pas fait le calcul. La note est
+    ecrite par le processus qui vient de piloter HEC-RAS : sa version
+    installee est la bonne. Introuvable (note rejouee sans la bibliotheque),
+    LE NUMERO EST OMIS plutot qu'invente.
+    """
+    version = _version_ras_commander()
+    return f"ras-commander v{version}" if version else "ras-commander"
+
+
 def synthese(titre, noms_sections, diagnostics, chemin=None,
              alertes_chaine=()):
     """
@@ -749,7 +773,7 @@ def synthese(titre, noms_sections, diagnostics, chemin=None,
         # s'appuyant sur elle la citent. La note de synthese etant destinee a
         # etre reprise dans un rapport, la mention doit y figurer d'office :
         # une citation qu'il faut penser a ajouter ne l'est jamais.
-        "Le pilotage de HEC-RAS s'appuie sur **ras-commander v0.99.1** "
+        f"Le pilotage de HEC-RAS s'appuie sur **{_mention_ras_commander()}** "
         "(CLB Engineering Corporation), bibliothèque libre — "
         "github.com/gpt-cmdr/ras-commander. Merci de conserver cette mention "
         "dans toute publication reprenant ces résultats "

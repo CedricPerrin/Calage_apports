@@ -58,6 +58,7 @@ jobs:
       # Ce que l'import des hydrogrammes DOIT faire quand la source est plus courte ou trouée
       # (correctif du 11/11/2026 : la queue de l'ancien hydrogramme restait dessous).
       - run: python -m pytest src/test_import_hydrogrammes.py -q
+      - run: python -m pytest src/test_defauts_mineurs.py -q
       # Un échec d'écriture ne doit pas laisser le dossier sans classeur (correctif du 11/11/2026).
       - run: python -m pytest src/test_classeur_perdu.py -q
       # Filet de la chaîne des livrables (vague 5, 10/11/2026) : 39 cas, contenu des figures,
@@ -85,7 +86,7 @@ jobs:
       # Filets de la vague 4 (10/11/2026) qui demandent h5py ou ras-commander : les trois
       # lecteurs du pont (HDF fabriqués) et le recadencement des apports du pilote.
       - run: python -m pip install pytest
-      - run: python -m pytest src/test_pont_lecture.py src/test_pilote_recadence.py src/test_lecture_hdf.py src/test_recadencage_ecart.py -q
+      - run: python -m pytest src/test_pont_lecture.py src/test_pilote_recadence.py src/test_lecture_hdf.py src/test_recadencage_ecart.py src/test_defauts_mineurs.py -q
 
   qgis:
     runs-on: ubuntu-latest

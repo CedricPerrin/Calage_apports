@@ -21514,8 +21514,8 @@
    }
   },
   "importer/source_pas_excel": {
-   "exception": "BadZipFile",
-   "message": "File is not a zip file",
+   "exception": "ValueError",
+   "message": "faux.xlsx n’est pas un classeur Excel (.xlsx) lisible : l’enregistrer au format .xlsx depuis Excel, puis recommencer.",
    "intacts": [
     "ce_calcul/donnees_calage.xlsx",
     "faux.xlsx",

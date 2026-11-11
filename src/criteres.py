@@ -608,6 +608,8 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
     leve aussi sur un apport NON VALIDE : l'enonce reste vrai, et c'est ce
     que caler() annoncait deja avant tout essai. None : pas de reserve.
     """
+    _refuser_series_inexploitables(temps_cible, debit_cible, temps_calcule,
+                                   debit_calcule, pas_h)
     dec_f = float(decalage_fenetre_h or 0.0)
     c_a, s_a, decalage_h = recaler(
         temps_cible, debit_cible, temps_calcule, debit_calcule, pas_h,
@@ -639,10 +641,12 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
     # sous-ensemble qui invalide la comparaison.
     alertes, bloquantes = [], []
     if decalage_hors_fenetre:
-        alertes.append(decalage_hors_fenetre)
+        # DANS « bloquantes » SEULEMENT : elles rejoignent « alertes » en fin
+        # de fonction. L'ajouter aussi a « alertes » la faisait figurer DEUX
+        # fois dans tout ce qui les affiche (corrige le 11/11/2026).
         bloquantes.append(decalage_hors_fenetre)
     if not np.isfinite(r):
-        alertes.append("forme non calculable (serie constante)")
+        alertes.append(_motif_forme_non_calculable(debit_cible, debit_calcule))
 
     _juger_couverture(comparaison, debut, fin, couverture_min,
                       alertes, bloquantes)
@@ -668,6 +672,59 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
         part_cible_jugee=part_cible_jugee,
         part_apport=part_apport,
     )
+
+
+def _refuser_series_inexploitables(temps_cible, debit_cible, temps_calcule,
+                                   debit_calcule, pas_h):
+    """
+    Leve ValueError, par une phrase, sur ce qui ne peut pas etre compare : une
+    serie vide, des instants et des debits en nombres differents, un pas de
+    recalage qui n'est pas strictement positif.
+
+    Ces entrees levaient deja (11/11/2026) — mais IndexError, ou une erreur
+    de numpy sans rapport avec la cause (« Maximum allowed size exceeded »
+    pour un pas nul). Rien n'est juge ici : une serie mal formee n'est pas un
+    calage qui ne converge pas, c'est une donnee a corriger.
+    """
+    for nom, temps, debits in (("la cible", temps_cible, debit_cible),
+                               ("le calcul", temps_calcule, debit_calcule)):
+        nb_temps, nb_debits = np.size(temps), np.size(debits)
+        if nb_temps == 0 or nb_debits == 0:
+            raise ValueError(f"serie vide pour {nom} : rien a comparer.")
+        if nb_temps != nb_debits:
+            raise ValueError(
+                f"{nb_temps} instant(s) pour {nb_debits} debit(s) dans "
+                f"{nom} : les deux colonnes doivent avoir la meme longueur.")
+    if not (np.isfinite(pas_h) and pas_h > 0):
+        raise ValueError(
+            f"pas de recalage {pas_h!r} : un pas strictement positif, en "
+            f"heures, est attendu.")
+
+
+def _motif_forme_non_calculable(debit_cible, debit_calcule):
+    """
+    Pourquoi r n'est pas calculable. Une serie CONSTANTE n'a pas de forme ;
+    une serie qui porte des VALEURS MANQUANTES non plus, mais ce n'est pas la
+    meme panne — un calcul HEC-RAS qui diverge rend des NaN, et l'annoncer
+    « serie constante » envoyait chercher ailleurs (11/11/2026).
+    """
+    trouees = [nom for nom, debits in (("la cible", debit_cible),
+                                       ("le calcul", debit_calcule))
+               if np.isnan(np.asarray(debits, dtype=float)).any()]
+    if trouees:
+        return ("forme non calculable (valeurs manquantes dans "
+                + " et dans ".join(trouees) + ")")
+    return "forme non calculable (serie constante)"
+
+
+def _axe_non_croissant(comparaison):
+    """« de la cible », « du calcul », ou None : la serie dont l'axe des
+    temps n'est pas strictement croissant, s'il y en a une."""
+    for nom, temps in (("de la cible", comparaison.tc),
+                       ("du calcul", comparaison.ts)):
+        if temps.size > 1 and not np.all(np.diff(temps) > 0):
+            return nom
+    return None
 
 
 def _forme_et_pointes(comparaison, c_a, s_a):
@@ -936,7 +993,17 @@ def _juger_couverture(comparaison, debut, fin, couverture_min,
     # garde-fou qui se declenche pour rien apprend a etre ignore.
     duree_cible = ((min(f1c, float(tc[-1])) - max(f0c, float(tc[0])))
                    if fenetre is not None else float(tc[-1] - tc[0]))
-    if not np.isfinite(debut):
+    desordre = _axe_non_croissant(comparaison)
+    if desordre:
+        # UN AXE DES TEMPS QUI RECULE, pas des fenetres disjointes : la meme
+        # impossibilite de comparer, mais pas la meme chose a corriger. Il
+        # passait pour « ne se recouvrent pas — verifier la date de debut »
+        # (11/11/2026).
+        bloquantes.append(
+            f"l'axe des temps {desordre} n'est pas strictement croissant : "
+            f"les series ne peuvent pas etre comparees - relire la colonne "
+            f"des temps, ses lignes sont dans le desordre ou en double")
+    elif not np.isfinite(debut):
         bloquantes.append(
             "les fenetres de temps de la cible et du calcul ne se recouvrent "
             "pas - verifier la date de debut de la simulation")
