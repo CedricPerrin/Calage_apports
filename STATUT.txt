@@ -25,12 +25,14 @@ qu'ils ont appris.
 REMANIEMENT DU CODE, SANS CHANGEMENT DE COMPORTEMENT — 10 NOVEMBRE 2026,
 FUSIONNE DANS main LE 11/11/2026 (PR 8, a la demande de l'utilisateur), AVEC LES
 CORRECTIFS DU 11/11 (PR 9 a 15, puis PR 18 pour les defauts mineurs ;
-section 6). VERSION 0.9.36 (NON PUBLIEE) — les 0.9.33, 0.9.34 et 0.9.35, du
-meme jour, n'ont pas ete publiees non plus ; la 0.9.34 portait les defauts
+section 6). VERSION 0.9.37 (NON PUBLIEE) — les 0.9.33 a 0.9.36, du meme
+jour, n'ont pas ete publiees non plus ; la 0.9.34 portait les defauts
 mineurs, la 0.9.35 le refus du re-cadencage sans nom de zone 2D (PR 20), la
-0.9.36 y ajoute l'erreur du controle sur une zone 2D non nommee (PR 21) :
+0.9.36 l'erreur du controle sur une zone 2D non nommee (PR 21), la 0.9.37 y
+ajoute les cinq derniers points (PR 22) et la frontiere fenetre / noyau
+(PR 23 a 25, sans changement de comportement) :
   metadata.txt, LISEZMOI.md et README.md la portent, et l'archive
-  calage_apports_0.9.36.zip est a la racine. ELLE A ETE CONSTRUITE SUR UN
+  calage_apports_0.9.37.zip est a la racine. ELLE A ETE CONSTRUITE SUR UN
   POSTE SANS « .affaires » : faire_zip.py n'y a donc PAS controle les noms
   d'affaires (les chemins du poste, si). AVANT DE PUBLIER DANS LE DEPOT PIO,
   REJOUER « python src/faire_zip.py » SUR LE POSTE QUI PORTE .affaires.
@@ -3961,10 +3963,9 @@ dates fictives au 1er janvier.
     src/test_exceptions_brutes.py ; deux cas du filet du controle refiges
     (zone_non_renseignee_plusieurs, zone_nan_plusieurs).
     LES DERNIERS POINTS, CORRIGES LE 11/11/2026 (PR 22, FUSIONNEE DANS main
-    le jour meme a la demande de l'utilisateur). PAS DE MONTEE DE VERSION,
-    SUR SA DECISION : les sources restent en 0.9.36, et L'ARCHIVE
-    calage_apports_0.9.36.zip, construite avant, NE CONTIENT PAS ces
-    correctifs. Chacun a son essai d'intention, rouge avant et
+    le jour meme a la demande de l'utilisateur). LIVRES PAR LA VERSION
+    0.9.37, non publiee (la version n'avait pas ete montee sur le moment, a
+    sa demande). Chacun a son essai d'intention, rouge avant et
     vert apres (src/test_defauts_mineurs.py, src/test_exceptions_brutes.py) :
       - criteres : UN MANQUE DE COUVERTURE PLUS COURT QU'UN DEMI-PAS DE LA
         CIBLE N'EST PLUS UNE ALERTE. Mesure sur les filets : l'alerte « 0.0 h

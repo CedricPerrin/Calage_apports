@@ -14,7 +14,7 @@ extension installée depuis le dépôt.
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 
-Version des sources du plugin : **0.9.36**. La
+Version des sources du plugin : **0.9.37**. La
 [note d’ergonomie du 11 septembre 2026](docs/ergonomie_2026-09-11.md)
 décrit le parcours, les choix d’interface et les points de recette.
 
@@ -271,6 +271,20 @@ d'écoulement 2D non nommée, dans un modèle qui en compte plusieurs, est une
 annonçait à tort « la première est retenue par défaut ». Rien ne change pour un
 modèle à une seule zone, ni depuis la fenêtre du plugin, qui nomme toujours la
 zone. Non essayée sur un calcul HEC-RAS réel ni sous Windows.
+
+La **0.9.37** (11 novembre 2026) porte cinq corrections de messages et de refus,
+**sans changer aucun résultat numérique** : le diagnostic n'annonce plus
+« 0.0 h non simulées (100 % de couverture) » pour un écart de quelques secondes
+(en dessous d'un demi-pas de temps de la cible, plus d'alerte ; au-delà, la
+durée en minutes ou en secondes) ; le contrôle des données signale un trou au
+début d'un hydrogramme cible ; un Excel illisible au lancement donne une phrase
+au lieu d'une erreur brute ; un instant de plan mal formé est refusé avant toute
+écriture dans le modèle de travail ; importer un Excel dont les formules n'ont
+jamais été calculées est refusé par une phrase. Le code est réorganisé sans
+changement de comportement : la fenêtre lit ses widgets et affiche, `noyau.py`
+décide — composition et lancement s'éprouvent désormais sans QGIS
+([docs/decoupage_dialogue.md](docs/decoupage_dialogue.md), § 9). Non essayée sur
+un calcul HEC-RAS réel ni sous Windows.
 
 La **0.9.32** (10 novembre 2026) rend le calage possible sous HEC-RAS 7.0.2.
 Lancée en ligne de commande (`Ras.exe -c projet plan`), cette version calcule
