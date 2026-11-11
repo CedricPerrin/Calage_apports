@@ -75,6 +75,16 @@ _INTERVALLE = re.compile(r"^\d+(\.\d+)?(SEC|MIN|HOUR|DAY|WEEK|MONTH|YEAR)$")
 # PiloteHecRas._recadencer_apports(), qui prefere toujours pas_travail_h.
 INTERVALLE_APPORT = "6MIN"
 
+# Au-dela de cet ecart (en fraction de la pointe) entre une condition limite
+# NON CALEE et sa serie re-cadencee, le journal porte « AVERTISSEMENT », que
+# l'etape Suivi montre sous sa banniere AU DEBUT DU CALAGE — elle ne lit que
+# la fin du journal, et la ligne en sort quand il grossit ; elle reste dans le
+# journal. En dessous du seuil, une simple ligne d'information.
+# 1 % : sous ce seuil tombent les crues qui montent en plus de
+# deux heures environ (mesure du 11/11/2026, 15 -> 6 min). Voir
+# PiloteHecRas._dire_ecart_de_recadencage().
+SEUIL_ECART_RECADENCAGE = 0.01
+
 # Les quatre intervalles d'un plan, avec le libelle de l'interface HEC-RAS.
 INTERVALLES_PLAN = {
     "intervalle_calcul": ("Computation Interval", "Computation Interval"),
@@ -568,9 +578,13 @@ def imposer_intervalle_apport(fichier_unsteady, nom, nom_zone_2d=None,
     l'apport aurait cesse d'injecter au bout de 23 h 54 sans que HEC-RAS s'en
     plaigne.
 
-    Les valeurs sont interpolees lineairement sur la nouvelle grille. Aux
-    instants de l'ancienne grille, elles sont donc INCHANGEES : le pic d'un
-    hydrogramme horaire reste a la valeur et a l'heure ou il etait.
+    Les valeurs sont interpolees lineairement sur la nouvelle grille. QUAND
+    LE NOUVEAU PAS DIVISE L'ANCIEN (1 h -> 6 min, 30 -> 6 min), elles sont
+    INCHANGEES aux instants de l'ancienne grille : le pic d'un hydrogramme
+    horaire reste a la valeur et a l'heure ou il etait. SINON (15 -> 6 min,
+    ou un pas plus grossier), un point d'origine tombe entre deux points
+    neufs : le volume est conserve, mais la pointe d'une crue rapide est
+    rabotee. Le compte rendu porte l'ecart mesure (« ecart_max »).
 
     L'EN-TETE DU BLOC EST REECRITE — « Interval= » et « Flow Hydrograph= N ».
     C'est ce que la chaine s'interdisait jusqu'ici, et la raison en tient :
@@ -646,6 +660,19 @@ def imposer_intervalle_apport(fichier_unsteady, nom, nom_zone_2d=None,
     nb_apres = int(math.ceil(duree_h / pas_apres - 1e-9)) + 1
     nouvelles = np.interp(np.arange(nb_apres) * pas_apres,
                           np.arange(len(valeurs)) * pas_avant, valeurs)
+    # CE QUE LE RE-CADENCAGE A DEPLACE (11/11/2026) : le plus grand ecart
+    # entre la serie reecrite et la serie d'origine, toutes deux lues comme
+    # HEC-RAS les lit — lineairement entre leurs points —, sur la duree
+    # d'origine. Nul quand la nouvelle grille contient l'ancienne ; sinon un
+    # point d'origine tombe entre deux points neufs, et c'est la POINTE qui
+    # est rabotee. Mesure, pas corrige : voir _dire_ecart_de_recadencage.
+    instants_avant = np.arange(len(valeurs)) * pas_avant
+    instants_apres = np.arange(nb_apres) * pas_apres
+    instants = np.union1d(instants_avant,
+                          instants_apres[instants_apres <= duree_h + 1e-9])
+    ecart_max = float(np.max(np.abs(
+        np.interp(instants, instants_apres, nouvelles)
+        - np.interp(instants, instants_avant, valeurs))))
 
     lignes = _lire_lignes(chemin)
     # L'en-tete du tableau precede immediatement ses donnees ; la ligne
@@ -675,7 +702,8 @@ def imposer_intervalle_apport(fichier_unsteady, nom, nom_zone_2d=None,
             "intervalle_avant_h": pas_avant, "intervalle_apres": intervalle,
             "nb_avant": len(valeurs), "nb_apres": nb_apres,
             "pic_avant": float(np.max(valeurs)),
-            "pic_apres": float(np.max(nouvelles))}
+            "pic_apres": float(np.max(nouvelles)),
+            "ecart_max": ecart_max}
 
 
 def retarder_hydrogrammes(fichier_unsteady, nb_pas, apports, nom_zone_2d=None,
@@ -1834,8 +1862,15 @@ class PiloteHecRas(Modele):
         33 h. HEC-RAS a refuse de calculer (« Time series data ends before the
         end of the simulation ») et le calage s'est arrete sur un calcul de
         reference sans resultats. L'interpolation lineaire, elle, retrouve les
-        valeurs d'origine A LEURS INSTANTS : elle ne contredit jamais la
-        donnee, la ou changer l'etiquette la contredit toujours.
+        valeurs d'origine A LEURS INSTANTS quand le pas de travail divise le
+        pas d'origine : elle ne contredit alors jamais la donnee, la ou
+        changer l'etiquette la contredit toujours.
+
+        QUAND LE PAS DE TRAVAIL NE DIVISE PAS LE PAS D'ORIGINE (11/11/2026),
+        la pointe d'une condition NON CALEE est rabotee — mesure : jusqu'a
+        2,5 % pour une crue qui monte en 45 min a 15 -> 6 min, rien de
+        sensible pour une crue lente. Le calcul n'est pas change (decision
+        utilisateur) : l'ecart est AFFICHE, voir _dire_ecart_de_recadencage.
 
         La carte est RECONSTRUITE apres la passe — les positions dans le
         fichier bougent des qu'un tableau change de longueur — et le
@@ -1916,7 +1951,47 @@ class PiloteHecRas(Modele):
                   f"({compte_rendu['nb_avant']} → {compte_rendu['nb_apres']} "
                   f"valeurs, {compte_rendu['duree_h']:.1f} h conservees)",
                   flush=True)
+            self._dire_ecart_de_recadencage(nom, pilote, compte_rendu)
         return convertis
+
+    @staticmethod
+    def _dire_ecart_de_recadencage(nom, pilote, compte_rendu):
+        """
+        Dit ce que le re-cadencage a change a la POINTE d'une condition non
+        calee, quand le pas de travail ne divise pas son pas d'origine. Etape
+        de _recadencer_chaque_condition().
+
+        SEULES LES CONDITIONS NON CALEES : un apport pilote est mis a zero au
+        calcul de reference puis reecrit en entier a chaque essai, sa serie
+        re-cadencee n'entre dans aucun calcul.
+        AU-DESSUS DE SEUIL_ECART_RECADENCAGE, « AVERTISSEMENT » : l'etape
+        Suivi montre alors la ligne sous sa banniere, au debut du calage
+        (elle ne lit que la fin du journal). En dessous, la ligne reste une
+        information du journal.
+        """
+        if pilote:
+            return
+        pas_avant = compte_rendu["intervalle_avant_h"]
+        pas_apres = _intervalle_en_heures(compte_rendu["intervalle_apres"])
+        if not pas_avant or not pas_apres:
+            return
+        rapport = pas_avant / pas_apres
+        if pas_apres <= pas_avant and abs(rapport - round(rapport)) < 1e-9:
+            return
+        pointe = compte_rendu["pic_avant"]
+        if not pointe > 0:
+            return
+        perte = 100.0 * (compte_rendu["pic_apres"] / pointe - 1.0)
+        ecart = compte_rendu["ecart_max"] / pointe
+        marque = ("AVERTISSEMENT : " if ecart >= SEUIL_ECART_RECADENCAGE
+                  else "")
+        print(f"   {marque}« {nom} » n'est pas cale ici, et le pas de travail "
+              f"({60 * pas_apres:g} min) ne divise pas son pas d'origine "
+              f"({60 * pas_avant:g} min) : sa pointe passe de {pointe:.2f} a "
+              f"{compte_rendu['pic_apres']:.2f} m3/s ({perte:+.2f} %), ecart "
+              f"maximal a la serie d'origine {100.0 * ecart:.2f} % de la "
+              f"pointe. C'est la serie re-cadencee que HEC-RAS lit.",
+              flush=True)
 
     def _controler_pas_apres_recadencage(self, intervalle_cible):
         """

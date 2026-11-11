@@ -53,8 +53,9 @@ BRANCHE claude/optimisation-code, PR 8 EN BROUILLON (NON FUSIONNEE, SANS VERSION
   ete figes (Linux, numpy 2.5.3) ; ailleurs ils comparent a 1e-9 pres et le
   disent : A REFIGER SUR LE POSTE WINDOWS. Aucun calcul HEC-RAS reel lance ;
   les HDF des filets sont synthetiques ; rien regarde dans le QGIS du poste.
-  Les defauts releves en chemin ne sont PAS corriges (ce serait changer le
-  comportement) : section 6. Detail : CHECKPOINT.md.
+  Les defauts releves en chemin ont ete corriges le 11/11/2026 sur des
+  branches a part (PR 9 a 13, reunies sur claude/correctifs-ensemble), non
+  fusionnees : section 6. Detail : CHECKPOINT.md.
 
 HEC-RAS 7.0.2 — 10 NOVEMBRE 2026, VERSION 0.9.32 (NON PUBLIEE).
   CAUSE DE L'INCIDENT ETABLIE PAR LA SONDE (Muncie) : en 7.0.2, « Ras.exe -c
@@ -3792,46 +3793,98 @@ dates fictives au 1er janvier.
 6. POINTS OUVERTS
 ================================================================================
 
-  - DEFAUTS RELEVES PENDANT LE REMANIEMENT DU 10/11/2026, NON CORRIGES.
-    Les filets FIGENT le comportement actuel, defauts compris : corriger l'un
-    d'eux demande de refiger sa reference. Par ordre d'enjeu.
-      1. noyau.importer_hydrogrammes : les lignes au-dela de la source ne sont
-         jamais videes (ws.cell(row, column, value=None) n'ecrit rien sous
-         openpyxl 3.1.5). Un hydrogramme importe PLUS COURT que le precedent
-         garde la queue de l'ancien. Correction d'une ligne (.value = None).
-      2. pilote._recadencer_apports : volume exact quand le pas de travail
-         divise le pas d'origine (30 -> 6 min) ; 1 a 2 % d'ecart sinon
-         (15 -> 6, 10 -> 6, 5 -> 6 min). Sans nom de zone 2D, c'est le bloc
-         de la premiere zone qui est recadence.
-      3. pont.lire_serie_hdf : un seul nom cp1252 dans « Name » rend TOUTES
-         les sections illisibles (decodage UTF-8) ; unite de temps inconnue
-         lue comme des heures. A verifier sur un vrai .pNN.hdf.
-      4. noyau.preparer_classeur : si l'ecriture echoue apres la mise de
-         cote, le classeur canonique n'existe plus ; une pente saisie a 0
-         cede a la pente deduite.
-      5. calage.caler : apports et sections de longueurs differentes tronques
-         en silence. criteres.diagnostiquer : alerte en double quand le
-         decalage sort de la fenetre ; NaN dans une serie -> message « serie
-         constante » ; axe des temps decroissant non refuse.
-      6. controle_donnees : l'avertissement « valeurs manquantes
-         intercalees » ne voit que les trous de fin ; Ordre non numerique,
-         JSON de parametres corrompu, Nom_Section absent levent une exception
-         au lieu d'une anomalie.
-      7. Suivi : l'avertissement de _detail_desaccord_suivi ne s'affiche
-         jamais ; avancement.json illisible -> la page repasse a « Aucun
-         calage suivi », contre la docstring de noyau.lire_avancement.
-      8. pont.commande_caler : objets_retires toujours [] ; Temps_h ou
-         classeur absent levent au lieu de rendre ok:false.
-      9. Note de synthese : « ras-commander v0.99.1 » en dur.
+  - DEFAUTS RELEVES PENDANT LE REMANIEMENT DU 10/11/2026.
+    CORRIGES LE 11/11/2026, chacun sur sa branche et dans sa PR (9 a 13,
+    et 15 pour le re-cadencage), reunis et rejoues ensemble sur
+    claude/correctifs-ensemble (PR 14). RIEN N'EST
+    FUSIONNE, SANS VERSION NI ENTREE DE metadata.txt : a faire a la fusion.
+    Chaque correctif a son test qui dit ce que le code DOIT faire (rouge
+    avant, vert apres), et les seuls cas des filets qui figeaient le defaut
+    ont ete refiges.
+      a. noyau.importer_hydrogrammes (PR 9) : les lignes au-dela de la source
+         n'etaient jamais videes (ws.cell(row, column, value=None) n'ecrit
+         rien sous openpyxl 3.1.5) : un hydrogramme importe PLUS COURT gardait
+         la queue de l'ancien, et un trou de la source gardait l'ancienne
+         valeur. Ecrit par « .value = ». src/test_import_hydrogrammes.py.
+      b. pont.lire_serie_hdf (PR 10) : un nom cp1252 dans « Name » rendait
+         TOUTES les sections illisibles — desormais UTF-8 strict, puis
+         cp1252, puis latin-1 ; l'unite de temps est convertie (jours,
+         heures, minutes, secondes) ou REFUSEE avec son nom, au lieu d'etre
+         lue comme des heures. src/test_lecture_hdf.py. HDF fabriques : A
+         VERIFIER SUR UN VRAI .pNN.hdf PORTANT UNE SECTION ACCENTUEE.
+      c. Suivi (PR 11) : le desaccord entre le dossier de l'Excel lance et
+         celui de l'etape Parametres est enfin dit (le test comparait a un
+         mot que la fonction voisine ne rend pas ; constante
+         ORIGINE_SUIVI_EXCEL) ; un avancement.json present mais illisible
+         garde l'affichage precedent et le dit, au lieu de repasser a
+         « Aucun calage suivi » (noyau.avancement_illisible). Un etat ABSENT
+         remet toujours l'ecran a zero. src/test_alertes_suivi.py (QGIS).
+      d. Exceptions brutes (PR 12, agent Sonnet, arbitre) : Ordre non
+         numerique, JSON de parametres corrompu, colonne Nom_Section ou
+         Nom_Apport absente, Sens_axe nul rendent une anomalie ; l'import du
+         pilote est dans son try ; « caler » rend ok:false sur un classeur
+         absent ou sans Temps_h. src/test_exceptions_brutes.py.
+      e. noyau.preparer_classeur (PR 13) : un echec d'ecriture apres la mise
+         de cote laissait le dossier sans classeur, et deux compositions
+         automatiques plus tard la saisie etait perdue. L'echec remet en
+         place le classeur mis de cote. src/test_classeur_perdu.py.
+    LE RE-CADENCAGE (pilote._recadencer_apports) : DIAGNOSTIQUE, PUIS RENDU
+    BAVARD (PR 15, decision utilisateur du 11/11 : afficher, ne pas changer
+    le calcul). Quand le pas de travail ne divise pas le pas d'origine d'une
+    condition NON CALEE, le journal dit de combien sa pointe est rabotee et
+    l'ecart maximal a la serie d'origine ; au-dela de 1 % de la pointe
+    (SEUIL_ECART_RECADENCAGE) la ligne porte « AVERTISSEMENT », que l'etape
+    Suivi montre AU DEBUT DU CALAGE seulement (elle ne lit que la fin du
+    journal ; la ligne reste dans le journal). Les .uNN reecrits sont
+    identiques a l'octet pres.
+    src/test_recadencage_ecart.py. LE DIAGNOSTIC :
+    L'annonce « 1 a 2 % d'ecart de volume » etait FAUSSE : elle venait de
+    series d'essai de quelques valeurs. Sur des crues realistes le VOLUME est
+    conserve a mieux que 0,03 %. Ce qui bouge est la POINTE des conditions
+    limites NON CALEES, quand le pas de travail ne divise pas le pas
+    d'origine : ecart maximal, en % de la pointe, de 0,03 (montee en 12 h),
+    0,3 (3 h), 2,1 (1 h 15), 3,2 (45 min) pour 15 -> 6 min ; nul pour
+    30 -> 6 min. Vers un pas plus GROSSIER (cible a 30 min, condition a
+    6 min) : jusqu'a 12 % sur la pointe d'une crue eclair. La docstring qui
+    dit que l'interpolation « retrouve les valeurs d'origine a leurs
+    instants » n'est vraie que si le pas de travail divise le pas d'origine.
+    Sans nom de zone 2D, c'est le bloc de la premiere zone qui est
+    recadence (non corrige).
+    RESTENT OUVERTS, non corriges :
+      - noyau.preparer_classeur : une pente saisie a 0 cede a la deduite.
+      - calage.caler : apports et sections de longueurs differentes tronques
+        en silence. criteres.diagnostiquer : alerte en double quand le
+        decalage sort de la fenetre ; NaN dans une serie -> message « serie
+        constante » ; axe des temps decroissant non refuse.
+      - controle_donnees : l'avertissement « valeurs manquantes
+        intercalees » ne voit que les trous de fin ; parametres.lire sur un
+        JSON corrompu leve encore dans controler_contre_modele et dans
+        commande_caler ; un Ordre non numerique y leve TypeError au tri.
+      - pont.commande_caler : objets_retires toujours [].
+      - pilote_hecras : les noms des reference lines du .gNN.hdf sont decodes
+        en UTF-8 avec remplacement (un nom cp1252 s'affiche avec « ? »).
+      - Note de synthese : « ras-commander v0.99.1 » en dur.
     TROUS DES ESSAIS, constates : aucun test ne verifie sous quelle cle
     QSettings l'interpreteur est memorise ; test_plugin_qgis.py ne tourne pas
     sous QGIS 3.34, minimum declare (QgsField(..., QMetaType.Type.QString)
     demande 3.38) ; les tests d'installation enchaines dans UN processus sous
     QGIS plantent au hasard (la CI les joue en deux pas, elle n'y est pas
     exposee).
-    DECISIONS EN ATTENTE : corriger ces defauts ; l'objet d'etat partage du
-    dialogue ; QGIS 3.34 dans la matrice de la CI ; convertir les bancs en
-    pytest ; sort de masque_fenetre ; alleger les references (4,5 Mo).
+    CI : UN SEUL DECLENCHEMENT PAR POUSSEE depuis le 11/11/2026 (push sur
+    main, pull_request pour les branches). Les jobs n'ont pas demarre du
+    10/11 au soir au 11/11 au matin (quota ou facturation Actions du compte).
+    A LEUR REPRISE, UN FILET S'EST REVELE DEPENDRE DU PROCESSEUR : a code
+    identique, test_livrables_chaine.py passait sur un runner et rendait trois
+    cas rouges sur un autre. numpy choisit ses noyaux selon le processeur ;
+    avec ou sans AVX-512 une somme differe d'un dernier bit, et ce bit faisait
+    basculer le type d'une cellule (entier ou flottant) et le nombre de
+    sommets d'une zone coloree. Corrige le 11/11 dans le repli hors socle du
+    filet, et les trois filets numeriques (caler, diagnostic, livrables)
+    comptent desormais les jeux d'instructions de numpy dans leur socle. Se
+    rejoue par NPY_DISABLE_CPU_FEATURES="X86_V4 AVX512_ICL AVX512_SPR".
+    DECISIONS EN ATTENTE : l'objet d'etat partage du dialogue ; QGIS 3.34
+    dans la matrice de la CI ; convertir les bancs en pytest ; sort de
+    masque_fenetre ; alleger les references (4,5 Mo).
 
 
   - LE CALAGE REPRIS DE SUHIHANDIA S'ARRETE AU CALCUL DE REFERENCE (14/09).

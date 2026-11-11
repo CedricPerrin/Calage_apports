@@ -1681,6 +1681,28 @@ def _mettre_de_cote(chemin):
     return sauvegarde
 
 
+def _remettre_en_place(sauvegarde, chemin):
+    """Rend son nom au classeur mis de cote, quand l'ecriture du nouveau a
+    echoue. Ne leve jamais : l'erreur d'ecriture est celle qui doit remonter."""
+    # UN ECHEC D'ECRITURE NE DOIT PAS LAISSER LE DOSSIER SANS CLASSEUR
+    # (11/11/2026). L'ancien venait d'etre renomme « .precedent.xlsx » : le
+    # nom canonique n'existait plus, la chaine ne trouvait plus de classeur,
+    # et la saisie ne vivait plus que dans le fichier mis de cote. Comme la
+    # composition est AUTOMATIQUE, la suivante repartait d'un classeur
+    # absent, en ecrivait un VIDE, et celle d'apres mettait ce vide de cote
+    # PAR-DESSUS la saisie : les hydrogrammes colles a la main etaient perdus.
+    #   CE QUI N'EST PAS RENDU : le « .precedent.xlsx » d'AVANT la mise de
+    # cote, que le renommage a remplace. Un seul niveau d'historique est
+    # garde (voir _mettre_de_cote) ; apres un echec il n'y en a plus, et
+    # c'est le classeur courant qui compte.
+    if sauvegarde is None:
+        return
+    try:
+        sauvegarde.replace(chemin)
+    except OSError:
+        pass
+
+
 def _ecrire_classeur(chemin, correspondance, cibles, valeurs):
     """Ecrit le classeur, puis le JSON des parametres, puis l'habille."""
     import pandas as pd
@@ -1778,8 +1800,12 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
     # 0.9.12 — voir _mettre_de_cote).
     _refuser_cibles_illisibles(chemin, cibles_existantes, noms_cibles)
     cibles = _feuille_cibles(cibles_existantes, noms_cibles)
-    _mettre_de_cote(chemin)
-    _ecrire_classeur(chemin, correspondance, cibles, valeurs)
+    sauvegarde = _mettre_de_cote(chemin)
+    try:
+        _ecrire_classeur(chemin, correspondance, cibles, valeurs)
+    except Exception:
+        _remettre_en_place(sauvegarde, chemin)
+        raise
     return chemin
 
 
@@ -1815,6 +1841,23 @@ def lire_avancement(dossier_suivi, nom=ETAT_SUIVI_COURANT):
         return json.loads(chemin.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
+
+
+def avancement_illisible(dossier_suivi, nom=ETAT_SUIVI_COURANT):
+    """
+    L'etat du calage EXISTE-T-IL sans pouvoir etre lu ? lire_avancement()
+    rend None aussi bien pour « aucun calage n'a encore ecrit » que pour « le
+    fichier est la, illisible a cet instant », et l'onglet Suivi ne doit pas
+    traiter les deux de la meme facon : le premier remet l'ecran a zero, le
+    second garde l'affichage precedent (11/11/2026).
+
+    Ne leve jamais.
+    """
+    try:
+        present = (Path(dossier_suivi) / nom).exists()
+    except OSError:
+        return False
+    return present and lire_avancement(dossier_suivi, nom) is None
 
 
 def processus_vivant(pid):
@@ -2236,8 +2279,13 @@ def _recopier_cibles(src, dst, cols_src, cols_dst, temps, importees):
         serie = (temps if entete == "Temps_h"
                  else _valeurs_colonne(src, cols_src[entete]))
         for i in range(hauteur):
-            dst.cell(row=i + 2, column=cols_dst[entete],
-                     value=serie[i] if i < len(serie) else None)
+            # PAR « .value = », JAMAIS PAR cell(..., value=...) : openpyxl
+            # n'affecte une valeur passee a cell() que si elle n'est pas None.
+            # Jusqu'au 11/11/2026 les lignes au-dela de la source, et ses
+            # trous, gardaient donc l'ancienne valeur : un hydrogramme importe
+            # plus court que le precedent gardait la queue de l'ancien.
+            dst.cell(row=i + 2, column=cols_dst[entete]).value = (
+                serie[i] if i < len(serie) else None)
 
 
 def _recopier_pentes(f_src, f_dst):

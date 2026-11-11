@@ -11,6 +11,7 @@ reellement (controle 5).
 Usage :  python controle_donnees.py [chemin_du_template.xlsx]
 """
 
+import json
 from pathlib import Path
 
 import numpy as np
@@ -36,8 +37,6 @@ def _controler_fenetre_simulation(valeurs, erreur):
     finirait par diverger. On appelle donc sa validation et on traduit
     l'exception en anomalie de classeur.
     """
-    from pilote_hecras import valider_fenetre_simulation
-
     correspondance = (("debut", "Simulation_debut"),
                       ("fin", "Simulation_fin"),
                       ("intervalle_calcul", "Intervalle_calcul"),
@@ -54,6 +53,9 @@ def _controler_fenetre_simulation(valeurs, erreur):
     if not fenetre:
         return
     try:
+        # L'import est DANS le try pour que le rattrapage ci-dessous soit
+        # atteignable.
+        from pilote_hecras import valider_fenetre_simulation
         valider_fenetre_simulation(fenetre)
     except ValueError as e:
         erreur(f"fenetre de simulation : {e}")
@@ -204,6 +206,19 @@ def _colonnes_correspondance(corr):
 
 def _regle_ordre_contigu(colonne_ordre):
     n = len(colonne_ordre)
+    illisibles = []
+    for ligne, o in colonne_ordre.items():
+        try:
+            int(o)
+        except (TypeError, ValueError):
+            # +2 : l'index de pandas compte depuis 0, l'en-tete est la ligne 1.
+            illisibles.append((ligne + 2, o))
+    if illisibles:
+        lus = ", ".join(f"{o!r} (ligne {ligne})" for ligne, o in illisibles)
+        return [(ERREUR,
+                 f"feuille Correspondance, colonne Ordre : valeur non "
+                 f"numerique {lus} ; la colonne doit etre la suite 1..{n} "
+                 f"sans trou ni doublon.")]
     ordres = sorted(int(o) for o in colonne_ordre)
     if ordres != list(range(1, n + 1)):
         return [(ERREUR,
@@ -316,7 +331,16 @@ def controler_template(chemin):
         return [(ERREUR, f"classeur illisible : {e}")]
 
     # --- 1. Parametres -----------------------------------------------------
-    valeurs = parametres.lire(chemin)
+    try:
+        valeurs = parametres.lire(chemin)
+    except json.JSONDecodeError as e:
+        # Comme controler_geometrie : sans parametres lisibles, le reste du
+        # controle ne dirait que « tout est manquant ».
+        return [(ERREUR,
+                 f"parametres du calage illisibles : "
+                 f"« {parametres.chemin(chemin).name} » n'est pas un JSON "
+                 f"valide (ligne {e.lineno}, colonne {e.colno}). Le corriger "
+                 f"avant de relancer le controle.")]
     anomalies += _regle_parametres_trouves(chemin, valeurs)
     anomalies += _regle_parametres_requis(valeurs)
     anomalies += _regle_nb_max_iterations(valeurs)
@@ -351,9 +375,12 @@ def controler_template(chemin):
     # DANS L'ORDRE DECLARE : _controler_prefixe_scenario exclut le premier
     # apport, qui seul ne donne pas de titre de reprise. L'ordre des lignes
     # de la feuille n'est pas force d'etre celui de la colonne Ordre.
+    # Un Ordre non numerique est deja signale plus haut : il ne doit pas faire
+    # echouer ce tri, il part en fin de liste.
+    ordre_lu = pd.to_numeric(corr[col_ordre], errors="coerce")
     _controler_prefixe_scenario(
         valeurs,
-        [str(a) for a in corr.sort_values(col_ordre)[col_apport]],
+        [str(a) for a in corr.loc[ordre_lu.sort_values().index, col_apport]],
         erreur)
 
     # --- 3. Cibles ---------------------------------------------------------
@@ -379,8 +406,14 @@ def _correspondance(chemin_template):
     dans l'ordre declare."""
     corr = pd.read_excel(chemin_template, sheet_name="Correspondance")
     col_ordre = "Ordre"
-    col_apport = next(c for c in corr.columns if c.startswith("Nom_Apport"))
-    col_section = next(c for c in corr.columns if c.startswith("Nom_Section"))
+    col_apport = next(
+        (c for c in corr.columns if c.startswith("Nom_Apport")), None)
+    if col_apport is None:
+        raise ValueError("colonne 'Nom_Apport' absente")
+    col_section = next(
+        (c for c in corr.columns if c.startswith("Nom_Section")), None)
+    if col_section is None:
+        raise ValueError("colonne 'Nom_Section' absente")
     corr = corr.dropna(subset=[col_ordre, col_apport, col_section])
     corr = corr.sort_values(col_ordre)
     return (corr[col_section].astype(str).tolist(),
@@ -494,6 +527,10 @@ def _regle_pk_calculables(axe, noms_absents, g_sec, g_app):
 
 
 def _regle_sens_axe(sens):
+    if sens is None:
+        return [(ERREUR,
+                 "Sens_axe : valeur manquante ; valeurs admises "
+                 "['amont_aval', 'aval_amont'].")]
     if sens not in ("amont_aval", "aval_amont"):
         return [(ERREUR,
                  f"Sens_axe = '{sens}' : valeurs admises ['amont_aval', "
@@ -613,7 +650,13 @@ def controler_geometrie(chemin_template):
         return anomalies + empechements, None
 
     # --- PK et coherence geographique -------------------------------------
-    sens = str(valeurs.get("Sens_axe", "amont_aval")).strip() or "amont_aval"
+    # Cle absente ou texte vide : le defaut. Valeur NULLE : elle manque, et
+    # str(None) ferait lire « 'None' » a l'ingenieur.
+    sens = valeurs.get("Sens_axe", "amont_aval")
+    if sens is None or (isinstance(sens, float) and pd.isna(sens)):
+        sens = None
+    else:
+        sens = str(sens).strip() or "amont_aval"
     refus = _regle_sens_axe(sens)
     if refus:
         return anomalies + refus, None
@@ -882,7 +925,12 @@ def controler_contre_modele(chemin_template, chemin_geometrie_hdf=None):
     }
     en_attente = _ajouter_noms_du_texte(chemin_geometrie_hdf, presents)
 
-    noms_sections, noms_apports = _correspondance(chemin_template)
+    try:
+        noms_sections, noms_apports = _correspondance(chemin_template)
+    except ValueError as e:
+        # Comme controler_geometrie, qui rend la meme anomalie.
+        return anomalies + [(ERREUR,
+                             f"feuille Correspondance illisible : {e}")]
     anomalies += _regle_noms_dans_modele(presents, noms_sections, noms_apports)
     anomalies += _regle_en_attente_de_pretraitement(en_attente, noms_sections,
                                                     noms_apports)

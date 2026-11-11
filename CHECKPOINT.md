@@ -1,5 +1,73 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 11 novembre 2026 : cinq correctifs, et le re-cadencage rendu bavard (PR 9 à 13 et 15, réunis sur `claude/correctifs-ensemble`, non fusionnés, sans version)
+
+Demandés par Cédric le 11/11, après la liste des défauts relevés pendant le remaniement.
+**Rien n'est fusionné**, pas de montée de version, pas d'entrée dans `metadata.txt` : à faire
+à la fusion. Chaque correctif vit sur sa branche, partie de `claude/optimisation-code`, avec
+un test qui dit ce que le code **doit** faire (rouge avant, vert après) ; dans les filets, seuls
+les cas qui figeaient le défaut ont été refigés. `claude/correctifs-ensemble` les réunit, et
+le banc complet y est conforme.
+
+| PR | Défaut | Correctif | Test | Cas refigés |
+|---|---|---|---|---|
+| 9 | L'import d'un hydrogramme plus court gardait la queue de l'ancien ; un trou de la source gardait l'ancienne valeur | cellule écrite par `.value =` (openpyxl ignore `value=None` passé à `cell()`) | `test_import_hydrogrammes.py` (4) | 1 sur 64 |
+| 10 | Un nom de section en cp1252 rendait tout le HDF illisible ; une unité de temps autre que le jour était lue comme des heures | UTF-8 strict, puis cp1252, puis latin-1 ; unité convertie ou refusée | `test_lecture_hdf.py` (15) | 2 sur 116 |
+| 11 | Le désaccord de dossier du Suivi n'était jamais dit ; un état illisible remettait la page à zéro | constante `ORIGINE_SUIVI_EXCEL` ; `noyau.avancement_illisible`, affichage précédent conservé et dit | `test_alertes_suivi.py` (9, QGIS) | 2 scénarios sur 90 |
+| 12 | Sept saisies fautives levaient une exception brute | anomalies du contrôle, ou réponse `ok: false` de `caler` | `test_exceptions_brutes.py` (9) | 8 sur 241 |
+| 13 | Un échec d'écriture laissait le dossier sans classeur ; deux compositions plus tard la saisie était perdue | le classeur mis de côté est remis en place | `test_classeur_perdu.py` (5) | 1 sur 64 |
+
+La PR 12 a été écrite par un agent Sonnet, puis arbitrée (5 fautes injectées, 5 attrapées) et
+retouchée (le jumeau `Nom_Apport` du défaut `Nom_Section`). Les autres sont de l'arbitre.
+
+**Le re-cadencage : diagnostiqué, puis rendu bavard (PR 15).** L'annonce « 1 à 2 % d'écart de volume »
+était fausse : elle venait de séries d'essai de quelques valeurs. Mesuré en appelant la vraie
+fonction sur des crues réalistes, contre la série d'origine lue comme HEC-RAS la lit :
+- le **volume** est conservé à mieux que 0,03 % ;
+- la **pointe** des conditions limites **non calées** est rabotée quand le pas de travail ne
+  divise pas le pas d'origine. Écart maximal, en % de la pointe, pour 15 → 6 min : 0,03
+  (montée en 12 h), 0,3 (3 h), 2,1 (1 h 15), 3,2 (45 min) ; nul pour 30 → 6 min ;
+- vers un pas plus grossier (cible à 30 min, condition à 6 min) : jusqu'à 12 % sur la pointe
+  d'une crue éclair.
+
+Les apports calés ne sont pas concernés : ils sont réécrits en entier à chaque essai.
+
+Décision de Cédric : **afficher l'écart, sans changer le calcul.** Quand le pas de travail ne
+divise pas le pas d'origine d'une condition non calée, le journal dit de combien sa pointe
+est rabotée et l'écart maximal à la série d'origine ; au-delà de 1 % de la pointe
+(`SEUIL_ECART_RECADENCAGE`, mon choix, à relire), la ligne porte « AVERTISSEMENT », que
+l'étape Suivi montre sous sa bannière **au début du calage seulement** : elle ne lit que la
+fin du journal, et la ligne en sort quand il grossit (elle reste dans le journal). Les
+fichiers unsteady réécrits sont identiques à
+l'octet près. `test_recadencage_ecart.py` (9 tests) ; filet `test_pilote_recadence` refigé
+(une clé ajoutée aux comptes rendus, cinq lignes de journal dans quatre cas).
+
+**CI.** Un seul déclenchement par poussée depuis le 11/11 (`push` sur `main`, `pull_request`
+pour les branches) : une branche qui avait une PR jouait le workflow deux fois. Les jobs
+n'ont pas démarré du 10/11 au soir au 11/11 au matin (quota ou facturation Actions du compte).
+
+**Un filet dépendait du processeur.** À la reprise de la CI, `test_livrables_chaine.py`
+passait sur un runner et rendait trois cas rouges sur un autre, à code identique. Cause
+établie et rejouée (`NPY_DISABLE_CPU_FEATURES="X86_V4 AVX512_ICL AVX512_SPR"`) : numpy choisit
+ses noyaux de calcul selon le processeur ; avec ou sans AVX-512, une somme diffère d'un
+dernier bit. La tolérance de 1e-9 absorbait l'écart sur les nombres, pas ses deux effets
+discrets : le type d'une cellule relue par openpyxl (« 3 » en entier, « 2.9999999999999996 »
+en flottant) et le nombre de sommets d'une zone colorée sous un seuil. Corrigé dans le repli
+hors socle du filet ; et les trois filets numériques (`caler`, `diagnostiquer`, livrables)
+comptent désormais les jeux d'instructions de numpy dans leur socle — à versions égales, un
+autre processeur passait pour le socle et échouait à tort. Ce n'est pas un défaut du code
+livré : c'est le résultat lui-même qui varie d'un dernier bit d'une machine à l'autre.
+
+**Non vérifié.** Rien dans le QGIS du poste, rien sous Windows, rien sous QGIS 4.2, aucun
+HEC-RAS réel. Les HDF de la PR 10 sont fabriqués : que HEC-RAS écrive ses noms en cp1252
+reste une hypothèse, à vérifier sur un vrai `.pNN.hdf` portant une section accentuée. Les
+échecs d'écriture de la PR 13 sont simulés. Les messages des PR 11 et 12 n'ont pas été relus
+à l'écran.
+
+**Pour reprendre.** Rétablir le quota Actions et relancer les jobs ; relire les PR 9 à 13
+et 15 (ou la seule PR 14 d'assemblage) ; fusionner la PR 8 d'abord. Restent ouverts :
+`STATUT.txt`, section 6.
+
 ## 10 novembre 2026 (soir) : remaniement du code sans changement de comportement (branche `claude/optimisation-code`, PR 8 en brouillon, sans version)
 
 **Rien n'est sur `main`.** Pas de fusion, pas de montée de version, pas d'archive, pas de
