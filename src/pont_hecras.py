@@ -432,8 +432,9 @@ def _normaliser(brut, nom_section):
 def _objets_du_hdf(chemin):
     """
     Ce que le .gXX.hdf PRETRAITE porte deja : (crs, perimetres, sections,
-    injections, vides_hdf), vides_hdf etant les noms des lignes que le HDF
-    nomme sans en porter le trace.
+    injections, vides_hdf, sans_nom), vides_hdf etant les noms des lignes que
+    le HDF nomme sans en porter le trace, sans_nom les familles (« sections »,
+    « apports ») dont il ne porte pas les noms.
     """
     from ras_commander import HdfBndry, HdfMesh
 
@@ -445,12 +446,17 @@ def _objets_du_hdf(chemin):
     # avec des entites sans trace. On les ecarte ici pour que le texte les
     # fournisse.
     vides_hdf = set()
+    # FAMILLES DONT LE HDF NE DIT PAS LES NOMS : sans colonne de nom, les lignes
+    # recoivent « Section_01 »… inventes, que le texte ne retrouvera pas.
+    sans_nom = set()
 
     def lignes(gdf, prefixe):
         if gdf is None or len(gdf) == 0:
             return []
         colonne = next((c for c in gdf.columns
                         if c in ("Name", "name", "Nom", "NOM")), None)
+        if colonne is None:
+            sans_nom.add("sections" if prefixe == "Section" else "apports")
         retenues = []
         for i in range(len(gdf)):
             nom = (str(gdf.iloc[i][colonne]).strip() if colonne
@@ -476,7 +482,7 @@ def _objets_du_hdf(chemin):
                   for _, r in zones.iterrows()]
                  if zones is not None and len(zones) else [])
     sections, injections = lignes(ref, "Section"), lignes(bc, "Apport")
-    return crs, perimetres, sections, injections, vides_hdf
+    return crs, perimetres, sections, injections, vides_hdf, sans_nom
 
 
 def commande_modele(args):
@@ -507,10 +513,10 @@ def commande_modele(args):
 
     pretraitee = chemin.exists()
     crs, perimetres, sections, injections = None, [], [], []
-    vides_hdf = set()
+    vides_hdf, sans_nom = set(), set()
     if pretraitee:
-        crs, perimetres, sections, injections, vides_hdf = _objets_du_hdf(
-            chemin)
+        (crs, perimetres, sections, injections, vides_hdf,
+         sans_nom) = _objets_du_hdf(chemin)
 
     # LE FICHIER TEXTE FAIT FOI POUR LES OBJETS. Le .gXX.hdf lu ci-dessus est
     # le produit d'un PRETRAITEMENT : un objet qu'on vient d'ecrire dans le
@@ -523,11 +529,19 @@ def commande_modele(args):
     du_texte = geo.objets_depuis_texte(texte)
     en_attente = []
     for cle, depuis_hdf in (("sections", sections), ("apports", injections)):
+        # HDF SANS NOMS : le texte dit les noms, et ses objets sont les memes
+        # lignes que celles du HDF — les garder toutes deux les doublerait.
+        # S'il n'en porte aucun, les lignes du HDF restent, sous leur nom
+        # invente.
+        sans_nom_et_texte = cle in sans_nom and du_texte[cle]
+        if sans_nom_et_texte:
+            depuis_hdf.clear()
         connus = {o["nom"] for o in depuis_hdf}
         for objet in du_texte[cle]:
             if objet["nom"] not in connus:
                 depuis_hdf.append({"nom": objet["nom"], "wkt": objet["wkt"]})
-                if pretraitee and objet["nom"] not in vides_hdf:
+                if (pretraitee and objet["nom"] not in vides_hdf
+                        and not sans_nom_et_texte):
                     en_attente.append(objet["nom"])
 
     # OBJETS DECLARES MAIS ILLISIBLES. Un « Reference Line Name= » present
