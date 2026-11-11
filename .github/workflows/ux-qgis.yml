@@ -77,7 +77,7 @@ jobs:
       # Filets de la vague 4 (10/11/2026) qui demandent h5py ou ras-commander : les trois
       # lecteurs du pont (HDF fabriqués) et le recadencement des apports du pilote.
       - run: python -m pip install pytest
-      - run: python -m pytest src/test_pont_lecture.py src/test_pilote_recadence.py -q
+      - run: python -m pytest src/test_pont_lecture.py src/test_pilote_recadence.py src/test_recadencage_ecart.py -q
 
   qgis:
     runs-on: ubuntu-latest
