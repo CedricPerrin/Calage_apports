@@ -3795,10 +3795,16 @@ dates fictives au 1er janvier.
   - DEFAUTS RELEVES PENDANT LE REMANIEMENT DU 10/11/2026, NON CORRIGES.
     Les filets FIGENT le comportement actuel, defauts compris : corriger l'un
     d'eux demande de refiger sa reference. Par ordre d'enjeu.
-      1. noyau.importer_hydrogrammes : les lignes au-dela de la source ne sont
-         jamais videes (ws.cell(row, column, value=None) n'ecrit rien sous
-         openpyxl 3.1.5). Un hydrogramme importe PLUS COURT que le precedent
-         garde la queue de l'ancien. Correction d'une ligne (.value = None).
+      1. noyau.importer_hydrogrammes : CORRIGE LE 11/11/2026, sur la branche
+         claude/correctif-import-hydrogrammes (non fusionnee, SANS VERSION NI
+         ENTREE DE metadata.txt : a faire a la fusion). Les lignes au-dela de
+         la source n'etaient jamais videes (ws.cell(row, column, value=None)
+         n'ecrit rien sous openpyxl 3.1.5) : un hydrogramme importe PLUS COURT
+         que le precedent gardait la queue de l'ancien, et un trou de la source
+         gardait l'ancienne valeur. Ecrit desormais par « .value = ».
+         src/test_import_hydrogrammes.py dit ce que l'import doit faire ; un
+         seul cas du filet a ete refige (importer/cible_plus_longue_videe_
+         dessous : les quatre cellules de queue disparaissent).
       2. pilote._recadencer_apports : volume exact quand le pas de travail
          divise le pas d'origine (30 -> 6 min) ; 1 a 2 % d'ecart sinon
          (15 -> 6, 10 -> 6, 5 -> 6 min). Sans nom de zone 2D, c'est le bloc

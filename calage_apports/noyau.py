@@ -2236,8 +2236,13 @@ def _recopier_cibles(src, dst, cols_src, cols_dst, temps, importees):
         serie = (temps if entete == "Temps_h"
                  else _valeurs_colonne(src, cols_src[entete]))
         for i in range(hauteur):
-            dst.cell(row=i + 2, column=cols_dst[entete],
-                     value=serie[i] if i < len(serie) else None)
+            # PAR « .value = », JAMAIS PAR cell(..., value=...) : openpyxl
+            # n'affecte une valeur passee a cell() que si elle n'est pas None.
+            # Jusqu'au 11/11/2026 les lignes au-dela de la source, et ses
+            # trous, gardaient donc l'ancienne valeur : un hydrogramme importe
+            # plus court que le precedent gardait la queue de l'ancien.
+            dst.cell(row=i + 2, column=cols_dst[entete]).value = (
+                serie[i] if i < len(serie) else None)
 
 
 def _recopier_pentes(f_src, f_dst):
