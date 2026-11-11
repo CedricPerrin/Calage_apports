@@ -24,9 +24,11 @@ qu'ils ont appris.
 
 REMANIEMENT DU CODE, SANS CHANGEMENT DE COMPORTEMENT — 10 NOVEMBRE 2026,
 FUSIONNE DANS main LE 11/11/2026 (PR 8, a la demande de l'utilisateur), AVEC LES
-CORRECTIFS DU 11/11 (PR 9 a 15, section 6). VERSION 0.9.33 (NON PUBLIEE) :
+CORRECTIFS DU 11/11 (PR 9 a 15, puis PR 18 pour les defauts mineurs ;
+section 6). VERSION 0.9.34 (NON PUBLIEE) — la 0.9.33, du meme jour, ne portait
+pas les defauts mineurs et n'a pas ete publiee non plus :
   metadata.txt, LISEZMOI.md et README.md la portent, et l'archive
-  calage_apports_0.9.33.zip est a la racine. ELLE A ETE CONSTRUITE SUR UN
+  calage_apports_0.9.34.zip est a la racine. ELLE A ETE CONSTRUITE SUR UN
   POSTE SANS « .affaires » : faire_zip.py n'y a donc PAS controle les noms
   d'affaires (les chemins du poste, si). AVANT DE PUBLIER DANS LE DEPOT PIO,
   REJOUER « python src/faire_zip.py » SUR LE POSTE QUI PORTE .affaires.
@@ -3859,8 +3861,10 @@ dates fictives au 1er janvier.
     instants » n'est vraie que si le pas de travail divise le pas d'origine.
     Sans nom de zone 2D, c'est le bloc de la premiere zone qui est
     recadence (non corrige).
-    DEFAUTS MINEURS CORRIGES LE 11/11/2026 (apres la 0.9.33, PAS ENCORE DANS
-    UNE VERSION). Chacun a son essai d'intention, rouge avant, vert apres
+    DEFAUTS MINEURS CORRIGES LE 11/11/2026 (PR 18, FUSIONNEE DANS main LE
+    JOUR MEME a la demande de l'utilisateur, CI verte sur les cinq jobs ;
+    LIVRES PAR LA VERSION 0.9.34, non publiee). Chacun a son essai
+    d'intention, rouge avant, vert apres
     (src/test_defauts_mineurs.py, src/test_exceptions_brutes.py) :
       - criteres.diagnostiquer : l'alerte du decalage qui excede la fenetre
         ne figure plus qu'UNE fois ; des valeurs manquantes sont dites (et
@@ -3925,9 +3929,9 @@ dates fictives au 1er janvier.
     filet, et les trois filets numeriques (caler, diagnostic, livrables)
     comptent desormais les jeux d'instructions de numpy dans leur socle. Se
     rejoue par NPY_DISABLE_CPU_FEATURES="X86_V4 AVX512_ICL AVX512_SPR".
-    DECISIONS EN ATTENTE : l'objet d'etat partage du dialogue ; QGIS 3.34
-    dans la matrice de la CI ; convertir les bancs en pytest ; sort de
-    masque_fenetre ; alleger les references (4,5 Mo).
+    DECISIONS EN ATTENTE : l'objet d'etat partage du dialogue ; convertir
+    les bancs en pytest ; sort de masque_fenetre ; alleger les references
+    (4,5 Mo) ; que faire d'un re-cadencage sans nom de zone 2D.
 
 
   - LE CALAGE REPRIS DE SUHIHANDIA S'ARRETE AU CALCUL DE REFERENCE (14/09).

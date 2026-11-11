@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont l'étape « Suivi » montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.9.33
+version=0.9.34
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,18 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.9.33 — Cinq corrections, relevées pendant une réorganisation du
+changelog=0.9.34 — Des messages plus justes, sans changement des résultats.
+    Le diagnostic ne répète plus l'alerte d'un décalage plus long que la
+    fenêtre jugée, dit qu'une série porte des valeurs manquantes (au lieu de
+    « série constante ») et nomme un axe des temps qui n'est pas croissant.
+    Le contrôle des données signale un trou au milieu d'un hydrogramme cible,
+    avec ses lignes. Un fichier de paramètres abîmé, une feuille ou une
+    colonne absente de l'Excel donnent partout la même phrase. Une pente
+    saisie mais non retenue (0, hors plage, du texte) est dite au journal du
+    calage. La note de synthèse cite la version de ras-commander réellement
+    employée. Importer un fichier qui n'est pas un Excel est refusé par une
+    phrase. Un nom de ligne de référence accentué n'est plus lu avec « ? ».
+    0.9.33 — Cinq corrections, relevées pendant une réorganisation du
     code. Importer un Excel d'hydrogrammes plus court que le précédent ne
     garde plus la fin de l'ancien hydrogramme sous le nouveau. Une section au
     nom accentué ne rend plus illisibles les résultats de HEC-RAS. L'étape
