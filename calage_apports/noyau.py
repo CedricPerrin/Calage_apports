@@ -1817,6 +1817,23 @@ def lire_avancement(dossier_suivi, nom=ETAT_SUIVI_COURANT):
         return None
 
 
+def avancement_illisible(dossier_suivi, nom=ETAT_SUIVI_COURANT):
+    """
+    L'etat du calage EXISTE-T-IL sans pouvoir etre lu ? lire_avancement()
+    rend None aussi bien pour « aucun calage n'a encore ecrit » que pour « le
+    fichier est la, illisible a cet instant », et l'onglet Suivi ne doit pas
+    traiter les deux de la meme facon : le premier remet l'ecran a zero, le
+    second garde l'affichage precedent (11/11/2026).
+
+    Ne leve jamais.
+    """
+    try:
+        present = (Path(dossier_suivi) / nom).exists()
+    except OSError:
+        return False
+    return present and lire_avancement(dossier_suivi, nom) is None
+
+
 def processus_vivant(pid):
     """
     Le processus existe-t-il encore ? None si on ne sait pas dire.

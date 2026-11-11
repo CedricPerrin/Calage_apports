@@ -436,14 +436,33 @@ class PageSuivi(QWidget):
     def _peindre_suivi(self):
         dossier = self._dialogue._dossier_suivi()
         etat = noyau.lire_avancement(dossier) if dossier else None
+        # ETAT ILLISIBLE N'EST PAS ETAT ABSENT (11/11/2026). Le fichier est
+        # reecrit pendant qu'on le lit ; un antivirus ou un partage reseau
+        # peuvent rendre une lecture illisible. noyau.lire_avancement promet
+        # alors de « garder l'affichage precedent » — et cette methode faisait
+        # le contraire : « Aucun calage suivi », tableau vide, en plein calage.
+        #   ON NE GARDE QUE CE QU'ON A PEINT POUR CE DOSSIER, et on LE DIT sous
+        # la banniere : un affichage fige sans un mot se lirait comme un calage
+        # qui n'avance plus.
+        #   UN ETAT ABSENT, LUI, REMET TOUJOURS L'ECRAN A ZERO : une relance
+        # archive l'etat avant d'en ecrire un neuf, et ce vide est une
+        # information.
+        illisible = (etat is None and bool(dossier)
+                     and noyau.avancement_illisible(dossier))
+        if illisible and getattr(self, "_dossier_peint", None) == dossier:
+            self._nommer_dossier_suivi(dossier, illisible="garde")
+            return
 
         perime = self._etat_perime(etat)
 
-        self._nommer_dossier_suivi(dossier)
+        self._nommer_dossier_suivi(dossier,
+                                   illisible="dit" if illisible else "")
 
         if etat is None or perime:
+            self._dossier_peint = None
             self._peindre_sans_etat(etat, perime)
             return
+        self._dossier_peint = dossier
 
         apports = etat.get("apports") or []
         en_cours = etat.get("en_cours")
@@ -507,8 +526,10 @@ class PageSuivi(QWidget):
                 perime = False
         return perime
 
-    def _nommer_dossier_suivi(self, dossier):
-        """Le dossier surveille, sous la banniere, a chaque passage."""
+    def _nommer_dossier_suivi(self, dossier, illisible=""):
+        """Le dossier surveille, sous la banniere, a chaque passage ; et, si
+        l'etat n'a pas pu etre lu, le fait de le dire (« garde » : l'affichage
+        precedent reste ; « dit » : il n'y avait rien a garder)."""
         # LE DOSSIER SURVEILLE EST NOMME A CHAQUE PASSAGE, avant tout test :
         # la branche « Aucun calage suivi » sort plus bas, et c'est elle qui
         # le disait — donc jamais quand un calage tourne. Voir la construction
@@ -520,8 +541,19 @@ class PageSuivi(QWidget):
         coupable = str(dossier).replace("\\", "\\\u200b").replace("/", "/\u200b")
         dire(self.label_suivi_dossier,
              (f"Dossier surveillé ({self._dialogue._origine_dossier_suivi()}) : {coupable}"
-              + self._dialogue._detail_desaccord_suivi(dossier)) if dossier
+              + self._dialogue._detail_desaccord_suivi(dossier)
+              + self._mention_etat_illisible(illisible)) if dossier
              else "Aucun dossier de suivi désigné.")
+
+    @staticmethod
+    def _mention_etat_illisible(illisible):
+        if not illisible:
+            return ""
+        return ("<br>L'état du calage existe mais n'a pas pu être lu à cette "
+                "lecture (fichier en cours d'écriture, antivirus, partage "
+                "réseau ou fichier abîmé)"
+                + (" : l'affichage précédent est conservé."
+                   if illisible == "garde" else "."))
 
     def _peindre_sans_etat(self, etat, perime):
         """Rien a montrer : pas encore parti, mort au demarrage, ou etat perime."""

@@ -27034,8 +27034,8 @@ false,
 "texte_rendu": "<span style='font-size:13pt; font-weight:bold; color:#526B7A'>·  Aucun calage suivi</span><br><span style='font-size:9pt; color:#526B7A'>Le suivi apparaît ici dès que le calage écrit son premier état, quelques secondes après le lancement.</span>"
 },
 "01 EtiquetteLexique": {
-"texte": "Dossier surveillé (Excel lancé) : calage/​suivi",
-"texte_rendu": "Dossier surveillé (Excel lancé) : calage/​suivi"
+"texte": "Dossier surveillé (Excel lancé) : calage/​suivi<br>L'état du calage existe mais n'a pas pu être lu à cette lecture (fichier en cours d'écriture, antivirus, partage réseau ou fichier abîmé).",
+"texte_rendu": "Dossier surveillé (Excel lancé) : calage/​suivi<br>L'état du calage existe mais n'a pas pu être lu à cette lecture (fichier en cours d'écriture, antivirus, partage réseau ou fichier abîmé)."
 },
 "08 QProgressBar": {
 "texte": "0 %",
@@ -27054,12 +27054,12 @@ false,
 104,
 320
 ],
-"geometrie": "b3c2a29bad0ab3aef605",
+"geometrie": "3fb8c6fa647fd4554c0e",
 "image_courbe": "c6fa65c9ddd682d8bfcc",
 "image_jauge_forme_pct": "0922e793756df9658dcd",
 "image_jauge_pic_pct": "c4ccebb78cd776f5f338",
 "image_jauge_volume_pct": "c79d4ceed13e642df4ca",
-"image_page": "b5fc47db4d6949077a9d",
+"image_page": "307cbfc03f0e17458830",
 "image_ruban": "783a32351ee4f4ced140",
 "ordres_courbe": "33babac57f95097ec483",
 "ordres_jauge_forme_pct": "30d290961995c6dfb3ed",
@@ -30583,36 +30583,57 @@ false,
 },
 {
 "courbe": {
-"courbes": null,
+"courbes": {
+"apport": "A1",
+"debit_calcule": {
+"empreinte": "3115264ae5bf882de6c4",
+"n": 97
+},
+"debit_cible": {
+"empreinte": "3ba16d70a059df123213",
+"n": 97
+},
+"decalage_h": 0.0,
+"section": "S_A1",
+"statut": "validé",
+"temps_calcule": {
+"empreinte": "e0f5a07c163e802bdae5",
+"n": 97
+},
+"temps_cible": {
+"empreinte": "e0f5a07c163e802bdae5",
+"n": 97
+}
+},
 "precedentes": []
 },
 "jauges": {
 "forme_pct": {
 "lecture": [
-"—",
-null
+"99,1 %",
+true
 ],
 "libelle": "Forme",
 "tolerance": 3.0,
-"valeur": null
+"valeur": 99.1
 },
 "pic_pct": {
 "lecture": [
-"—",
-null
+"99,8 %",
+true
 ],
 "libelle": "Débit de pointe",
 "tolerance": 2.0,
-"valeur": null
+"valeur": 99.8
 },
 "volume_pct": {
 "lecture": [
-"—",
-null
+"100,1 %",
+true
 ],
 "libelle": "Volume",
 "tolerance": 5.0,
-"valeur": null
+"valeur": 100.1
 }
 },
 "ordres": {
@@ -30645,13 +30666,129 @@ false
 ],
 [
 "setPen",
+"stylo",
+"#ff3a8d94",
+2.2,
+1
+],
+[
+"drawLine"
+],
+[
+"setPen",
+"couleur",
+"#ff1c2430"
+],
+[
+"drawText",
+"calculé",
+129
+],
+[
+"setPen",
+"stylo",
+"#ff1c2430",
+1.6,
+2
+],
+[
+"drawLine"
+],
+[
+"setPen",
+"couleur",
+"#ff1c2430"
+],
+[
+"drawText",
+"cible",
+129
+],
+[
+"setPen",
+"stylo",
+"#ffe3e9ec",
+1.0,
+1
+],
+[
+"drawLine"
+],
+[
+"drawLine"
+],
+[
+"drawLine"
+],
+[
+"drawLine"
+],
+[
+"setPen",
 "couleur",
 "#ff5b6670"
 ],
 [
 "drawText",
-"La comparaison apparaît après le premier essai évalué.",
-132
+"20",
+130
+],
+[
+"drawText",
+"40",
+130
+],
+[
+"drawText",
+"m³/s",
+130
+],
+[
+"drawText",
+"0 h",
+1
+],
+[
+"drawText",
+"24 h",
+2
+],
+[
+"setClipRect"
+],
+[
+"setPen",
+"stylo",
+"#ff1c2430",
+1.6,
+2
+],
+[
+"drawPolyline",
+97,
+{
+"empreinte": "404fba0ddc95cea08ba9",
+"n": 97
+}
+],
+[
+"setPen",
+"stylo",
+"#ff3a8d94",
+2.2,
+1
+],
+[
+"drawPolyline",
+97,
+{
+"empreinte": "980327ae6967a55b8276",
+"n": 97
+}
+],
+[
+"setClipping",
+false
 ],
 [
 "end"
@@ -30705,11 +30842,11 @@ true
 [
 "setPen",
 "couleur",
-"#ff5b6670"
+"#ff1c2430"
 ],
 [
 "drawText",
-"—",
+"✔ 99,1 %",
 129
 ],
 [
@@ -30732,6 +30869,14 @@ true
 ],
 [
 "drawRect"
+],
+[
+"setBrush",
+"couleur",
+"#ff3a8d94"
+],
+[
+"drawRoundedRect"
 ],
 [
 "setPen",
@@ -30793,11 +30938,11 @@ true
 [
 "setPen",
 "couleur",
-"#ff5b6670"
+"#ff1c2430"
 ],
 [
 "drawText",
-"—",
+"✔ 99,8 %",
 129
 ],
 [
@@ -30820,6 +30965,14 @@ true
 ],
 [
 "drawRect"
+],
+[
+"setBrush",
+"couleur",
+"#ff3a8d94"
+],
+[
+"drawRoundedRect"
 ],
 [
 "setPen",
@@ -30881,11 +31034,11 @@ true
 [
 "setPen",
 "couleur",
-"#ff5b6670"
+"#ff1c2430"
 ],
 [
 "drawText",
-"—",
+"✔ 100,1 %",
 129
 ],
 [
@@ -30908,6 +31061,14 @@ true
 ],
 [
 "drawRect"
+],
+[
+"setBrush",
+"couleur",
+"#ff3a8d94"
+],
+[
+"drawRoundedRect"
 ],
 [
 "setPen",
@@ -30944,13 +31105,71 @@ true
 "drawRoundedRect"
 ],
 [
+"setFont",
+7.5,
+true
+],
+[
+"setBrush",
+"couleur",
+"#503a8d94"
+],
+[
+"setPen",
+"stylo",
+"#ff3a8d94",
+1.5,
+1
+],
+[
+"drawRoundedRect"
+],
+[
 "setPen",
 "couleur",
-"#ff5b6670"
+"#ff1c2430"
 ],
 [
 "drawText",
-"aucun calage suivi",
+"✔ A1",
+132
+],
+[
+"setBrush",
+"couleur",
+"#963a8d94"
+],
+[
+"setPen",
+"stylo",
+"#ff3a8d94",
+1.5,
+1
+],
+[
+"drawRoundedRect"
+],
+[
+"setPen",
+"style",
+0
+],
+[
+"setBrush",
+"couleur",
+"#ff3a8d94"
+],
+[
+"drawRoundedRect"
+],
+[
+"setPen",
+"couleur",
+"#ff1c2430"
+],
+[
+"drawText",
+"▶ A2",
 132
 ],
 [
@@ -30960,12 +31179,152 @@ true
 },
 "processus_vivant": [],
 "ruban": {
-"apports": [],
-"en_cours": null
+"apports": [
+{
+"apport": "A1",
+"decalage_h": 0.25,
+"duree_s": 1800.0,
+"essais": 2,
+"forme_pct": 99.1,
+"motif": "",
+"ordre": 1,
+"pic_pct": 99.8,
+"section": "S_A1",
+"statut": "validé",
+"volume_pct": 100.1
+},
+{
+"apport": "A2",
+"decalage_h": null,
+"duree_s": 0.0,
+"essais": 0,
+"forme_pct": null,
+"motif": "",
+"ordre": 2,
+"pic_pct": null,
+"section": "S_A2",
+"statut": "en cours",
+"volume_pct": null
+}
+],
+"en_cours": 1
 },
 "signalements": [],
 "table": {
-"cellules": [],
+"cellules": [
+[
+[
+"A1",
+"#ff000000",
+0,
+0,
+false,
+0,
+""
+],
+[
+"S_A1",
+"#ff000000",
+0,
+0,
+false,
+0,
+""
+],
+[
+"✔  validé",
+"#ff386f55",
+1,
+0,
+true,
+0,
+""
+],
+[
+"2",
+"#ff000000",
+0,
+0,
+false,
+132,
+""
+],
+[
+"100,1 %",
+"#ff000000",
+0,
+0,
+false,
+132,
+""
+],
+[
+"99,8 %",
+"#ff000000",
+0,
+0,
+false,
+132,
+""
+]
+],
+[
+[
+"A2",
+"#ff000000",
+0,
+0,
+false,
+0,
+""
+],
+[
+"S_A2",
+"#ff000000",
+0,
+0,
+false,
+0,
+""
+],
+[
+"▶  en cours",
+"#ff2e7176",
+1,
+0,
+true,
+0,
+""
+],
+[
+"",
+"#ff000000",
+0,
+0,
+false,
+132,
+""
+],
+[
+"—",
+"#ff000000",
+0,
+0,
+false,
+132,
+""
+],
+[
+"—",
+"#ff000000",
+0,
+0,
+false,
+132,
+""
+]
+]
+],
 "colonnes": 6,
 "entetes": [
 "Apport",
@@ -30975,8 +31334,11 @@ true
 "Volume",
 "Pointe"
 ],
-"lignes": 0,
-"ordre_affiche": [],
+"lignes": 2,
+"ordre_affiche": [
+0,
+1
+],
 "tri": [
 false,
 0,
@@ -30985,21 +31347,40 @@ false,
 },
 "widgets": {
 "00 Etiquette banniereSuivi": {
-"style": "background-color: palette(base);border: none; border-left: 5px solid #526b7a;border-radius: 3px; padding: 12px 16px;",
-"texte": "<span style='font-size:13pt; font-weight:bold; color:#526B7A'>·  Aucun calage suivi</span><br><span style='font-size:9pt; color:#526B7A'>Le suivi apparaît ici dès que le calage écrit son premier état, quelques secondes après le lancement.</span>",
-"texte_rendu": "<span style='font-size:13pt; font-weight:bold; color:#526B7A'>·  Aucun calage suivi</span><br><span style='font-size:9pt; color:#526B7A'>Le suivi apparaît ici dès que le calage écrit son premier état, quelques secondes après le lancement.</span>"
+"style": "background-color: palette(base);border: none; border-left: 5px solid #2e7176;border-radius: 3px; padding: 12px 16px;",
+"texte": "<span style='font-size:13pt; font-weight:bold; color:#2E7176'>▶  Calage en cours</span><br><span style='font-size:9pt; color:#526B7A'>Apport 2 sur 2 — A2. Mis à jour 14:00:00.</span>",
+"texte_rendu": "<span style='font-size:13pt; font-weight:bold; color:#2E7176'>▶  Calage en cours</span><br><span style='font-size:9pt; color:#526B7A'>Apport 2 sur 2 — A2. Mis à jour 14:00:00.</span>"
 },
 "01 EtiquetteLexique": {
-"texte": "Dossier surveillé (Excel lancé) : calage/​suivi",
-"texte_rendu": "Dossier surveillé (Excel lancé) : calage/​suivi"
+"texte": "Dossier surveillé (Excel lancé) : calage/​suivi<br>L'état du calage existe mais n'a pas pu être lu à cette lecture (fichier en cours d'écriture, antivirus, partage réseau ou fichier abîmé) : l'affichage précédent est conservé.",
+"texte_rendu": "Dossier surveillé (Excel lancé) : calage/​suivi<br>L'état du calage existe mais n'a pas pu être lu à cette lecture (fichier en cours d'écriture, antivirus, partage réseau ou fichier abîmé) : l'affichage précédent est conservé."
+},
+"07 RubanApports": {
+"description_accessible": "2 apports : 1 validé, 1 en cours"
 },
 "08 QProgressBar": {
-"texte": "0 %",
-"valeur": 0
+"texte": "50 %",
+"valeur": 50
+},
+"09 Etiquette": {
+"texte": "<b style='color:#2E7176'>A2 → S_A2</b> &nbsp;·&nbsp; essai <b>0</b> &nbsp;·&nbsp; apport <b>2</b> sur <b>2</b>",
+"texte_rendu": "<b style='color:#2E7176'>A2 → S_A2</b> &nbsp;·&nbsp; essai <b>0</b> &nbsp;·&nbsp; apport <b>2</b> sur <b>2</b>"
+},
+"11 JaugeAtteinte": {
+"description_accessible": "Volume : 100,1 %, conforme"
+},
+"12 JaugeAtteinte": {
+"description_accessible": "Débit de pointe : 99,8 %, conforme"
+},
+"13 JaugeAtteinte": {
+"description_accessible": "Forme : 99,1 %, conforme"
 },
 "14 EtiquetteLexique": {
 "texte": "<b>A1 → S_A1</b>, essai 2 — dernier essai évalué ; le calcul en cours n'a pas encore rendu le sien",
 "texte_rendu": "<b>A1 → S_A1</b>, essai 2 — dernier essai évalué ; le calcul en cours n'a pas encore rendu le sien"
+},
+"16 CourbeComparaison": {
+"description_accessible": "Cible et débit calculé au dernier essai évalué"
 },
 "20 Etiquette": {
 "texte": "30 min",
@@ -32311,18 +32692,18 @@ false,
 75,
 67
 ],
-"geometrie": "e375185f37a2db0dd126",
-"image_courbe": "c6fa65c9ddd682d8bfcc",
-"image_jauge_forme_pct": "011e89bfec48a37263e5",
-"image_jauge_pic_pct": "c4ccebb78cd776f5f338",
-"image_jauge_volume_pct": "a8f9063d90371fffd979",
-"image_page": "dee0a775d21227f3ae62",
-"image_ruban": "783a32351ee4f4ced140",
-"ordres_courbe": "33babac57f95097ec483",
-"ordres_jauge_forme_pct": "e0f0b3d37062ccf08096",
-"ordres_jauge_pic_pct": "e751ed27debf7ecbc4a1",
-"ordres_jauge_volume_pct": "d351320595107a5dd9bf",
-"ordres_ruban": "1093114c399774872619"
+"geometrie": "3419748ba91323327abd",
+"image_courbe": "d3014012f1605f588c71",
+"image_jauge_forme_pct": "87881c135645269b3cec",
+"image_jauge_pic_pct": "23548e883b7cc1a0cc50",
+"image_jauge_volume_pct": "5e0fd9329fde7103c58b",
+"image_page": "31ec8be849563b82571a",
+"image_ruban": "62bff394bcb413afe66b",
+"ordres_courbe": "0d82a4e01211d26db4fe",
+"ordres_jauge_forme_pct": "6d2101d579d348e8ad41",
+"ordres_jauge_pic_pct": "6b069fccc7c2076a4b2f",
+"ordres_jauge_volume_pct": "37536c2b68cc57f01b2f",
+"ordres_ruban": "478bbb60f4541f197b79"
 },
 {
 "colonnes": [
