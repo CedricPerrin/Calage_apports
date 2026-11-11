@@ -1,9 +1,11 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
-## 11 novembre 2026 (clôture) : les cinq derniers points (branche `claude/derniers-points`)
+## 11 novembre 2026 (clôture) : les derniers points (PR 22, fusionnée dans `main` le jour même ; pas de montée de version)
 
-Demandé par Cédric (« Oui », pour les traiter tous dans une seule PR). **Après la 0.9.36 : pas
-encore dans une version ni dans l'archive.**
+Demandé par Cédric (« Oui », pour les traiter tous dans une seule PR ; puis « Traite tout, merge
+toutes les PR et ne monte pas de version »). **Pas de montée de version, sur sa décision : les
+sources restent en 0.9.36, et l'archive `calage_apports_0.9.36.zip`, construite avant, ne
+contient pas ces correctifs.** La prochaine montée de version les livrera.
 
 | Point | Avant | Après |
 |---|---|---|
@@ -24,8 +26,14 @@ Essais d'intention : `src/test_defauts_mineurs.py` et `src/test_exceptions_brute
 résultat ne change** : `journal_caler` (2), `diagnostic` (1 scénario, 3 entrées du lot),
 `livrables_chaine` (2), `controle_donnees` (1), `noyau_classeur` (1), `pilote_recadence` (1).
 
-**Reste ouvert** : `objets_retires` de `commande_caler` ne compte pas ce que l'élagage retire
-(personne ne lit ce champ).
+**Deux ajouts, sur « Traite tout ».** `objets_retires` de `commande_caler` compte aussi ce
+que l'élagage a retiré, après les reliquats du ménage (six cas du filet du pont refigés, ce
+champ seul). Et la clé `QSettings` sous laquelle l'interpréteur et la chaîne sont mémorisés est
+enfin vérifiée (`src/test_installation_qgis.py`, deux tests : la page écrit sous les clés que le
+plugin relit à l'ouverture ; une clé différente est attrapée).
+
+**Plus aucun défaut connu n'est ouvert.** Reste un trou des essais : les tests d'installation
+enchaînés dans un seul processus sous QGIS plantent au hasard (la CI les joue en deux pas).
 
 ## 11 novembre 2026 (fin, suite) : zone 2D non nommée et plusieurs zones, une erreur du contrôle (PR 21, fusionnée dans `main` le jour même ; version 0.9.36, non publiée)
 

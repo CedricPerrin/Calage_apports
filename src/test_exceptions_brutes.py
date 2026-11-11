@@ -303,6 +303,21 @@ def test_caler_objets_retires(tmp_path, capsys):
     assert rendu["reponse"]["objets_retires"] == tpc.MENAGE["reliquats"]
 
 
+def test_caler_objets_retires_compte_aussi_l_elagage(tmp_path, capsys):
+    """Elagage demande, calage conforme : les reliquats du menage PUIS les
+    objets que l'elagage a retires."""
+    rendu = tpc.jouer(tpc.CAS["elagage/conforme"], tmp_path, capsys)
+    assert rendu["reponse"]["objets_retires"] == (
+        tpc.MENAGE["reliquats"] + tpc.ELAGAGE["supprimes"])
+
+
+def test_caler_objets_retires_quand_le_menage_echoue(tmp_path, capsys):
+    """Le menage a echoue, pas l'elagage : ce qu'il a retire est dit."""
+    rendu = tpc.jouer(tpc.CAS["elagage/menage_en_echec_puis_elagage"],
+                      tmp_path, capsys)
+    assert rendu["reponse"]["objets_retires"] == tpc.ELAGAGE["supprimes"]
+
+
 # --- 6. commande_modele : colonne de nom absente -----------------------------------
 
 def test_modele_sans_colonne_nom_ne_double_rien(tmp_path, capsys):

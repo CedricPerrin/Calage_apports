@@ -3923,8 +3923,11 @@ dates fictives au 1er janvier.
     fichier de parametres ecrit a la main est concerne. Essais : six, dans
     src/test_exceptions_brutes.py ; deux cas du filet du controle refiges
     (zone_non_renseignee_plusieurs, zone_nan_plusieurs).
-    LES CINQ DERNIERS POINTS, CORRIGES LE 11/11/2026 (APRES la 0.9.36, pas
-    encore dans une version). Chacun a son essai d'intention, rouge avant et
+    LES DERNIERS POINTS, CORRIGES LE 11/11/2026 (PR 22, FUSIONNEE DANS main
+    le jour meme a la demande de l'utilisateur). PAS DE MONTEE DE VERSION,
+    SUR SA DECISION : les sources restent en 0.9.36, et L'ARCHIVE
+    calage_apports_0.9.36.zip, construite avant, NE CONTIENT PAS ces
+    correctifs. Chacun a son essai d'intention, rouge avant et
     vert apres (src/test_defauts_mineurs.py, src/test_exceptions_brutes.py) :
       - criteres : UN MANQUE DE COUVERTURE PLUS COURT QU'UN DEMI-PAS DE LA
         CIBLE N'EST PLUS UNE ALERTE. Mesure sur les filets : l'alerte « 0.0 h
@@ -3950,12 +3953,18 @@ dates fictives au 1er janvier.
     CHANGE : journal_caler (2 scenarios), diagnostic (1 scenario, 3 entrees
     du lot), livrables (2 cas ; l'un perd ses douze fausses alertes),
     controle_donnees (1), noyau_classeur (1), pilote_recadence (1).
-    RESTE OUVERT : objets_retires de commande_caler ne compte pas ce que
-    l'elagage retire (personne ne lit ce champ).
-    TROUS DES ESSAIS, constates : aucun test ne verifie sous quelle cle
-    QSettings l'interpreteur est memorise ; les tests d'installation
-    enchaines dans UN processus sous QGIS plantent au hasard (la CI les joue
-    en deux pas, elle n'y est pas exposee).
+      - pont.commande_caler : objets_retires compte aussi ce que l'ELAGAGE
+        a retire, apres les reliquats du menage (six cas du filet du pont
+        refiges, ce champ seul).
+      - Essais : la cle QSettings sous laquelle l'interpreteur et la chaine
+        sont memorises est verifiee (src/test_installation_qgis.py : la page
+        ecrit sous les cles que le plugin relit a l'ouverture, et leurs
+        noms sont figes — les renommer ferait oublier le reglage de chaque
+        poste).
+    PLUS AUCUN DEFAUT CONNU N'EST OUVERT dans cette liste.
+    TROU DES ESSAIS, constate : les tests d'installation enchaines dans UN
+    processus sous QGIS plantent au hasard (la CI les joue en deux pas, elle
+    n'y est pas exposee).
     QGIS 3.34, LE MINIMUM DECLARE, EST DE NOUVEAU ESSAYE (11/11/2026). Le banc
     test_plugin_qgis.py s'arretait des sa premiere couche sous la 3.34 : il
     ecrivait QgsField(..., QMetaType.Type.QString), accepte depuis la 3.38

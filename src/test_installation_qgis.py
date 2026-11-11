@@ -228,3 +228,47 @@ def test_recherche_interrompue_ne_propose_aucune_installation(
         attendre(qgis_app, lambda: bool(resultats))
     assert resultats[0][0] is None
     assert ("annulée" if issue == "annulation" else "incident") in resultats[0][1]
+
+
+# --- sous quelle clé l'interpréteur et la chaîne sont mémorisés ---------------
+# Aucun test ne le vérifiait (constat du 10/11/2026) : les tests ci-dessus
+# emploient des clés d'essai. Écrire sous une clé et relire sous une autre
+# ferait perdre l'interpréteur à chaque ouverture de QGIS, sans erreur.
+
+def test_la_page_ecrit_sous_les_cles_que_le_plugin_relit(qgis_app):
+    principale = QMainWindow()
+    fenetre = plugin.DialogueParametrage(SimpleNamespace(mainWindow=lambda: principale))
+    try:
+        page = fenetre.page_aide
+        assert page._cle_interpreteur == plugin.PluginCalage.CLE_INTERPRETEUR
+        assert page._cle_chaine == plugin.PluginCalage.CLE_CHAINE
+        # RENOMMER UNE CLE, C'EST OUBLIER LE REGLAGE DE CHAQUE POSTE.
+        assert plugin.PluginCalage.CLE_INTERPRETEUR == "calage_apports/interpreteur"
+        assert plugin.PluginCalage.CLE_CHAINE == "calage_apports/dossier_chaine"
+    finally:
+        fenetre.deleteLater()
+        principale.deleteLater()
+        qgis_app.processEvents()
+
+
+def test_l_ouverture_relit_ce_que_l_installation_a_memorise(
+        qgis_app, monkeypatch, tmp_path):
+    python = tmp_path / "venv" / "python.exe"
+    chaine = tmp_path / "chaine"
+    reglages = QSettings()
+    reglages.setValue(plugin.PluginCalage.CLE_INTERPRETEUR, str(python))
+    reglages.setValue(plugin.PluginCalage.CLE_CHAINE, str(chaine))
+    retablis = {}
+    monkeypatch.setattr(plugin.noyau, "interpreteur_hecras", lambda: None)
+    monkeypatch.setattr(plugin.noyau, "definir_chaine",
+                        lambda dossier: retablis.update(chaine=dossier))
+    monkeypatch.setattr(plugin.noyau, "restaurer_interpreteur",
+                        lambda chemin: retablis.update(interpreteur=chemin))
+    try:
+        plugin.PluginCalage._restaurer_chaine(
+            object.__new__(plugin.PluginCalage))
+    finally:
+        reglages.remove(plugin.PluginCalage.CLE_INTERPRETEUR)
+        reglages.remove(plugin.PluginCalage.CLE_CHAINE)
+
+    assert retablis == {"chaine": str(chaine), "interpreteur": str(python)}

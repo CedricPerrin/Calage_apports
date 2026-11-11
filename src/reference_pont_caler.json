@@ -3041,7 +3041,9 @@
     "plan_conserve": "p09",
     "objets_retires": [
      "Essai.p05",
-     "Essai.u05"
+     "Essai.u05",
+     "p03",
+     "p04"
     ],
     "dossier_resultats": "<TMP>/resultats_finaux",
     "alertes_chaine": [
@@ -3254,7 +3256,9 @@
     "plan_conserve": "p09",
     "objets_retires": [
      "Essai.p05",
-     "Essai.u05"
+     "Essai.u05",
+     "p03",
+     "p04"
     ],
     "dossier_resultats": "<TMP>/resultats_finaux",
     "alertes_chaine": [
@@ -3893,7 +3897,9 @@
     "plan_conserve": "p09",
     "objets_retires": [
      "Essai.p05",
-     "Essai.u05"
+     "Essai.u05",
+     "p03",
+     "p04"
     ],
     "dossier_resultats": "<TMP>/resultats_finaux",
     "alertes_chaine": [
@@ -4104,7 +4110,10 @@
     "apports_total": 3,
     "dossier_suivi": "<TMP>/suivi",
     "plan_conserve": null,
-    "objets_retires": [],
+    "objets_retires": [
+     "p03",
+     "p04"
+    ],
     "dossier_resultats": "<TMP>/resultats_finaux",
     "alertes_chaine": [
      "alerte d'ensemble"
@@ -5837,7 +5846,9 @@
     "plan_conserve": "p09",
     "objets_retires": [
      "Essai.p05",
-     "Essai.u05"
+     "Essai.u05",
+     "p03",
+     "p04"
     ],
     "dossier_resultats": "<TMP>/resultats_finaux",
     "alertes_chaine": [
@@ -15633,7 +15644,9 @@
     "plan_conserve": "p09",
     "objets_retires": [
      "Essai.p05",
-     "Essai.u05"
+     "Essai.u05",
+     "p03",
+     "p04"
     ],
     "dossier_resultats": "<TMP>/resultats_finaux",
     "alertes_chaine": [
