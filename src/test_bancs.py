@@ -60,7 +60,7 @@ HDF = ("h5py", "ras_commander")
 #        echecs toleres hors de Windows)
 BANCS = {
     "criteres": (["src/criteres.py"], 87, (), ()),
-    "calage": (["src/calage.py"], 142, (), ()),
+    "calage": (["src/calage.py"], 141, (), ()),
     "controle_donnees": (["src/controle_donnees.py"], 6, (), ()),
     "suivi": (["src/suivi.py"], 55, (), ()),
     "livrables": (["src/livrables.py"], 16, (), ()),

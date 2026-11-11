@@ -1,5 +1,16 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 11 novembre 2026 (conception, décision 3) : `masque_fenetre` est retirée (branche `claude/masque-fenetre`)
+
+Troisième des quatre décisions de conception. `calage.masque_fenetre` (cinq lignes) était
+restée dans le module quand le banc en est sorti : **plus aucun appelant dans la chaîne**, seul
+un contrôle du banc l'employait, et la chaîne masque sa fenêtre autrement, sur place.
+
+**Retirée, avec son contrôle.** Une fonction que seul un test appelle fait croire qu'un chemin
+est couvert alors qu'il n'existe pas — un piège pour qui découvre le code. Le banc de
+`calage.py` compte désormais 141 contrôles (142 avant) ; `src/test_bancs.py` l'attend ainsi.
+Aucun autre fichier ne la nommait. Banc complet conforme.
+
 ## 11 novembre 2026 (conception, décision 2) : les bancs embarqués exposés à `pytest`, pas réécrits (branche `claude/bancs-pytest`)
 
 Deuxième des quatre décisions de conception, prise avec la même vue « long terme, partagé »
