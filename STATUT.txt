@@ -25,11 +25,12 @@ qu'ils ont appris.
 REMANIEMENT DU CODE, SANS CHANGEMENT DE COMPORTEMENT — 10 NOVEMBRE 2026,
 FUSIONNE DANS main LE 11/11/2026 (PR 8, a la demande de l'utilisateur), AVEC LES
 CORRECTIFS DU 11/11 (PR 9 a 15, puis PR 18 pour les defauts mineurs ;
-section 6). VERSION 0.9.35 (NON PUBLIEE) — les 0.9.33 et 0.9.34, du meme
-jour, n'ont pas ete publiees non plus ; la 0.9.34 portait les defauts mineurs,
-la 0.9.35 y ajoute le refus du re-cadencage sans nom de zone 2D (PR 20) :
+section 6). VERSION 0.9.36 (NON PUBLIEE) — les 0.9.33, 0.9.34 et 0.9.35, du
+meme jour, n'ont pas ete publiees non plus ; la 0.9.34 portait les defauts
+mineurs, la 0.9.35 le refus du re-cadencage sans nom de zone 2D (PR 20), la
+0.9.36 y ajoute l'erreur du controle sur une zone 2D non nommee (PR 21) :
   metadata.txt, LISEZMOI.md et README.md la portent, et l'archive
-  calage_apports_0.9.35.zip est a la racine. ELLE A ETE CONSTRUITE SUR UN
+  calage_apports_0.9.36.zip est a la racine. ELLE A ETE CONSTRUITE SUR UN
   POSTE SANS « .affaires » : faire_zip.py n'y a donc PAS controle les noms
   d'affaires (les chemins du poste, si). AVANT DE PUBLIER DANS LE DEPOT PIO,
   REJOUER « python src/faire_zip.py » SUR LE POSTE QUI PORTE .affaires.
@@ -3912,8 +3913,9 @@ dates fictives au 1er janvier.
     a son pas) : le fichier n'est plus modifie, le journal dit pourquoi, et
     le calage s'arrete avant tout calcul.
     Nom_zone_2D VIDE ET PLUSIEURS ZONES 2D : UNE ERREUR DU CONTROLE, PLUS UN
-    AVERTISSEMENT (11/11/2026, decision de l'utilisateur ; APRES la 0.9.35,
-    pas encore dans une version). controler_contre_modele disait « la
+    AVERTISSEMENT (11/11/2026, decision de l'utilisateur ; PR 21, FUSIONNEE
+    DANS main le jour meme a sa demande, LIVRE PAR LA VERSION 0.9.36, non
+    publiee). controler_contre_modele disait « la
     premiere est retenue par defaut », ce qui etait faux : sans nom, rien ne
     filtre les conditions limites. L'erreur bloque le lancement et dit de
     nommer la zone. Une seule zone, ou une zone nommee : rien ne change. La
