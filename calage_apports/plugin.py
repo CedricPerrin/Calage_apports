@@ -5529,6 +5529,41 @@ class DialogueParametrage(QDialog):
         finally:
             self._composition_en_cours = False
 
+    def _saisie_de_composition(self, plan, dossier_sortie):
+        """
+        Ce que les widgets portent au moment de composer, en VALEURS SIMPLES :
+        les arguments de noyau.parametres_calage. Aucune decision ici — les
+        noms de cle, les valeurs par defaut et l'enchainement sont dans
+        noyau.py (composer_classeur), qui s'eprouve en console.
+        """
+        return dict(
+            dossier_projet=self._dossier_projet(),
+            nom_projet=self.info_projet["nom_projet"],
+            version_hecras=self.version_hecras,
+            nom_zone_2d=self.combo_zone_2d.currentText() or "",
+            numero_plan=plan["numero"],
+            numero_geometrie=self._geometrie_effective(),
+            numero_unsteady=self._unsteady_effective(),
+            mode_selection=("override" if self.radio_override.isChecked()
+                            else "plan"),
+            nom_clone_geometrie=NOM_CLONE_GEOMETRIE_DEFAUT,
+            premier_apport=self._premier_apport(),
+            prefixe_scenario=self.edit_prefixe_scenario.text().strip(),
+            elaguer_etapes=self.case_elaguer.isChecked(),
+            sens_axe=self.combo_sens_axe.currentData(),
+            pk_origine_m=self.spin_pk_origine.value(),
+            nb_max_iterations=self.spin_nb_max_essais.value(),
+            tolerance_volume_pct=self.spin_tol_volume.value(),
+            tolerance_pic_pct=self.spin_tol_pic.value(),
+            bilan_masse_max_pct=self.spin_bilan_masse.value(),
+            dossier_sortie=dossier_sortie,
+            sous_dossier_resultats=(
+                self.edit_sous_dossier_resultats.text().strip()),
+            sous_dossier_suivi=self.edit_sous_dossier_suivi.text().strip(),
+            fenetre=self._parametres_fenetre(),
+        )
+
+
     def _composer_et_controler_interne(self):
         # CE DRAPEAU EXISTE POUR LE MESSAGE D'ECHEC, ET RIEN D'AUTRE.
         # L'enchainement est : ecrire dans la geometrie, PUIS composer, PUIS
@@ -5597,84 +5632,18 @@ class DialogueParametrage(QDialog):
                 dossier_sortie, g_sections, g_apports, g_axe,
                 crs_cible=self.crs_modele)
 
-            zone = self.combo_zone_2d.currentText() or ""
-            sous_resultats = (self.edit_sous_dossier_resultats.text().strip()
-                              or "resultats_finaux")
-            sous_suivi = self.edit_sous_dossier_suivi.text().strip() or "suivi"
-
-            # LES NOMS DE CLE SONT DANS LE NOYAU, pas ici : la fenetre lit
-            # ses widgets, le noyau tient le contrat. Voir
-            # noyau.parametres_calage, qui s'eprouve en console.
-            parametres = noyau.parametres_calage(
-                dossier_projet=self._dossier_projet(),
-                nom_projet=self.info_projet["nom_projet"],
-                version_hecras=self.version_hecras,
-                nom_zone_2d=zone,
-                numero_plan=plan["numero"],
-                numero_geometrie=self._geometrie_effective(),
-                numero_unsteady=self._unsteady_effective(),
-                mode_selection=("override" if self.radio_override.isChecked()
-                                else "plan"),
-                nom_clone_geometrie=NOM_CLONE_GEOMETRIE_DEFAUT,
-                premier_apport=self._premier_apport(),
-                prefixe_scenario=self.edit_prefixe_scenario.text().strip(),
-                elaguer_etapes=self.case_elaguer.isChecked(),
-                sens_axe=self.combo_sens_axe.currentData(),
-                pk_origine_m=self.spin_pk_origine.value(),
-                nb_max_iterations=self.spin_nb_max_essais.value(),
-                tolerance_volume_pct=self.spin_tol_volume.value(),
-                tolerance_pic_pct=self.spin_tol_pic.value(),
-                bilan_masse_max_pct=self.spin_bilan_masse.value(),
-                dossier_sortie=dossier_sortie,
-                sous_dossier_resultats=sous_resultats,
-                sous_dossier_suivi=sous_suivi,
-                fenetre=self._parametres_fenetre(),
-            )
-            # Chaque section prend la PREMIERE injection en amont d'elle.
-            # Les lignes d'injection d'un modele ne sont pas toutes des
-            # apports a caler : s'y trouvent aussi les debits d'entree
-            # permanents et les conditions limites aval, qui n'ont pas de
-            # section attitree et ne doivent donc pas etre comptes.
-            self.appariement = noyau.apparier_paquet(
-                self.paquet, sens=parametres["Sens_axe"],
-                pk_origine=parametres["PK_origine_m"])
-            refus = noyau.refus_appariement(self.appariement)
-            if refus:
-                raise ValueError(refus)
-
-            # Pente de la ligne d'energie, PRE-REMPLIE par apport depuis le
-            # profil en long du modele. C'est la valeur que le calage aurait
-            # deduite d'une case vide : l'ecrire ne change aucun resultat,
-            # mais rend l'hypothese lisible et corrigeable dans le classeur.
-            # Vide si la geometrie n'est pas encore pretraitee par HEC-RAS.
-            #
-            # LE MOTIF EST AFFICHE, jamais avale. Le calcul passe par le pont
-            # (h5py est inutilisable dans QGIS) : quand il n'aboutit pas, la
-            # colonne reste vide, et l'utilisateur doit savoir POURQUOI plutot
-            # que de croire que le pre-remplissage n'existe pas.
-            pentes, motif_pentes = noyau.pentes_locales_apports(
-                parametres["Dossier_projet_HECRAS"], parametres["Nom_projet"],
-                parametres["Geometrie_reference"], self.paquet["axe"],
-                parametres["Nom_zone_2D"],
-                self.appariement.get("pk_apports"))
-
-            # str(), PAS Path : Qt refuse un Path la ou il attend une chaine,
-            # et QFileDialog.getOpenFileName leve « argument 3 has unexpected
-            # type 'WindowsPath' » — ce qui rendait « Reprendre un classeur
-            # d'un calcul precedent… » inutilisable des qu'un paquet venait
-            # d'etre compose.
-            self.classeur = str(noyau.preparer_classeur(
-                dossier_sortie, self.appariement["paires"],
-                self.paquet, parametres=parametres, pentes=pentes))
-
-            # Les sous-dossiers de resultats existent des la composition :
-            # l'utilisateur les voit, meme avant le premier calcul.
-            (Path(dossier_sortie) / sous_resultats).mkdir(parents=True, exist_ok=True)
-            (Path(dossier_sortie) / sous_suivi).mkdir(parents=True, exist_ok=True)
-
-            anomalies, tableau, prolongation = noyau.controler_paquet(
-                self.classeur)
-            etiqueter_pk_sur_carte(self.paquet, parametres["Sens_axe"],
+            # LA FENETRE LIT, noyau.py COMPOSE (11/11/2026, etape B). La
+            # saisie des widgets part en valeurs simples ; apparier, pentes,
+            # classeur, sous-dossiers et controle s'enchainent dans
+            # noyau.composer_classeur, qui s'eprouve sans QGIS. « suivre »
+            # rend a la fenetre l'appariement puis le classeur DES QU'ILS
+            # EXISTENT : si une etape echoue ensuite, elle les a deja, comme
+            # avant.
+            composition = noyau.composer_classeur(
+                self._saisie_de_composition(plan, dossier_sortie), self.paquet,
+                suivre=lambda nom, valeur: setattr(self, nom, valeur))
+            etiqueter_pk_sur_carte(self.paquet,
+                                   composition.parametres["Sens_axe"],
                                    {"sections": self.couche_sections,
                                     "apports": self.couche_injections})
 
@@ -5683,12 +5652,13 @@ class DialogueParametrage(QDialog):
             # appelle « Controle parametrage », c'etait trois noms pour une
             # chose — la regle de la 0.7.14, en sens inverse.
             self._rendre_compte_du_controle(
-                f"{BOUTON_GEOMETRIE} — compte rendu", anomalies, tableau,
-                prolongation,
+                f"{BOUTON_GEOMETRIE} — compte rendu", composition.anomalies,
+                composition.tableau, composition.prolongation,
                 avant=f"{compte_rendu_ecriture}\n\n"
                       f"Paquet composé dans {dossier_sortie}\n",
                 apres="\n" + noyau.dire_pentes_pre_remplies(
-                    pentes, len(self.appariement["paires"]), motif_pentes))
+                    composition.pentes, len(self.appariement["paires"]),
+                    composition.motif_pentes))
             self._maj_resume()
             self._maj_onglet_validation()
         except Exception as e:

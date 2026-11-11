@@ -1,5 +1,41 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 11 novembre 2026 (conception, suite) : la composition passe dans `noyau.py` — étape B1 (branche `claude/composition-noyau`)
+
+Suite de l'étape A (section ci-dessous, PR 23 fusionnée). **Aucun changement de comportement.**
+
+**Ce qui bouge.** `plugin._composer_et_controler_interne` passe de 211 à 117 lignes :
+
+| Dans la fenêtre | Dans `noyau.py` |
+|---|---|
+| refus d'avant composition (lecture des widgets) | `refus_avant_composition` (étape A) |
+| écriture dans la géométrie, couches → tableaux, projection | — (c'est du QGIS) |
+| `_saisie_de_composition` : les widgets en valeurs simples | `composer_classeur` : paramètres, appariement, pentes, Excel des objectifs, sous-dossiers, contrôle |
+| étiquettes de PK sur la carte, compte rendu | `dire_pentes_pre_remplies` (étape A) |
+
+**Le filet d'abord, sur le code inchangé.** `src/test_composition_fenetre.py` et
+`reference_composition_fenetre.json` (neuf cas, sous QGIS) : tout ce que la fenêtre demande à
+`noyau.py` pendant la composition, dans l'ordre, avec ses arguments, et ce qu'elle retient à
+chaque instant (paquet, appariement, classeur) — y compris quand l'appariement est refusé, ou
+quand l'écriture du classeur ou son contrôle lève. Figé puis rejoué deux fois sur l'ancien
+code ; **il passe sans retouche sur le code déplacé**.
+
+**Le point délicat : l'état retenu quand une étape échoue.** Avant, la fenêtre affectait
+l'appariement puis le classeur au fil de l'eau. `composer_classeur` les lui rend **dès qu'ils
+existent** (argument `suivre`) : un appariement refusé reste lisible, un classeur écrit reste
+celui de la fenêtre quand son contrôle lève.
+
+**Sans QGIS** (`src/test_refus_composition.py`, 32 tests) : avec des doublures (l'ordre, ce que
+chaque étape reçoit, ce que `suivre` reçoit et quand, les sous-dossiers par défaut, ce qui
+survit à un échec), puis **pour de vrai** — un paquet composé depuis des couches fabriquées,
+apparié, classeur écrit et contrôlé, en une seconde.
+
+Essais adverses : cinq fautes injectées dans `composer_classeur` ; chacune est attrapée par les
+tests sans QGIS, et par le filet sous QGIS.
+
+**Reste à faire : l'étape B2**, le lancement (`_lancer_calage`, 168 lignes). **Pas de montée
+de version** ; l'archive 0.9.36 n'est pas reconstruite.
+
 ## 11 novembre 2026 (conception) : pas d'objet d'état, une frontière fenêtre / noyau — étape A (branche `claude/refus-composition-noyau`)
 
 Première des quatre décisions de conception en attente, tranchée par Cédric avec une vue « long

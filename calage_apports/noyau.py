@@ -1382,6 +1382,114 @@ def dire_pentes_pre_remplies(pentes, nb_paires, motif=""):
             + (f" — {motif}" if motif else ""))
 
 
+# Sous-dossiers du dossier de sortie, quand la saisie les laisse vides.
+SOUS_DOSSIER_RESULTATS_DEFAUT = "resultats_finaux"
+SOUS_DOSSIER_SUIVI_DEFAUT = "suivi"
+
+
+class Composition(tuple):
+    """
+    Ce que composer_classeur() rend : parametres, appariement, pentes,
+    motif_pentes, classeur, anomalies, tableau, prolongation — par leur nom.
+    """
+    __slots__ = ()
+    CHAMPS = ("parametres", "appariement", "pentes", "motif_pentes",
+              "classeur", "anomalies", "tableau", "prolongation")
+
+    def __new__(cls, **champs):
+        return super().__new__(cls, (champs[c] for c in cls.CHAMPS))
+
+    def __getattr__(self, nom):
+        try:
+            return self[self.CHAMPS.index(nom)]
+        except ValueError:
+            raise AttributeError(nom) from None
+
+
+def composer_classeur(saisie, paquet, suivre=None):
+    """
+    Du paquet compose au classeur controle : parametres, appariement, pentes
+    pre-remplies, Excel des objectifs, sous-dossiers, controle.
+
+    C'etait le corps de plugin._composer_et_controler_interne, que seul le
+    banc sous QGIS pouvait eprouver. Depuis le 11/11/2026 la fenetre lit ses
+    widgets et affiche ; l'enchainement est ici, et se joue en console.
+
+    saisie : les arguments de parametres_calage(), en valeurs simples. Un
+        sous-dossier laisse vide prend son nom par defaut.
+    paquet : ce que rend composer_paquet().
+    suivre : fonction (nom, valeur), appelee des que « appariement » puis
+        « classeur » EXISTENT — avant les etapes qui les suivent. La fenetre
+        s'en sert pour les retenir meme si la suite echoue : un appariement
+        refuse reste lisible, et un classeur ecrit reste le classeur de la
+        fenetre quand son controle leve.
+
+    Leve ValueError si l'appariement ne peut pas etre cale
+    (refus_appariement) ; laisse remonter ce que levent les etapes.
+    Rend une Composition.
+    """
+    suivre = suivre or (lambda nom, valeur: None)
+    saisie = dict(saisie)
+    saisie["sous_dossier_resultats"] = (saisie.get("sous_dossier_resultats")
+                                        or SOUS_DOSSIER_RESULTATS_DEFAUT)
+    saisie["sous_dossier_suivi"] = (saisie.get("sous_dossier_suivi")
+                                    or SOUS_DOSSIER_SUIVI_DEFAUT)
+    dossier_sortie = saisie["dossier_sortie"]
+
+    # LES NOMS DE CLE SONT DANS parametres_calage, pas chez l'appelant : la
+    # fenetre lit ses widgets, le noyau tient le contrat.
+    parametres = parametres_calage(**saisie)
+
+    # Chaque section prend la PREMIERE injection en amont d'elle. Les lignes
+    # d'injection d'un modele ne sont pas toutes des apports a caler : s'y
+    # trouvent aussi les debits d'entree permanents et les conditions limites
+    # aval, qui n'ont pas de section attitree et ne doivent donc pas etre
+    # comptes.
+    appariement = apparier_paquet(paquet, sens=parametres["Sens_axe"],
+                                  pk_origine=parametres["PK_origine_m"])
+    suivre("appariement", appariement)
+    refus = refus_appariement(appariement)
+    if refus:
+        raise ValueError(refus)
+
+    # Pente de la ligne d'energie, PRE-REMPLIE par apport depuis le profil en
+    # long du modele. C'est la valeur que le calage aurait deduite d'une case
+    # vide : l'ecrire ne change aucun resultat, mais rend l'hypothese lisible
+    # et corrigeable dans le classeur. Vide si la geometrie n'est pas encore
+    # pretraitee par HEC-RAS.
+    #
+    # LE MOTIF EST RENDU, jamais avale. Le calcul passe par le pont (h5py est
+    # inutilisable dans QGIS) : quand il n'aboutit pas, la colonne reste vide,
+    # et l'utilisateur doit savoir POURQUOI plutot que de croire que le
+    # pre-remplissage n'existe pas.
+    pentes, motif_pentes = pentes_locales_apports(
+        parametres["Dossier_projet_HECRAS"], parametres["Nom_projet"],
+        parametres["Geometrie_reference"], paquet["axe"],
+        parametres["Nom_zone_2D"], appariement.get("pk_apports"))
+
+    # str(), PAS Path : Qt refuse un Path la ou il attend une chaine, et
+    # QFileDialog.getOpenFileName leve « argument 3 has unexpected type
+    # 'WindowsPath' » — ce qui rendait « Reprendre un classeur d'un calcul
+    # precedent… » inutilisable des qu'un paquet venait d'etre compose.
+    classeur = str(preparer_classeur(
+        dossier_sortie, appariement["paires"], paquet,
+        parametres=parametres, pentes=pentes))
+    suivre("classeur", classeur)
+
+    # Les sous-dossiers de resultats existent des la composition :
+    # l'utilisateur les voit, meme avant le premier calcul.
+    for sous_dossier in (saisie["sous_dossier_resultats"],
+                         saisie["sous_dossier_suivi"]):
+        (Path(dossier_sortie) / sous_dossier).mkdir(parents=True,
+                                                    exist_ok=True)
+
+    anomalies, tableau, prolongation = controler_paquet(classeur)
+    return Composition(parametres=parametres, appariement=appariement,
+                       pentes=pentes, motif_pentes=motif_pentes,
+                       classeur=classeur, anomalies=anomalies,
+                       tableau=tableau, prolongation=prolongation)
+
+
 def pentes_locales_apports(dossier_projet, nom_projet, geometrie, chemin_axe,
                            nom_zone_2d, pk_apports):
     """
