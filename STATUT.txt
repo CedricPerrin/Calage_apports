@@ -63,9 +63,20 @@ mineurs, la 0.9.35 le refus du re-cadencage sans nom de zone 2D (PR 20), la
     textes inchanges mot pour mot ; essais sans QGIS
     (src/test_refus_composition.py) et raccord de la fenetre sous QGIS
     (src/test_composition_fenetre.py). Aucun changement de comportement.
-    ETAPE B, A FAIRE : la saisie des widgets rassemblee en une structure
-    simple ; la composition, puis le lancement, en fonctions de noyau.py
-    testees sans QGIS. Une PR par traitement, sous filet.
+    ETAPE B1, FAITE (la composition) : la fenetre lit ses widgets en
+    valeurs simples (_saisie_de_composition : les arguments de
+    noyau.parametres_calage) ; noyau.composer_classeur enchaine parametres,
+    appariement, pentes, Excel des objectifs, sous-dossiers et controle.
+    _composer_et_controler_interne : 211 -> 117 lignes. FILET ECRIT D'ABORD
+    SUR LE CODE INCHANGE (src/test_composition_fenetre.py, neuf cas sous
+    QGIS : chaque appel a noyau.py, ses arguments, et ce que la fenetre
+    retient a chaque instant, echecs compris) ; il passe sans retouche sur
+    le code deplace. « suivre » rend a la fenetre l'appariement puis le
+    classeur DES QU'ILS EXISTENT, pour qu'un echec en chemin la laisse dans
+    le meme etat qu'avant. Sans QGIS : src/test_refus_composition.py, avec
+    des doublures puis pour de vrai (paquet compose depuis des couches
+    fabriquees, une seconde). Aucun changement de comportement.
+    ETAPE B2, A FAIRE (le lancement) : meme principe pour _lancer_calage.
   Bancs embarques : sortis des modules vers src/bancs/banc_<module>.py ;
   « python src/<module>.py » les joue toujours (relais). L'archive du
   plugin ne les embarque plus : 561 -> 478 ko.
@@ -4000,7 +4011,7 @@ dates fictives au 1er janvier.
     DECISIONS EN ATTENTE : convertir les bancs en pytest ; sort de
     masque_fenetre ; alleger les references (4,5 Mo). L'objet d'etat partage
     du dialogue est TRANCHE (11/11/2026, section 1) : pas d'objet, une
-    frontiere fenetre / noyau, etape A faite, etape B a faire.
+    frontiere fenetre / noyau, etapes A et B1 faites, B2 a faire.
 
 
   - LE CALAGE REPRIS DE SUHIHANDIA S'ARRETE AU CALCUL DE REFERENCE (14/09).

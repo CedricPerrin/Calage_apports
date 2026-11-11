@@ -284,7 +284,18 @@ et là qu'un contributeur casserait quelque chose sans le voir.
 | Étape | Contenu | État |
 |---|---|---|
 | A | Les refus de la composition dans `noyau.py` (`refus_avant_composition`, `refus_appariement`, `dire_pentes_pre_remplies`), éprouvés sans QGIS (`src/test_refus_composition.py`) ; le raccord de la fenêtre éprouvé sous QGIS (`src/test_composition_fenetre.py`) | fait le 11/11/2026 |
-| B | La saisie lue dans les widgets rassemblée en une structure simple ; la composition, puis le lancement, confiés à des fonctions de `noyau.py` testées sans QGIS. Une PR par traitement, sous filet | à faire |
+| B1 | **La composition.** La fenêtre lit ses widgets en valeurs simples (`_saisie_de_composition`, les arguments de `noyau.parametres_calage`) ; `noyau.composer_classeur` enchaîne paramètres, appariement, pentes, Excel des objectifs, sous-dossiers et contrôle. `_composer_et_controler_interne` : 211 → 117 lignes | fait le 11/11/2026 |
+| B2 | **Le lancement.** Même principe pour `_lancer_calage` (168 lignes) : les réglages de lancement écrits par `noyau.py`, les refus et leurs textes aussi | à faire |
+
+**Comment l'étape B1 a été tenue.** Un filet a d'abord été écrit sur le code inchangé
+(`src/test_composition_fenetre.py`, `reference_composition_fenetre.json`, neuf cas sous QGIS) :
+tout ce que la fenêtre demande à `noyau.py` pendant la composition, dans l'ordre, avec ses
+arguments, et ce qu'elle retient à chaque instant — y compris quand une étape échoue en chemin.
+Il passe sans retouche sur le code déplacé. `composer_classeur` rend à la fenêtre l'appariement
+puis le classeur **dès qu'ils existent** (argument `suivre`) : un appariement refusé reste
+lisible, un classeur écrit reste celui de la fenêtre quand son contrôle lève — comme avant.
+Sans QGIS, `src/test_refus_composition.py` l'éprouve avec des doublures, puis pour de vrai sur
+un paquet composé depuis des couches fabriquées (une seconde).
 
 **Ce que l'étape A n'a pas déplacé** : le refus d'une projection géographique. Il interroge
 `QgsCoordinateReferenceSystem`, que `noyau.py` n'importe pas ; le rejouer avec une autre
