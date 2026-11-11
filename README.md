@@ -14,7 +14,7 @@ extension installée depuis le dépôt.
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 
-Version des sources du plugin : **0.9.34**. La
+Version des sources du plugin : **0.9.35**. La
 [note d’ergonomie du 11 septembre 2026](docs/ergonomie_2026-09-11.md)
 décrit le parcours, les choix d’interface et les points de recette.
 
@@ -257,6 +257,13 @@ dite au journal — la pente appliquée ne change pas. La note de synthèse cite
 version de ras-commander réellement employée, et non plus « v0.99.1 ». Importer
 un fichier qui n'est pas un Excel est refusé par une phrase. Non essayée sur un
 calcul HEC-RAS réel ni sous Windows.
+
+La **0.9.35** (11 novembre 2026) ferme un pari sur l'ordre du fichier : sans nom
+de zone 2D, une condition limite déclarée dans plusieurs zones 2D n'est plus
+recadencée ni retardée dans le premier bloc rencontré — l'opération est refusée
+avant toute écriture, et le message nomme les zones. Le calage refusait déjà ce
+cas à sa préparation ; aucun résultat ne change. Non essayée sur un calcul
+HEC-RAS réel ni sous Windows.
 
 La **0.9.32** (10 novembre 2026) rend le calage possible sous HEC-RAS 7.0.2.
 Lancée en ligne de commande (`Ras.exe -c projet plan`), cette version calcule

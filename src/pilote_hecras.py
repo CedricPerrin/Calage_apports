@@ -559,6 +559,34 @@ def ajouter_condition_limite_debit(fichier_unsteady, nom, nom_zone_2d, debits,
     return len(valeurs)
 
 
+def _refuser_zone_ambigue(chemin, carte, nom_zone_2d):
+    """
+    ValueError si, SANS nom de zone 2D, une condition limite de « carte »
+    existe dans PLUSIEURS zones 2D du fichier.
+
+    Decision de l'utilisateur du 11/11/2026 : un refus, pas un avertissement.
+    Sans nom de zone, cartographier_hydrogrammes retient le PREMIER bloc
+    rencontre et note les autres dans « autres_zones ». Ecrire dans ce
+    premier bloc, c'est parier sur l'ordre du fichier : s'il appartient a une
+    zone devenue orpheline, HEC-RAS lit l'autre, et ce qu'on vient d'ecrire
+    n'a aucun effet. PiloteHecRas.preparer() refusait deja ce cas avant tout
+    calage ; les fonctions qui ECRIVENT, appelees seules, ne le refusaient
+    pas. A appeler AVANT toute ecriture.
+    """
+    if nom_zone_2d is not None:
+        return
+    ambigus = {n: [i["zone"]] + i["autres_zones"]
+               for n, i in carte.items() if i["autres_zones"]}
+    if ambigus:
+        detail = "; ".join(f"« {n} » dans {z}" for n, z in ambigus.items())
+        raise ValueError(
+            f"condition(s) limite(s) de meme nom dans plusieurs zones 2D de "
+            f"{Path(chemin).name} : {detail}. Sans nom de zone 2D, rien ne "
+            f"dit lequel de ces blocs HEC-RAS lit : le fichier n'est pas "
+            f"modifie. Donner le nom de la zone (parametre « Nom_zone_2D » "
+            f"du classeur).")
+
+
 def imposer_intervalle_apport(fichier_unsteady, nom, nom_zone_2d=None,
                               intervalle=INTERVALLE_APPORT, duree_min_h=None):
     """
@@ -610,6 +638,7 @@ def imposer_intervalle_apport(fichier_unsteady, nom, nom_zone_2d=None,
             f"« {nom} » n'a pas d'hydrogramme de debit dans {chemin.name}. "
             f"Presents : {sorted(carte) or 'aucun'}.")
     info = carte[nom]
+    _refuser_zone_ambigue(chemin, {nom: info}, nom_zone_2d)
     pas_avant = info["intervalle_h"]
     if not pas_avant:
         raise ValueError(
@@ -730,6 +759,7 @@ def retarder_hydrogrammes(fichier_unsteady, nb_pas, apports, nom_zone_2d=None,
         raise ValueError(f"nb_pas = {nb_pas} : un multiple de dix est attendu")
     chemin = Path(fichier_unsteady)
     carte = cartographier_hydrogrammes(chemin, nom_zone_2d, noms_connus)
+    _refuser_zone_ambigue(chemin, carte, nom_zone_2d)
     lignes = _lire_lignes(chemin)
     retardes = []
     for nom, info in sorted(carte.items(), key=lambda c: -c[1]["debut"]):
