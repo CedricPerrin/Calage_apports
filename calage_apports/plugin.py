@@ -5549,48 +5549,24 @@ class DialogueParametrage(QDialog):
                 geste="Recomposer"):
             return
         try:
-            if not self.info_projet:
-                raise ValueError(
-                    "Étape Modèle : choisir d'abord le fichier .prj du projet "
-                    "HEC-RAS (« Choisir le projet… »).")
+            # LA FENETRE LIT, noyau.py DECIDE (11/11/2026). Ce qui manque
+            # pour composer est dit par noyau.refus_avant_composition, dans
+            # l'ordre des etapes ; ces lectures n'ont aucun effet.
             plan = self.combo_plan.currentData()
-            if plan is None:
-                raise ValueError("Étape Modèle : choisir un plan de référence.")
-            # LE PREFIXE EST OBLIGATOIRE (0.7.22, demande utilisateur). Vide,
-            # il etait admis et rendait les titres d'avant — « sans_apport »,
-            # « Apport_A1 ». Deux scenarios cales sur le meme modele portaient
-            # alors les MEMES titres, et le second effacait les plans du
-            # premier, un par un, en silence. Le prefixe est ce qui rend les
-            # deux series etrangeres : le laisser facultatif, c'est laisser la
-            # porte ouverte a la seule perte de donnees que cette chaine
-            # sache provoquer.
-            if not self.edit_prefixe_scenario.text().strip():
-                raise ValueError(
-                    "Étape Paramètres : renseigner le préfixe de scénario, cours "
-                    "d'eau en tête. Il nomme les plans de CE calage — "
-                    "« Riviere-Q100 » donne « Riviere-Q100-sans », "
-                    "« Riviere-Q100-A1 » et « Riviere-Q100 » —, il nomme aussi "
-                    "son Excel — « donnees_calage_Riviere-Q100.xlsx » —, et "
-                    "c'est lui qui empêche un second scénario d'effacer les "
-                    "plans du premier.")
             c_sections = couche_vivante(self.couche_sections)
             c_injections = couche_vivante(self.couche_injections)
-            if c_sections is None or c_injections is None:
-                raise ValueError(
-                    "Étape Modèle : cliquer sur « Charger les couches du modèle » "
-                    "avant de composer. Si elles avaient été chargées, c'est "
-                    "qu'elles ont été retirées du projet depuis — les "
-                    "recharger.")
             axe = self.combo_axe.currentLayer()
-            if axe is None:
-                raise ValueError(
-                    # L'axe a rejoint l'onglet 1 en 0.7.0, avec les couches ou
-                    # il se trace ; ce renvoi etait reste sur l'onglet 2.
-                    "Étape Modèle : choisir la couche de l'axe hydraulique.")
             dossier_sortie = self.edit_dossier_sortie.text().strip()
-            if not dossier_sortie:
-                raise ValueError("Étape Paramètres : choisir le dossier de "
-                                 "sortie, juste au-dessus du préfixe.")
+            refus = noyau.refus_avant_composition(
+                projet_choisi=bool(self.info_projet),
+                plan_choisi=plan is not None,
+                prefixe_scenario=self.edit_prefixe_scenario.text(),
+                couches_chargees=(c_sections is not None
+                                  and c_injections is not None),
+                axe_choisi=axe is not None,
+                dossier_sortie=dossier_sortie)
+            if refus:
+                raise ValueError(refus)
 
             # Ecrit les couches QGIS dans la geometrie HEC-RAS AVANT de
             # composer le paquet : les sections doivent etre DANS le modele
@@ -5662,22 +5638,9 @@ class DialogueParametrage(QDialog):
             self.appariement = noyau.apparier_paquet(
                 self.paquet, sens=parametres["Sens_axe"],
                 pk_origine=parametres["PK_origine_m"])
-            if self.appariement["sans_apport"]:
-                orphelines = ", ".join(
-                    n for n, _ in self.appariement["sans_apport"])
-                raise ValueError(
-                    f"aucune ligne d'injection en amont de : {orphelines}. "
-                    f"Une section de contrôle sans apport en amont ne peut pas "
-                    f"être calée. Vérifier le sens de l'axe hydraulique et la "
-                    f"position des objets.")
-            if self.appariement["partagees"]:
-                detail = "; ".join(
-                    f"« {a} » pour {', '.join(s)}"
-                    for a, s in self.appariement["partagees"].items())
-                raise ValueError(
-                    f"une même injection alimenterait plusieurs sections : "
-                    f"{detail}. La méthode cale un apport contre UNE cible : "
-                    f"ajouter une injection, ou retirer une section.")
+            refus = noyau.refus_appariement(self.appariement)
+            if refus:
+                raise ValueError(refus)
 
             # Pente de la ligne d'energie, PRE-REMPLIE par apport depuis le
             # profil en long du modele. C'est la valeur que le calage aurait
@@ -5724,10 +5687,8 @@ class DialogueParametrage(QDialog):
                 prolongation,
                 avant=f"{compte_rendu_ecriture}\n\n"
                       f"Paquet composé dans {dossier_sortie}\n",
-                apres=(f"\nPente des apports : {len(pentes)}/"
-                       f"{len(self.appariement['paires'])} "
-                       f"{'pré-remplie' if len(pentes) < 2 else 'pré-remplies'}"
-                       + (f" — {motif_pentes}" if motif_pentes else "")))
+                apres="\n" + noyau.dire_pentes_pre_remplies(
+                    pentes, len(self.appariement["paires"]), motif_pentes))
             self._maj_resume()
             self._maj_onglet_validation()
         except Exception as e:

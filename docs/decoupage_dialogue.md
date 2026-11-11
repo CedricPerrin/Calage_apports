@@ -260,6 +260,36 @@ testables hors QGIS, les deux gros traitements du commun —
 `_composer_et_controler_interne` (211 l.) et `_lancer_calage` (168 l.). C'est
 un autre chantier, à instruire par sa propre matrice.
 
+## 9. Décision du 11 novembre 2026 : pas d'objet d'état, une frontière fenêtre / noyau
+
+Tranché par Cédric, avec une vue « long terme, partagé à beaucoup de monde ».
+
+**Mesuré avant de décider** (`plugin.py`, classe `DialogueParametrage`) :
+
+| Mesure | Valeur |
+|---|---|
+| Dialogue | 4 544 lignes, 123 méthodes |
+| États réellement partagés (lus ou écrits par 4 méthodes ou plus) | 7 sur 45 |
+| `_composer_et_controler_interne` | 211 lignes, 16 widgets lus |
+| `_lancer_calage` | 168 lignes, 7 widgets lus |
+
+**Pas d'objet d'état.** Sept attributs partagés ne le justifient pas, même à plusieurs
+mainteneurs : ce serait de la plomberie, pas de l'indépendance (§ 8).
+
+**Une frontière, en revanche : la fenêtre lit ses widgets et affiche, `noyau.py` décide.** Ce
+qui paie sur la durée, c'est de pouvoir vérifier un changement de la composition ou du
+lancement sans QGIS — c'est là que viendront les nouveaux paramètres et les nouveaux contrôles,
+et là qu'un contributeur casserait quelque chose sans le voir.
+
+| Étape | Contenu | État |
+|---|---|---|
+| A | Les refus de la composition dans `noyau.py` (`refus_avant_composition`, `refus_appariement`, `dire_pentes_pre_remplies`), éprouvés sans QGIS (`src/test_refus_composition.py`) ; le raccord de la fenêtre éprouvé sous QGIS (`src/test_composition_fenetre.py`) | fait le 11/11/2026 |
+| B | La saisie lue dans les widgets rassemblée en une structure simple ; la composition, puis le lancement, confiés à des fonctions de `noyau.py` testées sans QGIS. Une PR par traitement, sous filet | à faire |
+
+**Ce que l'étape A n'a pas déplacé** : le refus d'une projection géographique. Il interroge
+`QgsCoordinateReferenceSystem`, que `noyau.py` n'importe pas ; le rejouer avec une autre
+bibliothèque changerait la lecture des systèmes mal formés. Il reste dans la fenêtre.
+
 ## Annexe — matrice complète
 
 Lignes de 58fefa1. « Étapes » : étapes des méthodes qui touchent l'attribut

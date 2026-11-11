@@ -52,8 +52,20 @@ mineurs, la 0.9.35 le refus du re-cadencage sans nom de zone 2D (PR 20), la
   Plugin : plugin.py 7 823 -> 5 880 lignes ; widgets.py (widgets peints),
   socle.py (palette, aides de fenetre), page_suivi.py et page_aide.py
   sortent du dialogue, qui garde des relais. Le decoupage en pages S'ARRETE
-  LA (docs/decoupage_dialogue.md, § 7) : Lancer, Modele et Parametres
-  demandent d'abord un objet d'etat partage — decision de conception ouverte.
+  LA (docs/decoupage_dialogue.md, § 7 et 8).
+  DECISION DU 11/11/2026 (utilisateur, vue « long terme, partage ») : PAS
+  D'OBJET D'ETAT PARTAGE — 7 etats seulement sur 45 sont lus ou ecrits par
+  quatre methodes ou plus. A LA PLACE, UNE FRONTIERE : la fenetre LIT ses
+  widgets et AFFICHE, noyau.py DECIDE, et cela s'eprouve sans QGIS
+  (docs/decoupage_dialogue.md, § 9).
+    ETAPE A, FAITE : les refus de la composition sont dans noyau.py
+    (refus_avant_composition, refus_appariement, dire_pentes_pre_remplies),
+    textes inchanges mot pour mot ; essais sans QGIS
+    (src/test_refus_composition.py) et raccord de la fenetre sous QGIS
+    (src/test_composition_fenetre.py). Aucun changement de comportement.
+    ETAPE B, A FAIRE : la saisie des widgets rassemblee en une structure
+    simple ; la composition, puis le lancement, en fonctions de noyau.py
+    testees sans QGIS. Une PR par traitement, sous filet.
   Bancs embarques : sortis des modules vers src/bancs/banc_<module>.py ;
   « python src/<module>.py » les joue toujours (relais). L'archive du
   plugin ne les embarque plus : 561 -> 478 ko.
@@ -3985,9 +3997,10 @@ dates fictives au 1er janvier.
     filet, et les trois filets numeriques (caler, diagnostic, livrables)
     comptent desormais les jeux d'instructions de numpy dans leur socle. Se
     rejoue par NPY_DISABLE_CPU_FEATURES="X86_V4 AVX512_ICL AVX512_SPR".
-    DECISIONS EN ATTENTE : l'objet d'etat partage du dialogue ; convertir
-    les bancs en pytest ; sort de masque_fenetre ; alleger les references
-    (4,5 Mo).
+    DECISIONS EN ATTENTE : convertir les bancs en pytest ; sort de
+    masque_fenetre ; alleger les references (4,5 Mo). L'objet d'etat partage
+    du dialogue est TRANCHE (11/11/2026, section 1) : pas d'objet, une
+    frontiere fenetre / noyau, etape A faite, etape B a faire.
 
 
   - LE CALAGE REPRIS DE SUHIHANDIA S'ARRETE AU CALCUL DE REFERENCE (14/09).

@@ -1299,6 +1299,89 @@ def apparier_paquet(chemins_shp, sens=None, pk_origine=0.0, profil=None):
     return resultat
 
 
+# ---------------------------------------------------------------------------
+# LES REFUS DE LA COMPOSITION. Ils vivaient dans la fenetre
+# (plugin._composer_et_controler_interne), ou seul le banc sous QGIS pouvait
+# les eprouver. Depuis le 11/11/2026 la fenetre LIT ses widgets et AFFICHE ;
+# c'est ici que se decide si la composition peut commencer, puis continuer —
+# et cela s'eprouve sans QGIS (src/test_refus_composition.py). Chaque
+# fonction REND le motif du refus, ou None : c'est la fenetre qui leve.
+# ---------------------------------------------------------------------------
+
+def refus_avant_composition(*, projet_choisi, plan_choisi, prefixe_scenario,
+                            couches_chargees, axe_choisi, dossier_sortie):
+    """
+    Pourquoi la composition ne peut pas COMMENCER, ou None si elle le peut.
+
+    Le PREMIER manque est rendu, dans l'ordre des etapes de la fenetre :
+    projet, plan, prefixe, couches, axe, dossier de sortie. Rien n'est ecrit
+    tant qu'un motif est rendu.
+
+    LE PREFIXE EST OBLIGATOIRE (0.7.22, demande utilisateur). Vide, il etait
+    admis et rendait les titres d'avant — « sans_apport », « Apport_A1 ».
+    Deux scenarios cales sur le meme modele portaient alors les MEMES titres,
+    et le second effacait les plans du premier, un par un, en silence. Le
+    prefixe est ce qui rend les deux series etrangeres : le laisser
+    facultatif, c'est laisser la porte ouverte a la seule perte de donnees
+    que cette chaine sache provoquer.
+    """
+    if not projet_choisi:
+        return ("Étape Modèle : choisir d'abord le fichier .prj du projet "
+                "HEC-RAS (« Choisir le projet… »).")
+    if not plan_choisi:
+        return "Étape Modèle : choisir un plan de référence."
+    if not (prefixe_scenario or "").strip():
+        return ("Étape Paramètres : renseigner le préfixe de scénario, cours "
+                "d'eau en tête. Il nomme les plans de CE calage — "
+                "« Riviere-Q100 » donne « Riviere-Q100-sans », "
+                "« Riviere-Q100-A1 » et « Riviere-Q100 » —, il nomme aussi "
+                "son Excel — « donnees_calage_Riviere-Q100.xlsx » —, et "
+                "c'est lui qui empêche un second scénario d'effacer les "
+                "plans du premier.")
+    if not couches_chargees:
+        return ("Étape Modèle : cliquer sur « Charger les couches du modèle » "
+                "avant de composer. Si elles avaient été chargées, c'est "
+                "qu'elles ont été retirées du projet depuis — les "
+                "recharger.")
+    if not axe_choisi:
+        # L'axe a rejoint l'onglet 1 en 0.7.0, avec les couches ou il se
+        # trace ; ce renvoi etait reste sur l'onglet 2.
+        return "Étape Modèle : choisir la couche de l'axe hydraulique."
+    if not (dossier_sortie or "").strip():
+        return ("Étape Paramètres : choisir le dossier de sortie, juste "
+                "au-dessus du préfixe.")
+    return None
+
+
+def refus_appariement(appariement):
+    """
+    Pourquoi l'appariement rendu par apparier_paquet() ne peut pas etre cale,
+    ou None : une section sans injection en amont d'elle, ou une injection
+    qui alimenterait plusieurs sections.
+    """
+    if appariement["sans_apport"]:
+        orphelines = ", ".join(n for n, _ in appariement["sans_apport"])
+        return (f"aucune ligne d'injection en amont de : {orphelines}. "
+                f"Une section de contrôle sans apport en amont ne peut pas "
+                f"être calée. Vérifier le sens de l'axe hydraulique et la "
+                f"position des objets.")
+    if appariement["partagees"]:
+        detail = "; ".join(f"« {a} » pour {', '.join(s)}"
+                           for a, s in appariement["partagees"].items())
+        return (f"une même injection alimenterait plusieurs sections : "
+                f"{detail}. La méthode cale un apport contre UNE cible : "
+                f"ajouter une injection, ou retirer une section.")
+    return None
+
+
+def dire_pentes_pre_remplies(pentes, nb_paires, motif=""):
+    """La ligne du compte rendu de composition sur les pentes des apports :
+    combien sont pre-remplies, et pourquoi il en manque."""
+    return (f"Pente des apports : {len(pentes)}/{nb_paires} "
+            f"{'pré-remplie' if len(pentes) < 2 else 'pré-remplies'}"
+            + (f" — {motif}" if motif else ""))
+
+
 def pentes_locales_apports(dossier_projet, nom_projet, geometrie, chemin_axe,
                            nom_zone_2d, pk_apports):
     """
