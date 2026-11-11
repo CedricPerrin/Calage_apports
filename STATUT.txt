@@ -24,9 +24,15 @@ qu'ils ont appris.
 
 REMANIEMENT DU CODE, SANS CHANGEMENT DE COMPORTEMENT — 10 NOVEMBRE 2026,
 FUSIONNE DANS main LE 11/11/2026 (PR 8, a la demande de l'utilisateur), AVEC LES
-CORRECTIFS DU 11/11 (PR 9 a 15, section 6). SANS MONTEE DE VERSION : metadata.txt
-  dit toujours 0.9.32, sans entree de journal pour ces changements, et aucune
-  archive n'a ete construite ni publiee. C'EST A FAIRE avant toute diffusion.
+CORRECTIFS DU 11/11 (PR 9 a 15, section 6). VERSION 0.9.33 (NON PUBLIEE) :
+  metadata.txt, LISEZMOI.md et README.md la portent, et l'archive
+  calage_apports_0.9.33.zip est a la racine. ELLE A ETE CONSTRUITE SUR UN
+  POSTE SANS « .affaires » : faire_zip.py n'y a donc PAS controle les noms
+  d'affaires (les chemins du poste, si). AVANT DE PUBLIER DANS LE DEPOT PIO,
+  REJOUER « python src/faire_zip.py » SUR LE POSTE QUI PORTE .affaires.
+  Essayee : depaquetee, chargee sous QGIS 3.44 hors ecran, dialogue construit,
+  chaine embarquee employee (composition et controle d'un classeur). PAS
+  essayee sous Windows, ni dans un QGIS de bureau, ni sur un calcul reel.
   La branche partait de main 58fefa1 (0.9.32).
   Fait par des sous-agents sous arbitrage, un chantier par fusion. Regle
   tenue partout : un filet fige le comportement sur le code INCHANGE, puis
@@ -3799,8 +3805,8 @@ dates fictives au 1er janvier.
     CORRIGES LE 11/11/2026, chacun sur sa branche et dans sa PR (9 a 13,
     et 15 pour le re-cadencage), reunis et rejoues ensemble sur
     claude/correctifs-ensemble (PR 14). FUSIONNES DANS main LE 11/11/2026, a
-    la demande de l'utilisateur, CI verte (QGIS 3.44 et 4.2). SANS MONTEE DE
-    VERSION NI ENTREE DE metadata.txt : A FAIRE avant toute diffusion.
+    la demande de l'utilisateur, CI verte (QGIS 3.44 et 4.2). Livres par la
+    VERSION 0.9.33 (non publiee ; voir en tete de la section 1).
     Chaque correctif a son test qui dit ce que le code DOIT faire (rouge
     avant, vert apres), et les seuls cas des filets qui figeaient le defaut
     ont ete refiges.
