@@ -1324,12 +1324,12 @@
    }
   },
   "classeur/absent": {
-   "code": null,
-   "exception": {
-    "type": "FileNotFoundError",
-    "message": "[Errno 2] No such file or directory: '<TMP>/donnees.xlsx'"
+   "code": 1,
+   "exception": null,
+   "reponse": {
+    "ok": false,
+    "erreur": "classeur de saisie introuvable : <TMP>/donnees.xlsx. Verifier son chemin avant de lancer le calage."
    },
-   "reponse": null,
    "journal": [],
    "stderr": [],
    "appels": [
@@ -2001,12 +2001,12 @@
    }
   },
   "classeur/sans_temps_h": {
-   "code": null,
-   "exception": {
-    "type": "ValueError",
-    "message": "la feuille Cibles n'a pas de colonne « Temps_h » (en-tete A1). En-tetes trouves : ['C1', 'C2', 'C3', 'Heure']"
+   "code": 1,
+   "exception": null,
+   "reponse": {
+    "ok": false,
+    "erreur": "classeur de saisie inexploitable : la feuille Cibles n'a pas de colonne « Temps_h » (en-tete A1). En-tetes trouves : ['C1', 'C2', 'C3', 'Heure']"
    },
-   "reponse": null,
    "journal": [],
    "stderr": [],
    "appels": [
