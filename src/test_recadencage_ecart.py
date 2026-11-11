@@ -14,8 +14,9 @@ Le calcul n'est PAS change : on garde l'interpolation, et on AFFICHE l'ecart.
   - Les apports CALES ne sont pas concernes : le calage les reecrit en
     entier a chaque essai.
   - Sous SEUIL_ECART_RECADENCAGE (1 % de la pointe), une ligne d'information.
-  - Au-dessus, la ligne porte « AVERTISSEMENT » : l'etape Suivi la remonte
-    alors sous sa banniere.
+  - Au-dessus, la ligne porte « AVERTISSEMENT » : l'etape Suivi la montre
+    alors sous sa banniere, au debut du calage (elle ne lit que la fin du
+    journal ; la ligne y reste, elle).
 
     python -m pytest src/test_recadencage_ecart.py -q
 """

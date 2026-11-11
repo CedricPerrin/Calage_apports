@@ -77,8 +77,10 @@ INTERVALLE_APPORT = "6MIN"
 
 # Au-dela de cet ecart (en fraction de la pointe) entre une condition limite
 # NON CALEE et sa serie re-cadencee, le journal porte « AVERTISSEMENT », que
-# l'etape Suivi remonte sous sa banniere ; en dessous, une simple ligne
-# d'information. 1 % : sous ce seuil tombent les crues qui montent en plus de
+# l'etape Suivi montre sous sa banniere AU DEBUT DU CALAGE — elle ne lit que
+# la fin du journal, et la ligne en sort quand il grossit ; elle reste dans le
+# journal. En dessous du seuil, une simple ligne d'information.
+# 1 % : sous ce seuil tombent les crues qui montent en plus de
 # deux heures environ (mesure du 11/11/2026, 15 -> 6 min). Voir
 # PiloteHecRas._dire_ecart_de_recadencage().
 SEUIL_ECART_RECADENCAGE = 0.01
@@ -1963,8 +1965,9 @@ class PiloteHecRas(Modele):
         calcul de reference puis reecrit en entier a chaque essai, sa serie
         re-cadencee n'entre dans aucun calcul.
         AU-DESSUS DE SEUIL_ECART_RECADENCAGE, « AVERTISSEMENT » : l'etape
-        Suivi remonte alors la ligne sous sa banniere. En dessous, la ligne
-        reste une information du journal.
+        Suivi montre alors la ligne sous sa banniere, au debut du calage
+        (elle ne lit que la fin du journal). En dessous, la ligne reste une
+        information du journal.
         """
         if pilote:
             return
