@@ -204,8 +204,8 @@ def _colonnes_correspondance(corr):
     return col_ordre, col_apport, col_section, col_cible
 
 
-def _regle_ordre_contigu(colonne_ordre):
-    n = len(colonne_ordre)
+def _ordres_illisibles(colonne_ordre):
+    """« valeur non numerique 'deux' (ligne 3) », ou "" si tout se lit."""
     illisibles = []
     for ligne, o in colonne_ordre.items():
         try:
@@ -213,12 +213,20 @@ def _regle_ordre_contigu(colonne_ordre):
         except (TypeError, ValueError):
             # +2 : l'index de pandas compte depuis 0, l'en-tete est la ligne 1.
             illisibles.append((ligne + 2, o))
+    if not illisibles:
+        return ""
+    lus = ", ".join(f"{o!r} (ligne {ligne})" for ligne, o in illisibles)
+    return f"valeur non numerique {lus}"
+
+
+def _regle_ordre_contigu(colonne_ordre):
+    n = len(colonne_ordre)
+    illisibles = _ordres_illisibles(colonne_ordre)
     if illisibles:
-        lus = ", ".join(f"{o!r} (ligne {ligne})" for ligne, o in illisibles)
         return [(ERREUR,
-                 f"feuille Correspondance, colonne Ordre : valeur non "
-                 f"numerique {lus} ; la colonne doit etre la suite 1..{n} "
-                 f"sans trou ni doublon.")]
+                 f"feuille Correspondance, colonne Ordre : {illisibles} ; "
+                 f"la colonne doit etre la suite 1..{n} sans trou ni "
+                 f"doublon.")]
     ordres = sorted(int(o) for o in colonne_ordre)
     if ordres != list(range(1, n + 1)):
         return [(ERREUR,
@@ -415,7 +423,11 @@ def _correspondance(chemin_template):
     if col_section is None:
         raise ValueError("colonne 'Nom_Section' absente")
     corr = corr.dropna(subset=[col_ordre, col_apport, col_section])
-    corr = corr.sort_values(col_ordre)
+    illisibles = _ordres_illisibles(corr[col_ordre])
+    if illisibles:
+        raise ValueError(f"colonne Ordre : {illisibles}")
+    # Tri sur la valeur lue : « 2 » en texte, entre deux entiers, se compare.
+    corr = corr.loc[pd.to_numeric(corr[col_ordre]).sort_values().index]
     return (corr[col_section].astype(str).tolist(),
             corr[col_apport].astype(str).tolist())
 
