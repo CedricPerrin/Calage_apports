@@ -461,7 +461,7 @@
     "anomalies": [
      [
       "ERREUR",
-      "parametres du calage illisibles : Expecting property name enclosed in double quotes: line 1 column 3 (char 2)"
+      "parametres du calage illisibles : « donnees.json » n'est pas un JSON valide (ligne 1, colonne 3). Le corriger avant de relancer."
      ]
     ]
    },
@@ -1884,7 +1884,7 @@
     "anomalies": [
      [
       "AVERTISSEMENT",
-      "cible 'C2' : valeurs manquantes intercalees"
+      "cible 'C2' : 3 valeur(s) manquante(s) en fin de colonne"
      ]
     ]
    }
@@ -1899,8 +1899,15 @@
   "template/cible_trous_intercales": {
    "rendu": {
     "type": "list",
-    "types_elements": [],
-    "anomalies": []
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "AVERTISSEMENT",
+      "cible 'C2' : valeurs manquantes intercalees (ligne 5 de la feuille Cibles)"
+     ]
+    ]
    }
   },
   "template/cible_une_valeur": {
@@ -2621,7 +2628,7 @@
     "anomalies": [
      [
       "ERREUR",
-      "parametres du calage illisibles : « donnees.json » n'est pas un JSON valide (ligne 1, colonne 3). Le corriger avant de relancer le controle."
+      "parametres du calage illisibles : « donnees.json » n'est pas un JSON valide (ligne 1, colonne 3). Le corriger avant de relancer."
      ]
     ]
    }

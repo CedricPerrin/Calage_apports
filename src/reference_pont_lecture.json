@@ -2591,10 +2591,6 @@
     "crs": "EPSG:2154",
     "sections": [
      {
-      "nom": "Section_01",
-      "wkt": "LINESTRING (100 0, 100 800)"
-     },
-     {
       "nom": "S1",
       "wkt": "LINESTRING (100.0 0.0, 100.0 800.0)"
      },
@@ -2604,14 +2600,6 @@
      }
     ],
     "injections": [
-     {
-      "nom": "Apport_01",
-      "wkt": "LINESTRING (50 100, 60 200)"
-     },
-     {
-      "nom": "Apport_02",
-      "wkt": "LINESTRING (400 100, 410 200)"
-     },
      {
       "nom": "A1",
       "wkt": "LINESTRING (50.0 100.0, 60.0 200.0)"
@@ -2627,12 +2615,7 @@
       "wkt": "POLYGON ((0 0, 1000 0, 1000 800, 0 800, 0 0))"
      }
     ],
-    "en_attente_pretraitement": [
-     "S1",
-     "S_Église",
-     "A1",
-     "A2"
-    ],
+    "en_attente_pretraitement": [],
     "objets_illisibles": [],
     "geometrie_pretraitee": true
    },
@@ -3498,10 +3481,6 @@
     "crs": "EPSG:2154",
     "sections": [
      {
-      "nom": "Section_01",
-      "wkt": "LINESTRING (100 0, 100 800)"
-     },
-     {
       "nom": "S1",
       "wkt": "LINESTRING (100.0 0.0, 100.0 800.0)"
      },
@@ -3511,14 +3490,6 @@
      }
     ],
     "injections": [
-     {
-      "nom": "Apport_01",
-      "wkt": "LINESTRING (50 100, 60 200)"
-     },
-     {
-      "nom": "Apport_02",
-      "wkt": "LINESTRING (400 100, 410 200)"
-     },
      {
       "nom": "A1",
       "wkt": "LINESTRING (50.0 100.0, 60.0 200.0)"
@@ -3534,12 +3505,7 @@
       "wkt": "POLYGON ((0 0, 1000 0, 1000 800, 0 800, 0 0))"
      }
     ],
-    "en_attente_pretraitement": [
-     "S1",
-     "S_Église",
-     "A1",
-     "A2"
-    ],
+    "en_attente_pretraitement": [],
     "objets_illisibles": [],
     "geometrie_pretraitee": true
    },
