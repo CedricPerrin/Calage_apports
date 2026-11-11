@@ -3861,9 +3861,17 @@ dates fictives au 1er janvier.
     QGIS plantent au hasard (la CI les joue en deux pas, elle n'y est pas
     exposee).
     CI : UN SEUL DECLENCHEMENT PAR POUSSEE depuis le 11/11/2026 (push sur
-    main, pull_request pour les branches). Les jobs ne demarrent plus depuis
-    le 10/11 au soir (quota ou facturation Actions du compte) : aucun des
-    correctifs n'a ete joue par la CI.
+    main, pull_request pour les branches). Les jobs n'ont pas demarre du
+    10/11 au soir au 11/11 au matin (quota ou facturation Actions du compte).
+    A LEUR REPRISE, UN FILET S'EST REVELE DEPENDRE DU PROCESSEUR : a code
+    identique, test_livrables_chaine.py passait sur un runner et rendait trois
+    cas rouges sur un autre. numpy choisit ses noyaux selon le processeur ;
+    avec ou sans AVX-512 une somme differe d'un dernier bit, et ce bit faisait
+    basculer le type d'une cellule (entier ou flottant) et le nombre de
+    sommets d'une zone coloree. Corrige le 11/11 dans le repli hors socle du
+    filet, et les trois filets numeriques (caler, diagnostic, livrables)
+    comptent desormais les jeux d'instructions de numpy dans leur socle. Se
+    rejoue par NPY_DISABLE_CPU_FEATURES="X86_V4 AVX512_ICL AVX512_SPR".
     DECISIONS EN ATTENTE : la suite du re-cadencage ; l'objet d'etat partage
     du dialogue ; QGIS 3.34 dans la matrice de la CI ; convertir les bancs en
     pytest ; sort de masque_fenetre ; alleger les references (4,5 Mo).

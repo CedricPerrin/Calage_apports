@@ -34,10 +34,20 @@ Les apports calés ne sont pas concernés : ils sont réécrits en entier à cha
 suite est à décider (prévenir, ne plus re-cadencer les conditions non calées, ou laisser).
 
 **CI.** Un seul déclenchement par poussée depuis le 11/11 (`push` sur `main`, `pull_request`
-pour les branches) : une branche qui avait une PR jouait le workflow deux fois. Les jobs ne
-démarrent plus depuis le 10/11 au soir (quota ou facturation Actions du compte) : **aucun
-correctif n'a été joué par la CI.** À la place : banc complet sur ce poste (Python 3.13,
-QGIS 3.44), conforme sur chaque branche et sur l'assemblage.
+pour les branches) : une branche qui avait une PR jouait le workflow deux fois. Les jobs
+n'ont pas démarré du 10/11 au soir au 11/11 au matin (quota ou facturation Actions du compte).
+
+**Un filet dépendait du processeur.** À la reprise de la CI, `test_livrables_chaine.py`
+passait sur un runner et rendait trois cas rouges sur un autre, à code identique. Cause
+établie et rejouée (`NPY_DISABLE_CPU_FEATURES="X86_V4 AVX512_ICL AVX512_SPR"`) : numpy choisit
+ses noyaux de calcul selon le processeur ; avec ou sans AVX-512, une somme diffère d'un
+dernier bit. La tolérance de 1e-9 absorbait l'écart sur les nombres, pas ses deux effets
+discrets : le type d'une cellule relue par openpyxl (« 3 » en entier, « 2.9999999999999996 »
+en flottant) et le nombre de sommets d'une zone colorée sous un seuil. Corrigé dans le repli
+hors socle du filet ; et les trois filets numériques (`caler`, `diagnostiquer`, livrables)
+comptent désormais les jeux d'instructions de numpy dans leur socle — à versions égales, un
+autre processeur passait pour le socle et échouait à tort. Ce n'est pas un défaut du code
+livré : c'est le résultat lui-même qui varie d'un dernier bit d'une machine à l'autre.
 
 **Non vérifié.** Rien dans le QGIS du poste, rien sous Windows, rien sous QGIS 4.2, aucun
 HEC-RAS réel. Les HDF de la PR 10 sont fabriqués : que HEC-RAS écrive ses noms en cp1252
