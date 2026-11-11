@@ -2111,7 +2111,10 @@ def commande_caler(args):
         apports_total=len(apports),
         dossier_suivi=str(dossier_sortie / sous_suivi),
         plan_conserve=(menage or {}).get("conserve"),
-        objets_retires=(menage or {}).get("supprimes") or [],
+        # « reliquats » : ce que nettoyer_reliquats() rend et retire. La cle
+        # « supprimes » est celle d'elaguer_etapes(), qui ne passe pas par ici :
+        # le champ valait toujours [].
+        objets_retires=(menage or {}).get("reliquats") or [],
         dossier_resultats=(str(dossier_sortie / sous_resultats)
                           if rapport else None),
         # ALERTES QUI VISENT LE CALAGE ENTIER, pas un apport. Non bloquantes :
