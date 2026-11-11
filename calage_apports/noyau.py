@@ -1681,6 +1681,28 @@ def _mettre_de_cote(chemin):
     return sauvegarde
 
 
+def _remettre_en_place(sauvegarde, chemin):
+    """Rend son nom au classeur mis de cote, quand l'ecriture du nouveau a
+    echoue. Ne leve jamais : l'erreur d'ecriture est celle qui doit remonter."""
+    # UN ECHEC D'ECRITURE NE DOIT PAS LAISSER LE DOSSIER SANS CLASSEUR
+    # (11/11/2026). L'ancien venait d'etre renomme « .precedent.xlsx » : le
+    # nom canonique n'existait plus, la chaine ne trouvait plus de classeur,
+    # et la saisie ne vivait plus que dans le fichier mis de cote. Comme la
+    # composition est AUTOMATIQUE, la suivante repartait d'un classeur
+    # absent, en ecrivait un VIDE, et celle d'apres mettait ce vide de cote
+    # PAR-DESSUS la saisie : les hydrogrammes colles a la main etaient perdus.
+    #   CE QUI N'EST PAS RENDU : le « .precedent.xlsx » d'AVANT la mise de
+    # cote, que le renommage a remplace. Un seul niveau d'historique est
+    # garde (voir _mettre_de_cote) ; apres un echec il n'y en a plus, et
+    # c'est le classeur courant qui compte.
+    if sauvegarde is None:
+        return
+    try:
+        sauvegarde.replace(chemin)
+    except OSError:
+        pass
+
+
 def _ecrire_classeur(chemin, correspondance, cibles, valeurs):
     """Ecrit le classeur, puis le JSON des parametres, puis l'habille."""
     import pandas as pd
@@ -1778,8 +1800,12 @@ def preparer_classeur(dossier_sortie, paires, chemins_shp, parametres=None,
     # 0.9.12 — voir _mettre_de_cote).
     _refuser_cibles_illisibles(chemin, cibles_existantes, noms_cibles)
     cibles = _feuille_cibles(cibles_existantes, noms_cibles)
-    _mettre_de_cote(chemin)
-    _ecrire_classeur(chemin, correspondance, cibles, valeurs)
+    sauvegarde = _mettre_de_cote(chemin)
+    try:
+        _ecrire_classeur(chemin, correspondance, cibles, valeurs)
+    except Exception:
+        _remettre_en_place(sauvegarde, chemin)
+        raise
     return chemin
 
 
