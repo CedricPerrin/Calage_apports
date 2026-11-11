@@ -1,6 +1,6 @@
 {
  "_a_propos": "Caracterisation de criteres.diagnostiquer() : scenarios nommes et lot pseudo-aleatoire. NE PAS MODIFIER A LA MAIN : « python src/test_caracterisation_diagnostic.py --figer » le reecrit, quand le changement de comportement est VOULU.",
- "_produit_par": {"python": "3.13.18", "numpy": "2.5.3", "systeme": "Linux", "machine": "x86_64"},
+ "_produit_par": {"python": "3.13.18", "numpy": "2.5.3", "systeme": "Linux", "machine": "x86_64", "simd": "X86_V3+X86_V4+AVX512_ICL+AVX512_SPR"},
  "graine": 20261110,
  "entrees_du_lot": "420367efa378daebd1595f2b",
  "scenarios": {
