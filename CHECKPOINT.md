@@ -1,5 +1,31 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 11 novembre 2026 : correctif de l'import des hydrogrammes (branche `claude/correctif-import-hydrogrammes`, non fusionnée, sans version)
+
+**Le défaut.** `noyau.importer_hydrogrammes` ne vidait jamais les lignes de l'Excel de ce
+calcul situées au-delà de la source : il écrivait `feuille.cell(row, column, value=None)`, et
+openpyxl n'affecte une valeur passée à `cell()` que si elle n'est pas `None`. Un hydrogramme
+importé **plus court** que le précédent gardait donc la queue de l'ancien — une cible mêlée
+de deux crues, sans message. Même cause pour un **trou au milieu** de la source : l'ancienne
+valeur restait dessous.
+
+**Le correctif.** Une ligne dans `_recopier_cibles` : la cellule est écrite par `.value = `.
+Aucun autre appel du dépôt n'écrit `None` sur place de cette façon (vérifié sur tous les
+appels à `cell(..., value=...)`).
+
+**Les essais.** `src/test_import_hydrogrammes.py` (4 tests) dit ce que l'import **doit**
+faire : deux tests échouaient avant le correctif et passent après (import plus court, trou
+de la source) ; deux gardent ce qui ne doit pas bouger (l'Excel d'avant conserve l'ancien
+hydrogramme entier ; une cible absente de la source reste intacte). Dans le filet
+`test_noyau_classeur.py`, **un seul cas sur 64** change et a été refigé :
+`importer/cible_plus_longue_videe_dessous` (les quatre cellules de queue disparaissent, la
+feuille passe de `A1:D6` à `A1:D4`). Branché dans le job `noyau` de la CI.
+
+**Non fait, à faire à la fusion.** Pas de montée de version, pas d'entrée dans
+`metadata.txt`. Rien essayé dans le QGIS du poste ni sur un classeur réel d'étude. La branche
+part de `claude/optimisation-code` (elle a besoin du filet qui y vit) : à fusionner après
+elle, ou avec elle.
+
 ## 10 novembre 2026 (soir) : remaniement du code sans changement de comportement (branche `claude/optimisation-code`, PR 8 en brouillon, sans version)
 
 **Rien n'est sur `main`.** Pas de fusion, pas de montée de version, pas d'archive, pas de
