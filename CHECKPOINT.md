@@ -1,5 +1,43 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 11 novembre 2026 (conception, décision 4) : les références ne sont pas allégées ; l'outil qui relit un refigeage entre au dépôt (branche `claude/relire-references`)
+
+Dernière des quatre décisions de conception.
+
+**Mesuré avant de décider.**
+
+| | Poids |
+|---|---:|
+| Les douze références (`src/reference_*.json`), en texte | 4,5 Mo |
+| Les mêmes, compressées — ce que git garde | 0,34 Mo |
+| Le dépôt entier | 5,25 Mo |
+
+**Elles ne sont pas allégées.** Les réduire (des empreintes à la place des contenus, des
+fichiers compressés) ferait gagner peu et perdre l'essentiel : un filet qui dit *ce qui* a
+changé. Ce qui coûte dans une référence n'est pas son poids, c'est de **relire son diff**
+après un refigeage — et l'outil qui le relisait, toute cette journée, vivait hors du dépôt.
+
+**`tools/comparer_references.py` entre au dépôt.** Pour chaque référence : les cas qui
+diffèrent de `HEAD` (ou de `--base main`), ce qui y a été retiré, ajouté ou modifié, trois
+exemples par cas, et **si des nombres ont changé** — nombres, flottants figés en texte,
+empreintes de tableaux. `--strict` sort en code 1 sur un nombre modifié. **À lancer avant de
+committer une référence refigée.** L'outil est lui-même éprouvé
+(`src/test_comparer_references.py`, 11 tests ; une faute injectée, attrapée) et essayé sur les
+refigeages réels de la journée.
+
+**Plus aucune décision de conception n'est en attente.** Bilan des quatre :
+
+| Décision | Issue |
+|---|---|
+| Objet d'état partagé du dialogue | pas d'objet ; une frontière fenêtre / noyau, en place pour la composition et le lancement (PR 23, 24, 25) |
+| Convertir les bancs en pytest | exposés à pytest, pas réécrits ; le banc du pilote entre dans la CI (PR 26) |
+| Sort de `masque_fenetre` | retirée, elle n'avait plus d'appelant (PR 27) |
+| Alléger les références | non ; l'outil de relecture entre au dépôt |
+
+**Toujours non essayé** : Windows, un QGIS de bureau, un calcul HEC-RAS réel. **Pas de montée
+de version** depuis la 0.9.36 ; son archive ne contient ni les derniers correctifs (PR 22) ni
+ce remaniement.
+
 ## 11 novembre 2026 (conception, décision 3) : `masque_fenetre` est retirée (branche `claude/masque-fenetre`)
 
 Troisième des quatre décisions de conception. `calage.masque_fenetre` (cinq lignes) était

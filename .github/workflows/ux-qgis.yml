@@ -62,6 +62,8 @@ jobs:
       - run: python -m pytest src/test_refus_composition.py -q
       # Le lancement avant le sous-processus, sorti de la fenêtre vers noyau.py (11/11/2026) : sans QGIS.
       - run: python -m pytest src/test_lancement_noyau.py -q
+      # L'outil qui relit un refigeage (tools/comparer_references.py) est lui-même éprouvé.
+      - run: python -m pytest src/test_comparer_references.py -q
       # Un échec d'écriture ne doit pas laisser le dossier sans classeur (correctif du 11/11/2026).
       - run: python -m pytest src/test_classeur_perdu.py -q
       # Filet de la chaîne des livrables (vague 5, 10/11/2026) : 39 cas, contenu des figures,
