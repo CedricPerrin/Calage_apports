@@ -76,6 +76,14 @@ reste une hypothèse, à vérifier sur un vrai `.pNN.hdf` portant une section ac
 échecs d'écriture de la PR 13 sont simulés. Les messages des PR 11 et 12 n'ont pas été relus
 à l'écran.
 
+**QGIS 3.34, le minimum déclaré, est de nouveau essayé.** Le banc `test_plugin_qgis.py`
+s'arrêtait dès sa première couche sous la 3.34 : il écrivait
+`QgsField(..., QMetaType.Type.QString)`, accepté depuis la 3.38 seulement. Il emploie
+maintenant le type que le plugin choisit (`plugin.TYPE_CHAMP_TEXTE`). Le plugin, lui, était
+déjà compatible. Joué sous QGIS 3.34.15 hors écran (paquets dépaquetés à côté de la 3.44) :
+banc 472 `[OK]`, tests d'installation, peinture et alertes du Suivi. La CI joue désormais la
+3.34 en plus de la 3.44 et de la 4.2 (un job de plus par exécution).
+
 **Pour reprendre.** Rejouer `python src/faire_zip.py` sur le poste qui porte `.affaires` ;
 essayer la 0.9.33 dans le QGIS du poste, sous Windows, sur un calcul réel, avant de la
 publier ; refiger les références des filets sur ce poste. Restent ouverts : `STATUT.txt`,

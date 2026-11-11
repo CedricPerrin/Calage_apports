@@ -42,7 +42,6 @@ import os  # noqa: E402
 
 from qgis.core import QgsApplication, QgsProject, QgsVectorLayer, QgsFeature, \
     QgsGeometry, QgsField
-from qgis.PyQt.QtCore import QMetaType
 
 # QgsApplication.setPrefixPath() DOIT etre appele avant initQgis(), sans quoi
 # les plugins providers (dont MDAL, qui lit nativement les maillages
@@ -449,7 +448,10 @@ def couche(nom, geometries, noms, crs="EPSG:2154"):
     du modele, que la fenetre connait.
     """
     c = QgsVectorLayer(f"LineString?crs={crs}", nom, "memory")
-    c.dataProvider().addAttributes([QgsField("nom", QMetaType.Type.QString)])
+    # LE TYPE QUE LE PLUGIN A CHOISI, pas QMetaType ecrit en dur : QgsField ne
+    # l'accepte que depuis QGIS 3.38, et ce banc s'arretait ici sous la 3.34,
+    # le minimum que metadata.txt declare (11/11/2026).
+    c.dataProvider().addAttributes([QgsField("nom", mod_plugin.TYPE_CHAMP_TEXTE)])
     c.updateFields()
     entites = []
     for g, n in zip(geometries, noms):
@@ -809,7 +811,7 @@ else:
         # sans jamais reprendre un nom deja pris dans le modele.
         _sans_nom = QgsVectorLayer("LineString?crs=EPSG:2154", "SansNom", "memory")
         _sans_nom.dataProvider().addAttributes(
-            [QgsField("nom", QMetaType.Type.QString)])
+            [QgsField("nom", mod_plugin.TYPE_CHAMP_TEXTE)])
         _sans_nom.updateFields()
         _objets = []
         for _i in range(3):

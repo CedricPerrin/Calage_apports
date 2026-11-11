@@ -3874,11 +3874,17 @@ dates fictives au 1er janvier.
         en UTF-8 avec remplacement (un nom cp1252 s'affiche avec « ? »).
       - Note de synthese : « ras-commander v0.99.1 » en dur.
     TROUS DES ESSAIS, constates : aucun test ne verifie sous quelle cle
-    QSettings l'interpreteur est memorise ; test_plugin_qgis.py ne tourne pas
-    sous QGIS 3.34, minimum declare (QgsField(..., QMetaType.Type.QString)
-    demande 3.38) ; les tests d'installation enchaines dans UN processus sous
-    QGIS plantent au hasard (la CI les joue en deux pas, elle n'y est pas
-    exposee).
+    QSettings l'interpreteur est memorise ; les tests d'installation
+    enchaines dans UN processus sous QGIS plantent au hasard (la CI les joue
+    en deux pas, elle n'y est pas exposee).
+    QGIS 3.34, LE MINIMUM DECLARE, EST DE NOUVEAU ESSAYE (11/11/2026). Le banc
+    test_plugin_qgis.py s'arretait des sa premiere couche sous la 3.34 : il
+    ecrivait QgsField(..., QMetaType.Type.QString), accepte depuis la 3.38
+    seulement. Il emploie maintenant le type que le plugin choisit
+    (plugin.TYPE_CHAMP_TEXTE). LE PLUGIN, LUI, ETAIT DEJA COMPATIBLE. Joue
+    sous QGIS 3.34.15 hors ecran : banc 472 [OK], tests d'installation,
+    peinture et alertes du Suivi. LA CI LA JOUE DESORMAIS (matrice : 3.34,
+    3.44 et 4.2) : un job de plus par execution.
     CI : UN SEUL DECLENCHEMENT PAR POUSSEE depuis le 11/11/2026 (push sur
     main, pull_request pour les branches). Les jobs n'ont pas demarre du
     10/11 au soir au 11/11 au matin (quota ou facturation Actions du compte).
