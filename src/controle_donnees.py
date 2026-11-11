@@ -11,7 +11,6 @@ reellement (controle 5).
 Usage :  python controle_donnees.py [chemin_du_template.xlsx]
 """
 
-import json
 from pathlib import Path
 
 import numpy as np
@@ -204,8 +203,8 @@ def _colonnes_correspondance(corr):
     return col_ordre, col_apport, col_section, col_cible
 
 
-def _regle_ordre_contigu(colonne_ordre):
-    n = len(colonne_ordre)
+def _ordres_illisibles(colonne_ordre):
+    """« valeur non numerique 'deux' (ligne 3) », ou "" si tout se lit."""
     illisibles = []
     for ligne, o in colonne_ordre.items():
         try:
@@ -213,12 +212,20 @@ def _regle_ordre_contigu(colonne_ordre):
         except (TypeError, ValueError):
             # +2 : l'index de pandas compte depuis 0, l'en-tete est la ligne 1.
             illisibles.append((ligne + 2, o))
+    if not illisibles:
+        return ""
+    lus = ", ".join(f"{o!r} (ligne {ligne})" for ligne, o in illisibles)
+    return f"valeur non numerique {lus}"
+
+
+def _regle_ordre_contigu(colonne_ordre):
+    n = len(colonne_ordre)
+    illisibles = _ordres_illisibles(colonne_ordre)
     if illisibles:
-        lus = ", ".join(f"{o!r} (ligne {ligne})" for ligne, o in illisibles)
         return [(ERREUR,
-                 f"feuille Correspondance, colonne Ordre : valeur non "
-                 f"numerique {lus} ; la colonne doit etre la suite 1..{n} "
-                 f"sans trou ni doublon.")]
+                 f"feuille Correspondance, colonne Ordre : {illisibles} ; "
+                 f"la colonne doit etre la suite 1..{n} sans trou ni "
+                 f"doublon.")]
     ordres = sorted(int(o) for o in colonne_ordre)
     if ordres != list(range(1, n + 1)):
         return [(ERREUR,
@@ -308,9 +315,32 @@ def _regle_hydrogramme_cible(nom, colonne):
         anomalies.append((ERREUR, f"cible '{nom}' : contient des debits negatifs"))
     if float(valides.max()) <= 0:
         anomalies.append((ERREUR, f"cible '{nom}' : hydrogramme identiquement nul"))
-    if serie.isna().sum() > 0 and serie.dropna().index.max() < len(serie) - 1:
+    # ENTRE LA PREMIERE ET LA DERNIERE VALEUR : un trou intercale, que la
+    # chaine ecarte sans rien dire (_cibles_depuis_classeur ne garde que les
+    # lignes pleines). Les vides qui suivent la derniere valeur sont autre
+    # chose : une cible plus courte que Temps_h, que la chaine accepte ; c'est
+    # le pre-vol qui la compare a la duree simulee.
+    vide = serie.isna().to_numpy()
+    positions = np.flatnonzero(~vide)
+    trous = [int(i) for i in np.flatnonzero(vide)
+             if positions[0] < i < positions[-1]]
+    if trous:
+        # +2 : l'index commence a 0, l'en-tete est la ligne 1 de la feuille.
+        lignes = [i + 2 for i in trous]
+        if len(lignes) > 5:
+            cites = (f"lignes {', '.join(map(str, lignes[:5]))} ... de la "
+                     f"feuille Cibles, {len(lignes)} au total")
+        else:
+            cites = (f"{'lignes' if len(lignes) > 1 else 'ligne'} "
+                     f"{', '.join(map(str, lignes))} de la feuille Cibles")
         anomalies.append((AVERTISSEMENT,
-                          f"cible '{nom}' : valeurs manquantes intercalees"))
+                          f"cible '{nom}' : valeurs manquantes intercalees "
+                          f"({cites})"))
+    en_fin = len(vide) - 1 - positions[-1]
+    if en_fin:
+        anomalies.append((AVERTISSEMENT,
+                          f"cible '{nom}' : {en_fin} valeur(s) manquante(s) "
+                          f"en fin de colonne"))
     return anomalies
 
 
@@ -333,14 +363,10 @@ def controler_template(chemin):
     # --- 1. Parametres -----------------------------------------------------
     try:
         valeurs = parametres.lire(chemin)
-    except json.JSONDecodeError as e:
+    except parametres.ParametresIllisibles as e:
         # Comme controler_geometrie : sans parametres lisibles, le reste du
         # controle ne dirait que « tout est manquant ».
-        return [(ERREUR,
-                 f"parametres du calage illisibles : "
-                 f"« {parametres.chemin(chemin).name} » n'est pas un JSON "
-                 f"valide (ligne {e.lineno}, colonne {e.colno}). Le corriger "
-                 f"avant de relancer le controle.")]
+        return [(ERREUR, str(e))]
     anomalies += _regle_parametres_trouves(chemin, valeurs)
     anomalies += _regle_parametres_requis(valeurs)
     anomalies += _regle_nb_max_iterations(valeurs)
@@ -415,7 +441,11 @@ def _correspondance(chemin_template):
     if col_section is None:
         raise ValueError("colonne 'Nom_Section' absente")
     corr = corr.dropna(subset=[col_ordre, col_apport, col_section])
-    corr = corr.sort_values(col_ordre)
+    illisibles = _ordres_illisibles(corr[col_ordre])
+    if illisibles:
+        raise ValueError(f"colonne Ordre : {illisibles}")
+    # Tri sur la valeur lue : « 2 » en texte, entre deux entiers, se compare.
+    corr = corr.loc[pd.to_numeric(corr[col_ordre]).sort_values().index]
     return (corr[col_section].astype(str).tolist(),
             corr[col_apport].astype(str).tolist())
 
@@ -579,6 +609,8 @@ def controler_geometrie(chemin_template):
 
     try:
         valeurs = parametres.lire(chemin_template)
+    except parametres.ParametresIllisibles as e:
+        return [(ERREUR, str(e))], None
     except Exception as e:
         return [(ERREUR, f"parametres du calage illisibles : {e}")], None
 
@@ -904,6 +936,13 @@ def controler_contre_modele(chemin_template, chemin_geometrie_hdf=None):
     from ras_commander import HdfBndry, HdfMesh
 
     import geometrie as geo
+
+    # Les parametres sont relus plus bas (geometrie_hdf, _regle_zone_2d) :
+    # un JSON illisible se dit ici, une fois, au lieu de lever au milieu.
+    try:
+        parametres.lire(chemin_template)
+    except parametres.ParametresIllisibles as e:
+        return [(ERREUR, str(e))]
 
     anomalies = []
     if chemin_geometrie_hdf is None:
