@@ -600,15 +600,34 @@ def _jouer_le_lot():
 # La reference
 # ---------------------------------------------------------------------------
 
+def _simd():
+    """
+    Les jeux d'instructions vectorielles que numpy EMPLOIE sur ce processeur.
+
+    Ils font partie du socle (11/11/2026) : numpy choisit ses noyaux de calcul
+    selon le processeur, et une somme faite avec ou sans AVX-512 differe d'un
+    dernier bit. A versions egales, deux machines ne rendent donc PAS les
+    memes octets ; sans cette ligne, le filet « au bit pres » echouait a tort
+    sur un processeur different de celui qui a fige la reference.
+    """
+    try:
+        from numpy._core._multiarray_umath import (__cpu_dispatch__ as cibles,
+                                                   __cpu_features__ as vus)
+    except ImportError:
+        return "inconnu"
+    return "+".join(c for c in cibles if vus.get(c)) or "base"
+
+
 def _socle():
     return {"python": platform.python_version(), "numpy": np.__version__,
-            "systeme": platform.system(), "machine": platform.machine()}
+            "systeme": platform.system(), "machine": platform.machine(),
+            "simd": _simd()}
 
 
 def _meme_socle(produit_par):
     ici = _socle()
     return all(produit_par.get(c) == ici[c]
-               for c in ("numpy", "systeme", "machine"))
+               for c in ("numpy", "systeme", "machine", "simd"))
 
 
 TOLERANCE_HORS_SOCLE = 1e-9
