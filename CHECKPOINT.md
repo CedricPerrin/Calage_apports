@@ -1,10 +1,13 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
-## 11 novembre 2026 : cinq correctifs, et le re-cadencage rendu bavard (PR 9 à 13 et 15, réunis sur `claude/correctifs-ensemble`, non fusionnés, sans version)
+## 11 novembre 2026 : cinq correctifs, et le re-cadencage rendu bavard (PR 9 à 15, fusionnées dans `main` le jour même, sans montée de version)
 
 Demandés par Cédric le 11/11, après la liste des défauts relevés pendant le remaniement.
-**Rien n'est fusionné**, pas de montée de version, pas d'entrée dans `metadata.txt` : à faire
-à la fusion. Chaque correctif vit sur sa branche, partie de `claude/optimisation-code`, avec
+**Tout est fusionné dans `main`** (11/11/2026, à la demande de Cédric : « Fusionne tout et
+push dans le main »), avec le remaniement de la veille (PR 8). **Sans montée de version** :
+`metadata.txt` dit toujours 0.9.32, sans entrée de journal pour ces changements, et aucune
+archive n'a été construite ni publiée — **à faire avant toute diffusion**. Chaque correctif a
+été écrit sur sa branche, partie de `claude/optimisation-code`, avec
 un test qui dit ce que le code **doit** faire (rouge avant, vert après) ; dans les filets, seuls
 les cas qui figeaient le défaut ont été refigés. `claude/correctifs-ensemble` les réunit, et
 le banc complet y est conforme.
@@ -58,20 +61,23 @@ comptent désormais les jeux d'instructions de numpy dans leur socle — à vers
 autre processeur passait pour le socle et échouait à tort. Ce n'est pas un défaut du code
 livré : c'est le résultat lui-même qui varie d'un dernier bit d'une machine à l'autre.
 
-**Non vérifié.** Rien dans le QGIS du poste, rien sous Windows, rien sous QGIS 4.2, aucun
-HEC-RAS réel. Les HDF de la PR 10 sont fabriqués : que HEC-RAS écrive ses noms en cp1252
+**Vérifié par la CI** avant la fusion : les huit PR vertes, jobs `noyau`, `chaine-hdf`, QGIS
+3.44 et QGIS 4.2 (Qt 6).
+
+**Non vérifié.** Rien dans le QGIS du poste, rien sous Windows, aucun HEC-RAS réel. Les HDF de la PR 10 sont fabriqués : que HEC-RAS écrive ses noms en cp1252
 reste une hypothèse, à vérifier sur un vrai `.pNN.hdf` portant une section accentuée. Les
 échecs d'écriture de la PR 13 sont simulés. Les messages des PR 11 et 12 n'ont pas été relus
 à l'écran.
 
-**Pour reprendre.** Rétablir le quota Actions et relancer les jobs ; relire les PR 9 à 13
-et 15 (ou la seule PR 14 d'assemblage) ; fusionner la PR 8 d'abord. Restent ouverts :
-`STATUT.txt`, section 6.
+**Pour reprendre.** Monter la version et écrire l'entrée de `metadata.txt` ; essayer dans
+le QGIS du poste, sous Windows, sur un calcul réel ; refiger les références des filets sur
+ce poste. Restent ouverts : `STATUT.txt`, section 6.
 
-## 10 novembre 2026 (soir) : remaniement du code sans changement de comportement (branche `claude/optimisation-code`, PR 8 en brouillon, sans version)
+## 10 novembre 2026 (soir) : remaniement du code sans changement de comportement (PR 8, fusionnée dans `main` le 11/11/2026, sans montée de version)
 
-**Rien n'est sur `main`.** Pas de fusion, pas de montée de version, pas d'archive, pas de
-publication. La branche part de `main` `58fefa1` (0.9.32) ; la PR 8 attend une relecture.
+**Fusionné dans `main` le 11/11/2026**, à la demande de Cédric, avec les correctifs du
+lendemain (section ci-dessus). Pas de montée de version, pas d'archive, pas de publication.
+La branche partait de `main` `58fefa1` (0.9.32).
 
 **Méthode.** Session autonome : des sous-agents (Haiku pour l'inventaire, Sonnet pour le
 mécanique, Opus pour les remaniements, Fable pour `caler()` et `diagnostiquer()`), chacun
@@ -134,14 +140,11 @@ sous Windows. Les filets « au bit près » ne le sont que sur le socle où ils 
 pixels de la peinture du Suivi ne sont comparés que sur ce même poste. **À refiger sur le
 poste Windows.**
 
-**Défauts relevés en chemin, NON corrigés** (les corriger change le comportement, et
-demande de refiger la référence concernée) : liste complète dans `STATUT.txt`, section 6.
-Le premier : `importer_hydrogrammes` ne vide pas les lignes au-delà de la source — un
-hydrogramme importé plus court que le précédent garde la queue de l'ancien (une ligne à
-corriger : `.value = None`).
+**Défauts relevés en chemin** : laissés tels quels par ce remaniement (les corriger change
+le comportement). Les principaux ont été corrigés le lendemain — section du 11 novembre,
+ci-dessus ; ce qui reste ouvert est dans `STATUT.txt`, section 6.
 
-**Pour reprendre.** Relire la PR 8 ; décider des corrections de la section 6 de
-`STATUT.txt` ; refiger les références sur le poste Windows
+**Pour reprendre.** Refiger les références sur le poste Windows
 (l'en-tête de chaque `test_*.py` dit par quelle option) ; trancher l'objet d'état partagé du
 dialogue.
 

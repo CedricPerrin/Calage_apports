@@ -23,9 +23,11 @@ qu'ils ont appris.
 ================================================================================
 
 REMANIEMENT DU CODE, SANS CHANGEMENT DE COMPORTEMENT — 10 NOVEMBRE 2026,
-BRANCHE claude/optimisation-code, PR 8 EN BROUILLON (NON FUSIONNEE, SANS VERSION).
-  Rien n'est sur main : ni fusion, ni montee de version, ni archive. La
-  branche part de main 58fefa1 (0.9.32) ; elle attend une relecture.
+FUSIONNE DANS main LE 11/11/2026 (PR 8, a la demande de l'utilisateur), AVEC LES
+CORRECTIFS DU 11/11 (PR 9 a 15, section 6). SANS MONTEE DE VERSION : metadata.txt
+  dit toujours 0.9.32, sans entree de journal pour ces changements, et aucune
+  archive n'a ete construite ni publiee. C'EST A FAIRE avant toute diffusion.
+  La branche partait de main 58fefa1 (0.9.32).
   Fait par des sous-agents sous arbitrage, un chantier par fusion. Regle
   tenue partout : un filet fige le comportement sur le code INCHANGE, puis
   le decoupage est un deplacement pur ; aucune formule, aucun ordre
@@ -53,9 +55,9 @@ BRANCHE claude/optimisation-code, PR 8 EN BROUILLON (NON FUSIONNEE, SANS VERSION
   ete figes (Linux, numpy 2.5.3) ; ailleurs ils comparent a 1e-9 pres et le
   disent : A REFIGER SUR LE POSTE WINDOWS. Aucun calcul HEC-RAS reel lance ;
   les HDF des filets sont synthetiques ; rien regarde dans le QGIS du poste.
-  Les defauts releves en chemin ont ete corriges le 11/11/2026 sur des
-  branches a part (PR 9 a 13, reunies sur claude/correctifs-ensemble), non
-  fusionnees : section 6. Detail : CHECKPOINT.md.
+  Les defauts releves en chemin ont ete corriges le 11/11/2026 (PR 9 a 13
+  et 15, reunies par la PR 14), fusionnes avec le reste : section 6. Detail :
+  CHECKPOINT.md.
 
 HEC-RAS 7.0.2 — 10 NOVEMBRE 2026, VERSION 0.9.32 (NON PUBLIEE).
   CAUSE DE L'INCIDENT ETABLIE PAR LA SONDE (Muncie) : en 7.0.2, « Ras.exe -c
@@ -2803,7 +2805,7 @@ La note, le template et ce fichier restent a la racine.
                          onglets. plugin.py est une enveloppe mince ; noyau.py
                          porte la logique, testable hors QGIS. Aucune regle de
                          controle n'y est reecrite.
-                         Depuis le 10/11/2026 (branche non fusionnee) :
+                         Depuis le 10/11/2026 :
                          socle.py (palette ISL, aides de fenetre), widgets.py
                          (widgets peints), page_suivi.py, page_aide.py.
   calage_apports_0.8.6.zip  Archive d'installation, VERSIONNEE : c'est ce
@@ -3796,8 +3798,9 @@ dates fictives au 1er janvier.
   - DEFAUTS RELEVES PENDANT LE REMANIEMENT DU 10/11/2026.
     CORRIGES LE 11/11/2026, chacun sur sa branche et dans sa PR (9 a 13,
     et 15 pour le re-cadencage), reunis et rejoues ensemble sur
-    claude/correctifs-ensemble (PR 14). RIEN N'EST
-    FUSIONNE, SANS VERSION NI ENTREE DE metadata.txt : a faire a la fusion.
+    claude/correctifs-ensemble (PR 14). FUSIONNES DANS main LE 11/11/2026, a
+    la demande de l'utilisateur, CI verte (QGIS 3.44 et 4.2). SANS MONTEE DE
+    VERSION NI ENTREE DE metadata.txt : A FAIRE avant toute diffusion.
     Chaque correctif a son test qui dit ce que le code DOIT faire (rouge
     avant, vert apres), et les seuls cas des filets qui figeaient le defaut
     ont ete refiges.
