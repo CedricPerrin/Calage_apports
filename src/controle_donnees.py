@@ -406,7 +406,10 @@ def _correspondance(chemin_template):
     dans l'ordre declare."""
     corr = pd.read_excel(chemin_template, sheet_name="Correspondance")
     col_ordre = "Ordre"
-    col_apport = next(c for c in corr.columns if c.startswith("Nom_Apport"))
+    col_apport = next(
+        (c for c in corr.columns if c.startswith("Nom_Apport")), None)
+    if col_apport is None:
+        raise ValueError("colonne 'Nom_Apport' absente")
     col_section = next(
         (c for c in corr.columns if c.startswith("Nom_Section")), None)
     if col_section is None:

@@ -65,6 +65,16 @@ def test_correspondance_sans_nom_section(tmp_path):
         "feuille Correspondance illisible : colonne 'Nom_Section' absente")]
 
 
+
+def test_correspondance_sans_nom_apport(tmp_path):
+    # Le jumeau du precedent, une ligne plus haut dans _correspondance
+    # (retouche de l'arbitre, 11/11/2026).
+    corr = tcd._avec(tcd.CORR, **{tcd.COL_APPORT: tcd._SUPPRIMER})
+    anomalies = _anomalies(tcd._modele(tmp_path, corr=corr))
+    assert anomalies == [(
+        tcd.cd.ERREUR,
+        "feuille Correspondance illisible : colonne 'Nom_Apport' absente")]
+
 # --- 4. import de pilote_hecras impossible ------------------------------------
 
 def test_fenetre_sans_pilote(tmp_path):

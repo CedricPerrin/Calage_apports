@@ -1936,7 +1936,8 @@ def commande_caler(args):
     except ValueError as e:
         # Les refus que _cibles_depuis_classeur formule lui-meme (colonne
         # Temps_h absente, temps en dates) disent deja quoi corriger.
-        return repondre(ok=False, erreur=f"classeur de saisie inexploitable : {e}")
+        return repondre(
+            ok=False, erreur=f"classeur de saisie inexploitable : {e}")
     if manquantes:
         return repondre(ok=False, erreur=(
             f"hydrogrammes cibles manquants ou inexploitables pour : "

@@ -45,6 +45,9 @@ jobs:
       # Filet des trois contrôles de controle_donnees.py : 143 cas figés dans
       # src/reference_controle_donnees.json (chantier B, 10/11/2026).
       - run: python -m pytest src/test_controle_donnees.py -q
+      # Saisies fautives qui levaient une exception brute : elles doivent rendre une
+      # anomalie ou une réponse ok:false (correctif du 11/11/2026).
+      - run: python -m pytest src/test_exceptions_brutes.py -q
       # Filets de caler() (57 scénarios ModeleFictif) et de diagnostiquer() (94 scénarios et un
       # lot de 400 entrées), figés au bit près le 10/11/2026. Hors du socle où la
       # référence a été figée, ils comparent en mode de repli, et le disent.
