@@ -3794,8 +3794,9 @@ dates fictives au 1er janvier.
 ================================================================================
 
   - DEFAUTS RELEVES PENDANT LE REMANIEMENT DU 10/11/2026.
-    CORRIGES LE 11/11/2026, chacun sur sa branche et dans sa PR (9 a 13),
-    reunis et rejoues ensemble sur claude/correctifs-ensemble. RIEN N'EST
+    CORRIGES LE 11/11/2026, chacun sur sa branche et dans sa PR (9 a 13,
+    et 15 pour le re-cadencage), reunis et rejoues ensemble sur
+    claude/correctifs-ensemble (PR 14). RIEN N'EST
     FUSIONNE, SANS VERSION NI ENTREE DE metadata.txt : a faire a la fusion.
     Chaque correctif a son test qui dit ce que le code DOIT faire (rouge
     avant, vert apres), et les seuls cas des filets qui figeaient le defaut
@@ -3827,7 +3828,14 @@ dates fictives au 1er janvier.
          de cote laissait le dossier sans classeur, et deux compositions
          automatiques plus tard la saisie etait perdue. L'echec remet en
          place le classeur mis de cote. src/test_classeur_perdu.py.
-    DIAGNOSTIQUE, NON MODIFIE — le re-cadencage (pilote._recadencer_apports).
+    LE RE-CADENCAGE (pilote._recadencer_apports) : DIAGNOSTIQUE, PUIS RENDU
+    BAVARD (PR 15, decision utilisateur du 11/11 : afficher, ne pas changer
+    le calcul). Quand le pas de travail ne divise pas le pas d'origine d'une
+    condition NON CALEE, le journal dit de combien sa pointe est rabotee et
+    l'ecart maximal a la serie d'origine ; au-dela de 1 % de la pointe
+    (SEUIL_ECART_RECADENCAGE) la ligne porte « AVERTISSEMENT », que l'etape
+    Suivi remonte. Les .uNN reecrits sont identiques a l'octet pres.
+    src/test_recadencage_ecart.py. LE DIAGNOSTIC :
     L'annonce « 1 a 2 % d'ecart de volume » etait FAUSSE : elle venait de
     series d'essai de quelques valeurs. Sur des crues realistes le VOLUME est
     conserve a mieux que 0,03 %. Ce qui bouge est la POINTE des conditions
@@ -3838,8 +3846,8 @@ dates fictives au 1er janvier.
     6 min) : jusqu'a 12 % sur la pointe d'une crue eclair. La docstring qui
     dit que l'interpolation « retrouve les valeurs d'origine a leurs
     instants » n'est vraie que si le pas de travail divise le pas d'origine.
-    Suite a decider. Sans nom de zone 2D, c'est le bloc de la premiere zone
-    qui est recadence.
+    Sans nom de zone 2D, c'est le bloc de la premiere zone qui est
+    recadence (non corrige).
     RESTENT OUVERTS, non corriges :
       - noyau.preparer_classeur : une pente saisie a 0 cede a la deduite.
       - calage.caler : apports et sections de longueurs differentes tronques
@@ -3872,9 +3880,9 @@ dates fictives au 1er janvier.
     filet, et les trois filets numeriques (caler, diagnostic, livrables)
     comptent desormais les jeux d'instructions de numpy dans leur socle. Se
     rejoue par NPY_DISABLE_CPU_FEATURES="X86_V4 AVX512_ICL AVX512_SPR".
-    DECISIONS EN ATTENTE : la suite du re-cadencage ; l'objet d'etat partage
-    du dialogue ; QGIS 3.34 dans la matrice de la CI ; convertir les bancs en
-    pytest ; sort de masque_fenetre ; alleger les references (4,5 Mo).
+    DECISIONS EN ATTENTE : l'objet d'etat partage du dialogue ; QGIS 3.34
+    dans la matrice de la CI ; convertir les bancs en pytest ; sort de
+    masque_fenetre ; alleger les references (4,5 Mo).
 
 
   - LE CALAGE REPRIS DE SUHIHANDIA S'ARRETE AU CALCUL DE REFERENCE (14/09).

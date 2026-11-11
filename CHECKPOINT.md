@@ -1,6 +1,6 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
-## 11 novembre 2026 : cinq correctifs et un diagnostic (PR 9 à 13, réunis sur `claude/correctifs-ensemble`, non fusionnés, sans version)
+## 11 novembre 2026 : cinq correctifs, et le re-cadencage rendu bavard (PR 9 à 13 et 15, réunis sur `claude/correctifs-ensemble`, non fusionnés, sans version)
 
 Demandés par Cédric le 11/11, après la liste des défauts relevés pendant le remaniement.
 **Rien n'est fusionné**, pas de montée de version, pas d'entrée dans `metadata.txt` : à faire
@@ -20,7 +20,7 @@ le banc complet y est conforme.
 La PR 12 a été écrite par un agent Sonnet, puis arbitrée (5 fautes injectées, 5 attrapées) et
 retouchée (le jumeau `Nom_Apport` du défaut `Nom_Section`). Les autres sont de l'arbitre.
 
-**Le re-cadencage : diagnostiqué, pas modifié.** L'annonce « 1 à 2 % d'écart de volume »
+**Le re-cadencage : diagnostiqué, puis rendu bavard (PR 15).** L'annonce « 1 à 2 % d'écart de volume »
 était fausse : elle venait de séries d'essai de quelques valeurs. Mesuré en appelant la vraie
 fonction sur des crues réalistes, contre la série d'origine lue comme HEC-RAS la lit :
 - le **volume** est conservé à mieux que 0,03 % ;
@@ -30,8 +30,15 @@ fonction sur des crues réalistes, contre la série d'origine lue comme HEC-RAS 
 - vers un pas plus grossier (cible à 30 min, condition à 6 min) : jusqu'à 12 % sur la pointe
   d'une crue éclair.
 
-Les apports calés ne sont pas concernés : ils sont réécrits en entier à chaque essai. La
-suite est à décider (prévenir, ne plus re-cadencer les conditions non calées, ou laisser).
+Les apports calés ne sont pas concernés : ils sont réécrits en entier à chaque essai.
+
+Décision de Cédric : **afficher l'écart, sans changer le calcul.** Quand le pas de travail ne
+divise pas le pas d'origine d'une condition non calée, le journal dit de combien sa pointe
+est rabotée et l'écart maximal à la série d'origine ; au-delà de 1 % de la pointe
+(`SEUIL_ECART_RECADENCAGE`, mon choix, à relire), la ligne porte « AVERTISSEMENT », que
+l'étape Suivi remonte sous sa bannière. Les fichiers unsteady réécrits sont identiques à
+l'octet près. `test_recadencage_ecart.py` (9 tests) ; filet `test_pilote_recadence` refigé
+(une clé ajoutée aux comptes rendus, cinq lignes de journal dans quatre cas).
 
 **CI.** Un seul déclenchement par poussée depuis le 11/11 (`push` sur `main`, `pull_request`
 pour les branches) : une branche qui avait une PR jouait le workflow deux fois. Les jobs
@@ -56,8 +63,8 @@ reste une hypothèse, à vérifier sur un vrai `.pNN.hdf` portant une section ac
 à l'écran.
 
 **Pour reprendre.** Rétablir le quota Actions et relancer les jobs ; relire les PR 9 à 13
-(ou la seule PR d'assemblage) ; fusionner la PR 8 d'abord ; décider de la suite du
-re-cadencage. Restent ouverts : `STATUT.txt`, section 6.
+et 15 (ou la seule PR 14 d'assemblage) ; fusionner la PR 8 d'abord. Restent ouverts :
+`STATUT.txt`, section 6.
 
 ## 10 novembre 2026 (soir) : remaniement du code sans changement de comportement (branche `claude/optimisation-code`, PR 8 en brouillon, sans version)
 
