@@ -336,6 +336,15 @@ def _regle_hydrogramme_cible(nom, colonne):
         anomalies.append((AVERTISSEMENT,
                           f"cible '{nom}' : valeurs manquantes intercalees "
                           f"({cites})"))
+    # AVANT LA PREMIERE VALEUR (11/11/2026) : la chaine ecarte ces lignes
+    # comme les autres, et la cible COMMENCE PLUS TARD que Temps_h — ce qui
+    # n'etait dit nulle part.
+    en_tete = int(positions[0])
+    if en_tete:
+        anomalies.append((AVERTISSEMENT,
+                          f"cible '{nom}' : {en_tete} valeur(s) manquante(s) "
+                          f"en debut de colonne : la cible ne commence qu'a "
+                          f"la ligne {en_tete + 2} de la feuille Cibles"))
     en_fin = len(vide) - 1 - positions[-1]
     if en_fin:
         anomalies.append((AVERTISSEMENT,

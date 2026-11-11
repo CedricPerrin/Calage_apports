@@ -1579,8 +1579,25 @@ def _cibles_depuis_classeur(chemin_template, journal=None):
 
     # LES FEUILLES ET LES COLONNES, NOMMEES, OU RIEN : pandas dirait « Worksheet
     # named 'Cibles' not found », et next() leverait StopIteration.
-    with pd.ExcelFile(chemin_template) as classeur:
-        feuilles = classeur.sheet_names
+    import zipfile
+
+    try:
+        with pd.ExcelFile(chemin_template) as classeur:
+            feuilles = classeur.sheet_names
+    except (zipfile.BadZipFile, KeyError, OSError, ValueError) as e:
+        # UN FICHIER PRESENT MAIS QUI N'EST PAS UN .xlsx LISIBLE (tronque par
+        # une copie, enregistre sous un autre format) : pandas leve BadZipFile,
+        # que rien n'attrapait, ou un ValueError en anglais (« Excel file
+        # format cannot be determined ») rendu tel quel (11/11/2026). Un
+        # fichier ABSENT reste FileNotFoundError, que commande_caler dit a sa
+        # facon.
+        if isinstance(e, FileNotFoundError):
+            raise
+        raise ValueError(
+            f"« {Path(chemin_template).name} » n'est pas un classeur Excel "
+            f"(.xlsx) lisible ({type(e).__name__}). Le rouvrir dans Excel et "
+            f"l'enregistrer au format .xlsx, ou le recomposer depuis le "
+            f"plugin.") from e
     for nom in ("Correspondance", "Cibles"):
         if nom not in feuilles:
             raise ValueError(f"le classeur n'a pas de feuille « {nom} » "

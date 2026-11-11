@@ -3923,17 +3923,35 @@ dates fictives au 1er janvier.
     fichier de parametres ecrit a la main est concerne. Essais : six, dans
     src/test_exceptions_brutes.py ; deux cas du filet du controle refiges
     (zone_non_renseignee_plusieurs, zone_nan_plusieurs).
-    RESTENT OUVERTS, non corriges :
-      - Re-cadencage : un instant de plan invalide leve APRES la reecriture
-        du fichier de travail.
-      - criteres : l'alerte de couverture peut s'ecrire « 0.0 h ne sont pas
-        simulees (100 % de couverture) » quand il manque moins de 3 minutes.
-      - controle_donnees : un trou EN TETE de colonne cible n'est pas
-        signale. pont._cibles_depuis_classeur : un .xlsx corrompu leve encore
-        une exception brute. objets_retires ne compte pas ce que l'elagage
-        retire.
-      - importer_hydrogrammes : une source jamais recalculee par Excel
-        importe des cellules vides (valeurs des formules absentes).
+    LES CINQ DERNIERS POINTS, CORRIGES LE 11/11/2026 (APRES la 0.9.36, pas
+    encore dans une version). Chacun a son essai d'intention, rouge avant et
+    vert apres (src/test_defauts_mineurs.py, src/test_exceptions_brutes.py) :
+      - criteres : UN MANQUE DE COUVERTURE PLUS COURT QU'UN DEMI-PAS DE LA
+        CIBLE N'EST PLUS UNE ALERTE. Mesure sur les filets : l'alerte « 0.0 h
+        ne sont pas simulees (100 % de couverture) » venait d'ecarts de 0,2 a
+        2 SECONDES, pour une cible au pas de 12 min — l'arrondi d'un
+        recalage, pas un morceau d'evenement ; elle figurait douze fois dans
+        un meme classeur. Au-dela du demi-pas l'alerte reste, la duree dite
+        en minutes sous six minutes (en secondes sous la minute) et la part
+        jamais arrondie a « 100 % ». Le verdict, lui, ne change pas : cette
+        alerte n'a jamais ete bloquante.
+      - controle_donnees : un trou EN TETE d'une colonne cible est signale
+        (avertissement : la cible ne commence qu'a la ligne N).
+      - pont._cibles_depuis_classeur : un fichier qui n'est pas un .xlsx
+        lisible donne ok:false en clair (c'etait BadZipFile, ou la phrase
+        anglaise de pandas).
+      - pilote : un instant de plan mal forme est refuse AVANT que
+        _recadencer_apports() n'ecrive (il l'etait apres la reecriture de
+        toutes les conditions du fichier de travail).
+      - noyau.importer_hydrogrammes : une source dont Temps_h ou une cible a
+        importer porte des formules jamais calculees par Excel est REFUSEE
+        par une phrase, sans rien ecrire. Ses cellules passaient pour vides.
+    Filets refiges, ecarts prouves par script, AUCUN NOMBRE DE RESULTAT NE
+    CHANGE : journal_caler (2 scenarios), diagnostic (1 scenario, 3 entrees
+    du lot), livrables (2 cas ; l'un perd ses douze fausses alertes),
+    controle_donnees (1), noyau_classeur (1), pilote_recadence (1).
+    RESTE OUVERT : objets_retires de commande_caler ne compte pas ce que
+    l'elagage retire (personne ne lit ce champ).
     TROUS DES ESSAIS, constates : aucun test ne verifie sous quelle cle
     QSettings l'interpreteur est memorise ; les tests d'installation
     enchaines dans UN processus sous QGIS plantent au hasard (la CI les joue

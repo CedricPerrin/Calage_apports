@@ -350,3 +350,25 @@ def test_zone_nommee_parmi_plusieurs_passe(tmp_path):
     anomalies = _controle_zone(tmp_path, "Z2", ("Z1", "Z2"))
 
     assert not [m for _, m in anomalies if "Nom_zone_2D" in m]
+
+
+# --- 9. Un trou EN TETE d'une colonne cible ------------------------------------
+
+def test_cible_trous_en_tete(tmp_path):
+    cibles = tcd._avec(tcd.CIBLES, C2=[None] * 3 + tcd._HYDRO[3:])
+    assert _avertissements(tcd._tpl(tmp_path, cibles=cibles)) == [
+        "cible 'C2' : 3 valeur(s) manquante(s) en debut de colonne : la "
+        "cible ne commence qu'a la ligne 5 de la feuille Cibles"]
+
+
+# --- 10. Un classeur qui n'est pas un .xlsx lisible, au lancement du calage -----
+
+@pytest.mark.parametrize("contenu", [b"ceci n'est pas un classeur",
+                                     b"PK\x03\x04tronque"])
+def test_caler_classeur_corrompu(tmp_path, capsys, contenu):
+    (tmp_path / "donnees.xlsx").write_bytes(contenu)
+    erreur = _reponse_refusee(dict(tpc.BASE, classeur=False), tmp_path, capsys)
+
+    assert erreur.startswith(
+        "classeur de saisie inexploitable : « donnees.xlsx » n'est pas un "
+        "classeur Excel (.xlsx) lisible")

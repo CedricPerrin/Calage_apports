@@ -13448,7 +13448,7 @@
     "<DOSSIER>/livrables/comparaison_12_S12.png": {"non_vide": true},
     "<DOSSIER>/livrables/profil_en_long.png": {"non_vide": true},
     "<DOSSIER>/livrables/synthese.md": {
-     "texte": "# Calage des apports — note de synthèse\n\n## Conclusion\n\nLe calage est **conforme** : les 12 sections de contrôle restituent l'hydrogramme cible en volume, en débit de pointe et en forme. Écart maximal constaté : 0.0 % sur le volume et 0.0 % sur le débit de pointe.\n\n- Débit de pointe : de 100.0 % à 100.0 % de la cible\n- Volume : de 100.0 % à 100.0 % de la cible\n- Décalage temporel maximal : 3.00 h (surveillé, non corrigé)\n\n## Détail par section\n\n- **S1** — OK — pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage +0.00 h | fenetre 0.01-15.81 h\n- **S2** — OK — pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage -0.20 h | fenetre 0.01-16.81 h\n    - alerte : 0.0 h de la fenetre jugee ne sont pas simulees (100 % de couverture) : le verdict porte sur un evenement incomplet. Le rapport de volume ne peut PAS le reveler, cible et calcul etant integres sur le meme intervalle rogne\n- **S3** — OK — pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage -0.40 h | fenetre 0.01-18.41 h\n    - alerte : 0.0 h de la fenetre jugee ne sont pas simulees (100 % de couverture) : le verdict porte sur un evenement incomplet. Le rapport de volume ne peut PAS le reveler, cible et calcul etant integres sur le meme intervalle rogne\n- **S4** — OK — pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage -0.80 h | fenetre 0.01-19.61 h\n    - alerte : 0.0 h de la fenetre jugee ne sont pas simulees (100 % de couverture) : le verdict porte sur un evenement incomplet. Le rapport de volume ne peut PAS le reveler, cible et calcul etant integres sur le meme intervalle rogne\n- **S5** — OK — pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage -1.00 h | fenetre 0.01-21.41 h\n    - alerte : 0.0 h de la fenetre jugee ne sont pas simulees (100 % de couverture) : le verdict porte sur un evenement incomplet. Le rapport de volume ne peut PAS le reveler, cible et calcul etant integres sur le meme intervalle rogne\n- **S6** — OK — pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage -1.20 h | fenetre 0.01-23.01 h\n    - alerte : 0.0 h de la fenetre jugee ne sont pas simulees (100 % de couverture) : le verdict porte sur un evenement incomplet. Le rapport de volume ne peut PAS le reveler, cible et calcul etant integres sur le meme intervalle rogne\n- **S7** — OK — pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage -1.60 h | fenetre 0.01-24.21 h\n    - alerte : 0.0 h de la fenetre jugee ne sont pas simulees (100 % de couverture) : le verdict porte sur un evenement incomplet. Le rapport de volume ne peut PAS le reveler, cible et calcul etant integres sur le meme intervalle rogne\n- **S8** — OK — pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage -1.80 h | fenetre 0.01-25.80 h\n    - alerte : 0.0 h de la fenetre jugee ne sont pas simulees (100 % de couverture) : le verdict porte sur un evenement incomplet. Le rapport de volume ne peut PAS le reveler, cible et calcul etant integres sur le meme intervalle rogne\n- **S9** — OK — pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage -2.00 h | fenetre 0.01-27.60 h\n    - alerte : 0.0 h de la fenetre jugee ne sont pas simulees (100 % de couverture) : le verdict porte sur un evenement incomplet. Le rapport de volume ne peut PAS le reveler, cible et calcul etant integres sur le meme intervalle rogne\n- **S10** — OK — pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage -2.40 h | fenetre 0.01-28.80 h\n    - alerte : 0.0 h de la fenetre jugee ne sont pas simulees (100 % de couverture) : le verdict porte sur un evenement incomplet. Le rapport de volume ne peut PAS le reveler, cible et calcul etant integres sur le meme intervalle rogne\n- **S11** — OK — pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage -2.60 h | fenetre 0.01-30.60 h\n    - alerte : 0.0 h de la fenetre jugee ne sont pas simulees (100 % de couverture) : le verdict porte sur un evenement incomplet. Le rapport de volume ne peut PAS le reveler, cible et calcul etant integres sur le meme intervalle rogne\n- **S12** — OK — pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage -3.00 h | fenetre 0.01-31.80 h\n    - alerte : 0.0 h de la fenetre jugee ne sont pas simulees (100 % de couverture) : le verdict porte sur un evenement incomplet. Le rapport de volume ne peut PAS le reveler, cible et calcul etant integres sur le meme intervalle rogne\n\n## Vérifications exigées par le guide méthodologique\n\nConformément à Lang & Lavabre (2007), p. 81, les points suivants ont été contrôlés :\n\n1. Cohérence de forme entre l'hydrogramme de référence et le calcul, évaluée après recalage temporel.\n2. Cohérence fréquentielle, par comparaison du volume et du débit de pointe à la cible HSMF.\n3. Absence de dérive en fréquence vers l'aval, contrôlée par le profil longitudinal des débits de pointe.\n\n## Outils\n\nLe pilotage de HEC-RAS s'appuie sur **ras-commander v0.0.filet** (CLB Engineering Corporation), bibliothèque libre — github.com/gpt-cmdr/ras-commander. Merci de conserver cette mention dans toute publication reprenant ces résultats (rascommander.info/ras/cite/)."
+     "texte": "# Calage des apports — note de synthèse\n\n## Conclusion\n\nLe calage est **conforme** : les 12 sections de contrôle restituent l'hydrogramme cible en volume, en débit de pointe et en forme. Écart maximal constaté : 0.0 % sur le volume et 0.0 % sur le débit de pointe.\n\n- Débit de pointe : de 100.0 % à 100.0 % de la cible\n- Volume : de 100.0 % à 100.0 % de la cible\n- Décalage temporel maximal : 3.00 h (surveillé, non corrigé)\n\n## Détail par section\n\n- **S1** — OK — pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage +0.00 h | fenetre 0.01-15.81 h\n- **S2** — OK — pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage -0.20 h | fenetre 0.01-16.81 h\n- **S3** — OK — pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage -0.40 h | fenetre 0.01-18.41 h\n- **S4** — OK — pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage -0.80 h | fenetre 0.01-19.61 h\n- **S5** — OK — pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage -1.00 h | fenetre 0.01-21.41 h\n- **S6** — OK — pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage -1.20 h | fenetre 0.01-23.01 h\n- **S7** — OK — pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage -1.60 h | fenetre 0.01-24.21 h\n- **S8** — OK — pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage -1.80 h | fenetre 0.01-25.80 h\n- **S9** — OK — pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage -2.00 h | fenetre 0.01-27.60 h\n- **S10** — OK — pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage -2.40 h | fenetre 0.01-28.80 h\n- **S11** — OK — pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage -2.60 h | fenetre 0.01-30.60 h\n- **S12** — OK — pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage -3.00 h | fenetre 0.01-31.80 h\n\n## Vérifications exigées par le guide méthodologique\n\nConformément à Lang & Lavabre (2007), p. 81, les points suivants ont été contrôlés :\n\n1. Cohérence de forme entre l'hydrogramme de référence et le calcul, évaluée après recalage temporel.\n2. Cohérence fréquentielle, par comparaison du volume et du débit de pointe à la cible HSMF.\n3. Absence de dérive en fréquence vers l'aval, contrôlée par le profil longitudinal des débits de pointe.\n\n## Outils\n\nLe pilotage de HEC-RAS s'appuie sur **ras-commander v0.0.filet** (CLB Engineering Corporation), bibliothèque libre — github.com/gpt-cmdr/ras-commander. Merci de conserver cette mention dans toute publication reprenant ces résultats (rascommander.info/ras/cite/)."
     },
     "<DOSSIER>/livrables/tableaux_calage.xlsx": {
      "classeur": {
@@ -13622,60 +13622,11 @@
           "~styles": [[1, 13, ["General", false, 11.0, null, null, null, null]]]
          },
          "I": {
-          "textes": [
-           [1, "Alertes"],
-           [
-            3,
-            "0.0 h de la fenetre jugee ne sont pas simulees (100 % de couverture) : le verdict porte sur un evenement incomplet. Le rapport de volume ne peut PAS le reveler, cible et calcul etant integres sur le meme intervalle rogne"
-           ],
-           [
-            4,
-            "0.0 h de la fenetre jugee ne sont pas simulees (100 % de couverture) : le verdict porte sur un evenement incomplet. Le rapport de volume ne peut PAS le reveler, cible et calcul etant integres sur le meme intervalle rogne"
-           ],
-           [
-            5,
-            "0.0 h de la fenetre jugee ne sont pas simulees (100 % de couverture) : le verdict porte sur un evenement incomplet. Le rapport de volume ne peut PAS le reveler, cible et calcul etant integres sur le meme intervalle rogne"
-           ],
-           [
-            6,
-            "0.0 h de la fenetre jugee ne sont pas simulees (100 % de couverture) : le verdict porte sur un evenement incomplet. Le rapport de volume ne peut PAS le reveler, cible et calcul etant integres sur le meme intervalle rogne"
-           ],
-           [
-            7,
-            "0.0 h de la fenetre jugee ne sont pas simulees (100 % de couverture) : le verdict porte sur un evenement incomplet. Le rapport de volume ne peut PAS le reveler, cible et calcul etant integres sur le meme intervalle rogne"
-           ],
-           [
-            8,
-            "0.0 h de la fenetre jugee ne sont pas simulees (100 % de couverture) : le verdict porte sur un evenement incomplet. Le rapport de volume ne peut PAS le reveler, cible et calcul etant integres sur le meme intervalle rogne"
-           ],
-           [
-            9,
-            "0.0 h de la fenetre jugee ne sont pas simulees (100 % de couverture) : le verdict porte sur un evenement incomplet. Le rapport de volume ne peut PAS le reveler, cible et calcul etant integres sur le meme intervalle rogne"
-           ],
-           [
-            10,
-            "0.0 h de la fenetre jugee ne sont pas simulees (100 % de couverture) : le verdict porte sur un evenement incomplet. Le rapport de volume ne peut PAS le reveler, cible et calcul etant integres sur le meme intervalle rogne"
-           ],
-           [
-            11,
-            "0.0 h de la fenetre jugee ne sont pas simulees (100 % de couverture) : le verdict porte sur un evenement incomplet. Le rapport de volume ne peut PAS le reveler, cible et calcul etant integres sur le meme intervalle rogne"
-           ],
-           [
-            12,
-            "0.0 h de la fenetre jugee ne sont pas simulees (100 % de couverture) : le verdict porte sur un evenement incomplet. Le rapport de volume ne peut PAS le reveler, cible et calcul etant integres sur le meme intervalle rogne"
-           ],
-           [
-            13,
-            "0.0 h de la fenetre jugee ne sont pas simulees (100 % de couverture) : le verdict porte sur un evenement incomplet. Le rapport de volume ne peut PAS le reveler, cible et calcul etant integres sur le meme intervalle rogne"
-           ]
-          ],
+          "textes": [[1, "Alertes"]],
           "lignes_nombres": [],
           "nombres": [],
-          "types": [[1, 1, "str"], [3, 13, "str"]],
-          "~styles": [
-           [1, 1, ["General", false, 11.0, null, null, null, null]],
-           [3, 13, ["General", false, 11.0, null, null, null, null]]
-          ]
+          "types": [[1, 1, "str"]],
+          "~styles": [[1, 1, ["General", false, 11.0, null, null, null, null]]]
          }
         },
         "graphiques": []
@@ -47784,7 +47735,7 @@
     "<DOSSIER>/livrables/comparaison_02_S2.png": {"non_vide": true},
     "<DOSSIER>/livrables/profil_en_long.png": {"non_vide": true},
     "<DOSSIER>/livrables/synthese.md": {
-     "texte": "# Calage des apports — note de synthèse\n\n## Conclusion\n\nLe calage est **partiellement conforme** : 1 section(s) sur 2 atteignent la cible en volume, en débit de pointe et en forme. Les sections non validées sont listées ci-dessous et doivent être reprises avant exploitation des résultats.\n\n- Débit de pointe : de 100.0 % à 100.0 % de la cible\n- Volume : de 100.0 % à 100.2 % de la cible\n- Décalage temporel maximal : 25.10 h (surveillé, non corrigé)\n\n## Détail par section\n\n- **S1** — OK — pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage +0.00 h | fenetre 0.27-23.20 h\n    - alerte : APPORT PEU IDENTIFIABLE : il ne pese que 0.1 % du debit de pointe a la section, pour une tolerance de 5.0 % sur le volume. L'apport retenu peut s'ecarter de l'ordre de 4343 % du veritable apport sans que la section cesse d'etre conforme. Caler la section reste legitime ; l'hydrogramme d'apport sorti n'est pas une estimation hydrologique et ne doit pas etre exploite comme telle. Pour l'identifier, il faudrait une section ou cet apport pese davantage, ou une tolerance plus serree.\n- **S2** — NON VALIDÉ — pointe 100.0 % | volume 100.2 % | forme 100.0 % | decalage +25.10 h | fenetre 25.08-36.00 h\n    - alerte : 0.0 h de la fenetre jugee ne sont pas simulees (100 % de couverture) : le verdict porte sur un evenement incomplet. Le rapport de volume ne peut PAS le reveler, cible et calcul etant integres sur le meme intervalle rogne\n    - alerte : le decalage mesure (+25.10 h) excede la fenetre jugee (10.89 h) : les volumes sont compares sur toute la fenetre commune, pas sur l'evenement. Un decalage plus long que l'evenement qu'il decale n'est pas un temps de transfert - relire les cibles et leur base de temps\n\n## Vérifications exigées par le guide méthodologique\n\nConformément à Lang & Lavabre (2007), p. 81, les points suivants ont été contrôlés :\n\n1. Cohérence de forme entre l'hydrogramme de référence et le calcul, évaluée après recalage temporel.\n2. Cohérence fréquentielle, par comparaison du volume et du débit de pointe à la cible HSMF.\n3. Absence de dérive en fréquence vers l'aval, contrôlée par le profil longitudinal des débits de pointe.\n\n## Outils\n\nLe pilotage de HEC-RAS s'appuie sur **ras-commander v0.0.filet** (CLB Engineering Corporation), bibliothèque libre — github.com/gpt-cmdr/ras-commander. Merci de conserver cette mention dans toute publication reprenant ces résultats (rascommander.info/ras/cite/)."
+     "texte": "# Calage des apports — note de synthèse\n\n## Conclusion\n\nLe calage est **partiellement conforme** : 1 section(s) sur 2 atteignent la cible en volume, en débit de pointe et en forme. Les sections non validées sont listées ci-dessous et doivent être reprises avant exploitation des résultats.\n\n- Débit de pointe : de 100.0 % à 100.0 % de la cible\n- Volume : de 100.0 % à 100.2 % de la cible\n- Décalage temporel maximal : 25.10 h (surveillé, non corrigé)\n\n## Détail par section\n\n- **S1** — OK — pointe 100.0 % | volume 100.0 % | forme 100.0 % | decalage +0.00 h | fenetre 0.27-23.20 h\n    - alerte : APPORT PEU IDENTIFIABLE : il ne pese que 0.1 % du debit de pointe a la section, pour une tolerance de 5.0 % sur le volume. L'apport retenu peut s'ecarter de l'ordre de 4343 % du veritable apport sans que la section cesse d'etre conforme. Caler la section reste legitime ; l'hydrogramme d'apport sorti n'est pas une estimation hydrologique et ne doit pas etre exploite comme telle. Pour l'identifier, il faudrait une section ou cet apport pese davantage, ou une tolerance plus serree.\n- **S2** — NON VALIDÉ — pointe 100.0 % | volume 100.2 % | forme 100.0 % | decalage +25.10 h | fenetre 25.08-36.00 h\n    - alerte : le decalage mesure (+25.10 h) excede la fenetre jugee (10.89 h) : les volumes sont compares sur toute la fenetre commune, pas sur l'evenement. Un decalage plus long que l'evenement qu'il decale n'est pas un temps de transfert - relire les cibles et leur base de temps\n\n## Vérifications exigées par le guide méthodologique\n\nConformément à Lang & Lavabre (2007), p. 81, les points suivants ont été contrôlés :\n\n1. Cohérence de forme entre l'hydrogramme de référence et le calcul, évaluée après recalage temporel.\n2. Cohérence fréquentielle, par comparaison du volume et du débit de pointe à la cible HSMF.\n3. Absence de dérive en fréquence vers l'aval, contrôlée par le profil longitudinal des débits de pointe.\n\n## Outils\n\nLe pilotage de HEC-RAS s'appuie sur **ras-commander v0.0.filet** (CLB Engineering Corporation), bibliothèque libre — github.com/gpt-cmdr/ras-commander. Merci de conserver cette mention dans toute publication reprenant ces résultats (rascommander.info/ras/cite/)."
     },
     "<DOSSIER>/livrables/tableaux_calage.xlsx": {
      "classeur": {
@@ -47864,7 +47815,7 @@
            ],
            [
             3,
-            "0.0 h de la fenetre jugee ne sont pas simulees (100 % de couverture) : le verdict porte sur un evenement incomplet. Le rapport de volume ne peut PAS le reveler, cible et calcul etant integres sur le meme intervalle rogne ; le decalage mesure (+25.10 h) excede la fenetre jugee (10.89 h) : les volumes sont compares sur toute la fenetre commune, pas sur l'evenement. Un decalage plus long que l'evenement qu'il decale n'est pas un temps de transfert - relire les cibles et leur base de temps"
+            "le decalage mesure (+25.10 h) excede la fenetre jugee (10.89 h) : les volumes sont compares sur toute la fenetre commune, pas sur l'evenement. Un decalage plus long que l'evenement qu'il decale n'est pas un temps de transfert - relire les cibles et leur base de temps"
            ]
           ],
           "lignes_nombres": [],

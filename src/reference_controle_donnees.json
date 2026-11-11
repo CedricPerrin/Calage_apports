@@ -1892,8 +1892,15 @@
   "template/cible_trous_en_tete": {
    "rendu": {
     "type": "list",
-    "types_elements": [],
-    "anomalies": []
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "AVERTISSEMENT",
+      "cible 'C2' : 3 valeur(s) manquante(s) en debut de colonne : la cible ne commence qu'a la ligne 5 de la feuille Cibles"
+     ]
+    ]
    }
   },
   "template/cible_trous_intercales": {

@@ -674,6 +674,40 @@ def diagnostiquer(temps_cible, debit_cible, temps_calcule, debit_calcule,
     )
 
 
+# Part du pas de temps de la cible en dessous de laquelle un manque de
+# couverture n'est pas dit (voir _juger_couverture).
+_DEMI_PAS = 0.5
+
+
+def _pas_median(temps):
+    """Pas de temps median d'une serie, en heures ; 0 s'il n'y en a pas."""
+    ecarts = np.diff(np.asarray(temps, dtype=float))
+    ecarts = ecarts[np.isfinite(ecarts) & (ecarts > 0)]
+    return float(np.median(ecarts)) if ecarts.size else 0.0
+
+
+def _duree_dite(heures):
+    """« 1.2 h », des minutes sous six minutes, des secondes sous la minute :
+    jamais « 0.0 h »."""
+    if heures >= 0.1:
+        return f"{heures:.1f} h"
+    minutes = 60.0 * heures
+    if minutes >= 1:
+        return f"{minutes:.0f} min"
+    return f"{max(1, round(3600.0 * heures))} s"
+
+
+def _part_dite(part):
+    """« 93 % », un chiffre de plus pres de 100 : jamais « 100 % » pour une
+    couverture incomplete."""
+    pourcent = 100.0 * part
+    if pourcent < 99.5:
+        return f"{pourcent:.0f} %"
+    if pourcent < 99.95:
+        return f"{pourcent:.1f} %"
+    return "plus de 99.9 %"
+
+
 def _refuser_series_inexploitables(temps_cible, debit_cible, temps_calcule,
                                    debit_calcule, pas_h):
     """
@@ -1013,7 +1047,8 @@ def _juger_couverture(comparaison, debut, fin, couverture_min,
             f"{100 * (fin - debut) / duree_cible:.0f} % de la duree de "
             f"l'hydrogramme cible - allonger la simulation, sinon le volume "
             f"manquant sera attribue a tort a un defaut d'apport")
-    elif duree_cible > 0 and (fin - debut) < duree_cible - 1e-9:
+    elif (duree_cible > 0 and (duree_cible - (fin - debut))
+          > max(1e-9, _DEMI_PAS * _pas_median(tc))):
         # L'ANGLE MORT DE couverture_min, ET IL EST AVEUGLE PAR CONSTRUCTION.
         #
         # Entre 90 et 100 % de couverture, la bloquante ci-dessus se taisait
@@ -1029,9 +1064,18 @@ def _juger_couverture(comparaison, debut, fin, couverture_min,
         # tolerance — le verdict garde son sens. Mais il porte sur un
         # evenement incomplet, et celui qui lit le rapport doit le savoir.
         # Le seuil bloquant reste a couverture_min.
+        #
+        # EN DESSOUS D'UN DEMI-PAS DE LA CIBLE, RIEN (11/11/2026). Un recalage
+        # de quelques secondes laissait un ecart de 0,2 a 2 s entre la
+        # fenetre et la serie ; l'alerte s'ecrivait alors « 0.0 h ne sont pas
+        # simulees (100 % de couverture) », douze fois dans un meme classeur.
+        # Ce qui est plus court qu'un demi-pas de la donnee n'est pas un
+        # morceau d'evenement non simule, c'est l'arrondi d'un alignement —
+        # et un garde-fou qui se declenche pour rien apprend a etre ignore.
         alertes.append(
-            f"{duree_cible - (fin - debut):.1f} h de la fenetre jugee ne sont "
-            f"pas simulees ({100 * (fin - debut) / duree_cible:.0f} % de "
+            f"{_duree_dite(duree_cible - (fin - debut))} de la fenetre jugee "
+            f"ne sont pas simulees "
+            f"({_part_dite((fin - debut) / duree_cible)} de "
             f"couverture) : le verdict porte sur un evenement incomplet. Le "
             f"rapport de volume ne peut PAS le reveler, cible et calcul etant "
             f"integres sur le meme intervalle rogne")

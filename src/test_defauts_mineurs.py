@@ -28,6 +28,17 @@ pilote_hecras.imposer_intervalle_apport, retarder_hydrogrammes
     est REFUSEE avant toute ecriture (decision de Cedric du 11/11/2026 : un
     refus, pas un avertissement). C'etait le bloc de la premiere zone
     rencontree qui etait reecrit, sans un mot.
+criteres.diagnostiquer, encore
+  - un manque de couverture plus court qu'un demi-pas de la cible n'est plus
+    dit (il s'ecrivait « 0.0 h ne sont pas simulees (100 % de couverture) ») ;
+    au-dela, la duree est dite en minutes sous six minutes et la part n'est
+    jamais arrondie a « 100 % ».
+pilote_hecras._recadencer_apports
+  - un instant de plan mal forme est refuse AVANT toute ecriture (il l'etait
+    apres la reecriture de toutes les conditions).
+noyau.importer_hydrogrammes, encore
+  - une source dont les formules n'ont jamais ete calculees par Excel est
+    refusee par une phrase (ses colonnes passaient pour vides).
 pont_hecras._appliquer_pentes
   - une pente saisie mais non retenue (0, hors plage, du texte) est DITE au
     journal, au lieu de ceder en silence a la pente du profil en long.
@@ -399,3 +410,103 @@ def test_retarder_avec_le_nom_de_la_zone_passe(tmp_path):
 
     assert pilote_hecras.retarder_hydrogrammes(
         u, 10, ["A2"], "Zone 2D") == ["A1"]
+
+
+# --- criteres : l'alerte de couverture ne dit plus « 0.0 h (100 %) » -----------
+
+def _alertes_de_couverture(fin_du_calcul):
+    """La cible va jusqu'a 24 h au pas de 6 min ; le calcul s'arrete avant."""
+    t_calcul = np.append(T[T < fin_du_calcul - 1e-9], fin_du_calcul)
+    diagnostic = criteres.diagnostiquer(T, Q, t_calcul, crue(t_calcul))
+    return [a for a in diagnostic.alertes if "pas simulees" in a]
+
+
+def test_un_manque_plus_court_qu_un_demi_pas_n_est_pas_une_alerte():
+    # 1,2 min de moins que la cible, pour un pas de 6 min.
+    assert _alertes_de_couverture(23.98) == []
+
+
+def test_un_manque_de_quelques_minutes_est_dit_en_minutes():
+    alertes = _alertes_de_couverture(23.93)      # 4,2 min de moins
+
+    assert len(alertes) == 1
+    assert alertes[0].startswith("4 min de la fenetre jugee")
+    assert "0.0 h" not in alertes[0] and "(100 %" not in alertes[0]
+    assert "(99.7 % de couverture)" in alertes[0]
+
+
+def test_un_manque_d_une_heure_se_dit_comme_avant():
+    alertes = _alertes_de_couverture(23.0)
+
+    assert len(alertes) == 1
+    assert alertes[0].startswith("1.0 h de la fenetre jugee ne sont pas "
+                                 "simulees (96 % de couverture)")
+
+
+@pytest.mark.parametrize("heures, attendu", [
+    (1.25, "1.2 h"), (0.1, "0.1 h"), (0.07, "4 min"), (1 / 60, "1 min"),
+    (0.005, "18 s"), (1e-7, "1 s")])
+def test_une_duree_ne_se_dit_jamais_zero(heures, attendu):
+    assert criteres._duree_dite(heures) == attendu
+
+
+@pytest.mark.parametrize("part, attendu", [
+    (0.93, "93 %"), (0.994, "99 %"), (0.997, "99.7 %"),
+    (0.99999, "plus de 99.9 %")])
+def test_une_couverture_incomplete_ne_se_dit_jamais_cent_pour_cent(
+        part, attendu):
+    assert criteres._part_dite(part) == attendu
+
+
+# --- pilote_hecras : un instant de plan invalide, refuse avant d'ecrire --------
+
+def test_un_instant_de_plan_invalide_est_refuse_avant_toute_ecriture(tmp_path):
+    pytest.importorskip("ras_commander")
+    pytest.importorskip("h5py")
+    import test_pilote_recadence as filet
+
+    rendu = filet.jouer_recadence("plan_a_l_instant_invalide", tmp_path)
+
+    assert rendu["exception"].startswith("ValueError: instant « 99XYZ2024")
+    assert rendu["inchange"], "le fichier a ete reecrit avant le refus"
+    assert rendu["journal"] == []
+
+
+# --- noyau.importer_hydrogrammes : des formules jamais calculees ---------------
+
+@pytest.mark.parametrize("colonne", ["Temps_h", "Cible_S1"])
+def test_une_source_aux_formules_jamais_calculees_est_refusee(
+        tmp_path, colonne):
+    pytest.importorskip("openpyxl")
+    import openpyxl
+
+    import noyau
+
+    cible = _excel_des_objectifs(tmp_path / "donnees_calage.xlsx")
+    avant = cible.read_bytes()
+    source = _excel_des_objectifs(tmp_path / "precedent.xlsx")
+    classeur = openpyxl.load_workbook(source)
+    feuille = classeur["Cibles"]
+    rang = 1 if colonne == "Temps_h" else 2
+    feuille.cell(row=3, column=rang, value="=A2+1")   # jamais calculee
+    classeur.save(source)
+
+    with pytest.raises(ValueError) as erreur:
+        noyau.importer_hydrogrammes(source, cible)
+
+    texte = str(erreur.value)
+    assert "formules" in texte and colonne in texte and "ligne 3" in texte
+    assert "Excel" in texte
+    assert cible.read_bytes() == avant, "l'Excel du calcul a ete touche"
+    assert not list(tmp_path.glob("*.precedent.xlsx"))
+
+
+def test_une_source_sans_formule_s_importe_comme_avant(tmp_path):
+    pytest.importorskip("openpyxl")
+    import noyau
+
+    cible = _excel_des_objectifs(tmp_path / "donnees_calage.xlsx")
+    source = _excel_des_objectifs(tmp_path / "precedent.xlsx")
+
+    assert noyau.importer_hydrogrammes(source, cible)["importees"] == [
+        "Cible_S1"]
