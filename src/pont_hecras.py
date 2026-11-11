@@ -113,7 +113,45 @@ CHEMIN_SERIES_HDF = ("Results/Unsteady/Output/Output Blocks/Base Output/"
 
 
 def _texte(valeur):
-    return valeur.decode() if isinstance(valeur, bytes) else str(valeur)
+    """
+    Texte d'un nom ou d'un attribut lu dans un .hdf de HEC-RAS.
+
+    UTF-8 STRICT, PUIS cp1252, PUIS latin-1 — la regle de la maison pour ce
+    que HEC-RAS ecrit (pilote_hecras._lire_texte), appliquee ici a des octets.
+    Jusqu'au 11/11/2026 le decodage etait en UTF-8 strict seul : un nom de
+    section accentue ecrit en cp1252 levait UnicodeDecodeError des la lecture
+    du jeu « Name », et plus AUCUNE section du fichier n'etait lisible.
+    latin-1 lit tout octet : en dernier, il garantit qu'un nom ne bloque
+    jamais la lecture des autres.
+    """
+    if not isinstance(valeur, bytes):
+        return str(valeur)
+    for encodage in ("utf-8", "cp1252"):
+        try:
+            return valeur.decode(encodage)
+        except UnicodeDecodeError:
+            continue
+    return valeur.decode("latin-1")
+
+
+# Unites du jeu « Time », par leur debut, et leur duree en heures. Jusqu'au
+# 11/11/2026 tout ce qui ne commencait pas par « day » etait lu comme des
+# HEURES : des minutes donnaient un axe des temps soixante fois trop long,
+# sans message.
+_UNITES_TEMPS_EN_HEURES = (("day", 24.0), ("hour", 1.0), ("hr", 1.0),
+                           ("min", 1.0 / 60.0), ("sec", 1.0 / 3600.0))
+
+
+def _heures_par_unite_de_temps(unite, fichier):
+    """Facteur de conversion en heures ; ValueError si l'unite est inconnue."""
+    texte = _texte(unite).strip()
+    for debut, heures in _UNITES_TEMPS_EN_HEURES:
+        if texte.lower().startswith(debut):
+            return heures
+    raise ValueError(
+        f"unite de temps « {texte} » inconnue dans le jeu « Time » de "
+        f"{Path(fichier).name} : jours, heures, minutes ou secondes attendus. "
+        f"L'axe des temps n'est pas converti au hasard.")
 
 
 def _orienter(debit):
@@ -235,7 +273,8 @@ def lire_serie_hdf(plan, nom, groupe="Reference Lines"):
     reste invisible tant que le modele ne comportait aucune reference line.
 
     Le temps est stocke en JOURS (l'attribut du jeu « Time » le precise) et
-    converti en heures, unite de travail de toute la chaine.
+    converti en heures, unite de travail de toute la chaine. Sans attribut,
+    ce sont des jours ; une unite inconnue est refusee (ValueError).
 
     Retourne un DataFrame (temps, debit_m3s), avec dans .attrs le nom
     reellement apparie, l'inversion d'orientation eventuelle (voir
@@ -266,7 +305,7 @@ def lire_serie_hdf(plan, nom, groupe="Reference Lines"):
 
         temps_jours = np.asarray(h[f"{CHEMIN_SERIES_HDF}/Time"][:], dtype=float)
         unite = h[f"{CHEMIN_SERIES_HDF}/Time"].attrs.get("Time", b"days")
-        facteur = 24.0 if _texte(unite).lower().startswith("day") else 1.0
+        facteur = _heures_par_unite_de_temps(unite, plan)
         temps_h = (temps_jours - temps_jours[0]) * facteur
 
     debit, inversee, reversible = _orienter(debit)

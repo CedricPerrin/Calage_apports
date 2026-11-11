@@ -1323,8 +1323,59 @@
    "message": "\"« INCONNUE » absent des resultats de type « Reference Lines ». Presents : ['SECTION_A', 'SECTION_B']\""
   },
   "rl/nom_accentue_cp1252": {
-   "exception": "UnicodeDecodeError",
-   "message": "'utf-8' codec can't decode byte 0xc9 in position 10: invalid continuation byte"
+   "colonnes": [
+    "temps",
+    "debit_m3s"
+   ],
+   "dtypes": [
+    "float64",
+    "float64"
+   ],
+   "index": "RangeIndex(start=0, stop=13, step=1)",
+   "temps": [
+    "0x0.0p+0",
+    "0x1.0000000000000p+0",
+    "0x1.0000000000000p+1",
+    "0x1.8000000000000p+1",
+    "0x1.0000000000000p+2",
+    "0x1.4000000000000p+2",
+    "0x1.8000000000000p+2",
+    "0x1.bffffffffffffp+2",
+    "0x1.0000000000000p+3",
+    "0x1.2000000000000p+3",
+    "0x1.4000000000000p+3",
+    "0x1.6000000000000p+3",
+    "0x1.8000000000000p+3"
+   ],
+   "debit_m3s": [
+    "0x1.e000000000000p+4",
+    "0x1.2c00000000000p+6",
+    "0x1.e000000000000p+6",
+    "0x1.4a00000000000p+7",
+    "0x1.a400000000000p+7",
+    "0x1.fe00000000000p+7",
+    "0x1.2c00000000000p+8",
+    "0x1.0e00000000000p+8",
+    "0x1.c800000000000p+7",
+    "0x1.7400000000000p+7",
+    "0x1.2000000000000p+7",
+    "0x1.9800000000000p+6",
+    "0x1.e000000000000p+5"
+   ],
+   "attrs": {
+    "objet": [
+     "str",
+     "B|Zone"
+    ],
+    "orientation_inversee": [
+     "bool",
+     false
+    ],
+    "ecoulement_reversible": [
+     "bool",
+     false
+    ]
+   }
   },
   "rl/nom_accentue_utf8": {
    "colonnes": [
@@ -2010,18 +2061,18 @@
    "index": "RangeIndex(start=0, stop=13, step=1)",
    "temps": [
     "0x0.0p+0",
-    "0x1.5555555555555p-5",
-    "0x1.5555555555555p-4",
-    "0x1.0000000000000p-3",
-    "0x1.5555555555555p-3",
-    "0x1.aaaaaaaaaaaaap-3",
-    "0x1.0000000000000p-2",
-    "0x1.2aaaaaaaaaaaap-2",
-    "0x1.5555555555555p-2",
-    "0x1.8000000000000p-2",
-    "0x1.aaaaaaaaaaaaap-2",
-    "0x1.d555555555555p-2",
-    "0x1.0000000000000p-1"
+    "0x1.6c16c16c16c16p-11",
+    "0x1.6c16c16c16c16p-10",
+    "0x1.1111111111111p-9",
+    "0x1.6c16c16c16c16p-9",
+    "0x1.c71c71c71c71cp-9",
+    "0x1.1111111111111p-8",
+    "0x1.3e93e93e93e93p-8",
+    "0x1.6c16c16c16c16p-8",
+    "0x1.999999999999ap-8",
+    "0x1.c71c71c71c71cp-8",
+    "0x1.f49f49f49f49fp-8",
+    "0x1.1111111111111p-7"
    ],
    "debit_m3s": [
     "0x1.e000000000000p+4",
