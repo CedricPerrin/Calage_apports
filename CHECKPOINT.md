@@ -1,5 +1,39 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 11 novembre 2026 (conception, décision 2) : les bancs embarqués exposés à `pytest`, pas réécrits (branche `claude/bancs-pytest`)
+
+Deuxième des quatre décisions de conception, prise avec la même vue « long terme, partagé »
+(Cédric : « idem pour la suite : fusion PR et décision suivante »).
+
+**La décision.** Les bancs (`src/bancs/banc_*.py`, celui du noyau du plugin, l'autotest du
+pont) ne sont **pas réécrits** : 6 700 lignes de scénarios qui se suivent et partagent leur
+état, 660 contrôles. Les réécrire coûterait cher, pour un risque réel et aucun contrôle de
+plus. Ils sont **exposés à `pytest`** : celui qui arrive sur le dépôt lance `pytest src` et
+voit tout.
+
+**`src/test_bancs.py`.** Un test par banc. Il le lance comme la CI le lançait, compte ses
+`[OK]` et ses `[ECHEC]`, nomme ceux qui échouent, exige le code de sortie 0 et **au moins**
+le nombre de contrôles relevé ce jour — un banc arrêté en chemin fait moins de contrôles, pas
+des contrôles faux. Un banc dont les dépendances manquent est sauté, et le dit.
+
+| Banc | Contrôles | Demande |
+|---|---:|---|
+| criteres, calage, controle_donnees, suivi, livrables, parametres, style_classeur | 87, 142, 6, 55, 16, 12, 13 | rien de plus |
+| noyau du plugin | 57 | rien de plus |
+| geometrie, pont (autotest) | 33, 27 | h5py, ras-commander |
+| pilote_hecras | 209 | h5py, ras-commander |
+
+Essais adverses : trois fautes injectées dans un banc (un contrôle rendu faux, un arrêt en
+chemin avec code 0, un code de sortie non nul sans `[ECHEC]`), trois attrapées et nommées.
+
+**La CI ne lance plus les bancs à la main** : elle joue `src/test_bancs.py`. **Le banc du
+pilote y entre** (209 contrôles, absents de la CI jusque-là) : ses six contrôles qui tiennent
+à Windows sont nommés et tolérés hors de Windows ; avec un ras-commander récent, deux
+seulement échouent. Un test vérifie qu'un libellé toléré existe toujours dans le banc.
+
+**Règle pour la suite** : on n'ajoute plus de contrôle à un banc ; les nouveaux tests
+s'écrivent en `pytest`.
+
 ## 11 novembre 2026 (conception, fin) : le lancement passe dans `noyau.py` — étape B2 (branche `claude/lancement-noyau`)
 
 Dernier pas de la frontière fenêtre / noyau (étapes A et B1 ci-dessous, PR 23 et 24
