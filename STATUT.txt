@@ -3911,9 +3911,16 @@ dates fictives au 1er janvier.
     bloc de la zone orpheline etait converti, celui de la vraie zone laisse
     a son pas) : le fichier n'est plus modifie, le journal dit pourquoi, et
     le calage s'arrete avant tout calcul.
-    A TRANCHER : controle_donnees ne donne qu'un AVERTISSEMENT quand
-    Nom_zone_2D est vide et que la geometrie compte plusieurs zones (« la
-    premiere est retenue par defaut ») ; en faire une ERREUR ?
+    Nom_zone_2D VIDE ET PLUSIEURS ZONES 2D : UNE ERREUR DU CONTROLE, PLUS UN
+    AVERTISSEMENT (11/11/2026, decision de l'utilisateur ; APRES la 0.9.35,
+    pas encore dans une version). controler_contre_modele disait « la
+    premiere est retenue par defaut », ce qui etait faux : sans nom, rien ne
+    filtre les conditions limites. L'erreur bloque le lancement et dit de
+    nommer la zone. Une seule zone, ou une zone nommee : rien ne change. La
+    fenetre du plugin remplit toujours ce nom (liste deroulante) ; seul un
+    fichier de parametres ecrit a la main est concerne. Essais : six, dans
+    src/test_exceptions_brutes.py ; deux cas du filet du controle refiges
+    (zone_non_renseignee_plusieurs, zone_nan_plusieurs).
     RESTENT OUVERTS, non corriges :
       - Re-cadencage : un instant de plan invalide leve APRES la reecriture
         du fichier de travail.
@@ -3951,8 +3958,7 @@ dates fictives au 1er janvier.
     rejoue par NPY_DISABLE_CPU_FEATURES="X86_V4 AVX512_ICL AVX512_SPR".
     DECISIONS EN ATTENTE : l'objet d'etat partage du dialogue ; convertir
     les bancs en pytest ; sort de masque_fenetre ; alleger les references
-    (4,5 Mo) ; Nom_zone_2D vide avec plusieurs zones : avertissement ou
-    erreur du controle.
+    (4,5 Mo).
 
 
   - LE CALAGE REPRIS DE SUHIHANDIA S'ARRETE AU CALCUL DE REFERENCE (14/09).

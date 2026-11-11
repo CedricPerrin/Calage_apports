@@ -1,5 +1,22 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 11 novembre 2026 (fin, suite) : zone 2D non nommée et plusieurs zones, une erreur du contrôle (branche `claude/zone-2d-obligatoire`)
+
+Décision de Cédric (« Oui »). **Après la 0.9.35 : pas encore dans une version ni dans l'archive.**
+
+`controler_contre_modele` ne donnait qu'un avertissement quand `Nom_zone_2D` est vide et que la
+géométrie compte plusieurs zones 2D, en promettant « la première est retenue par défaut » — ce
+qui était faux : sans nom, rien ne filtre les conditions limites. C'est maintenant une
+**erreur**, qui bloque le lancement et dit de nommer la zone.
+
+Rien ne change pour un modèle à une seule zone, ni quand la zone est nommée. La fenêtre du
+plugin remplit toujours ce nom (liste déroulante) : seul un fichier de paramètres écrit à la
+main est concerné.
+
+Essais d'intention : six, dans `src/test_exceptions_brutes.py` (quatre rouges avant, verts
+après ; deux gardent ce qui ne doit pas changer). Deux cas du filet du contrôle refigés
+(`zone_non_renseignee_plusieurs`, `zone_nan_plusieurs`) : le niveau et le message, rien d'autre.
+
 ## 11 novembre 2026 (fin) : sans nom de zone 2D, un refus (PR 20, fusionnée dans `main` le jour même ; version 0.9.35, non publiée)
 
 Décision de Cédric : « Refus », plutôt qu'un avertissement au journal. Fusion dans `main` et

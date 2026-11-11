@@ -769,10 +769,19 @@ def _regle_zone_2d(chemin_template, chemin_geometrie_hdf):
             f"zone d'ecoulement 2D '{zone_declaree}' absente de la geometrie "
             f"(presentes : {zones_presentes})")]
     if not zone_declaree and len(zones_presentes) > 1:
+        # UNE ERREUR, PLUS UN AVERTISSEMENT (decision de l'utilisateur du
+        # 11/11/2026). Le message promettait « la premiere est retenue par
+        # defaut » : sans nom de zone, rien ne filtre les conditions limites,
+        # et une condition declaree dans deux zones fait refuser le calage
+        # plus loin, a sa preparation. Autant le dire ici, avant le lancement,
+        # et dire quoi faire.
         return zone_declaree, [(
-            AVERTISSEMENT,
-            f"Nom_zone_2D non renseigne et le modele en comporte plusieurs "
-            f"{zones_presentes} : la premiere est retenue par defaut.")]
+            ERREUR,
+            f"Nom_zone_2D non renseigne alors que le modele compte plusieurs "
+            f"zones 2D {zones_presentes} : nommer celle du calage (etape "
+            f"Parametres, ou « Nom_zone_2D » du fichier de parametres). Sans "
+            f"ce nom, rien ne dit dans quelle zone lire et ecrire les "
+            f"conditions limites.")]
     return zone_declaree, []
 
 

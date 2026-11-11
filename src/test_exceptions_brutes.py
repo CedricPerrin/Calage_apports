@@ -315,3 +315,38 @@ def test_modele_sans_colonne_nom_ne_double_rien(tmp_path, capsys):
     assert [o["nom"] for o in reponse["sections"]] == ["S1", "S_\u00c9glise"]
     assert [o["nom"] for o in reponse["injections"]] == ["A1", "A2"]
     assert reponse["en_attente_pretraitement"] == []
+
+
+# --- 8. Nom_zone_2D vide, plusieurs zones 2D : une erreur ----------------------
+# Decision de Cedric du 11/11/2026. C'etait un avertissement, qui promettait
+# « la premiere est retenue par defaut ».
+
+def _controle_zone(tmp_path, nom_zone, zones):
+    params = tcd._avec(tcd.PARAMS, Dossier_projet_HECRAS=str(tmp_path),
+                       Geometrie_reference="g01", Nom_zone_2D=nom_zone)
+    return _anomalies(tcd._modele(tmp_path, params=params,
+                                  zones_presentes=zones,
+                                  mesh=tcd._zones(zones)))
+
+
+@pytest.mark.parametrize("nom_zone", ["", "  ", None, float("nan")])
+def test_zone_non_nommee_et_plusieurs_zones_est_une_erreur(tmp_path, nom_zone):
+    anomalies = _controle_zone(tmp_path, nom_zone, ("Z1", "Z2"))
+
+    sur_la_zone = [(n, m) for n, m in anomalies if "Nom_zone_2D" in m]
+    assert [n for n, _ in sur_la_zone] == [tcd.cd.ERREUR]
+    message = sur_la_zone[0][1]
+    assert "Z1" in message and "Z2" in message
+    assert "retenue par defaut" not in message
+
+
+def test_zone_non_nommee_et_une_seule_zone_passe(tmp_path):
+    anomalies = _controle_zone(tmp_path, "", ("Zone2D",))
+
+    assert not [m for _, m in anomalies if "Nom_zone_2D" in m]
+
+
+def test_zone_nommee_parmi_plusieurs_passe(tmp_path):
+    anomalies = _controle_zone(tmp_path, "Z2", ("Z1", "Z2"))
+
+    assert not [m for _, m in anomalies if "Nom_zone_2D" in m]
