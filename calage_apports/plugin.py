@@ -1182,6 +1182,10 @@ ONGLET_MODELE = 0
 ONGLET_OBJECTIFS = 1
 ONGLET_LANCER = 2
 ONGLET_SUIVI = 3
+# Libelle de l'origine du dossier de suivi quand c'est l'Excel lance qui le
+# designe. UNE SEULE ECRITURE : _origine_dossier_suivi le rend, et
+# _detail_desaccord_suivi s'y compare.
+ORIGINE_SUIVI_EXCEL = "Excel lancé"
 # L'AIDE A LE SIEN AUSSI (0.8.5) : F1, « Suivant » et Alt + fleche droite y
 # renvoient, et son rang etait ecrit « 5 » a cinq endroits. Le jour ou un
 # onglet s'insere — ou en sort, comme « Sorties » le 20 septembre 2026 — F1
@@ -4383,7 +4387,9 @@ class DialogueParametrage(QDialog):
 
     def _origine_dossier_suivi(self):
         """
-        D'ou vient le dossier surveille : « classeur » ou « onglet 3 ».
+        D'ou vient le dossier surveille : ORIGINE_SUIVI_EXCEL (le classeur)
+        ou « étape Paramètres ». C'est un LIBELLE, affiche tel quel sous la
+        banniere du Suivi.
 
         LE CLASSEUR GAGNE, ET C'EST VOULU (0.6.2) : c'est lui que le calage
         lance a lu, et regarder ailleurs afficherait « aucun calage suivi »
@@ -4394,7 +4400,7 @@ class DialogueParametrage(QDialog):
         if not self.classeur:
             return "étape Paramètres"
         cache = getattr(self, "_suivi_du_classeur", None)
-        return ("Excel lancé" if cache and cache[1] is not None
+        return (ORIGINE_SUIVI_EXCEL if cache and cache[1] is not None
                 else "étape Paramètres")
 
     def _dossier_suivi_de_l_onglet_3(self):
@@ -4461,7 +4467,12 @@ class DialogueParametrage(QDialog):
         gagne » : sans ce mot, on corrige le champ de l'onglet 3, le suivi ne
         bouge pas, et rien n'explique pourquoi.
         """
-        if dossier is None or self._origine_dossier_suivi() != "classeur":
+        # PAR LA CONSTANTE, PAS PAR UN MOT RECOPIE : ce test comparait a
+        # « classeur », que _origine_dossier_suivi ne rend pas — elle rend le
+        # libelle affiche. Le message ne s'est donc jamais affiche, jusqu'au
+        # 11/11/2026.
+        if (dossier is None
+                or self._origine_dossier_suivi() != ORIGINE_SUIVI_EXCEL):
             return ""
         autre = self._dossier_suivi_de_l_onglet_3()
         if autre is None or Path(autre) == Path(dossier):
