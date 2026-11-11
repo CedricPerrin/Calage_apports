@@ -25,11 +25,12 @@ qu'ils ont appris.
 REMANIEMENT DU CODE, SANS CHANGEMENT DE COMPORTEMENT — 10 NOVEMBRE 2026,
 FUSIONNE DANS main LE 11/11/2026 (PR 8, a la demande de l'utilisateur), AVEC LES
 CORRECTIFS DU 11/11 (PR 9 a 15, puis PR 18 pour les defauts mineurs ;
-section 6). VERSION 0.9.35 (NON PUBLIEE) — les 0.9.33 et 0.9.34, du meme
-jour, n'ont pas ete publiees non plus ; la 0.9.34 portait les defauts mineurs,
-la 0.9.35 y ajoute le refus du re-cadencage sans nom de zone 2D (PR 20) :
+section 6). VERSION 0.9.36 (NON PUBLIEE) — les 0.9.33, 0.9.34 et 0.9.35, du
+meme jour, n'ont pas ete publiees non plus ; la 0.9.34 portait les defauts
+mineurs, la 0.9.35 le refus du re-cadencage sans nom de zone 2D (PR 20), la
+0.9.36 y ajoute l'erreur du controle sur une zone 2D non nommee (PR 21) :
   metadata.txt, LISEZMOI.md et README.md la portent, et l'archive
-  calage_apports_0.9.35.zip est a la racine. ELLE A ETE CONSTRUITE SUR UN
+  calage_apports_0.9.36.zip est a la racine. ELLE A ETE CONSTRUITE SUR UN
   POSTE SANS « .affaires » : faire_zip.py n'y a donc PAS controle les noms
   d'affaires (les chemins du poste, si). AVANT DE PUBLIER DANS LE DEPOT PIO,
   REJOUER « python src/faire_zip.py » SUR LE POSTE QUI PORTE .affaires.
@@ -3911,9 +3912,17 @@ dates fictives au 1er janvier.
     bloc de la zone orpheline etait converti, celui de la vraie zone laisse
     a son pas) : le fichier n'est plus modifie, le journal dit pourquoi, et
     le calage s'arrete avant tout calcul.
-    A TRANCHER : controle_donnees ne donne qu'un AVERTISSEMENT quand
-    Nom_zone_2D est vide et que la geometrie compte plusieurs zones (« la
-    premiere est retenue par defaut ») ; en faire une ERREUR ?
+    Nom_zone_2D VIDE ET PLUSIEURS ZONES 2D : UNE ERREUR DU CONTROLE, PLUS UN
+    AVERTISSEMENT (11/11/2026, decision de l'utilisateur ; PR 21, FUSIONNEE
+    DANS main le jour meme a sa demande, LIVRE PAR LA VERSION 0.9.36, non
+    publiee). controler_contre_modele disait « la
+    premiere est retenue par defaut », ce qui etait faux : sans nom, rien ne
+    filtre les conditions limites. L'erreur bloque le lancement et dit de
+    nommer la zone. Une seule zone, ou une zone nommee : rien ne change. La
+    fenetre du plugin remplit toujours ce nom (liste deroulante) ; seul un
+    fichier de parametres ecrit a la main est concerne. Essais : six, dans
+    src/test_exceptions_brutes.py ; deux cas du filet du controle refiges
+    (zone_non_renseignee_plusieurs, zone_nan_plusieurs).
     RESTENT OUVERTS, non corriges :
       - Re-cadencage : un instant de plan invalide leve APRES la reecriture
         du fichier de travail.
@@ -3951,8 +3960,7 @@ dates fictives au 1er janvier.
     rejoue par NPY_DISABLE_CPU_FEATURES="X86_V4 AVX512_ICL AVX512_SPR".
     DECISIONS EN ATTENTE : l'objet d'etat partage du dialogue ; convertir
     les bancs en pytest ; sort de masque_fenetre ; alleger les references
-    (4,5 Mo) ; Nom_zone_2D vide avec plusieurs zones : avertissement ou
-    erreur du controle.
+    (4,5 Mo).
 
 
   - LE CALAGE REPRIS DE SUHIHANDIA S'ARRETE AU CALCUL DE REFERENCE (14/09).

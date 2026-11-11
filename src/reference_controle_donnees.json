@@ -1756,8 +1756,8 @@
     ],
     "anomalies": [
      [
-      "AVERTISSEMENT",
-      "Nom_zone_2D non renseigne et le modele en comporte plusieurs ['Z1', 'Z2'] : la premiere est retenue par defaut."
+      "ERREUR",
+      "Nom_zone_2D non renseigne alors que le modele compte plusieurs zones 2D ['Z1', 'Z2'] : nommer celle du calage (etape Parametres, ou « Nom_zone_2D » du fichier de parametres). Sans ce nom, rien ne dit dans quelle zone lire et ecrire les conditions limites."
      ]
     ]
    }
@@ -1770,8 +1770,8 @@
     ],
     "anomalies": [
      [
-      "AVERTISSEMENT",
-      "Nom_zone_2D non renseigne et le modele en comporte plusieurs ['Z1', 'Z2'] : la premiere est retenue par defaut."
+      "ERREUR",
+      "Nom_zone_2D non renseigne alors que le modele compte plusieurs zones 2D ['Z1', 'Z2'] : nommer celle du calage (etape Parametres, ou « Nom_zone_2D » du fichier de parametres). Sans ce nom, rien ne dit dans quelle zone lire et ecrire les conditions limites."
      ]
     ]
    }

@@ -1,6 +1,28 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
-## 11 novembre 2026 (fin) : sans nom de zone 2D, un refus (PR 20, fusionnée dans `main` le jour même ; version 0.9.35, non publiée)
+## 11 novembre 2026 (fin, suite) : zone 2D non nommée et plusieurs zones, une erreur du contrôle (PR 21, fusionnée dans `main` le jour même ; version 0.9.36, non publiée)
+
+Décision de Cédric (« Oui »), ainsi que la fusion dans `main` et la montée de version.
+
+**Version 0.9.36, non publiée.** `metadata.txt`, `LISEZMOI.md` et `README.md` la portent, et
+`calage_apports_0.9.36.zip` est à la racine ; elle remplace la 0.9.35 du même jour. **L'archive
+est construite sur un poste sans `.affaires`** : avant de publier dans le dépôt PIO, rejouer
+`python src/faire_zip.py` sur le poste qui le porte.
+
+`controler_contre_modele` ne donnait qu'un avertissement quand `Nom_zone_2D` est vide et que la
+géométrie compte plusieurs zones 2D, en promettant « la première est retenue par défaut » — ce
+qui était faux : sans nom, rien ne filtre les conditions limites. C'est maintenant une
+**erreur**, qui bloque le lancement et dit de nommer la zone.
+
+Rien ne change pour un modèle à une seule zone, ni quand la zone est nommée. La fenêtre du
+plugin remplit toujours ce nom (liste déroulante) : seul un fichier de paramètres écrit à la
+main est concerné.
+
+Essais d'intention : six, dans `src/test_exceptions_brutes.py` (quatre rouges avant, verts
+après ; deux gardent ce qui ne doit pas changer). Deux cas du filet du contrôle refigés
+(`zone_non_renseignee_plusieurs`, `zone_nan_plusieurs`) : le niveau et le message, rien d'autre.
+
+## 11 novembre 2026 (fin) : sans nom de zone 2D, un refus (PR 20, fusionnée dans `main` le jour même ; version 0.9.35, remplacée par la 0.9.36)
 
 Décision de Cédric : « Refus », plutôt qu'un avertissement au journal. Fusion dans `main` et
 montée de version à sa demande (« Oui »).
@@ -168,7 +190,7 @@ banc 472 `[OK]`, tests d'installation, peinture et alertes du Suivi. La CI joue 
 3.34 en plus de la 3.44 et de la 4.2 (un job de plus par exécution).
 
 **Pour reprendre.** Rejouer `python src/faire_zip.py` sur le poste qui porte `.affaires` ;
-essayer la version courante (0.9.35, en tête de ce fichier) dans le QGIS du poste, sous Windows,
+essayer la version courante (0.9.36, en tête de ce fichier) dans le QGIS du poste, sous Windows,
 sur un calcul réel, avant de la publier ; refiger les références des filets sur ce poste. Restent ouverts : `STATUT.txt`,
 section 6.
 
