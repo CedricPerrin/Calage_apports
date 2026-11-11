@@ -3859,8 +3859,8 @@ dates fictives au 1er janvier.
     6 min) : jusqu'a 12 % sur la pointe d'une crue eclair. La docstring qui
     dit que l'interpolation « retrouve les valeurs d'origine a leurs
     instants » n'est vraie que si le pas de travail divise le pas d'origine.
-    Sans nom de zone 2D, c'est le bloc de la premiere zone qui est
-    recadence (non corrige).
+    Sans nom de zone 2D, une condition presente dans plusieurs zones est
+    REFUSEE avant toute ecriture depuis le 11/11/2026 (voir plus bas).
     DEFAUTS MINEURS CORRIGES LE 11/11/2026 (PR 18, FUSIONNEE DANS main LE
     JOUR MEME a la demande de l'utilisateur, CI verte sur les cinq jobs ;
     LIVRES PAR LA VERSION 0.9.34, non publiee). Chacun a son essai
@@ -3893,10 +3893,28 @@ dates fictives au 1er janvier.
     Filets refiges, ecarts prouves par script — AUCUN NOMBRE NE CHANGE :
     diagnostic, journal_caler, livrables, noyau_classeur, controle_donnees,
     pont_caler, pont_lecture.
+    SANS NOM DE ZONE 2D, PAS DE PARI SUR L'ORDRE DU FICHIER (11/11/2026,
+    decision de l'utilisateur : « Refus », pas un avertissement ; APRES la
+    0.9.34, pas encore dans une version). imposer_intervalle_apport et
+    retarder_hydrogrammes refusent, AVANT toute ecriture, une condition
+    limite presente dans plusieurs zones 2D quand aucun nom de zone n'est
+    donne : c'etait le bloc de la premiere zone rencontree qui etait
+    reecrit, sans un mot. LE CALAGE, LUI, REFUSAIT DEJA CE CAS :
+    PiloteHecRas.preparer() s'arrete sur les noms en double avant de
+    re-cadencer. Le trou n'etait donc ouvert que pour ces deux fonctions
+    appelees seules. Un nom present dans UNE seule zone passe comme avant,
+    meme si le fichier compte plusieurs zones. Essais :
+    src/test_defauts_mineurs.py. UN cas du filet du re-cadencage est refige,
+    celui qui figeait le defaut (zone_non_nommee_meme_nom_deux_zones : le
+    bloc de la zone orpheline etait converti, celui de la vraie zone laisse
+    a son pas) : le fichier n'est plus modifie, le journal dit pourquoi, et
+    le calage s'arrete avant tout calcul.
+    A TRANCHER : controle_donnees ne donne qu'un AVERTISSEMENT quand
+    Nom_zone_2D est vide et que la geometrie compte plusieurs zones (« la
+    premiere est retenue par defaut ») ; en faire une ERREUR ?
     RESTENT OUVERTS, non corriges :
-      - Re-cadencage : sans nom de zone 2D, c'est le bloc de la premiere
-        zone qui est recadence ; un instant de plan invalide leve APRES la
-        reecriture du fichier. Attend une decision.
+      - Re-cadencage : un instant de plan invalide leve APRES la reecriture
+        du fichier de travail.
       - criteres : l'alerte de couverture peut s'ecrire « 0.0 h ne sont pas
         simulees (100 % de couverture) » quand il manque moins de 3 minutes.
       - controle_donnees : un trou EN TETE de colonne cible n'est pas
@@ -3931,7 +3949,8 @@ dates fictives au 1er janvier.
     rejoue par NPY_DISABLE_CPU_FEATURES="X86_V4 AVX512_ICL AVX512_SPR".
     DECISIONS EN ATTENTE : l'objet d'etat partage du dialogue ; convertir
     les bancs en pytest ; sort de masque_fenetre ; alleger les references
-    (4,5 Mo) ; que faire d'un re-cadencage sans nom de zone 2D.
+    (4,5 Mo) ; Nom_zone_2D vide avec plusieurs zones : avertissement ou
+    erreur du controle.
 
 
   - LE CALAGE REPRIS DE SUHIHANDIA S'ARRETE AU CALCUL DE REFERENCE (14/09).

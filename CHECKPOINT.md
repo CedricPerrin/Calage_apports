@@ -1,5 +1,30 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 11 novembre 2026 (fin) : sans nom de zone 2D, un refus (branche `claude/recadencage-zone-2d`)
+
+Décision de Cédric : « Refus », plutôt qu'un avertissement au journal. **Après la 0.9.34 : pas
+encore dans une version ni dans l'archive.**
+
+`imposer_intervalle_apport` et `retarder_hydrogrammes` refusent désormais, **avant toute
+écriture**, une condition limite présente dans plusieurs zones 2D quand aucun nom de zone n'est
+donné. Jusque-là, le bloc de la première zone rencontrée était réécrit sans un mot — un pari
+sur l'ordre du fichier, perdu si cette zone est orpheline.
+
+**Ce que l'examen a montré, et qui corrige la façon dont le défaut était décrit** : le calage
+refusait déjà ce cas. `PiloteHecRas.preparer()` s'arrête sur les noms en double avant de
+re-cadencer. Le trou n'était ouvert que pour ces deux fonctions appelées seules. Un nom présent
+dans une seule zone passe comme avant, même si le fichier compte plusieurs zones.
+
+Essais d'intention : cinq, dans `src/test_defauts_mineurs.py` (deux rouges avant, verts après ;
+trois gardent ce qui ne doit pas changer). **Un cas du filet du re-cadencage est refigé**, celui
+qui figeait le défaut (`zone_non_nommee_meme_nom_deux_zones`) : le bloc de la zone orpheline
+était converti et celui de la vraie zone laissé à son pas ; désormais le fichier n'est pas
+modifié, le journal dit pourquoi, et le calage s'arrête avant tout calcul. Écart prouvé par
+script : ce cas seul.
+
+**À trancher** : `controle_donnees` ne donne qu'un avertissement quand `Nom_zone_2D` est vide
+et que la géométrie compte plusieurs zones (« la première est retenue par défaut »).
+
 ## 11 novembre 2026 (suite) : les défauts mineurs (PR 18, fusionnée dans `main` le jour même ; version 0.9.34, non publiée)
 
 Demandé par Cédric le 11/11 : « Traite les défauts mineurs » — la liste « restent ouverts » de la

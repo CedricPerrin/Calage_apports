@@ -23,6 +23,11 @@ noyau.importer_hydrogrammes
     docstring le promet (c'etait zipfile.BadZipFile).
 livrables.synthese
   - la note cite la version de ras-commander installee, pas « v0.99.1 ».
+pilote_hecras.imposer_intervalle_apport, retarder_hydrogrammes
+  - SANS nom de zone 2D, une condition limite presente dans PLUSIEURS zones
+    est REFUSEE avant toute ecriture (decision de Cedric du 11/11/2026 : un
+    refus, pas un avertissement). C'etait le bloc de la premiere zone
+    rencontree qui etait reecrit, sans un mot.
 pont_hecras._appliquer_pentes
   - une pente saisie mais non retenue (0, hors plage, du texte) est DITE au
     journal, au lieu de ceder en silence a la pente du profil en long.
@@ -309,3 +314,88 @@ def test_une_pente_saisie_mais_non_retenue_est_dite_au_journal(
     for nom in ("A1", "A5", "A6", "A7"):
         assert not any(f"« {nom} »" in l and "pas retenue" in l
                        for l in journal.splitlines()), nom
+
+
+# --- pilote_hecras : sans nom de zone 2D, pas de pari sur l'ordre du fichier ---
+
+HORAIRE = [1.0, 2.0, 4.0, 8.0, 4.0, 2.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+
+
+def _unsteady_deux_zones(tmp_path):
+    """« A1 » declare dans deux zones 2D, « A2 » dans une seule."""
+    pytest.importorskip("ras_commander")
+    import test_pilote_recadence as filet
+
+    u = tmp_path / "ESSAI.u02"
+    u.write_bytes(filet.unsteady(
+        filet.bloc("A1", HORAIRE, "1HOUR", zone="Zone ancienne"),
+        filet.bloc("A1", [10 * v for v in HORAIRE], "1HOUR", zone="Zone 2D"),
+        filet.bloc("A2", HORAIRE, "1HOUR", zone="Zone 2D")))
+    return u
+
+
+def test_recadencer_sans_zone_un_nom_present_dans_deux_zones_est_refuse(
+        tmp_path):
+    import pilote_hecras
+
+    u = _unsteady_deux_zones(tmp_path)
+    avant = u.read_bytes()
+
+    with pytest.raises(ValueError) as erreur:
+        pilote_hecras.imposer_intervalle_apport(u, "A1", None,
+                                                intervalle="6MIN")
+
+    texte = str(erreur.value)
+    assert "A1" in texte and "Zone ancienne" in texte and "Zone 2D" in texte
+    assert "Nom_zone_2D" in texte
+    assert u.read_bytes() == avant, "le fichier a ete modifie avant le refus"
+
+
+def test_recadencer_avec_le_nom_de_la_zone_ecrit_dans_cette_zone(tmp_path):
+    import pilote_hecras
+
+    u = _unsteady_deux_zones(tmp_path)
+
+    compte_rendu = pilote_hecras.imposer_intervalle_apport(
+        u, "A1", "Zone 2D", intervalle="6MIN")
+
+    assert compte_rendu["pic_avant"] == pytest.approx(80.0)
+    ancienne = pilote_hecras.cartographier_hydrogrammes(u, "Zone ancienne")
+    assert ancienne["A1"]["intervalle_h"] == pytest.approx(1.0), (
+        "le bloc de l'autre zone a ete touche")
+    assert pilote_hecras.cartographier_hydrogrammes(
+        u, "Zone 2D")["A1"]["intervalle_h"] == pytest.approx(0.1)
+
+
+def test_recadencer_sans_zone_un_nom_unique_passe_comme_avant(tmp_path):
+    import pilote_hecras
+
+    u = _unsteady_deux_zones(tmp_path)
+
+    compte_rendu = pilote_hecras.imposer_intervalle_apport(
+        u, "A2", None, intervalle="6MIN")
+
+    assert compte_rendu["nb_apres"] == 101
+
+
+def test_retarder_sans_zone_un_nom_present_dans_deux_zones_est_refuse(
+        tmp_path):
+    import pilote_hecras
+
+    u = _unsteady_deux_zones(tmp_path)
+    avant = u.read_bytes()
+
+    with pytest.raises(ValueError) as erreur:
+        pilote_hecras.retarder_hydrogrammes(u, 10, ["A2"])
+
+    assert "A1" in str(erreur.value) and "Nom_zone_2D" in str(erreur.value)
+    assert u.read_bytes() == avant, "le fichier a ete modifie avant le refus"
+
+
+def test_retarder_avec_le_nom_de_la_zone_passe(tmp_path):
+    import pilote_hecras
+
+    u = _unsteady_deux_zones(tmp_path)
+
+    assert pilote_hecras.retarder_hydrogrammes(
+        u, 10, ["A2"], "Zone 2D") == ["A1"]
