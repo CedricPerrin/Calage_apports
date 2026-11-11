@@ -1,0 +1,2261 @@
+{
+ "appariement_en_echec": {
+  "apres": {
+   "appariement": null,
+   "classeur": null,
+   "paquet": {
+    "apports": "<TMP>/sortie/apports.shp",
+    "axe": "<TMP>/sortie/axe.shp",
+    "sections": "<TMP>/sortie/sections.shp"
+   }
+  },
+  "boites": [
+   [
+    "Valider la géométrie et générer le fichier des hydrogrammes — échec",
+    "echec simule de apparier_paquet\n\nLa géométrie HEC-RAS a DÉJÀ été réécrite : les sections et injections de l'étape 1 y sont, et l'échec ci-dessus est survenu après. Une sauvegarde horodatée du fichier de géométrie a été faite avant l'écriture."
+   ]
+  ],
+  "dossiers": [],
+  "trace": [
+   {
+    "appel": "_calage_en_cours",
+    "arguments": [],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "_ecrire_dans_geometrie",
+    "arguments": [],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "couche_vers_gdf",
+    "arguments": [
+     "<sections>"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "couche_vers_gdf",
+    "arguments": [
+     "<injections>"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "couche_vers_gdf",
+    "arguments": [
+     "<axe>"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {
+     "champ_nom": null
+    }
+   },
+   {
+    "appel": "composer_paquet",
+    "arguments": [
+     "<TMP>/sortie",
+     "gdf de sections",
+     "gdf de injections",
+     "gdf de axe"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {
+     "crs_cible": "EPSG:2154"
+    }
+   },
+   {
+    "appel": "parametres_calage",
+    "arguments": [],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {
+     "bilan_masse_max_pct": 5.0,
+     "dossier_projet": "<TMP>/modele",
+     "dossier_sortie": "<TMP>/sortie",
+     "elaguer_etapes": false,
+     "fenetre": {},
+     "mode_selection": "plan",
+     "nb_max_iterations": 6,
+     "nom_clone_geometrie": "Geometrie_calage",
+     "nom_projet": "Essai",
+     "nom_zone_2d": "",
+     "numero_geometrie": "02",
+     "numero_plan": "03",
+     "numero_unsteady": "04",
+     "pk_origine_m": 0.0,
+     "prefixe_scenario": "R-Q100",
+     "premier_apport": "",
+     "sens_axe": "amont_aval",
+     "sous_dossier_resultats": "resultats_finaux",
+     "sous_dossier_suivi": "suivi",
+     "tolerance_pic_pct": 2.0,
+     "tolerance_volume_pct": 5.0,
+     "version_hecras": "6.6"
+    }
+   },
+   {
+    "appel": "apparier_paquet",
+    "arguments": [
+     {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {
+     "pk_origine": 0.0,
+     "sens": "amont_aval"
+    }
+   }
+  ]
+ },
+ "classeur_en_echec": {
+  "apres": {
+   "appariement": [
+    "paires",
+    "partagees",
+    "pk_apports",
+    "pk_sections",
+    "sans_apport",
+    "sens",
+    "sens_deduit"
+   ],
+   "classeur": null,
+   "paquet": {
+    "apports": "<TMP>/sortie/apports.shp",
+    "axe": "<TMP>/sortie/axe.shp",
+    "sections": "<TMP>/sortie/sections.shp"
+   }
+  },
+  "boites": [
+   [
+    "Valider la géométrie et générer le fichier des hydrogrammes — échec",
+    "echec simule de preparer_classeur\n\nLa géométrie HEC-RAS a DÉJÀ été réécrite : les sections et injections de l'étape 1 y sont, et l'échec ci-dessus est survenu après. Une sauvegarde horodatée du fichier de géométrie a été faite avant l'écriture."
+   ]
+  ],
+  "dossiers": [],
+  "trace": [
+   {
+    "appel": "_calage_en_cours",
+    "arguments": [],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "_ecrire_dans_geometrie",
+    "arguments": [],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "couche_vers_gdf",
+    "arguments": [
+     "<sections>"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "couche_vers_gdf",
+    "arguments": [
+     "<injections>"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "couche_vers_gdf",
+    "arguments": [
+     "<axe>"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {
+     "champ_nom": null
+    }
+   },
+   {
+    "appel": "composer_paquet",
+    "arguments": [
+     "<TMP>/sortie",
+     "gdf de sections",
+     "gdf de injections",
+     "gdf de axe"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {
+     "crs_cible": "EPSG:2154"
+    }
+   },
+   {
+    "appel": "parametres_calage",
+    "arguments": [],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {
+     "bilan_masse_max_pct": 5.0,
+     "dossier_projet": "<TMP>/modele",
+     "dossier_sortie": "<TMP>/sortie",
+     "elaguer_etapes": false,
+     "fenetre": {},
+     "mode_selection": "plan",
+     "nb_max_iterations": 6,
+     "nom_clone_geometrie": "Geometrie_calage",
+     "nom_projet": "Essai",
+     "nom_zone_2d": "",
+     "numero_geometrie": "02",
+     "numero_plan": "03",
+     "numero_unsteady": "04",
+     "pk_origine_m": 0.0,
+     "prefixe_scenario": "R-Q100",
+     "premier_apport": "",
+     "sens_axe": "amont_aval",
+     "sous_dossier_resultats": "resultats_finaux",
+     "sous_dossier_suivi": "suivi",
+     "tolerance_pic_pct": 2.0,
+     "tolerance_volume_pct": 5.0,
+     "version_hecras": "6.6"
+    }
+   },
+   {
+    "appel": "apparier_paquet",
+    "arguments": [
+     {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {
+     "pk_origine": 0.0,
+     "sens": "amont_aval"
+    }
+   },
+   {
+    "appel": "pentes_locales_apports",
+    "arguments": [
+     "<TMP>/modele",
+     "Essai",
+     "g02",
+     "<TMP>/sortie/axe.shp",
+     "",
+     {
+      "A1": 50.0,
+      "A2": 500.0
+     }
+    ],
+    "avant": {
+     "appariement": [
+      "paires",
+      "partagees",
+      "pk_apports",
+      "pk_sections",
+      "sans_apport",
+      "sens",
+      "sens_deduit"
+     ],
+     "classeur": null,
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "preparer_classeur",
+    "arguments": [
+     "<TMP>/sortie",
+     [
+      [
+       "A1",
+       "S1"
+      ],
+      [
+       "A2",
+       "S2"
+      ]
+     ],
+     {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    ],
+    "avant": {
+     "appariement": [
+      "paires",
+      "partagees",
+      "pk_apports",
+      "pk_sections",
+      "sans_apport",
+      "sens",
+      "sens_deduit"
+     ],
+     "classeur": null,
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {
+     "parametres": {
+      "Bilan_masse_max_pct": 5.0,
+      "Dossier_projet_HECRAS": "<TMP>/modele",
+      "Dossier_sortie": "<TMP>/sortie",
+      "Elaguer_plans_etape": "non",
+      "Geometrie_reference": "g02",
+      "Mode_selection_modele": "plan",
+      "Nb_max_iterations_par_apport": 6,
+      "Nom_clone_geometrie": "Geometrie_calage",
+      "Nom_projet": "Essai",
+      "Nom_zone_2D": "",
+      "PK_origine_m": 0.0,
+      "Plan_reference": "p03",
+      "Prefixe_scenario": "R-Q100",
+      "Premier_apport": "",
+      "Sens_axe": "amont_aval",
+      "Sous_dossier_resultats": "resultats_finaux",
+      "Sous_dossier_suivi": "suivi",
+      "Tolerance_pic_pct": 2.0,
+      "Tolerance_volume_pct": 5.0,
+      "Unsteady_reference": "u04",
+      "Version_HECRAS": "6.6"
+     },
+     "pentes": {
+      "A1": 0.004,
+      "A2": 0.002
+     }
+    }
+   }
+  ]
+ },
+ "controle_en_echec": {
+  "apres": {
+   "appariement": [
+    "paires",
+    "partagees",
+    "pk_apports",
+    "pk_sections",
+    "sans_apport",
+    "sens",
+    "sens_deduit"
+   ],
+   "classeur": "<TMP>/sortie/donnees_calage_R-Q100.xlsx",
+   "paquet": {
+    "apports": "<TMP>/sortie/apports.shp",
+    "axe": "<TMP>/sortie/axe.shp",
+    "sections": "<TMP>/sortie/sections.shp"
+   }
+  },
+  "boites": [
+   [
+    "Valider la géométrie et générer le fichier des hydrogrammes — échec",
+    "echec simule de controler_paquet\n\nLa géométrie HEC-RAS a DÉJÀ été réécrite : les sections et injections de l'étape 1 y sont, et l'échec ci-dessus est survenu après. Une sauvegarde horodatée du fichier de géométrie a été faite avant l'écriture."
+   ]
+  ],
+  "dossiers": [
+   "sortie",
+   "sortie/resultats_finaux",
+   "sortie/suivi"
+  ],
+  "trace": [
+   {
+    "appel": "_calage_en_cours",
+    "arguments": [],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "_ecrire_dans_geometrie",
+    "arguments": [],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "couche_vers_gdf",
+    "arguments": [
+     "<sections>"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "couche_vers_gdf",
+    "arguments": [
+     "<injections>"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "couche_vers_gdf",
+    "arguments": [
+     "<axe>"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {
+     "champ_nom": null
+    }
+   },
+   {
+    "appel": "composer_paquet",
+    "arguments": [
+     "<TMP>/sortie",
+     "gdf de sections",
+     "gdf de injections",
+     "gdf de axe"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {
+     "crs_cible": "EPSG:2154"
+    }
+   },
+   {
+    "appel": "parametres_calage",
+    "arguments": [],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {
+     "bilan_masse_max_pct": 5.0,
+     "dossier_projet": "<TMP>/modele",
+     "dossier_sortie": "<TMP>/sortie",
+     "elaguer_etapes": false,
+     "fenetre": {},
+     "mode_selection": "plan",
+     "nb_max_iterations": 6,
+     "nom_clone_geometrie": "Geometrie_calage",
+     "nom_projet": "Essai",
+     "nom_zone_2d": "",
+     "numero_geometrie": "02",
+     "numero_plan": "03",
+     "numero_unsteady": "04",
+     "pk_origine_m": 0.0,
+     "prefixe_scenario": "R-Q100",
+     "premier_apport": "",
+     "sens_axe": "amont_aval",
+     "sous_dossier_resultats": "resultats_finaux",
+     "sous_dossier_suivi": "suivi",
+     "tolerance_pic_pct": 2.0,
+     "tolerance_volume_pct": 5.0,
+     "version_hecras": "6.6"
+    }
+   },
+   {
+    "appel": "apparier_paquet",
+    "arguments": [
+     {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {
+     "pk_origine": 0.0,
+     "sens": "amont_aval"
+    }
+   },
+   {
+    "appel": "pentes_locales_apports",
+    "arguments": [
+     "<TMP>/modele",
+     "Essai",
+     "g02",
+     "<TMP>/sortie/axe.shp",
+     "",
+     {
+      "A1": 50.0,
+      "A2": 500.0
+     }
+    ],
+    "avant": {
+     "appariement": [
+      "paires",
+      "partagees",
+      "pk_apports",
+      "pk_sections",
+      "sans_apport",
+      "sens",
+      "sens_deduit"
+     ],
+     "classeur": null,
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "preparer_classeur",
+    "arguments": [
+     "<TMP>/sortie",
+     [
+      [
+       "A1",
+       "S1"
+      ],
+      [
+       "A2",
+       "S2"
+      ]
+     ],
+     {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    ],
+    "avant": {
+     "appariement": [
+      "paires",
+      "partagees",
+      "pk_apports",
+      "pk_sections",
+      "sans_apport",
+      "sens",
+      "sens_deduit"
+     ],
+     "classeur": null,
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {
+     "parametres": {
+      "Bilan_masse_max_pct": 5.0,
+      "Dossier_projet_HECRAS": "<TMP>/modele",
+      "Dossier_sortie": "<TMP>/sortie",
+      "Elaguer_plans_etape": "non",
+      "Geometrie_reference": "g02",
+      "Mode_selection_modele": "plan",
+      "Nb_max_iterations_par_apport": 6,
+      "Nom_clone_geometrie": "Geometrie_calage",
+      "Nom_projet": "Essai",
+      "Nom_zone_2D": "",
+      "PK_origine_m": 0.0,
+      "Plan_reference": "p03",
+      "Prefixe_scenario": "R-Q100",
+      "Premier_apport": "",
+      "Sens_axe": "amont_aval",
+      "Sous_dossier_resultats": "resultats_finaux",
+      "Sous_dossier_suivi": "suivi",
+      "Tolerance_pic_pct": 2.0,
+      "Tolerance_volume_pct": 5.0,
+      "Unsteady_reference": "u04",
+      "Version_HECRAS": "6.6"
+     },
+     "pentes": {
+      "A1": 0.004,
+      "A2": 0.002
+     }
+    }
+   },
+   {
+    "appel": "controler_paquet",
+    "arguments": [
+     "<TMP>/sortie/donnees_calage_R-Q100.xlsx"
+    ],
+    "avant": {
+     "appariement": [
+      "paires",
+      "partagees",
+      "pk_apports",
+      "pk_sections",
+      "sans_apport",
+      "sens",
+      "sens_deduit"
+     ],
+     "classeur": "<TMP>/sortie/donnees_calage_R-Q100.xlsx",
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {}
+   }
+  ]
+ },
+ "ecriture_geometrie_en_echec": {
+  "apres": {
+   "appariement": null,
+   "classeur": null,
+   "paquet": null
+  },
+  "boites": [
+   [
+    "Valider la géométrie et générer le fichier des hydrogrammes — échec",
+    "echec simule de _ecrire_dans_geometrie"
+   ]
+  ],
+  "dossiers": [],
+  "trace": [
+   {
+    "appel": "_calage_en_cours",
+    "arguments": [],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "_ecrire_dans_geometrie",
+    "arguments": [],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   }
+  ]
+ },
+ "injection_partagee": {
+  "apres": {
+   "appariement": [
+    "paires",
+    "partagees",
+    "pk_apports",
+    "pk_sections",
+    "sans_apport",
+    "sens",
+    "sens_deduit"
+   ],
+   "classeur": null,
+   "paquet": {
+    "apports": "<TMP>/sortie/apports.shp",
+    "axe": "<TMP>/sortie/axe.shp",
+    "sections": "<TMP>/sortie/sections.shp"
+   }
+  },
+  "boites": [
+   [
+    "Valider la géométrie et générer le fichier des hydrogrammes — échec",
+    "une même injection alimenterait plusieurs sections : « A1 » pour S1, S2. La méthode cale un apport contre UNE cible : ajouter une injection, ou retirer une section.\n\nLa géométrie HEC-RAS a DÉJÀ été réécrite : les sections et injections de l'étape 1 y sont, et l'échec ci-dessus est survenu après. Une sauvegarde horodatée du fichier de géométrie a été faite avant l'écriture."
+   ]
+  ],
+  "dossiers": [],
+  "trace": [
+   {
+    "appel": "_calage_en_cours",
+    "arguments": [],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "_ecrire_dans_geometrie",
+    "arguments": [],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "couche_vers_gdf",
+    "arguments": [
+     "<sections>"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "couche_vers_gdf",
+    "arguments": [
+     "<injections>"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "couche_vers_gdf",
+    "arguments": [
+     "<axe>"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {
+     "champ_nom": null
+    }
+   },
+   {
+    "appel": "composer_paquet",
+    "arguments": [
+     "<TMP>/sortie",
+     "gdf de sections",
+     "gdf de injections",
+     "gdf de axe"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {
+     "crs_cible": "EPSG:2154"
+    }
+   },
+   {
+    "appel": "parametres_calage",
+    "arguments": [],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {
+     "bilan_masse_max_pct": 5.0,
+     "dossier_projet": "<TMP>/modele",
+     "dossier_sortie": "<TMP>/sortie",
+     "elaguer_etapes": false,
+     "fenetre": {},
+     "mode_selection": "plan",
+     "nb_max_iterations": 6,
+     "nom_clone_geometrie": "Geometrie_calage",
+     "nom_projet": "Essai",
+     "nom_zone_2d": "",
+     "numero_geometrie": "02",
+     "numero_plan": "03",
+     "numero_unsteady": "04",
+     "pk_origine_m": 0.0,
+     "prefixe_scenario": "R-Q100",
+     "premier_apport": "",
+     "sens_axe": "amont_aval",
+     "sous_dossier_resultats": "resultats_finaux",
+     "sous_dossier_suivi": "suivi",
+     "tolerance_pic_pct": 2.0,
+     "tolerance_volume_pct": 5.0,
+     "version_hecras": "6.6"
+    }
+   },
+   {
+    "appel": "apparier_paquet",
+    "arguments": [
+     {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {
+     "pk_origine": 0.0,
+     "sens": "amont_aval"
+    }
+   }
+  ]
+ },
+ "nominal": {
+  "apres": {
+   "appariement": [
+    "paires",
+    "partagees",
+    "pk_apports",
+    "pk_sections",
+    "sans_apport",
+    "sens",
+    "sens_deduit"
+   ],
+   "classeur": "<TMP>/sortie/donnees_calage_R-Q100.xlsx",
+   "paquet": {
+    "apports": "<TMP>/sortie/apports.shp",
+    "axe": "<TMP>/sortie/axe.shp",
+    "sections": "<TMP>/sortie/sections.shp"
+   }
+  },
+  "boites": [],
+  "dossiers": [
+   "sortie",
+   "sortie/resultats_finaux",
+   "sortie/suivi"
+  ],
+  "trace": [
+   {
+    "appel": "_calage_en_cours",
+    "arguments": [],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "_ecrire_dans_geometrie",
+    "arguments": [],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "couche_vers_gdf",
+    "arguments": [
+     "<sections>"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "couche_vers_gdf",
+    "arguments": [
+     "<injections>"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "couche_vers_gdf",
+    "arguments": [
+     "<axe>"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {
+     "champ_nom": null
+    }
+   },
+   {
+    "appel": "composer_paquet",
+    "arguments": [
+     "<TMP>/sortie",
+     "gdf de sections",
+     "gdf de injections",
+     "gdf de axe"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {
+     "crs_cible": "EPSG:2154"
+    }
+   },
+   {
+    "appel": "parametres_calage",
+    "arguments": [],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {
+     "bilan_masse_max_pct": 5.0,
+     "dossier_projet": "<TMP>/modele",
+     "dossier_sortie": "<TMP>/sortie",
+     "elaguer_etapes": false,
+     "fenetre": {},
+     "mode_selection": "plan",
+     "nb_max_iterations": 6,
+     "nom_clone_geometrie": "Geometrie_calage",
+     "nom_projet": "Essai",
+     "nom_zone_2d": "",
+     "numero_geometrie": "02",
+     "numero_plan": "03",
+     "numero_unsteady": "04",
+     "pk_origine_m": 0.0,
+     "prefixe_scenario": "R-Q100",
+     "premier_apport": "",
+     "sens_axe": "amont_aval",
+     "sous_dossier_resultats": "resultats_finaux",
+     "sous_dossier_suivi": "suivi",
+     "tolerance_pic_pct": 2.0,
+     "tolerance_volume_pct": 5.0,
+     "version_hecras": "6.6"
+    }
+   },
+   {
+    "appel": "apparier_paquet",
+    "arguments": [
+     {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {
+     "pk_origine": 0.0,
+     "sens": "amont_aval"
+    }
+   },
+   {
+    "appel": "pentes_locales_apports",
+    "arguments": [
+     "<TMP>/modele",
+     "Essai",
+     "g02",
+     "<TMP>/sortie/axe.shp",
+     "",
+     {
+      "A1": 50.0,
+      "A2": 500.0
+     }
+    ],
+    "avant": {
+     "appariement": [
+      "paires",
+      "partagees",
+      "pk_apports",
+      "pk_sections",
+      "sans_apport",
+      "sens",
+      "sens_deduit"
+     ],
+     "classeur": null,
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "preparer_classeur",
+    "arguments": [
+     "<TMP>/sortie",
+     [
+      [
+       "A1",
+       "S1"
+      ],
+      [
+       "A2",
+       "S2"
+      ]
+     ],
+     {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    ],
+    "avant": {
+     "appariement": [
+      "paires",
+      "partagees",
+      "pk_apports",
+      "pk_sections",
+      "sans_apport",
+      "sens",
+      "sens_deduit"
+     ],
+     "classeur": null,
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {
+     "parametres": {
+      "Bilan_masse_max_pct": 5.0,
+      "Dossier_projet_HECRAS": "<TMP>/modele",
+      "Dossier_sortie": "<TMP>/sortie",
+      "Elaguer_plans_etape": "non",
+      "Geometrie_reference": "g02",
+      "Mode_selection_modele": "plan",
+      "Nb_max_iterations_par_apport": 6,
+      "Nom_clone_geometrie": "Geometrie_calage",
+      "Nom_projet": "Essai",
+      "Nom_zone_2D": "",
+      "PK_origine_m": 0.0,
+      "Plan_reference": "p03",
+      "Prefixe_scenario": "R-Q100",
+      "Premier_apport": "",
+      "Sens_axe": "amont_aval",
+      "Sous_dossier_resultats": "resultats_finaux",
+      "Sous_dossier_suivi": "suivi",
+      "Tolerance_pic_pct": 2.0,
+      "Tolerance_volume_pct": 5.0,
+      "Unsteady_reference": "u04",
+      "Version_HECRAS": "6.6"
+     },
+     "pentes": {
+      "A1": 0.004,
+      "A2": 0.002
+     }
+    }
+   },
+   {
+    "appel": "controler_paquet",
+    "arguments": [
+     "<TMP>/sortie/donnees_calage_R-Q100.xlsx"
+    ],
+    "avant": {
+     "appariement": [
+      "paires",
+      "partagees",
+      "pk_apports",
+      "pk_sections",
+      "sans_apport",
+      "sens",
+      "sens_deduit"
+     ],
+     "classeur": "<TMP>/sortie/donnees_calage_R-Q100.xlsx",
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "etiqueter_pk_sur_carte",
+    "arguments": [
+     {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     },
+     "amont_aval",
+     {
+      "apports": "<injections>",
+      "sections": "<sections>"
+     }
+    ],
+    "avant": {
+     "appariement": [
+      "paires",
+      "partagees",
+      "pk_apports",
+      "pk_sections",
+      "sans_apport",
+      "sens",
+      "sens_deduit"
+     ],
+     "classeur": "<TMP>/sortie/donnees_calage_R-Q100.xlsx",
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "_rendre_compte_du_controle",
+    "arguments": [
+     "Valider la géométrie et générer le fichier des hydrogrammes — compte rendu",
+     [
+      [
+       "AVERTISSEMENT",
+       "une anomalie"
+      ]
+     ],
+     "tableau des PK",
+     null
+    ],
+    "avant": {
+     "appariement": [
+      "paires",
+      "partagees",
+      "pk_apports",
+      "pk_sections",
+      "sans_apport",
+      "sens",
+      "sens_deduit"
+     ],
+     "classeur": "<TMP>/sortie/donnees_calage_R-Q100.xlsx",
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {
+     "apres": "\nPente des apports : 2/2 pré-remplies",
+     "avant": "compte rendu de l'ecriture\n\nPaquet composé dans <TMP>/sortie\n"
+    }
+   },
+   {
+    "appel": "_maj_resume",
+    "arguments": [],
+    "avant": {
+     "appariement": [
+      "paires",
+      "partagees",
+      "pk_apports",
+      "pk_sections",
+      "sans_apport",
+      "sens",
+      "sens_deduit"
+     ],
+     "classeur": "<TMP>/sortie/donnees_calage_R-Q100.xlsx",
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "_maj_onglet_validation",
+    "arguments": [],
+    "avant": {
+     "appariement": [
+      "paires",
+      "partagees",
+      "pk_apports",
+      "pk_sections",
+      "sans_apport",
+      "sens",
+      "sens_deduit"
+     ],
+     "classeur": "<TMP>/sortie/donnees_calage_R-Q100.xlsx",
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {}
+   }
+  ]
+ },
+ "section_sans_apport": {
+  "apres": {
+   "appariement": [
+    "paires",
+    "partagees",
+    "pk_apports",
+    "pk_sections",
+    "sans_apport",
+    "sens",
+    "sens_deduit"
+   ],
+   "classeur": null,
+   "paquet": {
+    "apports": "<TMP>/sortie/apports.shp",
+    "axe": "<TMP>/sortie/axe.shp",
+    "sections": "<TMP>/sortie/sections.shp"
+   }
+  },
+  "boites": [
+   [
+    "Valider la géométrie et générer le fichier des hydrogrammes — échec",
+    "aucune ligne d'injection en amont de : S3. Une section de contrôle sans apport en amont ne peut pas être calée. Vérifier le sens de l'axe hydraulique et la position des objets.\n\nLa géométrie HEC-RAS a DÉJÀ été réécrite : les sections et injections de l'étape 1 y sont, et l'échec ci-dessus est survenu après. Une sauvegarde horodatée du fichier de géométrie a été faite avant l'écriture."
+   ]
+  ],
+  "dossiers": [],
+  "trace": [
+   {
+    "appel": "_calage_en_cours",
+    "arguments": [],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "_ecrire_dans_geometrie",
+    "arguments": [],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "couche_vers_gdf",
+    "arguments": [
+     "<sections>"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "couche_vers_gdf",
+    "arguments": [
+     "<injections>"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "couche_vers_gdf",
+    "arguments": [
+     "<axe>"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {
+     "champ_nom": null
+    }
+   },
+   {
+    "appel": "composer_paquet",
+    "arguments": [
+     "<TMP>/sortie",
+     "gdf de sections",
+     "gdf de injections",
+     "gdf de axe"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {
+     "crs_cible": "EPSG:2154"
+    }
+   },
+   {
+    "appel": "parametres_calage",
+    "arguments": [],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {
+     "bilan_masse_max_pct": 5.0,
+     "dossier_projet": "<TMP>/modele",
+     "dossier_sortie": "<TMP>/sortie",
+     "elaguer_etapes": false,
+     "fenetre": {},
+     "mode_selection": "plan",
+     "nb_max_iterations": 6,
+     "nom_clone_geometrie": "Geometrie_calage",
+     "nom_projet": "Essai",
+     "nom_zone_2d": "",
+     "numero_geometrie": "02",
+     "numero_plan": "03",
+     "numero_unsteady": "04",
+     "pk_origine_m": 0.0,
+     "prefixe_scenario": "R-Q100",
+     "premier_apport": "",
+     "sens_axe": "amont_aval",
+     "sous_dossier_resultats": "resultats_finaux",
+     "sous_dossier_suivi": "suivi",
+     "tolerance_pic_pct": 2.0,
+     "tolerance_volume_pct": 5.0,
+     "version_hecras": "6.6"
+    }
+   },
+   {
+    "appel": "apparier_paquet",
+    "arguments": [
+     {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {
+     "pk_origine": 0.0,
+     "sens": "amont_aval"
+    }
+   }
+  ]
+ },
+ "sous_dossiers_saisis": {
+  "apres": {
+   "appariement": [
+    "paires",
+    "partagees",
+    "pk_apports",
+    "pk_sections",
+    "sans_apport",
+    "sens",
+    "sens_deduit"
+   ],
+   "classeur": "<TMP>/sortie/donnees_calage_R-Q100.xlsx",
+   "paquet": {
+    "apports": "<TMP>/sortie/apports.shp",
+    "axe": "<TMP>/sortie/axe.shp",
+    "sections": "<TMP>/sortie/sections.shp"
+   }
+  },
+  "boites": [],
+  "dossiers": [
+   "sortie",
+   "sortie/res_Q100",
+   "sortie/suivi_Q100"
+  ],
+  "trace": [
+   {
+    "appel": "_calage_en_cours",
+    "arguments": [],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "_ecrire_dans_geometrie",
+    "arguments": [],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "couche_vers_gdf",
+    "arguments": [
+     "<sections>"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "couche_vers_gdf",
+    "arguments": [
+     "<injections>"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "couche_vers_gdf",
+    "arguments": [
+     "<axe>"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {
+     "champ_nom": null
+    }
+   },
+   {
+    "appel": "composer_paquet",
+    "arguments": [
+     "<TMP>/sortie",
+     "gdf de sections",
+     "gdf de injections",
+     "gdf de axe"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {
+     "crs_cible": "EPSG:2154"
+    }
+   },
+   {
+    "appel": "parametres_calage",
+    "arguments": [],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {
+     "bilan_masse_max_pct": 5.0,
+     "dossier_projet": "<TMP>/modele",
+     "dossier_sortie": "<TMP>/sortie",
+     "elaguer_etapes": false,
+     "fenetre": {},
+     "mode_selection": "plan",
+     "nb_max_iterations": 6,
+     "nom_clone_geometrie": "Geometrie_calage",
+     "nom_projet": "Essai",
+     "nom_zone_2d": "",
+     "numero_geometrie": "02",
+     "numero_plan": "03",
+     "numero_unsteady": "04",
+     "pk_origine_m": 0.0,
+     "prefixe_scenario": "R-Q100",
+     "premier_apport": "",
+     "sens_axe": "amont_aval",
+     "sous_dossier_resultats": "res_Q100",
+     "sous_dossier_suivi": "suivi_Q100",
+     "tolerance_pic_pct": 2.0,
+     "tolerance_volume_pct": 5.0,
+     "version_hecras": "6.6"
+    }
+   },
+   {
+    "appel": "apparier_paquet",
+    "arguments": [
+     {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {
+     "pk_origine": 0.0,
+     "sens": "amont_aval"
+    }
+   },
+   {
+    "appel": "pentes_locales_apports",
+    "arguments": [
+     "<TMP>/modele",
+     "Essai",
+     "g02",
+     "<TMP>/sortie/axe.shp",
+     "",
+     {
+      "A1": 50.0,
+      "A2": 500.0
+     }
+    ],
+    "avant": {
+     "appariement": [
+      "paires",
+      "partagees",
+      "pk_apports",
+      "pk_sections",
+      "sans_apport",
+      "sens",
+      "sens_deduit"
+     ],
+     "classeur": null,
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "preparer_classeur",
+    "arguments": [
+     "<TMP>/sortie",
+     [
+      [
+       "A1",
+       "S1"
+      ],
+      [
+       "A2",
+       "S2"
+      ]
+     ],
+     {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    ],
+    "avant": {
+     "appariement": [
+      "paires",
+      "partagees",
+      "pk_apports",
+      "pk_sections",
+      "sans_apport",
+      "sens",
+      "sens_deduit"
+     ],
+     "classeur": null,
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {
+     "parametres": {
+      "Bilan_masse_max_pct": 5.0,
+      "Dossier_projet_HECRAS": "<TMP>/modele",
+      "Dossier_sortie": "<TMP>/sortie",
+      "Elaguer_plans_etape": "non",
+      "Geometrie_reference": "g02",
+      "Mode_selection_modele": "plan",
+      "Nb_max_iterations_par_apport": 6,
+      "Nom_clone_geometrie": "Geometrie_calage",
+      "Nom_projet": "Essai",
+      "Nom_zone_2D": "",
+      "PK_origine_m": 0.0,
+      "Plan_reference": "p03",
+      "Prefixe_scenario": "R-Q100",
+      "Premier_apport": "",
+      "Sens_axe": "amont_aval",
+      "Sous_dossier_resultats": "res_Q100",
+      "Sous_dossier_suivi": "suivi_Q100",
+      "Tolerance_pic_pct": 2.0,
+      "Tolerance_volume_pct": 5.0,
+      "Unsteady_reference": "u04",
+      "Version_HECRAS": "6.6"
+     },
+     "pentes": {
+      "A1": 0.004,
+      "A2": 0.002
+     }
+    }
+   },
+   {
+    "appel": "controler_paquet",
+    "arguments": [
+     "<TMP>/sortie/donnees_calage_R-Q100.xlsx"
+    ],
+    "avant": {
+     "appariement": [
+      "paires",
+      "partagees",
+      "pk_apports",
+      "pk_sections",
+      "sans_apport",
+      "sens",
+      "sens_deduit"
+     ],
+     "classeur": "<TMP>/sortie/donnees_calage_R-Q100.xlsx",
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "etiqueter_pk_sur_carte",
+    "arguments": [
+     {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     },
+     "amont_aval",
+     {
+      "apports": "<injections>",
+      "sections": "<sections>"
+     }
+    ],
+    "avant": {
+     "appariement": [
+      "paires",
+      "partagees",
+      "pk_apports",
+      "pk_sections",
+      "sans_apport",
+      "sens",
+      "sens_deduit"
+     ],
+     "classeur": "<TMP>/sortie/donnees_calage_R-Q100.xlsx",
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "_rendre_compte_du_controle",
+    "arguments": [
+     "Valider la géométrie et générer le fichier des hydrogrammes — compte rendu",
+     [
+      [
+       "AVERTISSEMENT",
+       "une anomalie"
+      ]
+     ],
+     "tableau des PK",
+     null
+    ],
+    "avant": {
+     "appariement": [
+      "paires",
+      "partagees",
+      "pk_apports",
+      "pk_sections",
+      "sans_apport",
+      "sens",
+      "sens_deduit"
+     ],
+     "classeur": "<TMP>/sortie/donnees_calage_R-Q100.xlsx",
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {
+     "apres": "\nPente des apports : 2/2 pré-remplies",
+     "avant": "compte rendu de l'ecriture\n\nPaquet composé dans <TMP>/sortie\n"
+    }
+   },
+   {
+    "appel": "_maj_resume",
+    "arguments": [],
+    "avant": {
+     "appariement": [
+      "paires",
+      "partagees",
+      "pk_apports",
+      "pk_sections",
+      "sans_apport",
+      "sens",
+      "sens_deduit"
+     ],
+     "classeur": "<TMP>/sortie/donnees_calage_R-Q100.xlsx",
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "_maj_onglet_validation",
+    "arguments": [],
+    "avant": {
+     "appariement": [
+      "paires",
+      "partagees",
+      "pk_apports",
+      "pk_sections",
+      "sans_apport",
+      "sens",
+      "sens_deduit"
+     ],
+     "classeur": "<TMP>/sortie/donnees_calage_R-Q100.xlsx",
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {}
+   }
+  ]
+ },
+ "une_pente_et_un_motif": {
+  "apres": {
+   "appariement": [
+    "paires",
+    "partagees",
+    "pk_apports",
+    "pk_sections",
+    "sans_apport",
+    "sens",
+    "sens_deduit"
+   ],
+   "classeur": "<TMP>/sortie/donnees_calage_R-Q100.xlsx",
+   "paquet": {
+    "apports": "<TMP>/sortie/apports.shp",
+    "axe": "<TMP>/sortie/axe.shp",
+    "sections": "<TMP>/sortie/sections.shp"
+   }
+  },
+  "boites": [],
+  "dossiers": [
+   "sortie",
+   "sortie/resultats_finaux",
+   "sortie/suivi"
+  ],
+  "trace": [
+   {
+    "appel": "_calage_en_cours",
+    "arguments": [],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "_ecrire_dans_geometrie",
+    "arguments": [],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "couche_vers_gdf",
+    "arguments": [
+     "<sections>"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "couche_vers_gdf",
+    "arguments": [
+     "<injections>"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "couche_vers_gdf",
+    "arguments": [
+     "<axe>"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {
+     "champ_nom": null
+    }
+   },
+   {
+    "appel": "composer_paquet",
+    "arguments": [
+     "<TMP>/sortie",
+     "gdf de sections",
+     "gdf de injections",
+     "gdf de axe"
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": null
+    },
+    "nommes": {
+     "crs_cible": "EPSG:2154"
+    }
+   },
+   {
+    "appel": "parametres_calage",
+    "arguments": [],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {
+     "bilan_masse_max_pct": 5.0,
+     "dossier_projet": "<TMP>/modele",
+     "dossier_sortie": "<TMP>/sortie",
+     "elaguer_etapes": false,
+     "fenetre": {},
+     "mode_selection": "plan",
+     "nb_max_iterations": 6,
+     "nom_clone_geometrie": "Geometrie_calage",
+     "nom_projet": "Essai",
+     "nom_zone_2d": "",
+     "numero_geometrie": "02",
+     "numero_plan": "03",
+     "numero_unsteady": "04",
+     "pk_origine_m": 0.0,
+     "prefixe_scenario": "R-Q100",
+     "premier_apport": "",
+     "sens_axe": "amont_aval",
+     "sous_dossier_resultats": "resultats_finaux",
+     "sous_dossier_suivi": "suivi",
+     "tolerance_pic_pct": 2.0,
+     "tolerance_volume_pct": 5.0,
+     "version_hecras": "6.6"
+    }
+   },
+   {
+    "appel": "apparier_paquet",
+    "arguments": [
+     {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    ],
+    "avant": {
+     "appariement": null,
+     "classeur": null,
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {
+     "pk_origine": 0.0,
+     "sens": "amont_aval"
+    }
+   },
+   {
+    "appel": "pentes_locales_apports",
+    "arguments": [
+     "<TMP>/modele",
+     "Essai",
+     "g02",
+     "<TMP>/sortie/axe.shp",
+     "",
+     {
+      "A1": 50.0,
+      "A2": 500.0
+     }
+    ],
+    "avant": {
+     "appariement": [
+      "paires",
+      "partagees",
+      "pk_apports",
+      "pk_sections",
+      "sans_apport",
+      "sens",
+      "sens_deduit"
+     ],
+     "classeur": null,
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "preparer_classeur",
+    "arguments": [
+     "<TMP>/sortie",
+     [
+      [
+       "A1",
+       "S1"
+      ],
+      [
+       "A2",
+       "S2"
+      ]
+     ],
+     {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    ],
+    "avant": {
+     "appariement": [
+      "paires",
+      "partagees",
+      "pk_apports",
+      "pk_sections",
+      "sans_apport",
+      "sens",
+      "sens_deduit"
+     ],
+     "classeur": null,
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {
+     "parametres": {
+      "Bilan_masse_max_pct": 5.0,
+      "Dossier_projet_HECRAS": "<TMP>/modele",
+      "Dossier_sortie": "<TMP>/sortie",
+      "Elaguer_plans_etape": "non",
+      "Geometrie_reference": "g02",
+      "Mode_selection_modele": "plan",
+      "Nb_max_iterations_par_apport": 6,
+      "Nom_clone_geometrie": "Geometrie_calage",
+      "Nom_projet": "Essai",
+      "Nom_zone_2D": "",
+      "PK_origine_m": 0.0,
+      "Plan_reference": "p03",
+      "Prefixe_scenario": "R-Q100",
+      "Premier_apport": "",
+      "Sens_axe": "amont_aval",
+      "Sous_dossier_resultats": "resultats_finaux",
+      "Sous_dossier_suivi": "suivi",
+      "Tolerance_pic_pct": 2.0,
+      "Tolerance_volume_pct": 5.0,
+      "Unsteady_reference": "u04",
+      "Version_HECRAS": "6.6"
+     },
+     "pentes": {
+      "A1": 0.004
+     }
+    }
+   },
+   {
+    "appel": "controler_paquet",
+    "arguments": [
+     "<TMP>/sortie/donnees_calage_R-Q100.xlsx"
+    ],
+    "avant": {
+     "appariement": [
+      "paires",
+      "partagees",
+      "pk_apports",
+      "pk_sections",
+      "sans_apport",
+      "sens",
+      "sens_deduit"
+     ],
+     "classeur": "<TMP>/sortie/donnees_calage_R-Q100.xlsx",
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "etiqueter_pk_sur_carte",
+    "arguments": [
+     {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     },
+     "amont_aval",
+     {
+      "apports": "<injections>",
+      "sections": "<sections>"
+     }
+    ],
+    "avant": {
+     "appariement": [
+      "paires",
+      "partagees",
+      "pk_apports",
+      "pk_sections",
+      "sans_apport",
+      "sens",
+      "sens_deduit"
+     ],
+     "classeur": "<TMP>/sortie/donnees_calage_R-Q100.xlsx",
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "_rendre_compte_du_controle",
+    "arguments": [
+     "Valider la géométrie et générer le fichier des hydrogrammes — compte rendu",
+     [
+      [
+       "AVERTISSEMENT",
+       "une anomalie"
+      ]
+     ],
+     "tableau des PK",
+     null
+    ],
+    "avant": {
+     "appariement": [
+      "paires",
+      "partagees",
+      "pk_apports",
+      "pk_sections",
+      "sans_apport",
+      "sens",
+      "sens_deduit"
+     ],
+     "classeur": "<TMP>/sortie/donnees_calage_R-Q100.xlsx",
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {
+     "apres": "\nPente des apports : 1/2 pré-remplie — A2 hors profil",
+     "avant": "compte rendu de l'ecriture\n\nPaquet composé dans <TMP>/sortie\n"
+    }
+   },
+   {
+    "appel": "_maj_resume",
+    "arguments": [],
+    "avant": {
+     "appariement": [
+      "paires",
+      "partagees",
+      "pk_apports",
+      "pk_sections",
+      "sans_apport",
+      "sens",
+      "sens_deduit"
+     ],
+     "classeur": "<TMP>/sortie/donnees_calage_R-Q100.xlsx",
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {}
+   },
+   {
+    "appel": "_maj_onglet_validation",
+    "arguments": [],
+    "avant": {
+     "appariement": [
+      "paires",
+      "partagees",
+      "pk_apports",
+      "pk_sections",
+      "sans_apport",
+      "sens",
+      "sens_deduit"
+     ],
+     "classeur": "<TMP>/sortie/donnees_calage_R-Q100.xlsx",
+     "paquet": {
+      "apports": "<TMP>/sortie/apports.shp",
+      "axe": "<TMP>/sortie/axe.shp",
+      "sections": "<TMP>/sortie/sections.shp"
+     }
+    },
+    "nommes": {}
+   }
+  ]
+ }
+}
