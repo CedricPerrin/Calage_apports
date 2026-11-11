@@ -524,6 +524,10 @@ def _regle_pk_calculables(axe, noms_absents, g_sec, g_app):
 
 
 def _regle_sens_axe(sens):
+    if sens is None:
+        return [(ERREUR,
+                 "Sens_axe : valeur manquante ; valeurs admises "
+                 "['amont_aval', 'aval_amont'].")]
     if sens not in ("amont_aval", "aval_amont"):
         return [(ERREUR,
                  f"Sens_axe = '{sens}' : valeurs admises ['amont_aval', "
@@ -643,7 +647,13 @@ def controler_geometrie(chemin_template):
         return anomalies + empechements, None
 
     # --- PK et coherence geographique -------------------------------------
-    sens = str(valeurs.get("Sens_axe", "amont_aval")).strip() or "amont_aval"
+    # Cle absente ou texte vide : le defaut. Valeur NULLE : elle manque, et
+    # str(None) ferait lire « 'None' » a l'ingenieur.
+    sens = valeurs.get("Sens_axe", "amont_aval")
+    if sens is None or (isinstance(sens, float) and pd.isna(sens)):
+        sens = None
+    else:
+        sens = str(sens).strip() or "amont_aval"
     refus = _regle_sens_axe(sens)
     if refus:
         return anomalies + refus, None
