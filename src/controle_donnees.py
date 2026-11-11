@@ -11,7 +11,6 @@ reellement (controle 5).
 Usage :  python controle_donnees.py [chemin_du_template.xlsx]
 """
 
-import json
 from pathlib import Path
 
 import numpy as np
@@ -341,14 +340,10 @@ def controler_template(chemin):
     # --- 1. Parametres -----------------------------------------------------
     try:
         valeurs = parametres.lire(chemin)
-    except json.JSONDecodeError as e:
+    except parametres.ParametresIllisibles as e:
         # Comme controler_geometrie : sans parametres lisibles, le reste du
         # controle ne dirait que « tout est manquant ».
-        return [(ERREUR,
-                 f"parametres du calage illisibles : "
-                 f"« {parametres.chemin(chemin).name} » n'est pas un JSON "
-                 f"valide (ligne {e.lineno}, colonne {e.colno}). Le corriger "
-                 f"avant de relancer le controle.")]
+        return [(ERREUR, str(e))]
     anomalies += _regle_parametres_trouves(chemin, valeurs)
     anomalies += _regle_parametres_requis(valeurs)
     anomalies += _regle_nb_max_iterations(valeurs)
@@ -591,6 +586,8 @@ def controler_geometrie(chemin_template):
 
     try:
         valeurs = parametres.lire(chemin_template)
+    except parametres.ParametresIllisibles as e:
+        return [(ERREUR, str(e))], None
     except Exception as e:
         return [(ERREUR, f"parametres du calage illisibles : {e}")], None
 
@@ -916,6 +913,13 @@ def controler_contre_modele(chemin_template, chemin_geometrie_hdf=None):
     from ras_commander import HdfBndry, HdfMesh
 
     import geometrie as geo
+
+    # Les parametres sont relus plus bas (geometrie_hdf, _regle_zone_2d) :
+    # un JSON illisible se dit ici, une fois, au lieu de lever au milieu.
+    try:
+        parametres.lire(chemin_template)
+    except parametres.ParametresIllisibles as e:
+        return [(ERREUR, str(e))]
 
     anomalies = []
     if chemin_geometrie_hdf is None:

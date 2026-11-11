@@ -1979,7 +1979,10 @@ def commande_caler(args):
             f"puis relancer le calage."))
 
     chemin_template = Path(args.template)
-    valeurs = parametres.lire(chemin_template)
+    try:
+        valeurs = parametres.lire(chemin_template)
+    except parametres.ParametresIllisibles as e:
+        return repondre(ok=False, erreur=str(e))
 
     def texte(cle, defaut=""):
         return _texte_parametre(valeurs, cle, defaut)
