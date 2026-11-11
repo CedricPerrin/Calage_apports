@@ -849,6 +849,27 @@ def pretraitement_perime(fichier_geometrie):
             "taille_hdf_mo": hdf.stat().st_size / (1024 * 1024)}
 
 
+def _nom_hdf(valeur):
+    """
+    Nom lu dans un .hdf de HEC-RAS : UTF-8 STRICT, PUIS cp1252, PUIS latin-1.
+
+    La regle de la maison (_lire_texte), appliquee a des octets ; meme cascade
+    que pont_hecras._texte, que ce module ne peut pas importer (c'est le pont
+    qui importe le pilote). Jusqu'au 11/11/2026 le nom etait decode en UTF-8
+    AVEC REMPLACEMENT : « Pont de Béhobie », ecrit en cp1252, etait annonce
+    « Pont de B?hobie » — un nom que l'utilisateur ne retrouve nulle part
+    dans son modele.
+    """
+    if not isinstance(valeur, bytes):
+        return str(valeur)
+    for encodage in ("utf-8", "cp1252"):
+        try:
+            return valeur.decode(encodage)
+        except UnicodeDecodeError:
+            continue
+    return valeur.decode("latin-1")
+
+
 def lignes_reference_sans_trace(fichier_geometrie):
     """
     Reference lines que le .gXX.hdf nomme sans en porter AUCUN POINT : [noms].
@@ -874,8 +895,7 @@ def lignes_reference_sans_trace(fichier_geometrie):
         groupe = h.get("Geometry/Reference Lines")
         if groupe is None or "Attributes" not in groupe:
             return []
-        noms = [n.decode("utf-8", "replace").strip() if isinstance(n, bytes)
-                else str(n).strip() for n in groupe["Attributes"]["Name"]]
+        noms = [_nom_hdf(n).strip() for n in groupe["Attributes"]["Name"]]
         if ("Polyline Info" not in groupe or "Polyline Points" not in groupe
                 or groupe["Polyline Points"].shape[0] == 0):
             return noms

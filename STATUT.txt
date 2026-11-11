@@ -3859,20 +3859,48 @@ dates fictives au 1er janvier.
     instants » n'est vraie que si le pas de travail divise le pas d'origine.
     Sans nom de zone 2D, c'est le bloc de la premiere zone qui est
     recadence (non corrige).
+    DEFAUTS MINEURS CORRIGES LE 11/11/2026 (apres la 0.9.33, PAS ENCORE DANS
+    UNE VERSION). Chacun a son essai d'intention, rouge avant, vert apres
+    (src/test_defauts_mineurs.py, src/test_exceptions_brutes.py) :
+      - criteres.diagnostiquer : l'alerte du decalage qui excede la fenetre
+        ne figure plus qu'UNE fois ; des valeurs manquantes sont dites (et
+        non « serie constante ») ; un axe des temps non croissant est nomme ;
+        serie vide, longueurs differentes, pas de recalage nul -> ValueError
+        en clair.
+      - calage.caler : apports, sections et cibles de longueurs differentes
+        sont REFUSES avant tout calcul (ils etaient tronques en silence).
+      - controle_donnees : un trou AU MILIEU d'une cible est signale, avec
+        ses lignes ; les vides de fin de colonne sont dits tels ; un Ordre
+        non numerique ne leve plus TypeError.
+      - parametres.lire : un JSON present mais illisible (invalide, pas un
+        objet, pas en UTF-8) leve ParametresIllisibles (un ValueError), dont
+        le message est rendu tel quel par les trois controles et par caler.
+      - pont : feuille ou colonne absente de la saisie -> ok:false en clair ;
+        objets_retires rend les reliquats retires (il valait toujours []) ;
+        commande_modele ne double plus les lignes d'un HDF sans colonne de
+        nom ; une pente saisie mais NON RETENUE (0, hors de ]1e-6 ; 1], du
+        texte) est dite au journal — la pente appliquee, elle, ne change pas.
+      - pilote_hecras : les noms des reference lines du .gNN.hdf suivent la
+        regle de la maison (UTF-8 strict, cp1252, latin-1).
+      - Note de synthese : elle cite la version de ras-commander INSTALLEE
+        (plus de « v0.99.1 » en dur) ; inconnue, le numero est omis.
+      - noyau.importer_hydrogrammes : un fichier qui n'est pas un .xlsx est
+        refuse par une phrase (c'etait BadZipFile, suivi d'un conseil faux).
+    Filets refiges, ecarts prouves par script — AUCUN NOMBRE NE CHANGE :
+    diagnostic, journal_caler, livrables, noyau_classeur, controle_donnees,
+    pont_caler, pont_lecture.
     RESTENT OUVERTS, non corriges :
-      - noyau.preparer_classeur : une pente saisie a 0 cede a la deduite.
-      - calage.caler : apports et sections de longueurs differentes tronques
-        en silence. criteres.diagnostiquer : alerte en double quand le
-        decalage sort de la fenetre ; NaN dans une serie -> message « serie
-        constante » ; axe des temps decroissant non refuse.
-      - controle_donnees : l'avertissement « valeurs manquantes
-        intercalees » ne voit que les trous de fin ; parametres.lire sur un
-        JSON corrompu leve encore dans controler_contre_modele et dans
-        commande_caler ; un Ordre non numerique y leve TypeError au tri.
-      - pont.commande_caler : objets_retires toujours [].
-      - pilote_hecras : les noms des reference lines du .gNN.hdf sont decodes
-        en UTF-8 avec remplacement (un nom cp1252 s'affiche avec « ? »).
-      - Note de synthese : « ras-commander v0.99.1 » en dur.
+      - Re-cadencage : sans nom de zone 2D, c'est le bloc de la premiere
+        zone qui est recadence ; un instant de plan invalide leve APRES la
+        reecriture du fichier. Attend une decision.
+      - criteres : l'alerte de couverture peut s'ecrire « 0.0 h ne sont pas
+        simulees (100 % de couverture) » quand il manque moins de 3 minutes.
+      - controle_donnees : un trou EN TETE de colonne cible n'est pas
+        signale. pont._cibles_depuis_classeur : un .xlsx corrompu leve encore
+        une exception brute. objets_retires ne compte pas ce que l'elagage
+        retire.
+      - importer_hydrogrammes : une source jamais recalculee par Excel
+        importe des cellules vides (valeurs des formules absentes).
     TROUS DES ESSAIS, constates : aucun test ne verifie sous quelle cle
     QSettings l'interpreteur est memorise ; les tests d'installation
     enchaines dans UN processus sous QGIS plantent au hasard (la CI les joue

@@ -38,6 +38,16 @@ from pathlib import Path
 FEUILLE_HERITEE = "Parametres"
 
 
+class ParametresIllisibles(ValueError):
+    """
+    Le JSON des parametres existe mais ne se lit pas. Le message dit quoi
+    corriger : les controles et le pont le rendent tel quel a l'ingenieur.
+    Sous-classe de ValueError, que json.JSONDecodeError et
+    UnicodeDecodeError etaient deja : un appelant qui attrapait l'une des
+    deux continue de l'attraper.
+    """
+
+
 def chemin(chemin_classeur):
     """Le JSON qui accompagne ce classeur, qu'il existe ou non."""
     return Path(chemin_classeur).with_suffix(".json")
@@ -53,11 +63,31 @@ def lire(chemin_classeur):
     Rend un dictionnaire VIDE si ni le JSON ni la feuille heritee n'existent :
     c'est aux controles de dire ce qui manque, avec leurs mots. Lever ici
     remplacerait « Nom_zone_2D absent » par une trace de pile.
+
+    LEVE ParametresIllisibles si le JSON EXISTE mais ne se lit pas (JSON
+    invalide, pas un objet, pas en UTF-8) : un fichier present et faux n'est
+    pas un fichier absent, et rendre {} ferait dire « parametres manquants »
+    a l'ingenieur qui n'a qu'une virgule a corriger.
     """
     fichier = chemin(chemin_classeur)
     if fichier.is_file():
-        with fichier.open(encoding="utf-8") as f:
-            valeurs = json.load(f)
+        debut = f"parametres du calage illisibles : « {fichier.name} » "
+        try:
+            with fichier.open(encoding="utf-8") as f:
+                valeurs = json.load(f)
+        except json.JSONDecodeError as e:
+            raise ParametresIllisibles(
+                f"{debut}n'est pas un JSON valide (ligne {e.lineno}, "
+                f"colonne {e.colno}). Le corriger avant de relancer.") from e
+        except UnicodeDecodeError as e:
+            raise ParametresIllisibles(
+                f"{debut}n'est pas enregistre en UTF-8. Le re-enregistrer "
+                f"en UTF-8 avant de relancer.") from e
+        if not isinstance(valeurs, dict):
+            raise ParametresIllisibles(
+                f"{debut}n'est pas un objet JSON "
+                f"{{ \"Parametre\": valeur, ... }}. Le corriger avant de "
+                f"relancer.")
         return {str(c).strip(): v for c, v in valeurs.items()}
     return _lire_feuille_heritee(chemin_classeur)
 

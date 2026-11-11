@@ -1100,6 +1100,16 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
 
     Retourne un ResultatCalage.
     """
+    # AUTANT D'APPORTS QUE DE SECTIONS ET DE CIBLES, OU RIEN (11/11/2026). La
+    # boucle les parcourt par zip() : une liste plus courte TRONQUAIT les
+    # autres en silence, et le calage finissait « non conforme » sans motif,
+    # apres des heures de calcul sur un sous-ensemble que personne n'avait
+    # demande. Le refus arrive avant modele.preparer(), donc avant tout calcul.
+    if not len(apports) == len(sections) == len(cibles):
+        raise ValueError(
+            f"{len(apports)} apport(s), {len(sections)} section(s) et "
+            f"{len(cibles)} cible(s) : il en faut autant de chaque, dans le "
+            f"meme ordre — un apport, sa section de controle, sa cible.")
     config = config or Configuration()
     dire = journal if journal is not None else print
     debut = time.time()

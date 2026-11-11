@@ -11,7 +11,10 @@ pas par un developpeur. Les entrees sont fabriquees avec les memes outils que
 ces deux filets, dont on reprend les fonctions.
 """
 import sys
+import types
+from contextlib import ExitStack
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
@@ -120,3 +123,195 @@ def test_caler_classeur_absent(tmp_path, capsys):
 def test_caler_cibles_sans_temps_h(tmp_path, capsys):
     erreur = _jouer("classeur/sans_temps_h", tmp_path, capsys)
     assert "Temps_h" in erreur and "feuille Cibles" in erreur
+
+
+# ===========================================================================
+# Second lot : les defauts restes ouverts apres le premier
+# ===========================================================================
+
+# --- 1. _correspondance : Ordre non numerique, hors controler_template ---------
+
+MSG_ORDRE_ILLISIBLE = ("feuille Correspondance illisible : colonne Ordre : "
+                       "valeur non numerique 'deux' (ligne 3)")
+
+
+def test_ordre_non_numerique_contre_modele(tmp_path):
+    corr = tcd._avec(tcd.CORR, Ordre=[1, "deux", 3])
+    anomalies = _anomalies(tcd._modele(tmp_path, corr=corr))
+    assert anomalies == [(tcd.cd.ERREUR, MSG_ORDRE_ILLISIBLE)]
+
+
+def test_ordre_non_numerique_geometrie(tmp_path):
+    corr = tcd._avec(tcd.CORR, Ordre=[1, "deux", 3])
+    anomalies = _anomalies(tcd._geo(tmp_path, corr=corr))
+    assert anomalies == [(tcd.cd.ERREUR, MSG_ORDRE_ILLISIBLE)]
+
+
+# --- 2. _cibles_depuis_classeur : colonnes et feuilles absentes ----------------
+
+def _classeur_pour_caler(dossier, corr, cibles):
+    """Ecrit donnees.xlsx ; une feuille None n'est pas ecrite du tout."""
+    import pandas as pd
+
+    with pd.ExcelWriter(dossier / "donnees.xlsx", engine="openpyxl") as w:
+        for nom, contenu in (("Correspondance", corr), ("Cibles", cibles)):
+            if contenu is not None:
+                pd.DataFrame(contenu).to_excel(w, sheet_name=nom, index=False)
+    # ni classeur ni feuille Parametres a ecrire : jouer() ne fabrique que le
+    # JSON des parametres et le projet.
+    sc = dict(tpc.BASE, classeur=False)
+    return sc
+
+
+def _entetes(contenu):
+    return str(list(contenu))
+
+
+@pytest.mark.parametrize("colonne", [tpc.COL_APPORT, tpc.COL_SECTION,
+                                     tpc.COL_CIBLE])
+def test_caler_correspondance_sans_colonne(tmp_path, capsys, colonne):
+    corr = tpc._avec(tpc.CORR, **{colonne: tpc._SUPPRIMER})
+    sc = _classeur_pour_caler(tmp_path, corr, tpc.CIBLES)
+    erreur = _reponse_refusee(sc, tmp_path, capsys)
+    nom = colonne.split(" ")[0]
+    assert erreur == (
+        f"classeur de saisie inexploitable : la feuille Correspondance n'a "
+        f"pas de colonne « {nom} » (en-tete de la ligne 1). En-tetes "
+        f"trouves : "
+        f"{_entetes(corr)}")
+
+
+@pytest.mark.parametrize("absente", ["Correspondance", "Cibles"])
+def test_caler_feuille_absente(tmp_path, capsys, absente):
+    corr = None if absente == "Correspondance" else tpc.CORR
+    cibles = None if absente == "Cibles" else tpc.CIBLES
+    sc = _classeur_pour_caler(tmp_path, corr, cibles)
+    erreur = _reponse_refusee(sc, tmp_path, capsys)
+    autre = "Cibles" if absente == "Correspondance" else "Correspondance"
+    assert erreur == (
+        f"classeur de saisie inexploitable : le classeur n'a pas de feuille "
+        f"« {absente} » (feuilles trouvees : ['{autre}'])")
+
+
+def _reponse_refusee(sc, tmp_path, capsys):
+    rendu = tpc.jouer(sc, tmp_path, capsys)
+    assert rendu["exception"] is None, (
+        f"exception brute : {rendu['exception']}")
+    assert rendu["code"] == 1 and rendu["reponse"]["ok"] is False
+    return rendu["reponse"]["erreur"]
+
+
+# --- 3. parametres.lire : JSON corrompu, pas un objet, pas en UTF-8 ------------
+
+def _json_en_defaut(dossier, octets):
+    """Classeur sain + JSON voisin aux octets donnes."""
+    chemin = tcd.classeur(dossier, params=None)
+    tcd.parametres.chemin(chemin).write_bytes(octets)
+    return chemin
+
+
+_JSON_FAUTIFS = {
+    "invalide": (b"{ pas du json",
+                 "n'est pas un JSON valide (ligne 1, colonne 3). Le "
+                 "corriger avant de relancer."),
+    "liste": (b"[1, 2]",
+              "n'est pas un objet JSON { \"Parametre\": valeur, ... }. Le "
+              "corriger avant de relancer."),
+    "latin1": ("{\"Nom_projet\": \"Gu\u00e9\"}".encode("latin-1"),
+               "n'est pas enregistre en UTF-8. Le re-enregistrer en UTF-8 "
+               "avant de relancer."),
+}
+
+
+def _message_json(defaut):
+    return (f"parametres du calage illisibles : « donnees.json » "
+            f"{_JSON_FAUTIFS[defaut][1]}")
+
+
+def _sans_ras_commander():
+    faux = types.ModuleType("ras_commander")
+    faux.HdfBndry = faux.HdfMesh = None
+    return mock.patch.dict(sys.modules, {"ras_commander": faux})
+
+
+@pytest.mark.parametrize("defaut", sorted(_JSON_FAUTIFS))
+@pytest.mark.parametrize("controle", ["template", "geometrie", "modele"])
+def test_json_illisible_meme_message_partout(tmp_path, defaut, controle):
+    chemin = _json_en_defaut(tmp_path, _JSON_FAUTIFS[defaut][0])
+    try:
+        with _sans_ras_commander():
+            if controle == "template":
+                anomalies = tcd.cd.controler_template(chemin)
+            elif controle == "geometrie":
+                anomalies = tcd.cd.controler_geometrie(chemin)[0]
+            else:
+                anomalies = tcd.cd.controler_contre_modele(chemin)
+    except Exception as e:  # noqa: BLE001
+        pytest.fail(f"exception brute : {type(e).__name__} : {e}")
+    assert anomalies == [(tcd.cd.ERREUR, _message_json(defaut))]
+
+
+@pytest.mark.parametrize("defaut", sorted(_JSON_FAUTIFS))
+def test_caler_json_illisible(tmp_path, capsys, defaut):
+    _json_en_defaut(tmp_path, _JSON_FAUTIFS[defaut][0])
+    sc = dict(tpc.BASE, params=None)
+    # Le classeur du scenario est ecrit par jouer() ; le JSON, deja la, reste.
+    assert _reponse_refusee(sc, tmp_path, capsys) == _message_json(defaut)
+
+
+# --- 4. cibles : valeurs manquantes, au milieu ou en fin de colonne ------------
+
+def _avertissements(rendu):
+    return [m for n, m in _anomalies(rendu) if n == tcd.cd.AVERTISSEMENT]
+
+
+def test_cible_trou_au_milieu(tmp_path):
+    # Index 3 de la colonne = ligne 5 de la feuille (l'en-tete est la ligne 1).
+    cibles = tcd._avec(tcd.CIBLES, C2=tcd._HYDRO[:3] + [None] + tcd._HYDRO[4:])
+    assert _avertissements(tcd._tpl(tmp_path, cibles=cibles)) == [
+        "cible 'C2' : valeurs manquantes intercalees (ligne 5 de la feuille "
+        "Cibles)"]
+
+
+def test_cible_trous_au_milieu_cites_par_cinq(tmp_path):
+    haut = tcd._HYDRO[:2] + [None] * 7 + tcd._HYDRO[9:]
+    cibles = tcd._avec(tcd.CIBLES, C2=haut)
+    assert _avertissements(tcd._tpl(tmp_path, cibles=cibles)) == [
+        "cible 'C2' : valeurs manquantes intercalees (lignes 4, 5, 6, 7, 8 "
+        "... de la feuille Cibles, 7 au total)"]
+
+
+def test_cible_trous_en_fin(tmp_path):
+    cibles = tcd._avec(tcd.CIBLES, C2=tcd._HYDRO[:9] + [None] * 3)
+    assert _avertissements(tcd._tpl(tmp_path, cibles=cibles)) == [
+        "cible 'C2' : 3 valeur(s) manquante(s) en fin de colonne"]
+
+
+def test_cible_trou_au_milieu_et_en_fin(tmp_path):
+    cibles = tcd._avec(tcd.CIBLES, C2=tcd._HYDRO[:3] + [None]
+                       + tcd._HYDRO[4:10] + [None] * 2)
+    assert _avertissements(tcd._tpl(tmp_path, cibles=cibles)) == [
+        "cible 'C2' : valeurs manquantes intercalees (ligne 5 de la feuille "
+        "Cibles)",
+        "cible 'C2' : 2 valeur(s) manquante(s) en fin de colonne"]
+
+
+# --- 5. objets_retires -----------------------------------------------------------
+
+def test_caler_objets_retires(tmp_path, capsys):
+    rendu = tpc.jouer(tpc.CAS["nominal"], tmp_path, capsys)
+    assert rendu["reponse"]["objets_retires"] == tpc.MENAGE["reliquats"]
+
+
+# --- 6. commande_modele : colonne de nom absente -----------------------------------
+
+def test_modele_sans_colonne_nom_ne_double_rien(tmp_path, capsys):
+    # test_pont_lecture fabrique ses .hdf avec h5py, absent du job « noyau » :
+    # ce test-ci se joue dans le job « chaine-hdf ».
+    pytest.importorskip("h5py")
+    import test_pont_lecture as tpl
+
+    reponse = tpl.jouer_modele("sans_colonne_nom", tmp_path, capsys)["reponse"]
+    assert [o["nom"] for o in reponse["sections"]] == ["S1", "S_\u00c9glise"]
+    assert [o["nom"] for o in reponse["injections"]] == ["A1", "A2"]
+    assert reponse["en_attente_pretraitement"] == []

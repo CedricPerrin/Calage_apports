@@ -1,5 +1,53 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 11 novembre 2026 (suite) : les défauts mineurs (PR 18, branche `claude/defauts-mineurs`, **non fusionnée**)
+
+Demandé par Cédric le 11/11 : « Traite les défauts mineurs » — la liste « restent ouverts » de la
+section ci-dessous. **Après la 0.9.33 : ces correctifs ne sont dans aucune version ni dans
+l'archive.** La fusion dans `main` et la montée de version attendent sa décision.
+
+| Où | Avant | Après |
+|---|---|---|
+| `criteres.diagnostiquer` | l'alerte du décalage hors fenêtre figurait deux fois | une fois |
+| | des valeurs manquantes donnaient « série constante » | « valeurs manquantes dans la cible / le calcul » |
+| | un axe des temps décroissant passait pour des fenêtres disjointes | l'axe fautif est nommé |
+| | série vide, longueurs différentes, pas nul : `IndexError` ou erreur de numpy | `ValueError` en clair |
+| `calage.caler` | listes de longueurs différentes tronquées en silence | refus avant tout calcul |
+| `controle_donnees` | un trou au milieu d'une cible n'était pas vu ; un vide de fin était dit « intercalé » | trou cité avec ses lignes ; vide de fin dit tel |
+| | `Ordre` non numérique : `TypeError` | anomalie en clair |
+| `parametres.lire` | JSON illisible : trois exceptions selon l'appelant | `ParametresIllisibles`, une phrase, rendue partout |
+| `pont` | feuille ou colonne absente : `StopIteration`, message de pandas | `ok: false` en clair |
+| | `objets_retires` toujours `[]` | les reliquats retirés |
+| | HDF sans colonne de nom : chaque ligne en double | le texte donne les noms, sans doublon |
+| | pente saisie à 0, hors plage ou en lettres : écartée sans un mot | dite au journal (la pente appliquée ne change pas) |
+| `pilote_hecras` | nom de reference line en cp1252 lu avec « ? » | UTF-8 strict, cp1252, latin-1 |
+| Note de synthèse | « ras-commander v0.99.1 » en dur | la version installée ; inconnue, pas de numéro |
+| `noyau.importer_hydrogrammes` | fichier non Excel : `BadZipFile` et un conseil faux | refus par une phrase |
+
+**Méthode.** Un essai d'intention par défaut, rouge avant et vert après :
+`src/test_defauts_mineurs.py` (26) et `src/test_exceptions_brutes.py` (+25). Les sept points de
+`controle_donnees`, `parametres` et du pont ont été écrits par un agent Sonnet, puis arbitrés :
+périmètre, tests rejoués sur la base (25 rouges) et sur la tête, cinq fautes injectées (cinq
+attrapées), une retouche de libellé (« en-tête de la ligne 1 »). Le reste est de l'arbitre.
+
+**Filets refigés, et seulement les cas qui figeaient un défaut** — écarts prouvés par script,
+**aucun nombre ne change** : `diagnostic` (12 scénarios ; 63 entrées du lot, alertes seules),
+`journal_caler` (5 scénarios), `livrables_chaine` (22 notes : la version seule ; 2 cas : le
+doublon), `noyau_classeur` (1), `controle_donnees` (4), `pont_caler` (`objets_retires` seul),
+`pont_lecture` (2). Le filet des livrables fixe désormais la version citée (`0.0.filet`), pour
+ne pas dépendre du poste.
+
+**Banc complet conforme** : 894 tests hors QGIS, 472 `[OK]` du plugin sous QGIS 3.44, installation,
+peinture et alertes du Suivi.
+
+**Non vérifié** : le rendu des nouveaux messages dans la fenêtre ; un vrai HDF dont une reference
+line porte un accent ; un vrai HDF sans colonne de nom (démontré sur doublures seulement).
+
+**Restent ouverts** (voir `STATUT.txt`) : le re-cadencage sans nom de zone 2D et son instant de
+plan invalide (décision attendue) ; l'alerte de couverture qui s'écrit « 0.0 h … 100 % » ; un
+trou en tête de colonne cible ; un `.xlsx` corrompu dans `_cibles_depuis_classeur` ; une source
+d'import jamais recalculée par Excel.
+
 ## 11 novembre 2026 : cinq correctifs, et le re-cadencage rendu bavard (PR 9 à 15, fusionnées dans `main` le jour même ; version 0.9.33, non publiée)
 
 Demandés par Cédric le 11/11, après la liste des défauts relevés pendant le remaniement.
