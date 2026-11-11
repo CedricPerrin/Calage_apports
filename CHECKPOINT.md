@@ -1,30 +1,53 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
-## 11 novembre 2026 : correctif de l'import des hydrogrammes (branche `claude/correctif-import-hydrogrammes`, non fusionnée, sans version)
+## 11 novembre 2026 : cinq correctifs et un diagnostic (PR 9 à 13, réunis sur `claude/correctifs-ensemble`, non fusionnés, sans version)
 
-**Le défaut.** `noyau.importer_hydrogrammes` ne vidait jamais les lignes de l'Excel de ce
-calcul situées au-delà de la source : il écrivait `feuille.cell(row, column, value=None)`, et
-openpyxl n'affecte une valeur passée à `cell()` que si elle n'est pas `None`. Un hydrogramme
-importé **plus court** que le précédent gardait donc la queue de l'ancien — une cible mêlée
-de deux crues, sans message. Même cause pour un **trou au milieu** de la source : l'ancienne
-valeur restait dessous.
+Demandés par Cédric le 11/11, après la liste des défauts relevés pendant le remaniement.
+**Rien n'est fusionné**, pas de montée de version, pas d'entrée dans `metadata.txt` : à faire
+à la fusion. Chaque correctif vit sur sa branche, partie de `claude/optimisation-code`, avec
+un test qui dit ce que le code **doit** faire (rouge avant, vert après) ; dans les filets, seuls
+les cas qui figeaient le défaut ont été refigés. `claude/correctifs-ensemble` les réunit, et
+le banc complet y est conforme.
 
-**Le correctif.** Une ligne dans `_recopier_cibles` : la cellule est écrite par `.value = `.
-Aucun autre appel du dépôt n'écrit `None` sur place de cette façon (vérifié sur tous les
-appels à `cell(..., value=...)`).
+| PR | Défaut | Correctif | Test | Cas refigés |
+|---|---|---|---|---|
+| 9 | L'import d'un hydrogramme plus court gardait la queue de l'ancien ; un trou de la source gardait l'ancienne valeur | cellule écrite par `.value =` (openpyxl ignore `value=None` passé à `cell()`) | `test_import_hydrogrammes.py` (4) | 1 sur 64 |
+| 10 | Un nom de section en cp1252 rendait tout le HDF illisible ; une unité de temps autre que le jour était lue comme des heures | UTF-8 strict, puis cp1252, puis latin-1 ; unité convertie ou refusée | `test_lecture_hdf.py` (15) | 2 sur 116 |
+| 11 | Le désaccord de dossier du Suivi n'était jamais dit ; un état illisible remettait la page à zéro | constante `ORIGINE_SUIVI_EXCEL` ; `noyau.avancement_illisible`, affichage précédent conservé et dit | `test_alertes_suivi.py` (9, QGIS) | 2 scénarios sur 90 |
+| 12 | Sept saisies fautives levaient une exception brute | anomalies du contrôle, ou réponse `ok: false` de `caler` | `test_exceptions_brutes.py` (9) | 8 sur 241 |
+| 13 | Un échec d'écriture laissait le dossier sans classeur ; deux compositions plus tard la saisie était perdue | le classeur mis de côté est remis en place | `test_classeur_perdu.py` (5) | 1 sur 64 |
 
-**Les essais.** `src/test_import_hydrogrammes.py` (4 tests) dit ce que l'import **doit**
-faire : deux tests échouaient avant le correctif et passent après (import plus court, trou
-de la source) ; deux gardent ce qui ne doit pas bouger (l'Excel d'avant conserve l'ancien
-hydrogramme entier ; une cible absente de la source reste intacte). Dans le filet
-`test_noyau_classeur.py`, **un seul cas sur 64** change et a été refigé :
-`importer/cible_plus_longue_videe_dessous` (les quatre cellules de queue disparaissent, la
-feuille passe de `A1:D6` à `A1:D4`). Branché dans le job `noyau` de la CI.
+La PR 12 a été écrite par un agent Sonnet, puis arbitrée (5 fautes injectées, 5 attrapées) et
+retouchée (le jumeau `Nom_Apport` du défaut `Nom_Section`). Les autres sont de l'arbitre.
 
-**Non fait, à faire à la fusion.** Pas de montée de version, pas d'entrée dans
-`metadata.txt`. Rien essayé dans le QGIS du poste ni sur un classeur réel d'étude. La branche
-part de `claude/optimisation-code` (elle a besoin du filet qui y vit) : à fusionner après
-elle, ou avec elle.
+**Le re-cadencage : diagnostiqué, pas modifié.** L'annonce « 1 à 2 % d'écart de volume »
+était fausse : elle venait de séries d'essai de quelques valeurs. Mesuré en appelant la vraie
+fonction sur des crues réalistes, contre la série d'origine lue comme HEC-RAS la lit :
+- le **volume** est conservé à mieux que 0,03 % ;
+- la **pointe** des conditions limites **non calées** est rabotée quand le pas de travail ne
+  divise pas le pas d'origine. Écart maximal, en % de la pointe, pour 15 → 6 min : 0,03
+  (montée en 12 h), 0,3 (3 h), 2,1 (1 h 15), 3,2 (45 min) ; nul pour 30 → 6 min ;
+- vers un pas plus grossier (cible à 30 min, condition à 6 min) : jusqu'à 12 % sur la pointe
+  d'une crue éclair.
+
+Les apports calés ne sont pas concernés : ils sont réécrits en entier à chaque essai. La
+suite est à décider (prévenir, ne plus re-cadencer les conditions non calées, ou laisser).
+
+**CI.** Un seul déclenchement par poussée depuis le 11/11 (`push` sur `main`, `pull_request`
+pour les branches) : une branche qui avait une PR jouait le workflow deux fois. Les jobs ne
+démarrent plus depuis le 10/11 au soir (quota ou facturation Actions du compte) : **aucun
+correctif n'a été joué par la CI.** À la place : banc complet sur ce poste (Python 3.13,
+QGIS 3.44), conforme sur chaque branche et sur l'assemblage.
+
+**Non vérifié.** Rien dans le QGIS du poste, rien sous Windows, rien sous QGIS 4.2, aucun
+HEC-RAS réel. Les HDF de la PR 10 sont fabriqués : que HEC-RAS écrive ses noms en cp1252
+reste une hypothèse, à vérifier sur un vrai `.pNN.hdf` portant une section accentuée. Les
+échecs d'écriture de la PR 13 sont simulés. Les messages des PR 11 et 12 n'ont pas été relus
+à l'écran.
+
+**Pour reprendre.** Rétablir le quota Actions et relancer les jobs ; relire les PR 9 à 13
+(ou la seule PR d'assemblage) ; fusionner la PR 8 d'abord ; décider de la suite du
+re-cadencage. Restent ouverts : `STATUT.txt`, section 6.
 
 ## 10 novembre 2026 (soir) : remaniement du code sans changement de comportement (branche `claude/optimisation-code`, PR 8 en brouillon, sans version)
 
