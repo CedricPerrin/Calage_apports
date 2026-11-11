@@ -4022,8 +4022,24 @@ dates fictives au 1er janvier.
     filet, et les trois filets numeriques (caler, diagnostic, livrables)
     comptent desormais les jeux d'instructions de numpy dans leur socle. Se
     rejoue par NPY_DISABLE_CPU_FEATURES="X86_V4 AVX512_ICL AVX512_SPR".
-    DECISIONS EN ATTENTE : convertir les bancs en pytest ; sort de
-    masque_fenetre ; alleger les references (4,5 Mo). L'objet d'etat partage
+    LES BANCS EMBARQUES SONT EXPOSES A pytest, PAS REECRITS (11/11/2026,
+    decision prise avec la vue « long terme, partage » de l'utilisateur).
+    Les reecrire — 6 700 lignes de scenarios qui se suivent et partagent
+    leur etat, 660 controles — couterait cher, pour un risque reel et aucun
+    controle de plus. src/test_bancs.py lance chaque banc comme la CI le
+    lancait, compte ses [OK] et ses [ECHEC], nomme ceux qui echouent, exige
+    le code 0 et AU MOINS le nombre de controles releve ce jour (un banc
+    arrete en chemin fait moins de controles, pas des controles faux).
+    « pytest src » joue donc tout. Trois fautes injectees dans un banc
+    (controle faux, arret en chemin, code de sortie), trois attrapees.
+    LA CI NE LANCE PLUS LES BANCS A LA MAIN : elle joue src/test_bancs.py.
+    LE BANC DU PILOTE Y ENTRE (209 controles, jusque-la absents de la CI) :
+    ses six controles qui tiennent a Windows sont nommes et toleres hors de
+    Windows — avec un ras-commander recent, deux seulement echouent.
+    REGLE : on n'ajoute plus de controle a un banc ; les nouveaux tests
+    s'ecrivent en pytest.
+    DECISIONS EN ATTENTE : sort de masque_fenetre ; alleger les references
+    (4,5 Mo). L'objet d'etat partage
     du dialogue est TRANCHE (11/11/2026, section 1) : pas d'objet, une
     frontiere fenetre / noyau, etapes A, B1 et B2 faites.
 
