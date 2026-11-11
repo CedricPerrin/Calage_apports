@@ -285,7 +285,7 @@ et là qu'un contributeur casserait quelque chose sans le voir.
 |---|---|---|
 | A | Les refus de la composition dans `noyau.py` (`refus_avant_composition`, `refus_appariement`, `dire_pentes_pre_remplies`), éprouvés sans QGIS (`src/test_refus_composition.py`) ; le raccord de la fenêtre éprouvé sous QGIS (`src/test_composition_fenetre.py`) | fait le 11/11/2026 |
 | B1 | **La composition.** La fenêtre lit ses widgets en valeurs simples (`_saisie_de_composition`, les arguments de `noyau.parametres_calage`) ; `noyau.composer_classeur` enchaîne paramètres, appariement, pentes, Excel des objectifs, sous-dossiers et contrôle. `_composer_et_controler_interne` : 211 → 117 lignes | fait le 11/11/2026 |
-| B2 | **Le lancement.** Même principe pour `_lancer_calage` (168 lignes) : les réglages de lancement écrits par `noyau.py`, les refus et leurs textes aussi | à faire |
+| B2 | **Le lancement.** La fenêtre lit ses réglages en valeurs simples (`_reglages_de_lancement`) et affiche les refus (`_dire_refus_de_lancement`) ; `noyau.preparer_lancement` lit l'état des cibles, écrit les neuf réglages (`ecrire_reglages_de_lancement`), puis refuse si une cible manque ou si HEC-RAS est ouvert (`LancementRefuse`). `_lancer_calage` : 168 → 75 lignes | fait le 11/11/2026 |
 
 **Comment l'étape B1 a été tenue.** Un filet a d'abord été écrit sur le code inchangé
 (`src/test_composition_fenetre.py`, `reference_composition_fenetre.json`, neuf cas sous QGIS) :
@@ -296,6 +296,19 @@ puis le classeur **dès qu'ils existent** (argument `suivre`) : un appariement r
 lisible, un classeur écrit reste celui de la fenêtre quand son contrôle lève — comme avant.
 Sans QGIS, `src/test_refus_composition.py` l'éprouve avec des doublures, puis pour de vrai sur
 un paquet composé depuis des couches fabriquées (une seconde).
+
+**L'étape B2, même méthode.** Filet d'abord sur le code inchangé (`src/test_lancement_fenetre.py`,
+`reference_lancement_fenetre.json`, seize cas sous QGIS, un par porte) : chaque appel à
+`noyau.py`, chaque boîte, chaque message de la barre, chaque ligne du journal de QGIS, et ce que
+la fenêtre retient à la fin. Il passe sans retouche sur le code déplacé. L'ordre d'avant est
+gardé, et il compte : les réglages sont écrits **avant** le refus sur les cibles. Les widgets
+sont lus au dernier moment (la fenêtre passe sa méthode de lecture, pas son résultat), après
+l'état des cibles. Sans QGIS : `src/test_lancement_noyau.py`.
+
+**Ce qui reste dans la fenêtre, à dessein** : les deux premières portes du lancement (paquet
+non composé, « ! » rouge d'un réglage changé), qui ne lisent que l'état de l'écran ; les
+questions posées à l'utilisateur (calage déjà en cours, plan final, reprise) ; l'appel à
+`noyau.lancer_calage` et ce qu'elle retient ensuite.
 
 **Ce que l'étape A n'a pas déplacé** : le refus d'une projection géographique. Il interroge
 `QgsCoordinateReferenceSystem`, que `noyau.py` n'importe pas ; le rejouer avec une autre

@@ -5069,6 +5069,51 @@ class DialogueParametrage(QDialog):
             return False
         return True
 
+    def _reglages_de_lancement(self):
+        """
+        Les reglages qui se decident AU LANCEMENT, lus dans les widgets, en
+        valeurs simples. noyau.ecrire_reglages_de_lancement les ecrit dans le
+        classeur : c'est lui que la chaine lit, pas la fenetre.
+        """
+        return dict(
+            premier_apport=self._premier_apport(),
+            prefixe_scenario=self.edit_prefixe_scenario.text().strip(),
+            tolerance_volume_pct=self.spin_tol_volume.value(),
+            tolerance_pic_pct=self.spin_tol_pic.value(),
+            bilan_masse_max_pct=self.spin_bilan_masse.value(),
+            nb_max_iterations=self.spin_nb_max_essais.value(),
+            # 0 = plan inchange ; sinon la suggestion du poste, cochee.
+            coeurs_par_calcul=self._coeurs_demandes(),
+            elaguer_etapes=self.case_elaguer.isChecked(),
+            # L'ACCORD DONNE A LA QUESTION DU LANCEMENT, et lui seul : faux
+            # tant que _accepter_plan_final ne l'a pas recu.
+            remplacer_plan_source=self._remplacer_plan_source)
+
+    def _dire_refus_de_lancement(self, refus):
+        """
+        Affiche un refus de noyau.preparer_lancement. La fenetre ne choisit
+        que la FORME : une panne (etat illisible, reglages non ecrits) va au
+        journal de QGIS et dans une boite d'erreur ; un refus (cibles
+        incompletes, HEC-RAS ouvert) dans une boite d'avertissement.
+        """
+        if refus.contexte:
+            journaliser(refus.contexte, refus.__cause__)
+            QMessageBox.critical(self, refus.titre, refus.message)
+        elif refus.nature == "cibles":
+            # Une boite que l'on LIT, et la methode s'arrete apres : le sablier
+            # se retire, il ne se suspend pas (convention rendre_la_main).
+            rendre_la_main(self)
+            QMessageBox.warning(self, refus.titre, refus.message)
+        else:
+            # UN SEUL BOUTON, « Ok ». Il n'y a rien a arbitrer : fermer
+            # HEC-RAS coute quelques secondes (voir noyau.preparer_lancement).
+            with sans_sablier(self):
+                QMessageBox.warning(self, refus.titre, refus.message,
+                                    QMessageBox.StandardButton.Ok)
+            dire(self.label_lancement,
+                 "Lancement refusé — fermer HEC-RAS, puis relancer.")
+
+
     def _lancer_calage(self):
         """
         Lance la boucle de calage complete en arriere-plan. Ne bloque JAMAIS
@@ -5108,107 +5153,18 @@ class DialogueParametrage(QDialog):
         # reglages, qui emporte « Premier_apport » dans le classeur.
         if not self._accepter_plan_final() or not self._confirmer_reprise():
             return
+        # LA FENETRE LIT, noyau.py DECIDE (11/11/2026, etape B2). L'etat des
+        # cibles, l'ecriture des reglages de lancement, les cibles manquantes
+        # et HEC-RAS ouvert : noyau.preparer_lancement les enchaine dans
+        # l'ordre d'avant et REFUSE par une LancementRefuse, que la fenetre
+        # ne fait qu'afficher. Les reglages sont lus AU DERNIER MOMENT — la
+        # methode est passee, pas son resultat —, apres la lecture de l'etat
+        # des cibles et dans le meme filet que leur ecriture, comme avant.
         try:
-            etat = noyau.etat_cibles(self.classeur)
-        except Exception as e:
-            journaliser("État des cibles avant lancement", e)
-            QMessageBox.critical(self, "Calage", str(e))
-            return
-        # LE PREMIER APPORT EST UN REGLAGE DE LANCEMENT, pas de composition :
-        # on l'ecrit dans le classeur juste avant de partir. Sans cela, le
-        # choix fait apres la composition — ou apres la reouverture d'un
-        # classeur d'un calcul precedent — serait ignore en silence.
-        try:
-            noyau.ecrire_parametre(self.classeur, "Premier_apport",
-                                   self._premier_apport())
-            # MEME RAISON pour le prefixe : c'est le classeur que le pont lit,
-            # et un prefixe modifie apres la composition y resterait perime.
-            noyau.ecrire_parametre(
-                self.classeur, "Prefixe_scenario",
-                self.edit_prefixe_scenario.text().strip())
-            # ET LES OBJECTIFS DE PRECISION, POUR LA MEME RAISON. Ils ne
-            # partaient dans le classeur qu'a la COMPOSITION : les resserrer
-            # ensuite n'avait aucun effet, la chaine lisant le classeur et non
-            # la fenetre. On voyait « +/-2 % » a l'ecran et le calage
-            # s'arretait a 5 %.
-            #   La reprise d'un classeur, qui relisait ces valeurs dans l'autre
-            # sens, n'existe plus depuis le 24/09/2026 : « Importer des
-            # hydrogrammes d'un calcul precedent » n'apporte que les cibles et
-            # les pentes, jamais les reglages.
-            for cle, valeur in (
-                    ("Tolerance_volume_pct", self.spin_tol_volume.value()),
-                    ("Tolerance_pic_pct", self.spin_tol_pic.value()),
-                    ("Bilan_masse_max_pct", self.spin_bilan_masse.value()),
-                    ("Nb_max_iterations_par_apport",
-                     self.spin_nb_max_essais.value()),
-                    # 0 = plan inchange ; sinon la suggestion du poste, cochee.
-                    ("Coeurs_par_calcul", self._coeurs_demandes()),
-                    # LA CASE D'ELAGAGE VIT A L'ETAPE LANCER, et n'etait
-                    # ecrite qu'a la composition : cochee ensuite, elle etait
-                    # ignoree sans un mot (24/09/2026).
-                    ("Elaguer_plans_etape",
-                     "oui" if self.case_elaguer.isChecked() else "non"),
-                    # L'ACCORD DONNE A LA QUESTION DU LANCEMENT, et lui seul :
-                    # « non » tant que _accepter_plan_final ne l'a pas recu.
-                    ("Remplacer_plan_source",
-                     "oui" if self._remplacer_plan_source else "non")):
-                noyau.ecrire_parametre(self.classeur, cle, valeur)
-        except Exception as e:
-            journaliser("Écriture des paramètres de lancement", e)
-            QMessageBox.critical(
-                self, "Réglages de lancement",
-                f"Les réglages de lancement n'ont pas pu être écrits dans le "
-                f"classeur : {e}\n\nLe calage n'est pas lancé — il serait "
-                f"parti sur un réglage autre que celui affiché.")
-            return
-        # UN REFUS, PAS UNE QUESTION. « Lancer quand même (les apports
-        # concernés seront ignorés) ? » etait faux : la chaine REFUSE tout le
-        # classeur des qu'une seule cible manque (pont_hecras, commande_caler).
-        # Repondre oui annoncait « Calage lancé (PID …) », l'onglet Suivi
-        # restait a « Aucun calage suivi » pour toujours, et le refus ne vivait
-        # que dans le journal de lancement — la mise en scene meme du
-        # 04/09/2026.
-        if etat["manquantes"]:
-            # Une boite que l'on LIT, et la methode s'arrete apres : le sablier
-            # se retire, il ne se suspend pas (convention rendre_la_main).
-            rendre_la_main(self)
-            QMessageBox.warning(
-                self, "Hydrogrammes cibles incomplets",
-                f"{compte(len(etat['manquantes']), 'section')} sur {etat['total']} "
-                f"sans hydrogramme cible exploitable : "
-                f"{', '.join(etat['manquantes'])}.\n\n"
-                f"Le calage n'est pas lancé : la chaîne refuse un classeur "
-                f"incomplet, elle n'ignore pas les apports concernés. "
-                f"Compléter la feuille « Cibles » — une colonne « Temps_h » "
-                f"et au moins deux instants en face des débits — puis "
-                f"relancer.")
-            return
-        # HEC-RAS OUVERT : ON REFUSE (0.8.4, demande utilisateur).
-        #
-        # La 0.7.24 posait une QUESTION, au motif que l'interface peut etre
-        # ouverte sur un AUTRE projet et que tasklist ne dit que « Ras.exe
-        # tourne ». La question a ete essayee, et le texte qui la portait
-        # etait trop long pour etre lu au moment ou l'on veut lancer : on
-        # repondait « Oui ». Le calage partait, et s'arretait 218 s plus tard
-        # sur un calcul de reference sans resultats (09/09/2026).
-        #
-        # UN SEUL BOUTON, « Ok ». Il n'y a rien a arbitrer : fermer HEC-RAS
-        # coute quelques secondes, le laisser ouvert coute le calage et peut
-        # abimer le modele. Le cas legitime — HEC-RAS ouvert sur un AUTRE
-        # projet — se regle en le fermant lui aussi.
-        #
-        # « None » N'ARRETE RIEN : hors de Windows, ou si tasklist est
-        # indisponible, on ne sait pas, et refuser sur une ignorance
-        # bloquerait un lancement valide.
-        if noyau.hecras_ouvert() is True:
-            with sans_sablier(self):
-                QMessageBox.warning(
-                    self, "HEC-RAS est ouvert",
-                    "HEC-RAS est ouvert sur ce poste. Ce n'est pas permis "
-                    "par le plugin. Fermer HEC-RAS et relancer le calage.",
-                    QMessageBox.StandardButton.Ok)
-            dire(self.label_lancement,
-                 "Lancement refusé — fermer HEC-RAS, puis relancer.")
+            noyau.preparer_lancement(self.classeur,
+                                     self._reglages_de_lancement)
+        except noyau.LancementRefuse as refus:
+            self._dire_refus_de_lancement(refus)
             return
         try:
             info = noyau.lancer_calage(self.classeur)
@@ -5225,12 +5181,7 @@ class DialogueParametrage(QDialog):
         # LIBELLES : « Échec au démarrage : <chemin> » se lisait comme une
         # annonce d'échec alors que le calage venait de partir. Un chemin ne
         # doit jamais être introduit par un mot qui décrit un état.
-        message = (
-            f"Calage lancé en arrière-plan (processus {info['pid']}).\n"
-            f"Suivre l'avancement à l'étape « 4. Suivi », qui se rafraîchit "
-            f"toute seule quand elle est affichée.\n"
-            f"Journal de lancement : {info['journal']}")
-        dire(self.label_lancement, message)
+        dire(self.label_lancement, noyau.dire_calage_lance(info))
         # PLUS DE BASCULE VERS LE SUIVI (24/09/2026, demande utilisateur) : la
         # fenetre reste ou l'on est ; « Consulter le suivi », a cote du bouton
         # de lancement, et le lien du fil conducteur y menent.

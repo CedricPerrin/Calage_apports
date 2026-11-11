@@ -76,7 +76,21 @@ mineurs, la 0.9.35 le refus du re-cadencage sans nom de zone 2D (PR 20), la
     le meme etat qu'avant. Sans QGIS : src/test_refus_composition.py, avec
     des doublures puis pour de vrai (paquet compose depuis des couches
     fabriquees, une seconde). Aucun changement de comportement.
-    ETAPE B2, A FAIRE (le lancement) : meme principe pour _lancer_calage.
+    ETAPE B2, FAITE (le lancement) : la fenetre lit ses reglages en
+    valeurs simples (_reglages_de_lancement) et AFFICHE les refus
+    (_dire_refus_de_lancement) ; noyau.preparer_lancement lit l'etat des
+    cibles, ecrit les neuf reglages (ecrire_reglages_de_lancement), puis
+    refuse si une cible manque ou si HEC-RAS est ouvert (LancementRefuse :
+    nature, titre, message). _lancer_calage : 168 -> 75 lignes. MEME
+    METHODE : filet d'abord sur le code inchange
+    (src/test_lancement_fenetre.py, seize cas sous QGIS, un par porte :
+    appels a noyau.py, boites, barre de messages, journal de QGIS, etat
+    retenu), qui passe sans retouche. L'ORDRE D'AVANT EST GARDE : les
+    reglages sont ecrits AVANT le refus sur les cibles. Sans QGIS :
+    src/test_lancement_noyau.py. Restent dans la fenetre, a dessein : les
+    deux portes qui ne lisent que l'ecran (paquet non compose, « ! »
+    rouge), les questions posees a l'utilisateur, l'appel a lancer_calage.
+    LA FRONTIERE EST EN PLACE pour la composition et le lancement.
   Bancs embarques : sortis des modules vers src/bancs/banc_<module>.py ;
   « python src/<module>.py » les joue toujours (relais). L'archive du
   plugin ne les embarque plus : 561 -> 478 ko.
@@ -4011,7 +4025,7 @@ dates fictives au 1er janvier.
     DECISIONS EN ATTENTE : convertir les bancs en pytest ; sort de
     masque_fenetre ; alleger les references (4,5 Mo). L'objet d'etat partage
     du dialogue est TRANCHE (11/11/2026, section 1) : pas d'objet, une
-    frontiere fenetre / noyau, etapes A et B1 faites, B2 a faire.
+    frontiere fenetre / noyau, etapes A, B1 et B2 faites.
 
 
   - LE CALAGE REPRIS DE SUHIHANDIA S'ARRETE AU CALCUL DE REFERENCE (14/09).
