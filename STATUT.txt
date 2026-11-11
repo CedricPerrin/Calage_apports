@@ -4044,7 +4044,19 @@ dates fictives au 1er janvier.
     seul un test appelle fait croire qu'un chemin est couvert alors qu'il
     n'existe pas. Le controle part avec elle : le banc de calage.py compte
     141 controles (142 avant).
-    DECISION EN ATTENTE : alleger les references (4,5 Mo). L'objet d'etat
+    LES REFERENCES DES FILETS NE SONT PAS ALLEGEES (11/11/2026). MESURE :
+    4,5 Mo de texte, mais 0,34 Mo une fois compressees — c'est ce que git
+    garde, pour un depot de 5,25 Mo. Les reduire (empreintes a la place des
+    contenus, fichiers compresses) ferait gagner peu et perdre l'essentiel :
+    un filet qui dit CE QUI a change. Ce qui coute dans une reference n'est
+    pas son poids, c'est de RELIRE SON DIFF apres un refigeage — et l'outil
+    qui le relisait vivait hors du depot, chez l'arbitre.
+    IL EST DANS LE DEPOT : tools/comparer_references.py. Pour chaque
+    reference, les cas qui different de HEAD (ou de --base), ce qui y est
+    retire, ajoute, modifie, et SI DES NOMBRES ONT CHANGE (--strict : code 1).
+    A LANCER AVANT DE COMMITTER UNE REFERENCE REFIGEE. Lui-meme eprouve
+    (src/test_comparer_references.py), une faute injectee attrapee.
+    PLUS AUCUNE DECISION DE CONCEPTION N'EST EN ATTENTE. L'objet d'etat
     partage du dialogue est TRANCHE (11/11/2026, section 1) : pas d'objet, une
     frontiere fenetre / noyau, etapes A, B1 et B2 faites.
 
