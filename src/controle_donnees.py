@@ -315,9 +315,32 @@ def _regle_hydrogramme_cible(nom, colonne):
         anomalies.append((ERREUR, f"cible '{nom}' : contient des debits negatifs"))
     if float(valides.max()) <= 0:
         anomalies.append((ERREUR, f"cible '{nom}' : hydrogramme identiquement nul"))
-    if serie.isna().sum() > 0 and serie.dropna().index.max() < len(serie) - 1:
+    # ENTRE LA PREMIERE ET LA DERNIERE VALEUR : un trou intercale, que la
+    # chaine ecarte sans rien dire (_cibles_depuis_classeur ne garde que les
+    # lignes pleines). Les vides qui suivent la derniere valeur sont autre
+    # chose : une cible plus courte que Temps_h, que la chaine accepte ; c'est
+    # le pre-vol qui la compare a la duree simulee.
+    vide = serie.isna().to_numpy()
+    positions = np.flatnonzero(~vide)
+    trous = [int(i) for i in np.flatnonzero(vide)
+             if positions[0] < i < positions[-1]]
+    if trous:
+        # +2 : l'index commence a 0, l'en-tete est la ligne 1 de la feuille.
+        lignes = [i + 2 for i in trous]
+        if len(lignes) > 5:
+            cites = (f"lignes {', '.join(map(str, lignes[:5]))} ... de la "
+                     f"feuille Cibles, {len(lignes)} au total")
+        else:
+            cites = (f"{'lignes' if len(lignes) > 1 else 'ligne'} "
+                     f"{', '.join(map(str, lignes))} de la feuille Cibles")
         anomalies.append((AVERTISSEMENT,
-                          f"cible '{nom}' : valeurs manquantes intercalees"))
+                          f"cible '{nom}' : valeurs manquantes intercalees "
+                          f"({cites})"))
+    en_fin = len(vide) - 1 - positions[-1]
+    if en_fin:
+        anomalies.append((AVERTISSEMENT,
+                          f"cible '{nom}' : {en_fin} valeur(s) manquante(s) "
+                          f"en fin de colonne"))
     return anomalies
 
 
