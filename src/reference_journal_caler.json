@@ -1,6 +1,6 @@
 {
  "_a_propos": "Caracterisation de caler() : journal, appels au modele et au suivi, resultat, scenario par scenario. NE PAS MODIFIER A LA MAIN : « python src/test_caracterisation_caler.py --figer » le reecrit, quand le changement de comportement est VOULU.",
- "_produit_par": {"python": "3.13.18", "numpy": "2.5.3", "systeme": "Linux", "machine": "x86_64"},
+ "_produit_par": {"python": "3.13.18", "numpy": "2.5.3", "systeme": "Linux", "machine": "x86_64", "simd": "X86_V3+X86_V4+AVX512_ICL+AVX512_SPR"},
  "scenarios": {
   "conforme_un_essai_avec_suivi": [
    ["horloge", 0.0],
