@@ -21,6 +21,11 @@ pilote_hecras
 noyau.importer_hydrogrammes
   - un fichier qui n'est pas un Excel est refuse par une phrase, comme sa
     docstring le promet (c'etait zipfile.BadZipFile).
+livrables.synthese
+  - la note cite la version de ras-commander installee, pas « v0.99.1 ».
+pont_hecras._appliquer_pentes
+  - une pente saisie mais non retenue (0, hors plage, du texte) est DITE au
+    journal, au lieu de ceder en silence a la pente du profil en long.
 
     python -m pytest src/test_defauts_mineurs.py -q
 """
@@ -255,3 +260,52 @@ def test_un_fichier_qui_n_est_pas_un_excel_est_refuse_par_une_phrase(
     assert "Excel" in str(erreur.value)
     assert cible.read_bytes() == avant, "l'Excel du calcul a ete touche"
     assert not list(tmp_path.glob("*.precedent.xlsx"))
+
+
+# --- pont_hecras._appliquer_pentes --------------------------------------------
+
+class _Pilote:
+    def __init__(self):
+        self.pentes = {}
+
+
+def _classeur_avec_pentes(chemin, pentes):
+    import openpyxl
+
+    classeur = openpyxl.Workbook()
+    feuille = classeur.active
+    feuille.title = "Correspondance"
+    feuille.append(["Ordre", "Nom_Apport (BC line)",
+                    "Nom_Section (reference line)", "Nom_Cible",
+                    "Pente_m_par_m"])
+    for i, (nom, pente) in enumerate(pentes.items(), start=1):
+        feuille.append([i, nom, f"S{i}", f"Cible_S{i}", pente])
+    classeur.save(chemin)
+    return chemin
+
+
+def test_une_pente_saisie_mais_non_retenue_est_dite_au_journal(
+        tmp_path, monkeypatch, capsys):
+    pytest.importorskip("openpyxl")
+    import pont_hecras
+
+    saisies = {"A1": 0.004, "A2": 0, "A3": "x", "A4": 2.5, "A5": None,
+               "A6": "0,002", "A7": "  "}
+    classeur = _classeur_avec_pentes(tmp_path / "donnees.xlsx", saisies)
+    monkeypatch.setattr(pont_hecras, "_pentes_deduites",
+                        lambda *a, **k: {nom: 0.01 for nom in saisies})
+    pilote = _Pilote()
+
+    pont_hecras._appliquer_pentes(pilote, classeur, list(saisies))
+
+    # LES VALEURS APPLIQUEES NE CHANGENT PAS : seule la parole est ajoutee.
+    assert pilote.pentes == {"A1": 0.004, "A2": 0.01, "A3": 0.01, "A4": 0.01,
+                             "A5": 0.01, "A6": 0.002, "A7": 0.01}
+    journal = capsys.readouterr().out
+    for nom, saisie in (("A2", "0"), ("A3", "'x'"), ("A4", "2.5")):
+        ligne = next(l for l in journal.splitlines()
+                     if f"« {nom} »" in l and "pas retenue" in l)
+        assert saisie in ligne
+    for nom in ("A1", "A5", "A6", "A7"):
+        assert not any(f"« {nom} »" in l and "pas retenue" in l
+                       for l in journal.splitlines()), nom

@@ -592,17 +592,27 @@ def _appliquer_pentes(pilote, chemin_template, apports):
     if col_apport is None or "Pente_m_par_m" not in corr.columns:
         return
 
-    saisies = {}
+    # ecartees : {apport: ce qui etait saisi}. UNE SAISIE NON RETENUE SE DIT.
+    # Jusqu'au 11/11/2026 une pente saisie a 0, hors plage ou en toutes
+    # lettres etait ecartee sans un mot : le journal annoncait la pente du
+    # profil en long, et l'ingenieur croyait la sienne appliquee.
+    saisies, ecartees = {}, {}
     for _, ligne in corr.iterrows():
         brut = ligne.get("Pente_m_par_m")
         if brut is None or (isinstance(brut, float) and pd.isna(brut)):
             continue
+        if not str(brut).strip():
+            continue                    # une case d'espaces est une case vide
+        nom = str(ligne[col_apport]).strip()
         try:
             valeur = float(str(brut).replace(",", "."))
         except (TypeError, ValueError):
+            ecartees[nom] = brut
             continue
         if 1e-6 < valeur <= 1.0:
-            saisies[str(ligne[col_apport]).strip()] = valeur
+            saisies[nom] = valeur
+        else:
+            ecartees[nom] = brut
 
     # Repli : la pente locale du fond, pour les apports non renseignes. Calcule
     # une seule fois — le profil en long coute une lecture du maillage.
@@ -611,6 +621,10 @@ def _appliquer_pentes(pilote, chemin_template, apports):
 
     for nom in apports:
         pente, origine = saisies.get(nom), "classeur"
+        if nom in ecartees:
+            print(f"   pente de « {nom} » : la saisie du classeur "
+                  f"({ecartees[nom]!r}) n'est pas retenue — un nombre entre "
+                  f"0.000001 et 1 m/m est attendu", flush=True)
         if pente is None:
             pente, origine = deduites.get(nom), "profil en long, +/- 200 m +20 %"
         if pente is None:
