@@ -912,14 +912,6 @@ def fenetre_injection(temps, ecart, seuil_bas=0.005, seuil_haut=0.99,
     return (t0, tf)
 
 
-def masque_fenetre(temps, bornes):
-    """Masque des instants DANS la fenetre (t0, tf), bornes comprises."""
-    if bornes is None:
-        return np.ones(np.asarray(temps).shape, dtype=bool)
-    t = np.asarray(temps, dtype=float)
-    return (t >= bornes[0] - 1e-9) & (t <= bornes[1] + 1e-9)
-
-
 def ecarts_normalises(diag, config):
     """
     Les TROIS violations, chacune ramenee a sa propre tolerance.

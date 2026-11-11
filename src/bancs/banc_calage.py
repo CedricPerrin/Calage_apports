@@ -34,7 +34,7 @@ from calage import (  # noqa: E402
     _sections_derivees, _verifier_globalement, _volume, admissible, caler,
     cliquet_volume, concordance, corriger_apport, decalage_minimisant_ecart,
     ecart_a_la_cible, ecart_combine, etape_apport, fenetre_injection,
-    masque_fenetre, produire_livrables_finaux, qualite_acceptable, rang_essai,
+    produire_livrables_finaux, qualite_acceptable, rang_essai,
     titre_etape)
 
 # SORTIE EN UTF-8, MEME LANCE A LA MAIN. Les auto-tests de ce module
@@ -508,9 +508,6 @@ controler("un ecart nul rend la fenetre complete",
 controler("les bornes imposees remplacent la detection",
           fenetre_injection(_tf_t, _tf_ecart, t0_impose=5.0,
                             tf_impose=20.0) == (5.0, 20.0))
-controler("le masque de fenetre est vrai bornes comprises",
-          bool(masque_fenetre(np.array([0.0, 5.0, 10.0]),
-                              (5.0, 10.0)).tolist() == [False, True, True]))
 controler("Fenetre_active=non desactive la fenetre (jugement sur tout)",
           caler(ModeleFictif(["A"], ["S"], temps,
                              [hydrogramme(temps, 10.0)]),

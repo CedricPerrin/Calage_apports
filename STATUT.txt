@@ -4038,9 +4038,14 @@ dates fictives au 1er janvier.
     Windows — avec un ras-commander recent, deux seulement echouent.
     REGLE : on n'ajoute plus de controle a un banc ; les nouveaux tests
     s'ecrivent en pytest.
-    DECISIONS EN ATTENTE : sort de masque_fenetre ; alleger les references
-    (4,5 Mo). L'objet d'etat partage
-    du dialogue est TRANCHE (11/11/2026, section 1) : pas d'objet, une
+    masque_fenetre EST RETIREE de calage.py (11/11/2026). Elle n'avait plus
+    aucun appelant dans la chaine : seul un controle du banc l'employait,
+    et la chaine masque sa fenetre autrement, sur place. Une fonction que
+    seul un test appelle fait croire qu'un chemin est couvert alors qu'il
+    n'existe pas. Le controle part avec elle : le banc de calage.py compte
+    141 controles (142 avant).
+    DECISION EN ATTENTE : alleger les references (4,5 Mo). L'objet d'etat
+    partage du dialogue est TRANCHE (11/11/2026, section 1) : pas d'objet, une
     frontiere fenetre / noyau, etapes A, B1 et B2 faites.
 
 
