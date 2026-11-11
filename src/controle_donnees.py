@@ -204,6 +204,19 @@ def _colonnes_correspondance(corr):
 
 def _regle_ordre_contigu(colonne_ordre):
     n = len(colonne_ordre)
+    illisibles = []
+    for ligne, o in colonne_ordre.items():
+        try:
+            int(o)
+        except (TypeError, ValueError):
+            # +2 : l'index de pandas compte depuis 0, l'en-tete est la ligne 1.
+            illisibles.append((ligne + 2, o))
+    if illisibles:
+        lus = ", ".join(f"{o!r} (ligne {ligne})" for ligne, o in illisibles)
+        return [(ERREUR,
+                 f"feuille Correspondance, colonne Ordre : valeur non "
+                 f"numerique {lus} ; la colonne doit etre la suite 1..{n} "
+                 f"sans trou ni doublon.")]
     ordres = sorted(int(o) for o in colonne_ordre)
     if ordres != list(range(1, n + 1)):
         return [(ERREUR,
@@ -351,9 +364,12 @@ def controler_template(chemin):
     # DANS L'ORDRE DECLARE : _controler_prefixe_scenario exclut le premier
     # apport, qui seul ne donne pas de titre de reprise. L'ordre des lignes
     # de la feuille n'est pas force d'etre celui de la colonne Ordre.
+    # Un Ordre non numerique est deja signale plus haut : il ne doit pas faire
+    # echouer ce tri, il part en fin de liste.
+    ordre_lu = pd.to_numeric(corr[col_ordre], errors="coerce")
     _controler_prefixe_scenario(
         valeurs,
-        [str(a) for a in corr.sort_values(col_ordre)[col_apport]],
+        [str(a) for a in corr.loc[ordre_lu.sort_values().index, col_apport]],
         erreur)
 
     # --- 3. Cibles ---------------------------------------------------------
