@@ -3040,6 +3040,165 @@ def dernier_journal(chemin_classeur):
                default=None)
 
 
+# ---------------------------------------------------------------------------
+# LE LANCEMENT, AVANT LE SOUS-PROCESSUS. C'etait le corps de
+# plugin._lancer_calage, que seul le banc sous QGIS pouvait eprouver. Depuis
+# le 11/11/2026 la fenetre lit ses widgets et affiche ; ce qui s'ecrit dans le
+# classeur, dans quel ordre, et ce qui fait refuser le lancement est ici, et
+# se joue en console (src/test_lancement_noyau.py).
+# ---------------------------------------------------------------------------
+
+class LancementRefuse(Exception):
+    """
+    Le calage ne peut pas etre lance. La fenetre n'a qu'a l'afficher.
+
+    nature : « etat » (l'etat des cibles ne se lit pas), « reglages » (ils
+        n'ont pas pu etre ecrits), « cibles » (il en manque), « hecras »
+        (HEC-RAS est ouvert).
+    titre, message : ce que l'utilisateur lit.
+    contexte : pour une PANNE (etat, reglages), l'intitule sous lequel la
+        consigner ; l'exception d'origine est dans __cause__. None pour un
+        REFUS (cibles, hecras) : il n'y a rien a consigner.
+    """
+
+    def __init__(self, nature, titre, message, contexte=None):
+        super().__init__(message)
+        self.nature, self.titre, self.message = nature, titre, message
+        self.contexte = contexte
+
+
+def ecrire_reglages_de_lancement(chemin_classeur, reglages):
+    """
+    Ecrit dans le classeur les reglages qui se decident AU LANCEMENT.
+
+    C'EST LE CLASSEUR QUE LA CHAINE LIT, pas la fenetre : ce qui n'y est pas
+    ecrit juste avant de partir est ignore en silence.
+      - LE PREMIER APPORT est un reglage de lancement, pas de composition.
+        Sans cette ecriture, le choix fait apres la composition — ou apres la
+        reouverture d'un classeur d'un calcul precedent — serait ignore.
+      - LE PREFIXE, pour la meme raison : modifie apres la composition, il y
+        resterait perime.
+      - LES OBJECTIFS DE PRECISION. Ils ne partaient dans le classeur qu'a la
+        COMPOSITION : les resserrer ensuite n'avait aucun effet. On voyait
+        « +/-2 % » a l'ecran et le calage s'arretait a 5 %.
+      - LES COEURS : 0 = plan inchange ; sinon la suggestion du poste.
+      - L'ELAGAGE. La case vit a l'etape Lancer et n'etait ecrite qu'a la
+        composition : cochee ensuite, elle etait ignoree sans un mot
+        (24/09/2026).
+      - LE REMPLACEMENT DU PLAN SOURCE : l'accord donne a la question du
+        lancement, et lui seul.
+
+    reglages : premier_apport, prefixe_scenario, tolerance_volume_pct,
+        tolerance_pic_pct, bilan_masse_max_pct, nb_max_iterations,
+        coeurs_par_calcul, elaguer_etapes, remplacer_plan_source.
+    """
+    def oui_non(valeur):
+        return "oui" if valeur else "non"
+
+    for cle, valeur in (
+            ("Premier_apport", reglages["premier_apport"]),
+            ("Prefixe_scenario", reglages["prefixe_scenario"]),
+            ("Tolerance_volume_pct", reglages["tolerance_volume_pct"]),
+            ("Tolerance_pic_pct", reglages["tolerance_pic_pct"]),
+            ("Bilan_masse_max_pct", reglages["bilan_masse_max_pct"]),
+            ("Nb_max_iterations_par_apport", reglages["nb_max_iterations"]),
+            ("Coeurs_par_calcul", reglages["coeurs_par_calcul"]),
+            ("Elaguer_plans_etape", oui_non(reglages["elaguer_etapes"])),
+            ("Remplacer_plan_source",
+             oui_non(reglages["remplacer_plan_source"]))):
+        ecrire_parametre(chemin_classeur, cle, valeur)
+
+
+def preparer_lancement(chemin_classeur, reglages):
+    """
+    Tout ce qui precede le sous-processus : lire l'etat des cibles, ecrire
+    les reglages de lancement, puis refuser si une cible manque ou si HEC-RAS
+    est ouvert. Leve LancementRefuse ; ne rend rien si le calage peut partir.
+
+    reglages : le dictionnaire de ecrire_reglages_de_lancement(), OU une
+        fonction qui le rend. La fenetre passe la fonction : ses widgets sont
+        alors lus au dernier moment, apres l'etat des cibles, et une lecture
+        qui echoue est une panne d'ecriture des reglages, comme avant.
+
+    L'ORDRE EST CELUI D'AVANT, et il compte : les reglages sont ecrits AVANT
+    le refus sur les cibles — le classeur porte donc les reglages de l'ecran
+    meme quand le lancement est refuse.
+    """
+    try:
+        etat = etat_cibles(chemin_classeur)
+    except Exception as e:
+        raise LancementRefuse(
+            "etat", "Calage", str(e),
+            contexte="État des cibles avant lancement") from e
+    try:
+        ecrire_reglages_de_lancement(
+            chemin_classeur, reglages() if callable(reglages) else reglages)
+    except Exception as e:
+        raise LancementRefuse(
+            "reglages", "Réglages de lancement",
+            f"Les réglages de lancement n'ont pas pu être écrits dans le "
+            f"classeur : {e}\n\nLe calage n'est pas lancé — il serait "
+            f"parti sur un réglage autre que celui affiché.",
+            contexte="Écriture des paramètres de lancement") from e
+
+    # UN REFUS, PAS UNE QUESTION. « Lancer quand même (les apports concernés
+    # seront ignorés) ? » etait faux : la chaine REFUSE tout le classeur des
+    # qu'une seule cible manque (pont_hecras, commande_caler). Repondre oui
+    # annoncait « Calage lancé (PID …) », l'onglet Suivi restait a « Aucun
+    # calage suivi » pour toujours, et le refus ne vivait que dans le journal
+    # de lancement — la mise en scene meme du 04/09/2026.
+    if etat["manquantes"]:
+        nb = len(etat["manquantes"])
+        raise LancementRefuse(
+            "cibles", "Hydrogrammes cibles incomplets",
+            f"{nb} {'section' if nb < 2 else 'sections'} sur {etat['total']} "
+            f"sans hydrogramme cible exploitable : "
+            f"{', '.join(etat['manquantes'])}.\n\n"
+            f"Le calage n'est pas lancé : la chaîne refuse un classeur "
+            f"incomplet, elle n'ignore pas les apports concernés. "
+            f"Compléter la feuille « Cibles » — une colonne « Temps_h » "
+            f"et au moins deux instants en face des débits — puis "
+            f"relancer.")
+
+    # HEC-RAS OUVERT : ON REFUSE (0.8.4, demande utilisateur).
+    #
+    # La 0.7.24 posait une QUESTION, au motif que l'interface peut etre
+    # ouverte sur un AUTRE projet et que tasklist ne dit que « Ras.exe
+    # tourne ». La question a ete essayee, et le texte qui la portait etait
+    # trop long pour etre lu au moment ou l'on veut lancer : on repondait
+    # « Oui ». Le calage partait, et s'arretait 218 s plus tard sur un calcul
+    # de reference sans resultats (09/09/2026).
+    #
+    # Il n'y a rien a arbitrer : fermer HEC-RAS coute quelques secondes, le
+    # laisser ouvert coute le calage et peut abimer le modele. Le cas
+    # legitime — HEC-RAS ouvert sur un AUTRE projet — se regle en le fermant
+    # lui aussi.
+    #
+    # « None » N'ARRETE RIEN : hors de Windows, ou si tasklist est
+    # indisponible, on ne sait pas, et refuser sur une ignorance bloquerait
+    # un lancement valide.
+    if hecras_ouvert() is True:
+        raise LancementRefuse(
+            "hecras", "HEC-RAS est ouvert",
+            "HEC-RAS est ouvert sur ce poste. Ce n'est pas permis "
+            "par le plugin. Fermer HEC-RAS et relancer le calage.")
+
+
+def dire_calage_lance(info):
+    """
+    Ce que la fenetre affiche quand le calage est parti. info : ce que rend
+    lancer_calage().
+
+    LIBELLES : « Échec au démarrage : <chemin> » se lisait comme une annonce
+    d'échec alors que le calage venait de partir. Un chemin ne doit jamais
+    être introduit par un mot qui décrit un état.
+    """
+    return (f"Calage lancé en arrière-plan (processus {info['pid']}).\n"
+            f"Suivre l'avancement à l'étape « 4. Suivi », qui se rafraîchit "
+            f"toute seule quand elle est affichée.\n"
+            f"Journal de lancement : {info['journal']}")
+
+
 def lancer_calage(chemin_classeur):
     """
     Lance le calage complet en ARRIERE-PLAN : cette operation dure des heures

@@ -1,5 +1,36 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 11 novembre 2026 (conception, fin) : le lancement passe dans `noyau.py` — étape B2 (branche `claude/lancement-noyau`)
+
+Dernier pas de la frontière fenêtre / noyau (étapes A et B1 ci-dessous, PR 23 et 24
+fusionnées). **Aucun changement de comportement.** `plugin._lancer_calage` : 168 → 75 lignes.
+
+| Dans la fenêtre | Dans `noyau.py` |
+|---|---|
+| les portes qui ne lisent que l'écran (paquet non composé, « ! » rouge) et les questions à l'utilisateur | — |
+| `_reglages_de_lancement` : les widgets en valeurs simples | `ecrire_reglages_de_lancement` : les neuf réglages, leur ordre, « oui » / « non » |
+| `_dire_refus_de_lancement` : la forme de la boîte | `preparer_lancement` : état des cibles, écriture, cibles manquantes, HEC-RAS ouvert ; refus par `LancementRefuse` (nature, titre, message) |
+| appel à `lancer_calage`, processus et journal retenus | `dire_calage_lance` : le message affiché |
+
+**Le filet d'abord, sur le code inchangé.** `src/test_lancement_fenetre.py` et
+`reference_lancement_fenetre.json` (seize cas sous QGIS, un par porte) : chaque appel à
+`noyau.py`, chaque boîte, chaque message de la barre, chaque ligne du journal de QGIS, et ce
+que la fenêtre retient à la fin. **Il passe sans retouche sur le code déplacé.**
+
+**Deux points d'ordre gardés.** Les réglages sont écrits *avant* le refus sur les cibles : le
+classeur porte donc les réglages de l'écran même quand le lancement est refusé. Et les widgets
+sont lus au dernier moment, après l'état des cibles : la fenêtre passe sa méthode de lecture,
+pas son résultat.
+
+**Sans QGIS** : `src/test_lancement_noyau.py` (14 tests), dont l'écriture réelle des réglages
+dans le JSON voisin du classeur. Essais adverses : quatre fautes injectées dans `noyau.py`,
+toutes attrapées, sans QGIS comme sous QGIS.
+
+**La première des quatre décisions de conception est close** : la frontière est en place pour
+la composition et pour le lancement. Restent les trois autres : convertir les bancs en pytest,
+le sort de `masque_fenetre`, alléger les références. **Pas de montée de version** ; l'archive
+0.9.36 n'est pas reconstruite.
+
 ## 11 novembre 2026 (conception, suite) : la composition passe dans `noyau.py` — étape B1 (branche `claude/composition-noyau`)
 
 Suite de l'étape A (section ci-dessous, PR 23 fusionnée). **Aucun changement de comportement.**
