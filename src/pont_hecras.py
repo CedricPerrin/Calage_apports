@@ -1581,7 +1581,7 @@ def _cibles_depuis_classeur(chemin_template, journal=None):
         if trouvee is None:
             raise ValueError(
                 f"la feuille Correspondance n'a pas de colonne « {prefixe} » "
-                f"(en-tete A1). En-tetes trouves : "
+                f"(en-tete de la ligne 1). En-tetes trouves : "
                 f"{[str(c) for c in corr.columns]}")
         return trouvee
 

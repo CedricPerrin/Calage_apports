@@ -177,7 +177,8 @@ def test_caler_correspondance_sans_colonne(tmp_path, capsys, colonne):
     nom = colonne.split(" ")[0]
     assert erreur == (
         f"classeur de saisie inexploitable : la feuille Correspondance n'a "
-        f"pas de colonne « {nom} » (en-tete A1). En-tetes trouves : "
+        f"pas de colonne « {nom} » (en-tete de la ligne 1). En-tetes "
+        f"trouves : "
         f"{_entetes(corr)}")
 
 
