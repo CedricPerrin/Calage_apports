@@ -3883,8 +3883,8 @@ dates fictives au 1er janvier.
     seulement. Il emploie maintenant le type que le plugin choisit
     (plugin.TYPE_CHAMP_TEXTE). LE PLUGIN, LUI, ETAIT DEJA COMPATIBLE. Joue
     sous QGIS 3.34.15 hors ecran : banc 472 [OK], tests d'installation,
-    peinture et alertes du Suivi. La CI ne joue PAS la 3.34 (matrice : 3.44
-    et 4.2) : rien ne garde donc cette compatibilite dans la duree.
+    peinture et alertes du Suivi. LA CI LA JOUE DESORMAIS (matrice : 3.34,
+    3.44 et 4.2) : un job de plus par execution.
     CI : UN SEUL DECLENCHEMENT PAR POUSSEE depuis le 11/11/2026 (push sur
     main, pull_request pour les branches). Les jobs n'ont pas demarre du
     10/11 au soir au 11/11 au matin (quota ou facturation Actions du compte).

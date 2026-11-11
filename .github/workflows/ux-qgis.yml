@@ -94,7 +94,10 @@ jobs:
       fail-fast: false
       matrix:
         # QGIS 3.44 LTR et QGIS 4.2, Qt 6 (veille du 27/10/2026, P7).
-        image: ["qgis/qgis:3.44", "qgis/qgis:4.2"]
+        # QGIS 3.34 : LE MINIMUM QUE metadata.txt DECLARE (11/11/2026). Le banc
+        # du plugin ne tournait plus sous cette version et personne ne le
+        # voyait : sans elle dans la matrice, la promesse n'etait gardee par rien.
+        image: ["qgis/qgis:3.34", "qgis/qgis:3.44", "qgis/qgis:4.2"]
     container:
       image: ${{ matrix.image }}
     env:
