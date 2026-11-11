@@ -14,7 +14,7 @@ extension installée depuis le dépôt.
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 
-Version des sources du plugin : **0.9.33**. La
+Version des sources du plugin : **0.9.34**. La
 [note d’ergonomie du 11 septembre 2026](docs/ergonomie_2026-09-11.md)
 décrit le parcours, les choix d’interface et les points de recette.
 
@@ -244,6 +244,20 @@ dit de combien la pointe d'une condition limite non calée est modifiée quand
 son pas de temps n'est pas un multiple du pas de travail — le calcul ne change
 pas. Non essayée sur un calcul HEC-RAS réel ni sous Windows.
 
+La **0.9.34** (11 novembre 2026) rend les messages plus justes, **sans changer
+aucun résultat numérique**. Le diagnostic ne répète plus l'alerte d'un décalage
+plus long que la fenêtre jugée, dit qu'une série porte des valeurs manquantes
+(au lieu de « série constante ») et nomme un axe des temps qui n'est pas
+croissant ; `caler` refuse des listes d'apports, de sections et de cibles de
+longueurs différentes au lieu de les tronquer. Le contrôle des données signale
+un trou au milieu d'un hydrogramme cible, avec ses lignes. Un fichier de
+paramètres abîmé, une feuille ou une colonne absente de l'Excel donnent partout
+la même phrase. Une pente saisie mais non retenue (0, hors plage, du texte) est
+dite au journal — la pente appliquée ne change pas. La note de synthèse cite la
+version de ras-commander réellement employée, et non plus « v0.99.1 ». Importer
+un fichier qui n'est pas un Excel est refusé par une phrase. Non essayée sur un
+calcul HEC-RAS réel ni sous Windows.
+
 La **0.9.32** (10 novembre 2026) rend le calage possible sous HEC-RAS 7.0.2.
 Lancée en ligne de commande (`Ras.exe -c projet plan`), cette version calcule
 tous les plans du projet, dans l'ordre du `.prj`, au lieu du plan nommé. À
@@ -375,6 +389,7 @@ distribué : le plugin en embarque une copie autonome à l'installation.
 | [src/essai_garde_fou_archive.py](src/essai_garde_fou_archive.py) | Essai **adverse** : injecte trois fautes dans l'archive et vérifie qu'elles sont refusées |
 | [src/test_plugin_qgis.py](src/test_plugin_qgis.py) | Suite du plugin, sous le Python de QGIS et sur une **copie** d'un modèle — elle **modifie** la géométrie de celui qu'on lui donne (voir ci-dessous) |
 | [src/reference_calage_fictif.json](src/reference_calage_fictif.json) | Sortie figée d'un calage sur `ModeleFictif`, comparée à chaque passage du banc. **Ne pas modifier à la main** : `python calage.py --figer-reference` la réécrit |
+| `src/test_*.py`, `src/reference_*.json` | Tests joués par `pytest` et par la CI. Les **filets de caractérisation** (`test_caracterisation_*`, `test_livrables_chaine`, `test_noyau_classeur`, `test_controle_donnees`, `test_pont_*`…) comparent le comportement à une référence figée ; les **essais d'intention** (`test_defauts_mineurs`, `test_exceptions_brutes`, `test_import_hydrogrammes`, `test_lecture_hdf`, `test_classeur_perdu`, `test_alertes_suivi`, `test_recadencage_ecart`) disent ce que le code doit faire. Une référence ne se refige que pour les cas dont le changement est voulu — voir [CHECKPOINT.md](CHECKPOINT.md) |
 | [src/elaguer_projet.py](src/elaguer_projet.py) | Rattrapage : élague les plans laissés par l'**ancienne** chaîne |
 | [src/reconstruire_livrables.py](src/reconstruire_livrables.py) | Rattrapage : reconstruit les livrables d'un calage **terminé**, en lecture seule sur le modèle |
 | [src/captures_plugin.py](src/captures_plugin.py) | Refait les six captures de ce README, sous le Python de QGIS — une capture périmée ressemble à une capture |

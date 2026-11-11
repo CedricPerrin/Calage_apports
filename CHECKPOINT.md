@@ -1,10 +1,15 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
-## 11 novembre 2026 (suite) : les défauts mineurs (PR 18, branche `claude/defauts-mineurs`, **non fusionnée**)
+## 11 novembre 2026 (suite) : les défauts mineurs (PR 18, fusionnée dans `main` le jour même ; version 0.9.34, non publiée)
 
 Demandé par Cédric le 11/11 : « Traite les défauts mineurs » — la liste « restent ouverts » de la
-section ci-dessous. **Après la 0.9.33 : ces correctifs ne sont dans aucune version ni dans
-l'archive.** La fusion dans `main` et la montée de version attendent sa décision.
+section ci-dessous. **Fusionné dans `main` le 11/11/2026** (« Oui », puis « Fusionne tout et
+met à jour l'ensemble des txt et md »), CI verte sur les cinq jobs.
+
+**Version 0.9.34, non publiée.** `metadata.txt`, `LISEZMOI.md` et `README.md` la portent, et
+`calage_apports_0.9.34.zip` est à la racine ; elle remplace la 0.9.33 du matin, qui n'a pas
+été publiée. **Comme elle, l'archive est construite sur un poste sans `.affaires`** : avant
+de publier dans le dépôt PIO, rejouer `python src/faire_zip.py` sur le poste qui le porte.
 
 | Où | Avant | Après |
 |---|---|---|
@@ -133,8 +138,8 @@ banc 472 `[OK]`, tests d'installation, peinture et alertes du Suivi. La CI joue 
 3.34 en plus de la 3.44 et de la 4.2 (un job de plus par exécution).
 
 **Pour reprendre.** Rejouer `python src/faire_zip.py` sur le poste qui porte `.affaires` ;
-essayer la 0.9.33 dans le QGIS du poste, sous Windows, sur un calcul réel, avant de la
-publier ; refiger les références des filets sur ce poste. Restent ouverts : `STATUT.txt`,
+essayer la version courante (0.9.34, section ci-dessus) dans le QGIS du poste, sous Windows,
+sur un calcul réel, avant de la publier ; refiger les références des filets sur ce poste. Restent ouverts : `STATUT.txt`,
 section 6.
 
 ## 10 novembre 2026 (soir) : remaniement du code sans changement de comportement (PR 8, fusionnée dans `main` le 11/11/2026 ; livré par la 0.9.33)
