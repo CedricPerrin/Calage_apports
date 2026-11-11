@@ -1,5 +1,39 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 11 novembre 2026 (conception) : pas d'objet d'état, une frontière fenêtre / noyau — étape A (branche `claude/refus-composition-noyau`)
+
+Première des quatre décisions de conception en attente, tranchée par Cédric avec une vue « long
+terme, partagé à beaucoup de monde ». Détail et mesures : `docs/decoupage_dialogue.md`, § 9.
+
+- **Pas d'objet d'état partagé** : 7 états sur 45 seulement sont lus ou écrits par quatre
+  méthodes ou plus.
+- **Une frontière à la place** : la fenêtre lit ses widgets et affiche, `noyau.py` décide — ce
+  qui s'éprouve sans QGIS.
+
+**Étape A, faite.** Les refus de la composition quittent `plugin._composer_et_controler_interne`
+pour `noyau.py` : `refus_avant_composition` (projet, plan, préfixe, couches, axe, dossier, dans
+cet ordre), `refus_appariement` (section sans injection en amont, injection partagée),
+`dire_pentes_pre_remplies`. **Aucun changement de comportement** : les six phrases d'avant
+composition figuraient mot pour mot dans la fenêtre (vérifié par script sur l'arbre syntaxique
+de l'ancienne version).
+
+| Essai | Où il tourne | Ce qu'il prouve |
+|---|---|---|
+| `src/test_refus_composition.py` (24) | sans QGIS, job `noyau` | chaque refus, l'ordre, les textes |
+| `src/test_composition_fenetre.py` (2) | sous QGIS, 3.34 / 3.44 / 4.2 | la fenêtre passe à `noyau` ce que portent ses widgets et affiche le motif rendu |
+
+Essais adverses : quatre fautes injectées dans `noyau.py`, une dans le raccord de la fenêtre
+(le dossier passé à la place du préfixe) — toutes attrapées.
+
+**Non déplacé** : le refus d'une projection géographique, qui interroge
+`QgsCoordinateReferenceSystem`.
+
+**Étape B, à faire** : la saisie des widgets en une structure simple ; la composition, puis le
+lancement, en fonctions de `noyau.py` testées sans QGIS. Une PR par traitement, sous filet.
+
+**Pas de montée de version** (rien ne change pour l'utilisateur) ; l'archive 0.9.36 n'est pas
+reconstruite.
+
 ## 11 novembre 2026 (clôture) : les derniers points (PR 22, fusionnée dans `main` le jour même ; pas de montée de version)
 
 Demandé par Cédric (« Oui », pour les traiter tous dans une seule PR ; puis « Traite tout, merge
