@@ -1,9 +1,14 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
-## 11 novembre 2026 (fin) : sans nom de zone 2D, un refus (branche `claude/recadencage-zone-2d`)
+## 11 novembre 2026 (fin) : sans nom de zone 2D, un refus (PR 20, fusionnée dans `main` le jour même ; version 0.9.35, non publiée)
 
-Décision de Cédric : « Refus », plutôt qu'un avertissement au journal. **Après la 0.9.34 : pas
-encore dans une version ni dans l'archive.**
+Décision de Cédric : « Refus », plutôt qu'un avertissement au journal. Fusion dans `main` et
+montée de version à sa demande (« Oui »).
+
+**Version 0.9.35, non publiée.** `metadata.txt`, `LISEZMOI.md` et `README.md` la portent, et
+`calage_apports_0.9.35.zip` est à la racine ; elle remplace la 0.9.34 du même jour. **L'archive
+est construite sur un poste sans `.affaires`** : avant de publier dans le dépôt PIO, rejouer
+`python src/faire_zip.py` sur le poste qui le porte.
 
 `imposer_intervalle_apport` et `retarder_hydrogrammes` refusent désormais, **avant toute
 écriture**, une condition limite présente dans plusieurs zones 2D quand aucun nom de zone n'est
@@ -25,7 +30,7 @@ script : ce cas seul.
 **À trancher** : `controle_donnees` ne donne qu'un avertissement quand `Nom_zone_2D` est vide
 et que la géométrie compte plusieurs zones (« la première est retenue par défaut »).
 
-## 11 novembre 2026 (suite) : les défauts mineurs (PR 18, fusionnée dans `main` le jour même ; version 0.9.34, non publiée)
+## 11 novembre 2026 (suite) : les défauts mineurs (PR 18, fusionnée dans `main` le jour même ; version 0.9.34, remplacée par la 0.9.35)
 
 Demandé par Cédric le 11/11 : « Traite les défauts mineurs » — la liste « restent ouverts » de la
 section ci-dessous. **Fusionné dans `main` le 11/11/2026** (« Oui », puis « Fusionne tout et
@@ -163,7 +168,7 @@ banc 472 `[OK]`, tests d'installation, peinture et alertes du Suivi. La CI joue 
 3.34 en plus de la 3.44 et de la 4.2 (un job de plus par exécution).
 
 **Pour reprendre.** Rejouer `python src/faire_zip.py` sur le poste qui porte `.affaires` ;
-essayer la version courante (0.9.34, section ci-dessus) dans le QGIS du poste, sous Windows,
+essayer la version courante (0.9.35, en tête de ce fichier) dans le QGIS du poste, sous Windows,
 sur un calcul réel, avant de la publier ; refiger les références des filets sur ce poste. Restent ouverts : `STATUT.txt`,
 section 6.
 
