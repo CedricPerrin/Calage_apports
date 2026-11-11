@@ -1,8 +1,13 @@
 name: UX QGIS
 
+# UN SEUL DECLENCHEMENT PAR POUSSEE (11/11/2026). Avec « push » sur toutes les
+# branches, une branche qui a une PR jouait le workflow deux fois (push et
+# pull_request) : huit jobs au lieu de quatre, et le quota de minutes Actions du
+# compte y est passe. Une branche SANS PR n'est plus jouee d'office : ouvrir la
+# PR (meme en brouillon) ou lancer le workflow a la main (workflow_dispatch).
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -29,6 +34,50 @@ jobs:
         run: python tools/check_isl_identity.py
       - run: python calage_apports/noyau.py
       - run: python -m pytest src/test_installation_cible.py src/test_recherche_python.py src/test_projet_hecras.py src/test_lexique.py src/test_calcul_accents.py -q
+      # Bancs embarqués de la chaîne qui n'exigent que requirements-dev.txt (ni h5py ni
+      # ras-commander). Chacun sort en code 1 sur un [ECHEC] : éprouvé par une faute injectée.
+      - name: Bancs de la chaîne
+        run: |
+          for banc in criteres calage controle_donnees suivi livrables parametres; do
+            echo "=== src/$banc.py"
+            python src/$banc.py
+          done
+      # Filet des trois contrôles de controle_donnees.py : 143 cas figés dans
+      # src/reference_controle_donnees.json (chantier B, 10/11/2026).
+      - run: python -m pytest src/test_controle_donnees.py -q
+      # Filets de caler() (57 scénarios ModeleFictif) et de diagnostiquer() (94 scénarios et un
+      # lot de 400 entrées), figés au bit près le 10/11/2026. Hors du socle où la
+      # référence a été figée, ils comparent en mode de repli, et le disent.
+      - run: python -m pytest src/test_caracterisation_caler.py src/test_caracterisation_diagnostic.py -q
+      # Filets de la vague 3 (10/11/2026) : les deux fonctions de classeur du noyau (64 cas)
+      # et commande_caler du pont (98 cas, pilote et caler() doublés).
+      - run: python -m pytest src/test_noyau_classeur.py src/test_pont_caler.py -q
+      # Filet de la chaîne des livrables (vague 5, 10/11/2026) : 39 cas, contenu des figures,
+      # classeurs cellule par cellule, note de synthèse. Ni h5py ni ras-commander.
+      - run: python -m pytest src/test_livrables_chaine.py -q
+
+  chaine-hdf:
+    # Hors QGIS, à dessein : h5py entre en conflit avec la bibliothèque HDF5 de QGIS
+    # (voir requirements-dev.txt), donc ces deux bancs ne rejoignent pas le job « qgis ».
+    # pilote_hecras.py n'est PAS joué ici : 6 de ses contrôles échouent hors Windows (CRLF,
+    # compute_plan, processus Windows), ce qui ferait rougir la CI sans défaut du code.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      # Version minimale annoncée par le plugin : noyau.RAS_COMMANDER_MINIMUM.
+      - run: python -m pip install -r requirements-dev.txt "ras-commander>=0.99" h5py
+      - run: python src/geometrie.py
+      - run: python src/pont_hecras.py autotest
+      # Filets de la vague 4 (10/11/2026) qui demandent h5py ou ras-commander : les trois
+      # lecteurs du pont (HDF fabriqués) et le recadencement des apports du pilote.
+      - run: python -m pip install pytest
+      - run: python -m pytest src/test_pont_lecture.py src/test_pilote_recadence.py -q
 
   qgis:
     runs-on: ubuntu-latest
@@ -57,6 +106,8 @@ jobs:
         run: python3 -m pytest src/test_installation_qgis.py -v --junitxml=artifacts/tache-qgis.xml
       - name: Contrat du worker
         run: python3 -m pytest src/test_installation_cible.py src/test_installation_tache.py -v --junitxml=artifacts/worker.xml
+      - name: Filet de la peinture du suivi
+        run: python3 -m pytest src/test_peinture_suivi.py -v --junitxml=artifacts/peinture-suivi.xml
       - name: Banc du plugin sans modèle externe
         run: python3 src/test_plugin_qgis.py
       - uses: actions/upload-artifact@v4

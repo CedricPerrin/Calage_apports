@@ -1,0 +1,2688 @@
+{
+ "_a_propos": "Caracterisation de controler_template, controler_geometrie et controler_contre_modele (src/test_controle_donnees.py). NE PAS MODIFIER A LA MAIN : « python src/test_controle_donnees.py --figer-reference » le reecrit quand le changement de comportement est VOULU.",
+ "cas": {
+  "geometrie/apport_absent_du_shp": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "ligne d'injection(s) declaree(s) dans le template mais absente(s) du shapefile : ['A_inexistant'] (presentes : ['A1', 'A2', 'A3'])"
+     ],
+     [
+      "AVERTISSEMENT",
+      "PK non calculables (noms declares absents des shapefiles : ['A_inexistant']) : ni ordre declare verifie, ni profil en long, ni pente locale deduite."
+     ]
+    ]
+   },
+   "tableau": null
+  },
+  "geometrie/champ_nom_explicite": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   },
+   "tableau": {
+    "type": "DataFrame",
+    "index": "RangeIndex(start=0, stop=3, step=1)",
+    "colonnes": [
+     "Ordre",
+     "Section",
+     "PK section (m)",
+     "Apport",
+     "PK apport (m)",
+     "Distance apport-section (m)"
+    ],
+    "dtypes": [
+     "int64",
+     "str",
+     "float64",
+     "str",
+     "float64",
+     "float64"
+    ],
+    "lignes": [
+     [
+      1,
+      "S1",
+      917.8,
+      "A1",
+      204.5,
+      713.3
+     ],
+     [
+      2,
+      "S2",
+      2825.8,
+      "A2",
+      2125.0,
+      700.8
+     ],
+     [
+      3,
+      "S3",
+      5164.7,
+      "A3",
+      4347.8,
+      816.9
+     ]
+    ]
+   }
+  },
+  "geometrie/champ_nom_inconnu": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "lecture des shapefiles : sections.shp : champ 'Code' absent (champs disponibles : ['Nom'])"
+     ]
+    ]
+   },
+   "tableau": null
+  },
+  "geometrie/champ_nom_nan": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   },
+   "tableau": {
+    "type": "DataFrame",
+    "index": "RangeIndex(start=0, stop=3, step=1)",
+    "colonnes": [
+     "Ordre",
+     "Section",
+     "PK section (m)",
+     "Apport",
+     "PK apport (m)",
+     "Distance apport-section (m)"
+    ],
+    "dtypes": [
+     "int64",
+     "str",
+     "float64",
+     "str",
+     "float64",
+     "float64"
+    ],
+    "lignes": [
+     [
+      1,
+      "S1",
+      917.8,
+      "A1",
+      204.5,
+      713.3
+     ],
+     [
+      2,
+      "S2",
+      2825.8,
+      "A2",
+      2125.0,
+      700.8
+     ],
+     [
+      3,
+      "S3",
+      5164.7,
+      "A3",
+      4347.8,
+      816.9
+     ]
+    ]
+   }
+  },
+  "geometrie/champ_nom_vide": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   },
+   "tableau": {
+    "type": "DataFrame",
+    "index": "RangeIndex(start=0, stop=3, step=1)",
+    "colonnes": [
+     "Ordre",
+     "Section",
+     "PK section (m)",
+     "Apport",
+     "PK apport (m)",
+     "Distance apport-section (m)"
+    ],
+    "dtypes": [
+     "int64",
+     "str",
+     "float64",
+     "str",
+     "float64",
+     "float64"
+    ],
+    "lignes": [
+     [
+      1,
+      "S1",
+      917.8,
+      "A1",
+      204.5,
+      713.3
+     ],
+     [
+      2,
+      "S2",
+      2825.8,
+      "A2",
+      2125.0,
+      700.8
+     ],
+     [
+      3,
+      "S3",
+      5164.7,
+      "A3",
+      4347.8,
+      816.9
+     ]
+    ]
+   }
+  },
+  "geometrie/correspondance_absente": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "feuille Correspondance illisible : Worksheet named 'Correspondance' not found"
+     ]
+    ]
+   },
+   "tableau": null
+  },
+  "geometrie/correspondance_illisible": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "feuille Correspondance illisible : "
+     ]
+    ]
+   },
+   "tableau": null
+  },
+  "geometrie/doublon_dans_shp": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "sections de controle : noms en doublon ['S2']"
+     ],
+     [
+      "AVERTISSEMENT",
+      "PK non calculables (noms en doublon dans les shapefiles : ['S2']) : ni ordre declare verifie, ni profil en long, ni pente locale deduite."
+     ]
+    ]
+   },
+   "tableau": null
+  },
+  "geometrie/fichiers_introuvables": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "Fichier_SHP_Sections : fichier introuvable -> <TMP>/nulle_part.shp"
+     ],
+     [
+      "ERREUR",
+      "Fichier_SHP_Axe : fichier introuvable -> <TMP>/axe_absent.shp"
+     ]
+    ]
+   },
+   "tableau": null
+  },
+  "geometrie/injection_courte_garde_les_pk": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "lignes d'injection : entite(s) de longueur quasi nulle [('A3', 0.94)]"
+     ]
+    ]
+   },
+   "tableau": {
+    "type": "DataFrame",
+    "index": "RangeIndex(start=0, stop=3, step=1)",
+    "colonnes": [
+     "Ordre",
+     "Section",
+     "PK section (m)",
+     "Apport",
+     "PK apport (m)",
+     "Distance apport-section (m)"
+    ],
+    "dtypes": [
+     "int64",
+     "str",
+     "float64",
+     "str",
+     "float64",
+     "float64"
+    ],
+    "lignes": [
+     [
+      1,
+      "S1",
+      917.8,
+      "A1",
+      204.5,
+      713.3
+     ],
+     [
+      2,
+      "S2",
+      2825.8,
+      "A2",
+      2125.0,
+      700.8
+     ],
+     [
+      3,
+      "S3",
+      5164.7,
+      "A3",
+      4352.1,
+      812.6
+     ]
+    ]
+   }
+  },
+  "geometrie/lecture_axe_en_echec": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "lecture de l'axe hydraulique : axe multiligne"
+     ],
+     [
+      "AVERTISSEMENT",
+      "PK non calculables (axe hydraulique indisponible) : ni ordre declare verifie, ni profil en long, ni pente locale deduite."
+     ]
+    ]
+   },
+   "tableau": null
+  },
+  "geometrie/lecture_shp_en_echec": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "lecture des shapefiles : shapefile corrompu"
+     ]
+    ]
+   },
+   "tableau": null
+  },
+  "geometrie/ordre_incoherent": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "ordre incoherent : 'S2' (PK 2826 m) est declaree en aval de 'S3' (PK 5165 m) alors qu'elle la precede sur l'axe"
+     ],
+     [
+      "ERREUR",
+      "l'apport 'A3' (PK 4348 m) est situe EN AVAL de la section 'S2' (PK 2826 m) qu'il doit alimenter : il ne peut pas l'influencer"
+     ],
+     [
+      "AVERTISSEMENT",
+      "l'apport 'A3' (PK 4348 m) est situe en amont de la section de controle precedente (PK 5165 m) : il modifiera un troncon deja cale, ce qui peut degrader les sections amont"
+     ]
+    ]
+   },
+   "tableau": {
+    "type": "DataFrame",
+    "index": "RangeIndex(start=0, stop=3, step=1)",
+    "colonnes": [
+     "Ordre",
+     "Section",
+     "PK section (m)",
+     "Apport",
+     "PK apport (m)",
+     "Distance apport-section (m)"
+    ],
+    "dtypes": [
+     "int64",
+     "str",
+     "float64",
+     "str",
+     "float64",
+     "float64"
+    ],
+    "lignes": [
+     [
+      1,
+      "S1",
+      917.8,
+      "A1",
+      204.5,
+      713.3
+     ],
+     [
+      2,
+      "S3",
+      5164.7,
+      "A2",
+      2125.0,
+      3039.7
+     ],
+     [
+      3,
+      "S2",
+      2825.8,
+      "A3",
+      4347.8,
+      -1522.0
+     ]
+    ]
+   }
+  },
+  "geometrie/parametres_illisibles": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "parametres du calage illisibles : Expecting property name enclosed in double quotes: line 1 column 3 (char 2)"
+     ]
+    ]
+   },
+   "tableau": null
+  },
+  "geometrie/parametres_introuvables": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "Source_geometrie = SHP mais les chemins des shapefiles ne sont pas renseignes. Les renseigner, ou passer Source_geometrie a MODELE si les lignes sont deja tracees dans la geometrie."
+     ]
+    ]
+   },
+   "tableau": null
+  },
+  "geometrie/pk_origine_1000": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   },
+   "tableau": {
+    "type": "DataFrame",
+    "index": "RangeIndex(start=0, stop=3, step=1)",
+    "colonnes": [
+     "Ordre",
+     "Section",
+     "PK section (m)",
+     "Apport",
+     "PK apport (m)",
+     "Distance apport-section (m)"
+    ],
+    "dtypes": [
+     "int64",
+     "str",
+     "float64",
+     "str",
+     "float64",
+     "float64"
+    ],
+    "lignes": [
+     [
+      1,
+      "S1",
+      1918.3,
+      "A1",
+      1205.0,
+      713.3
+     ],
+     [
+      2,
+      "S2",
+      3826.3,
+      "A2",
+      3125.5,
+      700.8
+     ],
+     [
+      3,
+      "S3",
+      6165.2,
+      "A3",
+      5348.3,
+      816.9
+     ]
+    ]
+   }
+  },
+  "geometrie/pk_origine_liste": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "PK_origine_m = '[1, 2]' : un nombre est attendu."
+     ]
+    ]
+   },
+   "tableau": null
+  },
+  "geometrie/pk_origine_none": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   },
+   "tableau": {
+    "type": "DataFrame",
+    "index": "RangeIndex(start=0, stop=3, step=1)",
+    "colonnes": [
+     "Ordre",
+     "Section",
+     "PK section (m)",
+     "Apport",
+     "PK apport (m)",
+     "Distance apport-section (m)"
+    ],
+    "dtypes": [
+     "int64",
+     "str",
+     "float64",
+     "str",
+     "float64",
+     "float64"
+    ],
+    "lignes": [
+     [
+      1,
+      "S1",
+      917.8,
+      "A1",
+      204.5,
+      713.3
+     ],
+     [
+      2,
+      "S2",
+      2825.8,
+      "A2",
+      2125.0,
+      700.8
+     ],
+     [
+      3,
+      "S3",
+      5164.7,
+      "A3",
+      4347.8,
+      816.9
+     ]
+    ]
+   }
+  },
+  "geometrie/pk_origine_texte": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "PK_origine_m = 'douze' : un nombre est attendu."
+     ]
+    ]
+   },
+   "tableau": null
+  },
+  "geometrie/projection_differente": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "lignes d'injection : projection EPSG:3857 differente de la reference EPSG:2154. Toutes les couches doivent partager la projection du modele."
+     ]
+    ]
+   },
+   "tableau": {
+    "type": "DataFrame",
+    "index": "RangeIndex(start=0, stop=3, step=1)",
+    "colonnes": [
+     "Ordre",
+     "Section",
+     "PK section (m)",
+     "Apport",
+     "PK apport (m)",
+     "Distance apport-section (m)"
+    ],
+    "dtypes": [
+     "int64",
+     "str",
+     "float64",
+     "str",
+     "float64",
+     "float64"
+    ],
+    "lignes": [
+     [
+      1,
+      "S1",
+      917.8,
+      "A1",
+      204.5,
+      713.3
+     ],
+     [
+      2,
+      "S2",
+      2825.8,
+      "A2",
+      2125.0,
+      700.8
+     ],
+     [
+      3,
+      "S3",
+      5164.7,
+      "A3",
+      4347.8,
+      816.9
+     ]
+    ]
+   }
+  },
+  "geometrie/sain": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   },
+   "tableau": {
+    "type": "DataFrame",
+    "index": "RangeIndex(start=0, stop=3, step=1)",
+    "colonnes": [
+     "Ordre",
+     "Section",
+     "PK section (m)",
+     "Apport",
+     "PK apport (m)",
+     "Distance apport-section (m)"
+    ],
+    "dtypes": [
+     "int64",
+     "str",
+     "float64",
+     "str",
+     "float64",
+     "float64"
+    ],
+    "lignes": [
+     [
+      1,
+      "S1",
+      917.8,
+      "A1",
+      204.5,
+      713.3
+     ],
+     [
+      2,
+      "S2",
+      2825.8,
+      "A2",
+      2125.0,
+      700.8
+     ],
+     [
+      3,
+      "S3",
+      5164.7,
+      "A3",
+      4347.8,
+      816.9
+     ]
+    ]
+   }
+  },
+  "geometrie/sans_axe": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "AVERTISSEMENT",
+      "Fichier_SHP_Axe non renseigne : pas de PK, donc ni verification de l'ordre declare ni profil en long. Fournir l'axe hydraulique en polyligne est vivement recommande."
+     ],
+     [
+      "AVERTISSEMENT",
+      "PK non calculables (axe hydraulique indisponible) : ni ordre declare verifie, ni profil en long, ni pente locale deduite."
+     ]
+    ]
+   },
+   "tableau": null
+  },
+  "geometrie/sans_axe_absent_et_doublon": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "AVERTISSEMENT",
+      "Fichier_SHP_Axe non renseigne : pas de PK, donc ni verification de l'ordre declare ni profil en long. Fournir l'axe hydraulique en polyligne est vivement recommande."
+     ],
+     [
+      "ERREUR",
+      "lignes d'injection : noms en doublon ['A1']"
+     ],
+     [
+      "ERREUR",
+      "ligne d'injection(s) declaree(s) dans le template mais absente(s) du shapefile : ['A2'] (presentes : ['A1', 'A3'])"
+     ],
+     [
+      "AVERTISSEMENT",
+      "PK non calculables (axe hydraulique indisponible ; noms declares absents des shapefiles : ['A2'] ; noms en doublon dans les shapefiles : ['A1']) : ni ordre declare verifie, ni profil en long, ni pente locale deduite."
+     ]
+    ]
+   },
+   "tableau": null
+  },
+  "geometrie/section_et_apport_absents": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "section de controle(s) declaree(s) dans le template mais absente(s) du shapefile : ['S0'] (presentes : ['S1', 'S2', 'S3'])"
+     ],
+     [
+      "ERREUR",
+      "ligne d'injection(s) declaree(s) dans le template mais absente(s) du shapefile : ['A9'] (presentes : ['A1', 'A2', 'A3'])"
+     ],
+     [
+      "AVERTISSEMENT",
+      "PK non calculables (noms declares absents des shapefiles : ['S0', 'A9']) : ni ordre declare verifie, ni profil en long, ni pente locale deduite."
+     ]
+    ]
+   },
+   "tableau": null
+  },
+  "geometrie/section_ne_croise_pas_axe": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "AVERTISSEMENT",
+      "sections de controle : ['S2'] ne croisent pas l'axe hydraulique. Une section de controle doit traverser le lit de part en part ; leur PK est estime par projection du centroide."
+     ]
+    ]
+   },
+   "tableau": {
+    "type": "DataFrame",
+    "index": "RangeIndex(start=0, stop=3, step=1)",
+    "colonnes": [
+     "Ordre",
+     "Section",
+     "PK section (m)",
+     "Apport",
+     "PK apport (m)",
+     "Distance apport-section (m)"
+    ],
+    "dtypes": [
+     "int64",
+     "str",
+     "float64",
+     "str",
+     "float64",
+     "float64"
+    ],
+    "lignes": [
+     [
+      1,
+      "S1",
+      917.8,
+      "A1",
+      204.5,
+      713.3
+     ],
+     [
+      2,
+      "S2",
+      2739.8,
+      "A2",
+      2125.0,
+      614.8
+     ],
+     [
+      3,
+      "S3",
+      5164.7,
+      "A3",
+      4347.8,
+      816.9
+     ]
+    ]
+   }
+  },
+  "geometrie/sens_absent": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   },
+   "tableau": {
+    "type": "DataFrame",
+    "index": "RangeIndex(start=0, stop=3, step=1)",
+    "colonnes": [
+     "Ordre",
+     "Section",
+     "PK section (m)",
+     "Apport",
+     "PK apport (m)",
+     "Distance apport-section (m)"
+    ],
+    "dtypes": [
+     "int64",
+     "str",
+     "float64",
+     "str",
+     "float64",
+     "float64"
+    ],
+    "lignes": [
+     [
+      1,
+      "S1",
+      917.8,
+      "A1",
+      204.5,
+      713.3
+     ],
+     [
+      2,
+      "S2",
+      2825.8,
+      "A2",
+      2125.0,
+      700.8
+     ],
+     [
+      3,
+      "S3",
+      5164.7,
+      "A3",
+      4347.8,
+      816.9
+     ]
+    ]
+   }
+  },
+  "geometrie/sens_aval_amont": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "les PK decroissent regulierement le long de l'ordre declare : l'axe hydraulique est probablement dessine de l'aval vers l'amont. Utiliser sens=\"aval_amont\", ou inverser la polyligne."
+     ],
+     [
+      "ERREUR",
+      "l'apport 'A1' (PK 7879 m) est situe EN AVAL de la section 'S1' (PK 7166 m) qu'il doit alimenter : il ne peut pas l'influencer"
+     ],
+     [
+      "ERREUR",
+      "l'apport 'A2' (PK 5959 m) est situe EN AVAL de la section 'S2' (PK 5258 m) qu'il doit alimenter : il ne peut pas l'influencer"
+     ],
+     [
+      "AVERTISSEMENT",
+      "l'apport 'A2' (PK 5959 m) est situe en amont de la section de controle precedente (PK 7166 m) : il modifiera un troncon deja cale, ce qui peut degrader les sections amont"
+     ],
+     [
+      "ERREUR",
+      "l'apport 'A3' (PK 3736 m) est situe EN AVAL de la section 'S3' (PK 2919 m) qu'il doit alimenter : il ne peut pas l'influencer"
+     ],
+     [
+      "AVERTISSEMENT",
+      "l'apport 'A3' (PK 3736 m) est situe en amont de la section de controle precedente (PK 5258 m) : il modifiera un troncon deja cale, ce qui peut degrader les sections amont"
+     ]
+    ]
+   },
+   "tableau": {
+    "type": "DataFrame",
+    "index": "RangeIndex(start=0, stop=3, step=1)",
+    "colonnes": [
+     "Ordre",
+     "Section",
+     "PK section (m)",
+     "Apport",
+     "PK apport (m)",
+     "Distance apport-section (m)"
+    ],
+    "dtypes": [
+     "int64",
+     "str",
+     "float64",
+     "str",
+     "float64",
+     "float64"
+    ],
+    "lignes": [
+     [
+      1,
+      "S1",
+      7166.0,
+      "A1",
+      7879.3,
+      -713.3
+     ],
+     [
+      2,
+      "S2",
+      5257.9,
+      "A2",
+      5958.8,
+      -700.9
+     ],
+     [
+      3,
+      "S3",
+      2919.1,
+      "A3",
+      3736.0,
+      -816.9
+     ]
+    ]
+   }
+  },
+  "geometrie/sens_invalide": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "Sens_axe = 'descendant' : valeurs admises ['amont_aval', 'aval_amont']."
+     ]
+    ]
+   },
+   "tableau": null
+  },
+  "geometrie/sens_none": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "Sens_axe = 'None' : valeurs admises ['amont_aval', 'aval_amont']."
+     ]
+    ]
+   },
+   "tableau": null
+  },
+  "geometrie/sens_vide": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   },
+   "tableau": {
+    "type": "DataFrame",
+    "index": "RangeIndex(start=0, stop=3, step=1)",
+    "colonnes": [
+     "Ordre",
+     "Section",
+     "PK section (m)",
+     "Apport",
+     "PK apport (m)",
+     "Distance apport-section (m)"
+    ],
+    "dtypes": [
+     "int64",
+     "str",
+     "float64",
+     "str",
+     "float64",
+     "float64"
+    ],
+    "lignes": [
+     [
+      1,
+      "S1",
+      917.8,
+      "A1",
+      204.5,
+      713.3
+     ],
+     [
+      2,
+      "S2",
+      2825.8,
+      "A2",
+      2125.0,
+      700.8
+     ],
+     [
+      3,
+      "S3",
+      5164.7,
+      "A3",
+      4347.8,
+      816.9
+     ]
+    ]
+   }
+  },
+  "geometrie/shp_non_renseignes": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "Source_geometrie = SHP mais les chemins des shapefiles ne sont pas renseignes. Les renseigner, ou passer Source_geometrie a MODELE si les lignes sont deja tracees dans la geometrie."
+     ]
+    ]
+   },
+   "tableau": null
+  },
+  "geometrie/shp_non_renseignes_nan": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "Source_geometrie = SHP mais les chemins des shapefiles ne sont pas renseignes. Les renseigner, ou passer Source_geometrie a MODELE si les lignes sont deja tracees dans la geometrie."
+     ]
+    ]
+   },
+   "tableau": null
+  },
+  "geometrie/source_invalide": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "Source_geometrie = 'RASTER' : valeurs admises ['SHP', 'MODELE']."
+     ]
+    ]
+   },
+   "tableau": null
+  },
+  "geometrie/source_modele_apports_seuls": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "AVERTISSEMENT",
+      "Source_geometrie = MODELE, mais des shapefiles sont declares : ils seront ignores. Passer a SHP pour les utiliser."
+     ],
+     [
+      "AVERTISSEMENT",
+      "Source_geometrie = MODELE : les sections et les injections sont supposees deja tracees et nommees dans la geometrie. Leur existence reelle est verifiee par le controle contre le modele."
+     ]
+    ]
+   },
+   "tableau": null
+  },
+  "geometrie/source_modele_avec_shp": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "AVERTISSEMENT",
+      "Source_geometrie = MODELE, mais des shapefiles sont declares : ils seront ignores. Passer a SHP pour les utiliser."
+     ],
+     [
+      "AVERTISSEMENT",
+      "Source_geometrie = MODELE : les sections et les injections sont supposees deja tracees et nommees dans la geometrie. Leur existence reelle est verifiee par le controle contre le modele."
+     ]
+    ]
+   },
+   "tableau": null
+  },
+  "geometrie/source_modele_fichier_introuvable": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "Fichier_SHP_Apports : fichier introuvable -> <TMP>/absent.shp"
+     ],
+     [
+      "AVERTISSEMENT",
+      "Source_geometrie = MODELE, mais des shapefiles sont declares : ils seront ignores. Passer a SHP pour les utiliser."
+     ],
+     [
+      "AVERTISSEMENT",
+      "Source_geometrie = MODELE : les sections et les injections sont supposees deja tracees et nommees dans la geometrie. Leur existence reelle est verifiee par le controle contre le modele."
+     ]
+    ]
+   },
+   "tableau": null
+  },
+  "geometrie/source_modele_sans_shp": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "AVERTISSEMENT",
+      "Source_geometrie = MODELE : les sections et les injections sont supposees deja tracees et nommees dans la geometrie. Leur existence reelle est verifiee par le controle contre le modele."
+     ]
+    ]
+   },
+   "tableau": null
+  },
+  "geometrie/source_none_vaut_shp": {
+   "type": "tuple",
+   "longueur": 2,
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   },
+   "tableau": {
+    "type": "DataFrame",
+    "index": "RangeIndex(start=0, stop=3, step=1)",
+    "colonnes": [
+     "Ordre",
+     "Section",
+     "PK section (m)",
+     "Apport",
+     "PK apport (m)",
+     "Distance apport-section (m)"
+    ],
+    "dtypes": [
+     "int64",
+     "str",
+     "float64",
+     "str",
+     "float64",
+     "float64"
+    ],
+    "lignes": [
+     [
+      1,
+      "S1",
+      917.8,
+      "A1",
+      204.5,
+      713.3
+     ],
+     [
+      2,
+      "S2",
+      2825.8,
+      "A2",
+      2125.0,
+      700.8
+     ],
+     [
+      3,
+      "S3",
+      5164.7,
+      "A3",
+      4347.8,
+      816.9
+     ]
+    ]
+   }
+  },
+  "modele/bc_externes_casse_et_blancs": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "AVERTISSEMENT",
+      "lignes d'injection externes : 'A1' est a 50.0 m du perimetre du maillage, soit plus des 3.0 m admis localement. HEC-RAS rattache une condition limite externe aux faces les plus proches : au-dela, le rattachement peut porter sur de mauvaises faces, ou echouer."
+     ],
+     [
+      "AVERTISSEMENT",
+      "lignes d'injection externes : 'A2' est a 50.0 m du perimetre du maillage, soit plus des 3.0 m admis localement. HEC-RAS rattache une condition limite externe aux faces les plus proches : au-dela, le rattachement peut porter sur de mauvaises faces, ou echouer."
+     ]
+    ]
+   }
+  },
+  "modele/bc_externes_sans_nom": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "ligne d'injection 'A1' absente de la geometrie. La geometrie n'en contient aucune — les creer avant de lancer le calage."
+     ],
+     [
+      "ERREUR",
+      "ligne d'injection 'A2' absente de la geometrie. La geometrie n'en contient aucune — les creer avant de lancer le calage."
+     ],
+     [
+      "ERREUR",
+      "ligne d'injection 'A3' absente de la geometrie. La geometrie n'en contient aucune — les creer avant de lancer le calage."
+     ],
+     [
+      "AVERTISSEMENT",
+      "lignes d'injection externes : 'BC_0' est a 50.0 m du perimetre du maillage, soit plus des 3.0 m admis localement. HEC-RAS rattache une condition limite externe aux faces les plus proches : au-dela, le rattachement peut porter sur de mauvaises faces, ou echouer."
+     ],
+     [
+      "AVERTISSEMENT",
+      "lignes d'injection externes : 'BC_1' est a 50.0 m du perimetre du maillage, soit plus des 3.0 m admis localement. HEC-RAS rattache une condition limite externe aux faces les plus proches : au-dela, le rattachement peut porter sur de mauvaises faces, ou echouer."
+     ],
+     [
+      "AVERTISSEMENT",
+      "lignes d'injection externes : 'BC_2' est a 50.0 m du perimetre du maillage, soit plus des 3.0 m admis localement. HEC-RAS rattache une condition limite externe aux faces les plus proches : au-dela, le rattachement peut porter sur de mauvaises faces, ou echouer."
+     ]
+    ]
+   }
+  },
+  "modele/bc_internes_seulement": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "modele/bc_none": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "ligne d'injection 'A1' absente de la geometrie. La geometrie n'en contient aucune — les creer avant de lancer le calage."
+     ],
+     [
+      "ERREUR",
+      "ligne d'injection 'A2' absente de la geometrie. La geometrie n'en contient aucune — les creer avant de lancer le calage."
+     ],
+     [
+      "ERREUR",
+      "ligne d'injection 'A3' absente de la geometrie. La geometrie n'en contient aucune — les creer avant de lancer le calage."
+     ]
+    ]
+   }
+  },
+  "modele/bc_sans_colonne_nom": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "ligne d'injection 'A1' absente de la geometrie. La geometrie n'en contient aucune — les creer avant de lancer le calage."
+     ],
+     [
+      "ERREUR",
+      "ligne d'injection 'A2' absente de la geometrie. La geometrie n'en contient aucune — les creer avant de lancer le calage."
+     ],
+     [
+      "ERREUR",
+      "ligne d'injection 'A3' absente de la geometrie. La geometrie n'en contient aucune — les creer avant de lancer le calage."
+     ]
+    ]
+   }
+  },
+  "modele/bc_sans_type": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "modele/bc_trop_loin": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "AVERTISSEMENT",
+      "lignes d'injection externes : 'A1' est a 7.0 m du perimetre du maillage, soit plus des 6.0 m admis localement. HEC-RAS rattache une condition limite externe aux faces les plus proches : au-dela, le rattachement peut porter sur de mauvaises faces, ou echouer."
+     ],
+     [
+      "AVERTISSEMENT",
+      "lignes d'injection externes : 'A2' est a 7.0 m du perimetre du maillage, soit plus des 6.0 m admis localement. HEC-RAS rattache une condition limite externe aux faces les plus proches : au-dela, le rattachement peut porter sur de mauvaises faces, ou echouer."
+     ],
+     [
+      "AVERTISSEMENT",
+      "lignes d'injection externes : 'A3' est a 7.0 m du perimetre du maillage, soit plus des 6.0 m admis localement. HEC-RAS rattache une condition limite externe aux faces les plus proches : au-dela, le rattachement peut porter sur de mauvaises faces, ou echouer."
+     ]
+    ]
+   }
+  },
+  "modele/combinaison": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "zone d'ecoulement 2D 'Zone2D' absente de la geometrie (presentes : ['Z1', 'Z2'])"
+     ],
+     [
+      "ERREUR",
+      "section de controle 'S2' absente de la geometrie. Presentes : ['S1']."
+     ],
+     [
+      "ERREUR",
+      "section de controle 'S3' absente de la geometrie. Presentes : ['S1']."
+     ],
+     [
+      "INFO",
+      "ecrits dans la geometrie mais pas encore pretraites par HEC-RAS : ['A3', 'S1']. Ils seront pris en compte au prochain calcul ; rien a faire."
+     ],
+     [
+      "INFO",
+      "lignes d'injection externes : 'A1' est a 40.0 m du perimetre du maillage (ecart non evalue, taille de maille inconnue)"
+     ],
+     [
+      "INFO",
+      "lignes d'injection externes : 'A2' est a 40.0 m du perimetre du maillage (ecart non evalue, taille de maille inconnue)"
+     ]
+    ]
+   }
+  },
+  "modele/correspondance_sans_section": {
+   "exception": "StopIteration",
+   "message": ""
+  },
+  "modele/geometrie_avec_point": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "modele/geometrie_sans_g": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "modele/hdf_fourni_parametres_vides": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "modele/hdf_introuvable": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "geometrie introuvable : <TMP>/Essai.g02.hdf"
+     ]
+    ]
+   }
+  },
+  "modele/maille_illisible": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "INFO",
+      "lignes d'injection externes : 'A1' est a 12.5 m du perimetre du maillage (ecart non evalue, taille de maille inconnue)"
+     ],
+     [
+      "INFO",
+      "lignes d'injection externes : 'A2' est a 12.5 m du perimetre du maillage (ecart non evalue, taille de maille inconnue)"
+     ],
+     [
+      "INFO",
+      "lignes d'injection externes : 'A3' est a 12.5 m du perimetre du maillage (ecart non evalue, taille de maille inconnue)"
+     ]
+    ]
+   }
+  },
+  "modele/maille_illisible_bc_sur_perimetre": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "modele/mesh_illisible": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "AVERTISSEMENT",
+      "perimetre de la zone 2D illisible : groupe HDF absent"
+     ]
+    ]
+   }
+  },
+  "modele/mesh_none": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "AVERTISSEMENT",
+      "aucune zone 2D dans la geometrie"
+     ]
+    ]
+   }
+  },
+  "modele/mesh_sans_colonne_nom": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "modele/mesh_vide": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "AVERTISSEMENT",
+      "aucune zone 2D dans la geometrie"
+     ]
+    ]
+   }
+  },
+  "modele/mesh_zone_introuvable": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "AVERTISSEMENT",
+      "perimetre de la zone 'Zone2D' introuvable"
+     ]
+    ]
+   }
+  },
+  "modele/multi_zones_filtre": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "modele/noms_absents": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "ligne d'injection 'A2' absente de la geometrie. Presentes : ['A1', 'A3', 'X9']."
+     ],
+     [
+      "ERREUR",
+      "section de controle 'S1' absente de la geometrie. La geometrie n'en contient aucune — les creer avant de lancer le calage."
+     ],
+     [
+      "ERREUR",
+      "section de controle 'S2' absente de la geometrie. La geometrie n'en contient aucune — les creer avant de lancer le calage."
+     ],
+     [
+      "ERREUR",
+      "section de controle 'S3' absente de la geometrie. La geometrie n'en contient aucune — les creer avant de lancer le calage."
+     ]
+    ]
+   }
+  },
+  "modele/parametres_manquants": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "AVERTISSEMENT",
+      "controle contre le modele non effectue : parametre(s) ['Dossier_projet_HECRAS', 'Geometrie_reference'] non renseigne(s)"
+     ]
+    ]
+   }
+  },
+  "modele/parametres_manquants_nan": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "AVERTISSEMENT",
+      "controle contre le modele non effectue : parametre(s) ['Geometrie_reference'] non renseigne(s)"
+     ]
+    ]
+   }
+  },
+  "modele/references_vides": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "section de controle 'S1' absente de la geometrie. La geometrie n'en contient aucune — les creer avant de lancer le calage."
+     ],
+     [
+      "ERREUR",
+      "section de controle 'S2' absente de la geometrie. La geometrie n'en contient aucune — les creer avant de lancer le calage."
+     ],
+     [
+      "ERREUR",
+      "section de controle 'S3' absente de la geometrie. La geometrie n'en contient aucune — les creer avant de lancer le calage."
+     ]
+    ]
+   }
+  },
+  "modele/sain": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "modele/sections_hors_maillage": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "AVERTISSEMENT",
+      "sections de controle : 'S2' n'est interieure a la zone 2D que sur 75 % de sa longueur. Une section de controle doit traverser tout l'ecoulement, faute de quoi le debit integre en ignore une partie."
+     ],
+     [
+      "ERREUR",
+      "sections de controle : 'S3' n'est interieure a la zone 2D que sur 20 % de sa longueur. Une section de controle doit traverser tout l'ecoulement, faute de quoi le debit integre en ignore une partie."
+     ]
+    ]
+   }
+  },
+  "modele/texte_en_attente": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "INFO",
+      "ecrits dans la geometrie mais pas encore pretraites par HEC-RAS : ['A3', 'S2', 'S3']. Ils seront pris en compte au prochain calcul ; rien a faire."
+     ]
+    ]
+   }
+  },
+  "modele/texte_rien_de_nouveau": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "modele/zone_absente": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "zone d'ecoulement 2D 'Zone2D' absente de la geometrie (presentes : ['Perimeter 1', 'Perimeter 2'])"
+     ]
+    ]
+   }
+  },
+  "modele/zone_nan_plusieurs": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "AVERTISSEMENT",
+      "Nom_zone_2D non renseigne et le modele en comporte plusieurs ['Z1', 'Z2'] : la premiere est retenue par defaut."
+     ]
+    ]
+   }
+  },
+  "modele/zone_non_renseignee_plusieurs": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "AVERTISSEMENT",
+      "Nom_zone_2D non renseigne et le modele en comporte plusieurs ['Z1', 'Z2'] : la premiere est retenue par defaut."
+     ]
+    ]
+   }
+  },
+  "modele/zone_non_renseignee_une": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "template/apport_en_doublon": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "nom de apport en doublon : ['A2']. Chaque apport doit etre unique — une inconnue par contrainte."
+     ]
+    ]
+   }
+  },
+  "template/cible_absente_et_inutilisee": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "cibles declarees dans Correspondance mais absentes de la feuille Cibles : ['C3']"
+     ],
+     [
+      "AVERTISSEMENT",
+      "colonnes de la feuille Cibles jamais utilisees : ['C_inutile']"
+     ]
+    ]
+   }
+  },
+  "template/cible_negative": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "cible 'C2' : contient des debits negatifs"
+     ]
+    ]
+   }
+  },
+  "template/cible_negative_et_nulle": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "cible 'C2' : contient des debits negatifs"
+     ],
+     [
+      "ERREUR",
+      "cible 'C2' : hydrogramme identiquement nul"
+     ]
+    ]
+   }
+  },
+  "template/cible_nulle": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "cible 'C2' : hydrogramme identiquement nul"
+     ]
+    ]
+   }
+  },
+  "template/cible_texte_une_valeur": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "cible 'C2' : pas assez de valeurs numeriques (1 valeur exploitable)"
+     ]
+    ]
+   }
+  },
+  "template/cible_trous_en_fin": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "AVERTISSEMENT",
+      "cible 'C2' : valeurs manquantes intercalees"
+     ]
+    ]
+   }
+  },
+  "template/cible_trous_en_tete": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "template/cible_trous_intercales": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "template/cible_une_valeur": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "cible 'C2' : pas assez de valeurs numeriques (1 valeur exploitable)"
+     ]
+    ]
+   }
+  },
+  "template/cible_vide": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "AVERTISSEMENT",
+      "cible 'C2' : colonne vide, a renseigner avant le calage"
+     ]
+    ]
+   }
+  },
+  "template/cibles_apercu_sans_style_classeur": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "AVERTISSEMENT",
+      "colonnes de la feuille Cibles jamais utilisees : ['Q pic (m³/s)']"
+     ]
+    ]
+   }
+  },
+  "template/cibles_apercu_style_exclu": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "template/cibles_dix_pas": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "template/cibles_entete_numerique": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "template/cibles_neuf_pas": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "AVERTISSEMENT",
+      "feuille Cibles : seulement 9 pas de temps. Un hydrogramme trop grossier fausse le volume et le debit de pointe compares a la cible."
+     ]
+    ]
+   }
+  },
+  "template/cibles_peu_de_pas": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "AVERTISSEMENT",
+      "feuille Cibles : seulement 4 pas de temps. Un hydrogramme trop grossier fausse le volume et le debit de pointe compares a la cible."
+     ]
+    ]
+   }
+  },
+  "template/cibles_sans_temps": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "feuille Cibles : colonne 'Temps_h' absente"
+     ]
+    ]
+   }
+  },
+  "template/cibles_temps_non_croissant": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "feuille Cibles : la colonne Temps_h doit etre strictement croissante"
+     ]
+    ]
+   }
+  },
+  "template/cibles_temps_texte_ignore": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "template/cibles_un_seul_pas": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "AVERTISSEMENT",
+      "feuille Cibles : seulement 1 pas de temps. Un hydrogramme trop grossier fausse le volume et le debit de pointe compares a la cible."
+     ],
+     [
+      "ERREUR",
+      "cible 'C1' : pas assez de valeurs numeriques (1 valeur exploitable)"
+     ],
+     [
+      "ERREUR",
+      "cible 'C2' : pas assez de valeurs numeriques (1 valeur exploitable)"
+     ],
+     [
+      "ERREUR",
+      "cible 'C3' : pas assez de valeurs numeriques (1 valeur exploitable)"
+     ]
+    ]
+   }
+  },
+  "template/classeur_absent": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "classeur illisible : [Errno 2] No such file or directory: '<TMP>/absent.xlsx'"
+     ]
+    ]
+   }
+  },
+  "template/classeur_pas_excel": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "classeur illisible : Excel file format cannot be determined, you must specify an engine manually."
+     ]
+    ]
+   }
+  },
+  "template/coeurs_4_5": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "Coeurs_par_calcul = 4.5 : entier entre 0 (plan inchange) et 64 attendu"
+     ]
+    ]
+   }
+  },
+  "template/coeurs_64": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "template/coeurs_65": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "Coeurs_par_calcul = 65 : entier entre 0 (plan inchange) et 64 attendu"
+     ]
+    ]
+   }
+  },
+  "template/coeurs_8": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "template/coeurs_8_0": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "template/coeurs_chaine": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "Coeurs_par_calcul = '4' : entier entre 0 (plan inchange) et 64 attendu"
+     ]
+    ]
+   }
+  },
+  "template/coeurs_moins_1": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "Coeurs_par_calcul = -1 : entier entre 0 (plan inchange) et 64 attendu"
+     ]
+    ]
+   }
+  },
+  "template/coeurs_nan": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "Coeurs_par_calcul = nan : entier entre 0 (plan inchange) et 64 attendu"
+     ]
+    ]
+   }
+  },
+  "template/coeurs_none": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "template/coeurs_vide": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "template/coeurs_vrai": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "template/coeurs_zero": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "template/combinaison_parametres_et_cibles_vides": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "parametres du calage introuvables : ni « donnees.json » a cote du classeur, ni feuille « Parametres » dedans. Le JSON accompagne le classeur : deplacer l'un sans l'autre laisse un calage sans parametres."
+     ],
+     [
+      "ERREUR",
+      "parametre manquant ou vide : Dossier_projet_HECRAS"
+     ],
+     [
+      "ERREUR",
+      "parametre manquant ou vide : Nom_projet"
+     ],
+     [
+      "ERREUR",
+      "parametre manquant ou vide : Nom_zone_2D"
+     ],
+     [
+      "ERREUR",
+      "parametre manquant ou vide : Nb_max_iterations_par_apport"
+     ],
+     [
+      "AVERTISSEMENT",
+      "feuille Cibles : seulement 2 pas de temps. Un hydrogramme trop grossier fausse le volume et le debit de pointe compares a la cible."
+     ],
+     [
+      "AVERTISSEMENT",
+      "cible 'C1' : colonne vide, a renseigner avant le calage"
+     ],
+     [
+      "ERREUR",
+      "cible 'C2' : pas assez de valeurs numeriques (1 valeur exploitable)"
+     ],
+     [
+      "ERREUR",
+      "cible 'C3' : hydrogramme identiquement nul"
+     ]
+    ]
+   }
+  },
+  "template/correspondance_colonnes_manquantes": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "feuille Correspondance : colonnes Ordre / Nom_Apport / Nom_Section / Nom_Cible attendues"
+     ]
+    ]
+   }
+  },
+  "template/correspondance_lignes_incompletes_ignorees": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "template/correspondance_sans_ordre": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "feuille Correspondance : colonnes Ordre / Nom_Apport / Nom_Section / Nom_Cible attendues"
+     ]
+    ]
+   }
+  },
+  "template/correspondance_vide": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "feuille Correspondance : aucune station renseignee"
+     ]
+    ]
+   }
+  },
+  "template/fautif_du_banc": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "parametre manquant ou vide : Nom_zone_2D"
+     ],
+     [
+      "ERREUR",
+      "Nb_max_iterations_par_apport = 2 : au moins 3 essais sont necessaires pour que la correction converge"
+     ],
+     [
+      "ERREUR",
+      "fenetre de simulation : instant « 13/10/2014 00:00 » invalide : attendu JJMMMAAAA,HH:MM avec un mois anglais sur trois lettres (JAN, FEB, MAR...), par exemple 13OCT2014,00:00"
+     ],
+     [
+      "ERREUR",
+      "colonne Ordre : doit etre la suite 1..3 sans trou ni doublon (valeurs lues : [1, 2, 4])"
+     ],
+     [
+      "ERREUR",
+      "nom de apport en doublon : ['A2']. Chaque apport doit etre unique — une inconnue par contrainte."
+     ],
+     [
+      "AVERTISSEMENT",
+      "feuille Cibles : seulement 4 pas de temps. Un hydrogramme trop grossier fausse le volume et le debit de pointe compares a la cible."
+     ],
+     [
+      "ERREUR",
+      "feuille Cibles : la colonne Temps_h doit etre strictement croissante"
+     ],
+     [
+      "ERREUR",
+      "cibles declarees dans Correspondance mais absentes de la feuille Cibles : ['C_absente']"
+     ],
+     [
+      "AVERTISSEMENT",
+      "colonnes de la feuille Cibles jamais utilisees : ['C_inutile']"
+     ],
+     [
+      "ERREUR",
+      "cible 'C2' : contient des debits negatifs"
+     ]
+    ]
+   }
+  },
+  "template/fenetre_date_francaise": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "fenetre de simulation : instant « 13/10/2014 00:00 » invalide : attendu JJMMMAAAA,HH:MM avec un mois anglais sur trois lettres (JAN, FEB, MAR...), par exemple 13OCT2014,00:00"
+     ]
+    ]
+   }
+  },
+  "template/fenetre_incomplete_et_blancs": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "fenetre de simulation : fenetre de simulation incomplete : le debut et la fin doivent etre fournis ensemble."
+     ]
+    ]
+   }
+  },
+  "template/fenetre_nan": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "fenetre de simulation : intervalle « abc » invalide : attendu un nombre suivi de SEC, MIN, HOUR, DAY... par exemple 1SEC ou 5MIN"
+     ]
+    ]
+   }
+  },
+  "template/fenetre_sans_pilote": {
+   "exception": "ModuleNotFoundError",
+   "message": "import of pilote_hecras halted; None in sys.modules"
+  },
+  "template/fenetre_valide": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "template/feuille_cibles_absente": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "classeur illisible : feuilles absentes du classeur : ['Cibles']"
+     ]
+    ]
+   }
+  },
+  "template/feuilles_absentes_toutes": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "classeur illisible : feuilles absentes du classeur : ['Cibles', 'Correspondance']"
+     ]
+    ]
+   }
+  },
+  "template/livre_avec_le_projet": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "AVERTISSEMENT",
+      "cible 'Cible_SC2' : colonne vide, a renseigner avant le calage"
+     ],
+     [
+      "AVERTISSEMENT",
+      "cible 'Cible_SC3' : colonne vide, a renseigner avant le calage"
+     ]
+    ]
+   }
+  },
+  "template/nb_max_2": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "Nb_max_iterations_par_apport = 2 : au moins 3 essais sont necessaires pour que la correction converge"
+     ]
+    ]
+   }
+  },
+  "template/nb_max_2_5": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "Nb_max_iterations_par_apport = 2.5 : au moins 3 essais sont necessaires pour que la correction converge"
+     ]
+    ]
+   }
+  },
+  "template/nb_max_3": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "template/nb_max_chaine": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "template/ordre_doublon": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "colonne Ordre : doit etre la suite 1..3 sans trou ni doublon (valeurs lues : [1, 1, 2])"
+     ]
+    ]
+   }
+  },
+  "template/ordre_non_contigu": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "colonne Ordre : doit etre la suite 1..3 sans trou ni doublon (valeurs lues : [1, 2, 4])"
+     ]
+    ]
+   }
+  },
+  "template/ordre_non_numerique": {
+   "exception": "ValueError",
+   "message": "invalid literal for int() with base 10: 'deux'"
+  },
+  "template/parametre_requis_absent": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "parametre manquant ou vide : Nom_zone_2D"
+     ]
+    ]
+   }
+  },
+  "template/parametre_requis_nan": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "parametre manquant ou vide : Dossier_projet_HECRAS"
+     ]
+    ]
+   }
+  },
+  "template/parametre_requis_none": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "parametre manquant ou vide : Nom_projet"
+     ]
+    ]
+   }
+  },
+  "template/parametres_feuille_heritee": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "template/parametres_introuvables": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "parametres du calage introuvables : ni « donnees.json » a cote du classeur, ni feuille « Parametres » dedans. Le JSON accompagne le classeur : deplacer l'un sans l'autre laisse un calage sans parametres."
+     ],
+     [
+      "ERREUR",
+      "parametre manquant ou vide : Dossier_projet_HECRAS"
+     ],
+     [
+      "ERREUR",
+      "parametre manquant ou vide : Nom_projet"
+     ],
+     [
+      "ERREUR",
+      "parametre manquant ou vide : Nom_zone_2D"
+     ],
+     [
+      "ERREUR",
+      "parametre manquant ou vide : Nb_max_iterations_par_apport"
+     ]
+    ]
+   }
+  },
+  "template/parametres_json_corrompu": {
+   "exception": "JSONDecodeError",
+   "message": "Expecting property name enclosed in double quotes: line 1 column 3 (char 2)"
+  },
+  "template/prefixe_beaucoup_trop_long": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "Prefixe_scenario : titre d'etape « PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP-sans APP07 » : 51 caracteres pour 32 tenables. Raccourcir le prefixe de scenario de 19 caractere(s) au moins, ou le nom de l'apport. Tronquer donnerait le meme « Short Identifier » a plusieurs plans, donc le meme dossier de resultats sous RAS Mapper."
+     ]
+    ]
+   }
+  },
+  "template/prefixe_court": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "template/prefixe_limite": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "template/prefixe_nan": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "template/prefixe_ordre_des_lignes_inverse": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "template/prefixe_sans_calage": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "template/prefixe_trop_long": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "Prefixe_scenario : titre d'etape « Riviere1_Q100_1000_ABC-sans APP07 » : 33 caracteres pour 32 tenables. Raccourcir le prefixe de scenario de 1 caractere(s) au moins, ou le nom de l'apport. Tronquer donnerait le meme « Short Identifier » a plusieurs plans, donc le meme dossier de resultats sous RAS Mapper."
+     ]
+    ]
+   }
+  },
+  "template/prefixe_vide": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "template/sain": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
+  },
+  "template/section_en_doublon": {
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "nom de section en doublon : ['S1', 'S1']. Chaque section doit etre unique — une inconnue par contrainte."
+     ]
+    ]
+   }
+  }
+ }
+}

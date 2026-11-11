@@ -398,9 +398,31 @@ BoiteMessage.traces = []
 
 dialogue = DialogueTexte()
 fichiers = DialogueFichier()
-mod_plugin.QInputDialog = dialogue
-mod_plugin.QFileDialog = fichiers
-mod_plugin.QMessageBox = BoiteMessage
+# LES DOUBLURES VALENT POUR TOUT MODULE DU PAQUET QUI NOMME UNE BOITE, et non
+# plus pour plugin.py seul. La fenetre se repartit en modules de pages
+# (docs/decoupage_dialogue.md) : une page qui ouvrirait une vraie boite, hors
+# ecran, attendrait un clic qui ne vient jamais, et le banc resterait bloque.
+# On parcourt donc les modules du paquet DEJA IMPORTES — plugin.py importe ses
+# pages des son chargement — et l'on remplace chacun des trois noms que le
+# module lie lui-meme. Une page future est ainsi couverte sans y repenser ;
+# confirmer() aussi, ou qu'il vive, puisqu'il lit QMessageBox dans son module.
+# Limite assumee : un module qui ecrirait « QtWidgets.QMessageBox » n'est pas
+# vu ; aucun ne le fait.
+_DOUBLURES = {"QInputDialog": dialogue, "QFileDialog": fichiers,
+              "QMessageBox": BoiteMessage}
+_modules_doubles = []
+for _nom_module, _module in sorted(sys.modules.items()):
+    if not _nom_module.startswith("calage_apports.") or _module is None:
+        continue
+    _lies = [_n for _n in _DOUBLURES if _n in vars(_module)]
+    for _n in _lies:
+        setattr(_module, _n, _DOUBLURES[_n])
+    if _lies:
+        _modules_doubles.append(_nom_module.split(".", 1)[1])
+# Une boucle qui ne doublerait rien — paquet renomme, import deplace — ne
+# se verrait qu'au premier blocage : on le dit ici, et on nomme les modules.
+verifier("les boites sont doublees dans chaque module du paquet qui les nomme",
+         "plugin" in _modules_doubles, ", ".join(_modules_doubles) or "aucun")
 
 # ---------------------------------------------------------------------------
 # Couches de travail
@@ -2085,7 +2107,7 @@ _PORTEES_CONNUES = (
     "GlobalColor|LayoutDirection|FocusPolicy|ConnectionType|MatchFlag|"
     "ToolButtonStyle|TimeSpec|DateFormat|TextElideMode|AspectRatioMode|"
     "TransformationMode|ContextMenuPolicy|WidgetAttribute|ArrowType|ShortcutContext|ApplicationState|"
-    "FocusReason")
+    "FocusReason|TextFlag")
 #
 # CE GARDE-FOU AVAIT UN ANGLE MORT, et il a coute exactement ce qu'il devait
 # eviter : il ne portait que sur six classes. QFormLayout, QTextEdit et
@@ -2104,6 +2126,10 @@ _PORTEES_CONNUES = (
 # que sur QGIS < 3.38, donc sous PyQt5, ou la forme plate est la seule qui
 # existe. L'y interdire casserait le repli qui fait tenir la promesse
 # qgisMinimumVersion=3.34.
+# SUR TOUS LES .py DU PLUGIN, et non plus sur plugin.py seul : la fenetre se
+# repartit en modules (widgets, socle, pages), et une constante nue ecrite
+# dans l'un d'eux echappait au controle. Le detail nomme le fichier.
+_FICHIERS_PLUGIN = sorted(Path(mod_plugin.__file__).parent.glob("*.py"))
 for _classe, _portees in (("Qt", _PORTEES_CONNUES),
                           ("QMessageBox", "StandardButton|Icon|ButtonRole"),
                           ("QSizePolicy", "Policy|ControlType"),
@@ -2145,9 +2171,10 @@ for _classe, _portees in (("Qt", _PORTEES_CONNUES),
     # l'ancienne expression ne rendait rien, la nouvelle rend « Key_Return ».
     # Le [A-Za-z_0-9] capture en outre les membres a underscore ou a chiffre,
     # que [A-Za-z] tronquait.
-    _nus = sorted(set(re.findall(
-        rf"\b{_classe}\.(?!(?:{_portees})\b)([A-Z][A-Za-z_0-9]+)",
-        Path(mod_plugin.__file__).read_text(encoding="utf-8"))))
+    _nus = sorted({f"{_f.name}:{_m}" for _f in _FICHIERS_PLUGIN
+                   for _m in re.findall(
+                       rf"\b{_classe}\.(?!(?:{_portees})\b)([A-Z][A-Za-z_0-9]+)",
+                       _f.read_text(encoding="utf-8"))})
     verifier(f"aucune constante {_classe} non qualifiee (Qt6)",
              not _nus, ", ".join(_nus[:4]) or "aucune")
 
@@ -2158,8 +2185,13 @@ for _classe, _portees in (("Qt", _PORTEES_CONNUES),
 # du livrable cadreraient alors deux fenetres differentes, sans que rien ne le
 # dise. Les deux constantes sont donc comparees ici, sur le TEXTE des deux
 # fichiers — ce qui n'exige d'importer ni matplotlib ni la chaine.
+#   LE COTE PLUGIN EST LE FICHIER QUI DEFINIT _fenetre_crue, et non plus
+# plugin.py ecrit en dur : la courbe du suivi et sa fenetre de crue quittent
+# plugin.py (docs/decoupage_dialogue.md). Suivre la fonction garde le
+# controle sur le code qui trace reellement, ou qu'il vive.
+_FICHIER_CRUE = Path(sys.modules[mod_plugin._fenetre_crue.__module__].__file__)
 _CRUE = {}
-for _quel, _fichier in (("plugin", Path(mod_plugin.__file__)),
+for _quel, _fichier in (("plugin", _FICHIER_CRUE),
                         ("livrables", CHAINE / "livrables.py")):
     _texte = _fichier.read_text(encoding="utf-8")
     _CRUE[_quel] = {
@@ -2178,7 +2210,7 @@ verifier("la fenetre de crue ne diverge pas entre plugin et livrables",
 # ci-dessus au vert pendant que les deux fenetres divergent — exactement ce
 # que ce garde-fou existe pour empecher.
 _SIGN = {}
-for _quel, _fichier in (("plugin", Path(mod_plugin.__file__)),
+for _quel, _fichier in (("plugin", _FICHIER_CRUE),
                         ("livrables", CHAINE / "livrables.py")):
     _m = re.search(r"def _fenetre_crue\((.*?)\):",
                    _fichier.read_text(encoding="utf-8"), re.S)
@@ -4189,9 +4221,13 @@ verifier("theme clair : « en cours » est le teal sombre, pas l'institutionnel"
          and _contraste(mod_plugin.ISL_TEAL, _FOND_CLAIR) < 4.5,
          f"sombre {_contraste(mod_plugin.ISL_TEAL_SOMBRE, _FOND_CLAIR):.2f}:1, "
          f"institutionnel {_contraste(mod_plugin.ISL_TEAL, _FOND_CLAIR):.2f}:1")
-verifier("theme clair : plus aucun texte ecrit en teal institutionnel dans plugin.py",
-         not re.search(r"color:\{ISL_TEAL\}", Path(mod_plugin.__file__)
-                       .read_text(encoding="utf-8")))
+# SUR TOUS LES .py DU PLUGIN, et non plus sur plugin.py seul : la fenetre se
+# repartit en modules (docs/decoupage_dialogue.md), et un texte en teal ecrit
+# dans l'un d'eux echappait au controle sans le faire rougir.
+_teal_ecrit = [_f.name for _f in sorted(Path(mod_plugin.__file__).parent.glob("*.py"))
+               if re.search(r"color:\{ISL_TEAL\}", _f.read_text(encoding="utf-8"))]
+verifier("theme clair : plus aucun texte ecrit en teal institutionnel dans le plugin",
+         not _teal_ecrit, ", ".join(_teal_ecrit) or "aucun fichier")
 _remappees = set(mod_interface.COULEURS_SOMBRES.values())
 _sous_seuil = {c: round(_contraste(c, _FOND_SOMBRE), 2) for c in _remappees
                if _contraste(c, _FOND_SOMBRE) < 4.5}
@@ -4308,9 +4344,12 @@ verifier("« Chaîne introuvable » : « Plus tard » est le defaut, « Désigne
          and _boite_chaine.bouton_defaut.text() == "Plus tard",
          str([[b.text() for b in v.boutons] for v in _vues]))
 dlg._diagnostic()          # le diagnostic reel reprend sa place dans l'onglet
-verifier("plus aucun QMessageBox.question dans plugin.py",
-         not re.search(r"^\s*\w[^#\n]*QMessageBox\.question\(", Path(mod_plugin.__file__)
-                       .read_text(encoding="utf-8"), re.MULTILINE))
+# Sur tous les .py du plugin, pour la meme raison que le teal ci-dessus.
+_questions = [_f.name for _f in sorted(Path(mod_plugin.__file__).parent.glob("*.py"))
+              if re.search(r"^\s*\w[^#\n]*QMessageBox\.question\(",
+                           _f.read_text(encoding="utf-8"), re.MULTILINE)]
+verifier("plus aucun QMessageBox.question dans le plugin",
+         not _questions, ", ".join(_questions) or "aucun fichier")
 
 # --- LES LIENS DU FIL CONDUCTEUR REPONDENT AU CLAVIER (C5) --------------------
 _flags = dlg.label_fil.textInteractionFlags()
