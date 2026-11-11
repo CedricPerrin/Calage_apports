@@ -3834,7 +3834,9 @@ dates fictives au 1er janvier.
     condition NON CALEE, le journal dit de combien sa pointe est rabotee et
     l'ecart maximal a la serie d'origine ; au-dela de 1 % de la pointe
     (SEUIL_ECART_RECADENCAGE) la ligne porte « AVERTISSEMENT », que l'etape
-    Suivi remonte. Les .uNN reecrits sont identiques a l'octet pres.
+    Suivi montre AU DEBUT DU CALAGE seulement (elle ne lit que la fin du
+    journal ; la ligne reste dans le journal). Les .uNN reecrits sont
+    identiques a l'octet pres.
     src/test_recadencage_ecart.py. LE DIAGNOSTIC :
     L'annonce « 1 a 2 % d'ecart de volume » etait FAUSSE : elle venait de
     series d'essai de quelques valeurs. Sur des crues realistes le VOLUME est

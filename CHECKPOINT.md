@@ -36,7 +36,9 @@ Décision de Cédric : **afficher l'écart, sans changer le calcul.** Quand le p
 divise pas le pas d'origine d'une condition non calée, le journal dit de combien sa pointe
 est rabotée et l'écart maximal à la série d'origine ; au-delà de 1 % de la pointe
 (`SEUIL_ECART_RECADENCAGE`, mon choix, à relire), la ligne porte « AVERTISSEMENT », que
-l'étape Suivi remonte sous sa bannière. Les fichiers unsteady réécrits sont identiques à
+l'étape Suivi montre sous sa bannière **au début du calage seulement** : elle ne lit que la
+fin du journal, et la ligne en sort quand il grossit (elle reste dans le journal). Les
+fichiers unsteady réécrits sont identiques à
 l'octet près. `test_recadencage_ecart.py` (9 tests) ; filet `test_pilote_recadence` refigé
 (une clé ajoutée aux comptes rendus, cinq lignes de journal dans quatre cas).
 
