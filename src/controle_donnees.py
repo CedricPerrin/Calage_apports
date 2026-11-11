@@ -406,7 +406,10 @@ def _correspondance(chemin_template):
     corr = pd.read_excel(chemin_template, sheet_name="Correspondance")
     col_ordre = "Ordre"
     col_apport = next(c for c in corr.columns if c.startswith("Nom_Apport"))
-    col_section = next(c for c in corr.columns if c.startswith("Nom_Section"))
+    col_section = next(
+        (c for c in corr.columns if c.startswith("Nom_Section")), None)
+    if col_section is None:
+        raise ValueError("colonne 'Nom_Section' absente")
     corr = corr.dropna(subset=[col_ordre, col_apport, col_section])
     corr = corr.sort_values(col_ordre)
     return (corr[col_section].astype(str).tolist(),
@@ -908,7 +911,12 @@ def controler_contre_modele(chemin_template, chemin_geometrie_hdf=None):
     }
     en_attente = _ajouter_noms_du_texte(chemin_geometrie_hdf, presents)
 
-    noms_sections, noms_apports = _correspondance(chemin_template)
+    try:
+        noms_sections, noms_apports = _correspondance(chemin_template)
+    except ValueError as e:
+        # Comme controler_geometrie, qui rend la meme anomalie.
+        return anomalies + [(ERREUR,
+                             f"feuille Correspondance illisible : {e}")]
     anomalies += _regle_noms_dans_modele(presents, noms_sections, noms_apports)
     anomalies += _regle_en_attente_de_pretraitement(en_attente, noms_sections,
                                                     noms_apports)
