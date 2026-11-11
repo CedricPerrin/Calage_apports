@@ -1,8 +1,13 @@
 name: UX QGIS
 
+# UN SEUL DECLENCHEMENT PAR POUSSEE (11/11/2026). Avec « push » sur toutes les
+# branches, une branche qui a une PR jouait le workflow deux fois (push et
+# pull_request) : huit jobs au lieu de quatre, et le quota de minutes Actions du
+# compte y est passe. Une branche SANS PR n'est plus jouee d'office : ouvrir la
+# PR (meme en brouillon) ou lancer le workflow a la main (workflow_dispatch).
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
