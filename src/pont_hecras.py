@@ -1965,8 +1965,18 @@ def commande_caler(args):
     def texte(cle, defaut=""):
         return _texte_parametre(valeurs, cle, defaut)
 
-    apports, sections, cibles, manquantes = _cibles_depuis_classeur(
-        chemin_template, journal=_dire_horodate)
+    try:
+        apports, sections, cibles, manquantes = _cibles_depuis_classeur(
+            chemin_template, journal=_dire_horodate)
+    except FileNotFoundError:
+        return repondre(ok=False, erreur=(
+            f"classeur de saisie introuvable : {chemin_template}. Verifier "
+            f"son chemin avant de lancer le calage."))
+    except ValueError as e:
+        # Les refus que _cibles_depuis_classeur formule lui-meme (colonne
+        # Temps_h absente, temps en dates) disent deja quoi corriger.
+        return repondre(
+            ok=False, erreur=f"classeur de saisie inexploitable : {e}")
     if manquantes:
         return repondre(ok=False, erreur=(
             f"hydrogrammes cibles manquants ou inexploitables pour : "

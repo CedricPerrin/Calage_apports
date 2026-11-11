@@ -232,7 +232,7 @@
     "anomalies": [
      [
       "ERREUR",
-      "feuille Correspondance illisible : "
+      "feuille Correspondance illisible : colonne 'Nom_Section' absente"
      ]
     ]
    },
@@ -1047,7 +1047,7 @@
     "anomalies": [
      [
       "ERREUR",
-      "Sens_axe = 'None' : valeurs admises ['amont_aval', 'aval_amont']."
+      "Sens_axe : valeur manquante ; valeurs admises ['amont_aval', 'aval_amont']."
      ]
     ]
    },
@@ -1465,8 +1465,18 @@
    }
   },
   "modele/correspondance_sans_section": {
-   "exception": "StopIteration",
-   "message": ""
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "feuille Correspondance illisible : colonne 'Nom_Section' absente"
+     ]
+    ]
+   }
   },
   "modele/geometrie_avec_point": {
    "rendu": {
@@ -2380,8 +2390,11 @@
    }
   },
   "template/fenetre_sans_pilote": {
-   "exception": "ModuleNotFoundError",
-   "message": "import of pilote_hecras halted; None in sys.modules"
+   "rendu": {
+    "type": "list",
+    "types_elements": [],
+    "anomalies": []
+   }
   },
   "template/fenetre_valide": {
    "rendu": {
@@ -2507,8 +2520,18 @@
    }
   },
   "template/ordre_non_numerique": {
-   "exception": "ValueError",
-   "message": "invalid literal for int() with base 10: 'deux'"
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "feuille Correspondance, colonne Ordre : valeur non numerique 'deux' (ligne 3) ; la colonne doit etre la suite 1..3 sans trou ni doublon."
+     ]
+    ]
+   }
   },
   "template/parametre_requis_absent": {
    "rendu": {
@@ -2590,8 +2613,18 @@
    }
   },
   "template/parametres_json_corrompu": {
-   "exception": "JSONDecodeError",
-   "message": "Expecting property name enclosed in double quotes: line 1 column 3 (char 2)"
+   "rendu": {
+    "type": "list",
+    "types_elements": [
+     "tuple"
+    ],
+    "anomalies": [
+     [
+      "ERREUR",
+      "parametres du calage illisibles : « donnees.json » n'est pas un JSON valide (ligne 1, colonne 3). Le corriger avant de relancer le controle."
+     ]
+    ]
+   }
   },
   "template/prefixe_beaucoup_trop_long": {
    "rendu": {
