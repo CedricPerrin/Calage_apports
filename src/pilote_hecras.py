@@ -1521,6 +1521,96 @@ def bilan_masse_depuis_comptes(comptes):
     return float(pd.to_numeric(comptes[colonne], errors="coerce").abs().max())
 
 
+# Un echantillon de debit d'apport est tenu pour ABERRANT au-dela de ce
+# multiple du plus fort des autres echantillons de la meme serie.
+FACTEUR_ECHANTILLON_ABERRANT = 10.0
+
+
+def bilan_masse_recalcule(chemin_hdf, facteur=FACTEUR_ECHANTILLON_ABERRANT):
+    """
+    Bilan de masse REFAIT a partir des series de debit aux conditions
+    limites, et echantillons aberrants qu'il a fallu ecarter pour le faire.
+
+    POURQUOI. Le 13/11/2026 (Ard_aval, apport ARD07, essai 2), HEC-RAS 7.0.2
+    a rendu « Error Percent » = +27,52 % sur un calcul SAIN. A la toute
+    derniere sortie (30,6 h), la serie de la condition limite ARD07 valait
+    386 032 m3/s — le volume entier de l'apport (772 000 m3) rapporte a un
+    pas de 2 s — quand l'hydrogramme injecte plafonne a 44,8 m3/s. HEC-RAS a
+    compte ce volume une seconde fois en SORTIE : « Cum Outflow » 2 424 milliers
+    de m3 pour 1 653 a la seule sortie aval. Le volume final, lui, tombait
+    juste : refait sur les series aux conditions limites, le bilan vaut
+    +0,5 millier de m3, soit 0,02 %. Le calage s'arretait sur une erreur de comptabilite du solveur,
+    pas sur une perte d'eau.
+
+    LA REGLE. Debit par condition limite, integre aux trapezes sur les
+    sorties : positif = entree pour un hydrogramme de debit (« Flow
+    Hydrographs » des conditions du plan), positif = sortie pour toute autre
+    condition. Un echantillon d'hydrogramme de debit qui depasse « facteur »
+    fois le plus fort des autres est remplace par son voisin, et signale.
+    Pourcentage au sens de HEC-RAS : erreur / (volume initial + entrees).
+
+    Rend {"pct", "pct_hecras", "erreur_milliers_m3", "aberrants"} — ou
+    « aberrants » liste (condition, temps_h, debit, plus_fort_des_autres) —
+    ou None si le fichier ne porte pas de quoi refaire le bilan (calcul 1D,
+    sorties absentes). Ne leve pas : c'est un controle, pas une lecture
+    dont le calage depend.
+    """
+    import h5py
+
+    try:
+        with h5py.File(chemin_hdf, "r") as h:
+            resume = h["Results/Unsteady/Summary/Volume Accounting"].attrs
+            v_debut = float(resume["Volume Starting"])
+            v_fin = float(resume["Volume Ending"])
+            pct_hecras = float(resume["Error Percent"])
+            unite = resume.get("Vol Accounting in", b"1000 m^3")
+            unite = unite.decode() if isinstance(unite, bytes) else str(unite)
+            if "1000" not in unite:
+                return None   # unites US ou autre : on ne refait pas
+            hydros = h.get("Event Conditions/Unsteady/Boundary Conditions/"
+                           "Flow Hydrographs")
+            entrees = {n.split("BCLine:")[-1].strip()
+                       for n in (hydros.keys() if hydros is not None else [])}
+            temps_s = h[CHEMIN_SERIES_HDF + "/Time"][()] * 86400.0
+            zones = h.get(CHEMIN_SERIES_HDF + "/2D Flow Areas")
+            if zones is None or len(temps_s) < 3:
+                return None
+            v_in = v_out = 0.0
+            aberrants = []
+            for zone in zones.values():
+                cl = zone.get("Boundary Conditions")
+                if cl is None:
+                    continue
+                for nom, serie in cl.items():
+                    if " - " in nom or serie.ndim != 2 or serie.shape[1] < 2:
+                        continue
+                    q = np.asarray(serie[:, 1], dtype=float)
+                    if nom in entrees and len(q) > 2:
+                        for i in range(len(q)):
+                            autres = np.abs(np.delete(q, i))
+                            plafond = np.nanmax(autres) if len(autres) else 0.0
+                            if abs(q[i]) > facteur * max(plafond, 1.0):
+                                aberrants.append((nom, temps_s[i] / 3600.0,
+                                                  float(q[i]), float(plafond)))
+                                q[i] = q[i - 1] if i else q[i + 1]
+                    trapeze = getattr(np, "trapezoid", None) or np.trapz
+                    volume = float(trapeze(np.nan_to_num(q), temps_s)) / 1000.0
+                    if nom in entrees:
+                        v_in += volume
+                    else:
+                        v_out += volume
+    except (OSError, KeyError, ValueError, TypeError):
+        return None
+    # SIGNE DE HEC-RAS : positif quand le volume final depasse ce que les
+    # flux expliquent (eau fabriquee).
+    erreur = v_fin + v_out - v_debut - v_in
+    base = v_debut + v_in
+    if base <= 0:
+        return None
+    return {"pct": 100.0 * erreur / base, "pct_hecras": pct_hecras,
+            "erreur_milliers_m3": erreur, "aberrants": aberrants}
+
+
 def plan_par_titre(dossier_projet, nom_projet, titre):
     """
     Numero du plan portant ce titre, ou None.
@@ -3414,6 +3504,26 @@ class PiloteHecRas(Modele):
             bilan = bilan_masse_depuis_comptes(comptes)
         except Exception:
             pass
+
+        # UN ECHANTILLON ABERRANT A UNE CONDITION LIMITE FAUSSE LE BILAN DE
+        # HEC-RAS SANS QU'UNE GOUTTE NE SOIT PERDUE — voir
+        # bilan_masse_recalcule(). On ne remplace le chiffre du solveur que
+        # si un tel echantillon est TROUVE : le bilan refait est alors juge
+        # contre le meme seuil, et un calcul qui perd vraiment de l'eau reste
+        # rejete. Les deux chiffres vont au journal.
+        refait = bilan_masse_recalcule(self.hdf_resultats)
+        if refait and refait["aberrants"]:
+            for nom, t_h, q, plafond in refait["aberrants"]:
+                print(f"   ALERTE : condition limite « {nom} » : {q:,.0f} m3/s "
+                      f"a {t_h:.2f} h, pour {plafond:,.1f} m3/s au plus "
+                      f"ailleurs — echantillon aberrant ecarte du bilan",
+                      flush=True)
+            print(f"   bilan de masse HEC-RAS {refait['pct_hecras']:+.3f} % ; "
+                  f"refait sur les series aux conditions limites : "
+                  f"{refait['pct']:+.3f} % "
+                  f"({refait['erreur_milliers_m3']:+.1f} milliers de m3) — "
+                  f"c'est lui qui est juge", flush=True)
+            bilan = refait["pct"]
 
         return ResultatCalcul(reussi=True, duree_s=duree,
                               bilan_masse_pct=bilan)
