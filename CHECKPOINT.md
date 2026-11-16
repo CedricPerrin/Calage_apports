@@ -5,10 +5,12 @@
 Demandés par Cédric, après relecture de `main` (0.9.38) et des PR ouvertes (PR 30 seule :
 bilan de masse refait quand un débit aberrant apparaît à une condition limite, non fusionnée).
 
-1. **Les filets échouent sous Windows** (213 échecs, 212 dans la PR 30) par le séparateur de
-   chemin `<TMP>/` contre `<TMP>\`. Ne pas refiger avec `\` : la CI Linux deviendrait rouge.
-   Normaliser le séparateur dans les quatre filets qui ne le font pas, comme
-   `src/test_composition_fenetre.py` l. 143.
+1. **Les filets sous Windows : résolu le même jour, sans refiger.** 212 échecs mesurés (cinq
+   filets). Les filets ramènent le séparateur à `/` avant de masquer le dossier temporaire,
+   comme `src/test_composition_fenetre.py`. Le cas « fichier verrouillé » lançait son verrou
+   en `python -I`, qui ne voyait pas le h5py de l'utilisateur : lancé en `-P`, il refuse de
+   continuer sans verrou. Après : 1002 réussis, 0 échec sous Windows. Aucune référence
+   changée.
 2. **Défaut de HEC-RAS 7.0.2 ou du contrôleur COM ?** Deux cas du 13/11, tous deux en 7.0.2
    par le contrôleur : reference lines vidées (SUHI_ARAN, contourné par la 0.9.38) et débit
    aberrant en fin de calcul (Ard_aval ARD07, PR 30). Méthode pour trancher : même plan en

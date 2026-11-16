@@ -156,8 +156,11 @@ def _neutraliser(objet, dossier):
 
     def nettoyer(o):
         if isinstance(o, str):
+            # Separateur ramene a « / », y compris double dans un repr :
+            # meme reference sous Windows et sous Linux.
+            o = o.replace("\\\\", "/").replace("\\", "/")
             for v in variantes:
-                o = o.replace(v, "<TMP>")
+                o = o.replace(v.replace("\\", "/"), "<TMP>")
             return o
         if isinstance(o, (list, tuple)):
             return [nettoyer(x) for x in o]

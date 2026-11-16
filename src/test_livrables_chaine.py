@@ -864,8 +864,11 @@ def _neutraliseur(dossier):
                        key=len, reverse=True)
 
     def neutre(texte):
+        # Separateur ramene a « / », y compris double dans un repr :
+        # meme reference sous Windows et sous Linux.
+        texte = texte.replace("\\\\", "/").replace("\\", "/")
         for v in variantes:
-            texte = texte.replace(v, "<DOSSIER>")
+            texte = texte.replace(v.replace("\\", "/"), "<DOSSIER>")
         return texte
     return neutre
 

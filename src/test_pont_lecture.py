@@ -69,8 +69,11 @@ def _neutraliser(objet, dossier):
 
     def nettoyer(o):
         if isinstance(o, str):
+            # Separateur ramene a « / », y compris double dans un repr :
+            # meme reference sous Windows et sous Linux.
+            o = o.replace("\\\\", "/").replace("\\", "/")
             for v in variantes:
-                o = o.replace(v, "<TMP>")
+                o = o.replace(v.replace("\\", "/"), "<TMP>")
             return o
         if isinstance(o, (list, tuple)):
             return [nettoyer(x) for x in o]
@@ -96,7 +99,12 @@ def _exception(e):
         tb = tb.tb_next
     if Path(tb.tb_frame.f_code.co_filename).name == "pont_hecras.py":
         return {"exception": type(e).__name__, "message": str(e)}
-    return {"exception": type(e).__name__, "leve_par": "bibliotheque"}
+    nom = type(e).__name__
+    # Fichier verrouille : h5py leve BlockingIOError sous Linux, OSError
+    # (« unable to lock file ») sous Windows. Meme cas, meme nom.
+    if nom == "OSError" and "unable to lock file" in str(e):
+        nom = "BlockingIOError"
+    return {"exception": nom, "leve_par": "bibliotheque"}
 
 
 def _serie(cadre):
@@ -370,10 +378,13 @@ def jouer_hdf(nom, dossier):
     if options.get("verrou"):
         # Un AUTRE processus tient le fichier : dans le meme processus, HDF5
         # ne verrouille pas. C'est le cas reel — HEC-RAS ou RAS Mapper ouvert.
-        verrou = subprocess.Popen([sys.executable, "-I", "-c", _VERROU,
+        # « -P » et non « -I » : -I ecarte aussi les modules de l'utilisateur,
+        # ou h5py peut etre installe (poste Windows, 16/11/2026) ; le verrou
+        # ne se posait alors pas, sans un mot.
+        verrou = subprocess.Popen([sys.executable, "-P", "-c", _VERROU,
                                    str(chemin)], stdout=subprocess.PIPE,
                                   text=True)
-        verrou.stdout.readline()
+        assert verrou.stdout.readline().strip() == "pret", "verrou non pose"
     try:
         kwargs = {} if groupe is None else {"groupe": groupe}
         rendu = _serie(pont_hecras.lire_serie_hdf(argument, demande, **kwargs))

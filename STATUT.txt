@@ -3871,19 +3871,23 @@ dates fictives au 1er janvier.
 ================================================================================
 
   - DEUX POINTS A TRAITER (inscrits le 16/11/2026, demande de l'utilisateur).
-    a. LES FILETS ECHOUENT SOUS WINDOWS PAR LE SEPARATEUR DE CHEMIN. La
-       suite pytest rend 213 echecs sous Windows (212 dans la PR 30), les
-       memes avant et apres la 0.9.38. Les references figees ecrivent
-       « <TMP>/ », Windows rend « <TMP>\ ». Aucun ne dit un defaut du
-       calcul, mais ils cachent tout echec nouveau : un correctif ne se juge
-       plus que par « memes echecs qu'avant ».
-       A NE PAS REFIGER AVEC « \ » : la CI (Linux) deviendrait rouge a son
-       tour. Normaliser le separateur la ou le filet remplace le dossier
-       temporaire, comme test_composition_fenetre.py le fait deja (l. 143,
-       .replace("\\", "/")) : test_controle_donnees, test_pont_lecture,
-       test_pont_caler, test_noyau_classeur. Puis rejouer la suite sous
-       Windows et sous la CI. Toute reference refigee se relit avec
-       tools/comparer_references.py --strict : aucun nombre ne change.
+    a. LES FILETS SOUS WINDOWS : RESOLU LE 16/11/2026, SANS REFIGER. La
+       suite pytest (hors tests QGIS) rendait 212 echecs sous Windows :
+       controle_donnees 4, livrables_chaine 33, noyau_classeur 63,
+       pont_caler 90, pont_lecture 22. Deux causes, aucune dans le calcul :
+         - le separateur : les references ecrivent « <TMP>/ », Windows rend
+           « <TMP>\ », et « \\ » dans le repr d'un chemin. Les cinq filets
+           ramenent desormais le separateur a « / » avant de masquer le
+           dossier temporaire, comme test_composition_fenetre.py. Sous Linux
+           rien ne change ; AUCUNE REFERENCE N'EST REFIGEE.
+         - le cas « fichier/verrouille » : le processus qui pose le verrou
+           etait lance en « python -I », qui ecarte les modules de
+           l'utilisateur ; sur ce poste h5py y est installe, le verrou ne se
+           posait pas, sans un mot. Lance en « -P », il refuse desormais de
+           continuer s'il n'a pas pose le verrou. h5py nomme l'erreur
+           BlockingIOError sous Linux, OSError (« unable to lock file »)
+           sous Windows : le filet les tient pour le meme cas.
+       Apres : 1002 reussis, 0 echec, 1 saute, sous Windows (Python 3.13).
     b. DEFAUT DE HEC-RAS 7.0.2 OU DU CONTROLEUR COM ? Deux defauts vus le
        13/11/2026, tous deux sous 7.0.2, plan lance par le controleur
        (0.9.32) :
