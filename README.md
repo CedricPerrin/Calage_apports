@@ -14,7 +14,7 @@ extension installée depuis le dépôt.
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 
-Version des sources du plugin : **0.9.37**. La
+Version des sources du plugin : **0.9.38**. La
 [note d’ergonomie du 11 septembre 2026](docs/ergonomie_2026-09-11.md)
 décrit le parcours, les choix d’interface et les points de recette.
 
@@ -285,6 +285,18 @@ changement de comportement : la fenêtre lit ses widgets et affiche, `noyau.py`
 décide — composition et lancement s'éprouvent désormais sans QGIS
 ([docs/decoupage_dialogue.md](docs/decoupage_dialogue.md), § 9). Non essayée sur
 un calcul HEC-RAS réel ni sous Windows.
+
+La **0.9.38** (16 novembre 2026) répare en cours de calage un `.gXX.hdf` dont
+les reference lines ont perdu leur tracé. Constaté le 13/11/2026 sous HEC-RAS
+7.0.2 : le terrain, réécrit pendant un calage, a fait refaire les tables 2D, et
+HEC-RAS a réécrit le `.g01.hdf` avec un « Polyline Points » vide ; l'étape
+suivante s'est arrêtée sur « Reference line … is not a valid polyline ». Avant
+et après chaque calcul, la date du `.gXX` est remise à maintenant quand son
+`.hdf` nomme des lignes sans point que le texte porte : HEC-RAS refait alors le
+prétraitement depuis le texte. Un terrain réécrit pendant le calage est signalé
+au journal, et les lignes refusées sont toutes nommées (le journal n'en gardait
+que deux sur sept). La réparation a été éprouvée sous Windows, sur ce modèle
+réel (copie installée, calage repris à l'apport SUH06 et calé).
 
 La **0.9.32** (10 novembre 2026) rend le calage possible sous HEC-RAS 7.0.2.
 Lancée en ligne de commande (`Ras.exe -c projet plan`), cette version calcule

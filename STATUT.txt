@@ -22,6 +22,32 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+VERSION 0.9.38 — 16 NOVEMBRE 2026, POUSSEE DIRECTEMENT SUR main (a la demande
+de l'utilisateur, sans PR). Reference lines videes du .gXX.hdf EN COURS de
+calage : constate le 13/11/2026 sur un modele reel (SUHI_ARAN, HEC-RAS 7.0.2).
+Le terrain a ete reecrit pendant le calage (hors chaine) ; a l'etape suivante
+HEC-RAS a refait ses tables 2D (« Associated terrain has been updated ») et a
+reecrit le .g01.hdf avec un « Polyline Points » VIDE pour les douze lignes ;
+l'etape d'apres s'est arretee sur « Reference line ... is not a valid
+polyline / Error Processing Geometry ». Le controle du lancement (0.9.29) ne
+pouvait pas le voir.
+  pilote_hecras.py : reparer_trace_reference() (date du .gXX remise a
+  maintenant si son .hdf nomme des lignes sans point que le texte porte),
+  terrain_de_geometrie(), PiloteHecRas._surveiller_geometrie() appele avant
+  et apres chaque calcul et au lancement, _regrouper_lignes_invalides() dans
+  _messages_hecras (le journal ne gardait que deux lignes sur sept).
+  Test : src/test_reparation_trace.py (5 cas).
+  ESSAYE SOUS WINDOWS sur ce modele : correctif applique a la copie installee
+  (0.9.32), calage repris a SUH06, geometrie regeneree avec ses 66 points,
+  SUH06 cale a l'essai 1. Suite pytest sous Windows (hors tests QGIS) :
+  memes 213 echecs avant et apres, tous dus aux references figees avec des
+  chemins « <TMP>/ » (Windows rend « <TMP>\ ») — A REFIGER SUR CE POSTE.
+  calage_apports_0.9.38.zip construit sur un poste SANS « .affaires » :
+  rejouer « python src/faire_zip.py » sur le poste qui le porte avant de
+  publier dans le depot PIO.
+  CAUSE NON TRANCHEE : defaut propre a HEC-RAS 7.0.2 ou au calcul par le
+  controleur COM (0.9.32). Pas reproduit hors de ce cas.
+
 REMANIEMENT DU CODE, SANS CHANGEMENT DE COMPORTEMENT — 10 NOVEMBRE 2026,
 FUSIONNE DANS main LE 11/11/2026 (PR 8, a la demande de l'utilisateur), AVEC LES
 CORRECTIFS DU 11/11 (PR 9 a 15, puis PR 18 pour les defauts mineurs ;

@@ -23,6 +23,7 @@ Usage :  python pilote_hecras.py --projet <dossier> --plan p01
 
 import difflib
 import math
+import os
 import re
 import subprocess
 import threading
@@ -935,6 +936,66 @@ def lignes_reference_sans_trace(fichier_geometrie):
     return [nom for nom, n in zip(noms, points) if n == 0]
 
 
+def reparer_trace_reference(fichier_geometrie):
+    """
+    Si le .gXX.hdf nomme des reference lines SANS POINT alors que le .gXX
+    texte les porte, rend le pretraitement PERIME (date du .gXX remise a
+    maintenant) : HEC-RAS le refait alors depuis le texte au calcul suivant.
+    Rend la liste des lignes concernees, vide si rien n'a ete fait.
+
+    POURQUOI. Constate le 13/11/2026 (HEC-RAS 7.0.2, calcul par le
+    controleur) : le terrain a ete reecrit pendant un calage ; a l'etape
+    suivante HEC-RAS a refait ses tables 2D (« Associated terrain has been
+    updated ») et a reecrit le .g01.hdf avec un « Polyline Points » VIDE pour
+    les douze reference lines. Ce calcul-la a abouti ; le suivant, qui
+    relisait ce .hdf, s'est arrete sur « Reference line ... is not a valid
+    polyline / Error Processing Geometry ». Le controle du lancement ne
+    pouvait pas le voir : le .hdf s'est abime EN COURS de calage.
+
+    ON REPARE, ON NE BLOQUE PAS : le .gXX texte fait foi et porte les traces ;
+    un pretraitement perime est refait par HEC-RAS depuis lui (cas normal
+    apres « Composer »). On ne touche qu'a une date, jamais au contenu.
+    """
+    g = Path(fichier_geometrie)
+    if not g.is_file():
+        return []
+    sans_trace = lignes_reference_sans_trace(g)
+    if not sans_trace or pretraitement_perime(g):
+        return []
+    # Le texte doit bien porter ces lignes : sinon toucher la date ne
+    # servirait a rien, et masquerait une geometrie reellement amputee.
+    texte = _lire_texte(g)
+    declares = set(n.strip() for n in re.findall(
+        r"^Reference Line Name=(.*)$", texte, re.M))
+    if not set(sans_trace) <= declares:
+        return []
+    maintenant = time.time()
+    os.utime(g, (maintenant, maintenant))
+    return sans_trace
+
+
+def terrain_de_geometrie(fichier_geometrie):
+    """
+    (chemin, date de modification) du terrain associe a la geometrie, d'apres
+    l'attribut « Terrain Filename » du .gXX.hdf ; None si illisible.
+    """
+    import h5py
+
+    g = Path(fichier_geometrie)
+    hdf = g.with_suffix(g.suffix + ".hdf")
+    try:
+        with h5py.File(hdf, "r") as h:
+            brut = h["Geometry"].attrs.get("Terrain Filename")
+        if brut is None:
+            return None
+        nom = brut.decode("utf-8", "replace") if isinstance(brut, bytes) \
+            else str(brut)
+        chemin = (g.parent / nom.strip()).resolve()
+        return (chemin, chemin.stat().st_mtime) if chemin.is_file() else None
+    except Exception:                                        # noqa: BLE001
+        return None
+
+
 def verifier_intervalle_apports(fichier_unsteady, nom_zone_2d=None,
                                 intervalle=INTERVALLE_APPORT,
                                 noms_connus=None):
@@ -1233,6 +1294,7 @@ def _messages_du_hdf(hdf_resultats):
                 retenues = [l for l in _sans_tableau_des_temps(lignes)
                             if not l.startswith(("Plan:",
                                                  "Simulation started"))]
+                retenues = _regrouper_lignes_invalides(retenues)
                 if retenues:
                     return ("Messages de HEC-RAS : "
                             + " | ".join(retenues[-4:]))
@@ -1266,6 +1328,30 @@ def _messages_des_journaux(hdf_resultats):
         except OSError:
             continue
     return None
+
+
+def _regrouper_lignes_invalides(lignes):
+    """
+    Regroupe les « Reference line X is not a valid polyline. » en UNE ligne.
+    Sans cela, seules les deux dernieres survivaient aux quatre lignes
+    retenues : le 13/11/2026 le journal disait « SUH08, SUH09 » quand HEC-RAS
+    en refusait sept.
+    """
+    motif = re.compile(r"^Reference line (.+?) is not a valid polyline\.?$")
+    noms, sortie, place = [], [], None
+    for l in lignes:
+        m = motif.match(l)
+        if m:
+            if place is None:
+                place = len(sortie)
+                sortie.append(None)
+            noms.append(m.group(1).strip())
+        else:
+            sortie.append(l)
+    if place is not None:
+        sortie[place] = (f"{len(noms)} reference line(s) refusee(s) — « not "
+                         f"a valid polyline » : {', '.join(noms)}")
+    return sortie
 
 
 # Ce qu'ecrit HEC-RAS quand il n'a pas pu reecrire le .gXX.hdf : la premiere
@@ -1804,6 +1890,15 @@ class PiloteHecRas(Modele):
         # sept lignes de reference disparaissaient au milieu d'un calage de
         # 26 heures, et l'on ne l'aurait su qu'a la lecture suivante.
         self.objets_geometrie = self._objets_geometrie()
+        # TERRAIN DU DEPART : un terrain reecrit en cours de calage fait
+        # refaire les tables 2D (et, en 7.0.2, a vide les reference lines du
+        # .hdf le 13/11/2026). Surtout, les etapes ne tournent plus sur le
+        # meme terrain : on le dit au journal. Voir _surveiller_geometrie().
+        try:
+            self.terrain_depart = terrain_de_geometrie(
+                self._geometrie_du_plan(self.plan_travail))
+        except Exception:                                    # noqa: BLE001
+            self.terrain_depart = None
 
         # PRETRAITEMENT 2D PERIME — on previent, on ne bloque pas. Voir
         # pretraitement_perime() : c'est l'etat normal apres une composition,
@@ -1834,7 +1929,12 @@ class PiloteHecRas(Modele):
         # recent que lui, HEC-RAS reprend ce HDF tel quel et RasUnsteady
         # s'arrete des le premier pas. Un pretraitement PERIME, lui, sera
         # refait depuis le .gXX au premier calcul : on laisse faire HEC-RAS.
+        # Depuis le 15/11/2026 on tente d'abord la reparation (date du .gXX) ;
+        # on ne refuse que si le texte ne porte pas ces lignes.
+        self._surveiller_geometrie("au lancement")
         try:
+            perime = pretraitement_perime(
+                self._geometrie_du_plan(self.plan_travail)) or perime
             sans_trace = lignes_reference_sans_trace(
                 self._geometrie_du_plan(self.plan_travail))
         except Exception:                                    # noqa: BLE001
@@ -3184,6 +3284,44 @@ class PiloteHecRas(Modele):
                   f"{', '.join(fermes)}", flush=True)
         return fermes
 
+    def _surveiller_geometrie(self, moment):
+        """
+        Avant et apres chaque calcul : repare un .gXX.hdf dont les reference
+        lines ont perdu leur trace (voir reparer_trace_reference), et signale
+        un terrain reecrit depuis le debut du calage. NE LEVE JAMAIS.
+        """
+        try:
+            geometrie = self._geometrie_du_plan(self.plan_travail)
+        except Exception:                                    # noqa: BLE001
+            return
+        try:
+            repares = reparer_trace_reference(geometrie)
+            if repares:
+                print(f"   REPARATION ({moment}) : {geometrie.name}.hdf "
+                      f"nommait {len(repares)} reference line(s) SANS AUCUN "
+                      f"POINT ({', '.join(repares)}). Le {geometrie.name} "
+                      f"texte les porte : sa date est remise a maintenant, et "
+                      f"HEC-RAS refera le pretraitement depuis lui au calcul "
+                      f"suivant (constate le 13/11/2026 en HEC-RAS 7.0.2, "
+                      f"apres un terrain reecrit en cours de calage).",
+                      flush=True)
+        except Exception as e:                               # noqa: BLE001
+            print(f"   AVERTISSEMENT : controle des reference lines du .hdf "
+                  f"impossible ({type(e).__name__}: {e})", flush=True)
+        depart = getattr(self, "terrain_depart", None)
+        if depart is None:
+            return
+        actuel = terrain_de_geometrie(geometrie)
+        if actuel is None or actuel[1] == depart[1]:
+            return
+        print(f"   ATTENTION ({moment}) : le terrain {depart[0].name} a ete "
+              f"REECRIT pendant le calage (le "
+              f"{datetime.fromtimestamp(actuel[1]):%d/%m/%Y a %H:%M}). Les "
+              f"etapes deja faites ont tourne sur l'ancien, les suivantes "
+              f"tourneront sur le nouveau. Ne pas toucher au terrain ni ouvrir "
+              f"RAS Mapper sur ce projet pendant un calage.", flush=True)
+        self.terrain_depart = actuel
+
     def _manques_avant_calcul(self):
         """
         Ce que HEC-RAS ne trouverait pas en ouvrant le projet pour calculer
@@ -3280,6 +3418,7 @@ class PiloteHecRas(Modele):
                         f"chaine a cree ce plan — le cas connu est "
                         f"l'interface HEC-RAS restee ouverte. La fermer, "
                         f"puis relancer le calage.")
+        self._surveiller_geometrie("avant le calcul")
         self.nb_calculs += 1
         # Empreinte du resultat AVANT calcul : un calcul qui echouerait en
         # laissant en place le HDF de l'essai precedent serait indetectable
@@ -3348,6 +3487,7 @@ class PiloteHecRas(Modele):
             fin.set()
             fil.join(60)
         self._fermer_orphelins(processus_avant)
+        self._surveiller_geometrie("apres le calcul")
 
         duree = time.time() - debut
         if detourne:

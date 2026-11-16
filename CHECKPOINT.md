@@ -1,5 +1,27 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 16 novembre 2026 (version) : 0.9.38, reference lines vidées du .hdf en cours de calage (poussée directement sur `main`)
+
+Demandée par Cédric (« tu peux push », directement sur `main`). Cas réel du 13/11/2026 :
+SUHI_ARAN sous HEC-RAS 7.0.2, terrain réécrit pendant le calage, tables 2D refaites à l'étape
+SUH05, `.g01.hdf` réécrit sans aucun point de reference line, étape SUH06 arrêtée sur « not a
+valid polyline ». Le `.g01` texte était intact.
+
+**Ce que change la 0.9.38.** Avant et après chaque calcul (et au lancement), un `.gXX.hdf` qui
+nomme des reference lines sans point, que le texte porte, est réparé en remettant la date du
+`.gXX` à maintenant : HEC-RAS refait le prétraitement depuis le texte. Le contenu n'est jamais
+touché, et une ligne absente du texte n'est pas « réparée ». Un terrain réécrit pendant le
+calage est signalé au journal. Les « not a valid polyline » sont regroupées en une ligne qui
+les nomme toutes. Aucun résultat numérique ne change.
+
+**Essai.** Sous Windows, sur le modèle réel (copie installée de la 0.9.32 corrigée) : calage
+repris à SUH06, `.hdf` régénéré avec ses 66 points, SUH06 calé à l'essai 1. Suite pytest sous
+Windows hors tests QGIS : mêmes 213 échecs avant et après (références figées avec des chemins
+`<TMP>/`), 5 nouveaux tests passent. **Archive construite sur un poste sans `.affaires`.**
+
+**Pour reprendre.** Refiger les références sous Windows (séparateur de chemin). Trancher si le
+défaut vient de HEC-RAS 7.0.2 ou du contrôleur COM.
+
 ## 11 novembre 2026 (version) : 0.9.37, pour que l'essai porte sur le code actuel (branche `claude/version-0.9.37`)
 
 Demandée par Cédric (« Oui ») : la 0.9.36 ne contenait ni les cinq derniers points (PR 22) ni

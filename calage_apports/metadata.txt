@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont l'étape « Suivi » montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.9.37
+version=0.9.38
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,15 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.9.37 — Cinq corrections de messages et de refus, sans changement
+changelog=0.9.38 — Reference lines vidées du .hdf en cours de calage
+    (HEC-RAS 7.0.2, 13/11/2026 : terrain réécrit pendant le calage, tables
+    2D refaites, « Polyline Points » vide, étape suivante arrêtée sur « not
+    a valid polyline »). Avant et après chaque calcul, un .gXX.hdf sans
+    tracé est réparé : la date du .gXX est remise à maintenant et HEC-RAS
+    refait le prétraitement depuis le texte. Un terrain réécrit pendant le
+    calage est signalé au journal. Les lignes « not a valid polyline » sont
+    regroupées : le journal les nomme toutes.
+    0.9.37 — Cinq corrections de messages et de refus, sans changement
     des résultats. Le diagnostic n'annonce plus « 0.0 h non simulées » pour
     un écart de quelques secondes entre la fenêtre et le calcul ; au-delà d'un
     demi-pas de temps de la cible, la durée est dite en minutes ou en
