@@ -1,5 +1,20 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 16 novembre 2026 (suite) : deux points à traiter, inscrits au `STATUT.txt` § 6
+
+Demandés par Cédric, après relecture de `main` (0.9.38) et des PR ouvertes (PR 30 seule :
+bilan de masse refait quand un débit aberrant apparaît à une condition limite, non fusionnée).
+
+1. **Les filets échouent sous Windows** (213 échecs, 212 dans la PR 30) par le séparateur de
+   chemin `<TMP>/` contre `<TMP>\`. Ne pas refiger avec `\` : la CI Linux deviendrait rouge.
+   Normaliser le séparateur dans les quatre filets qui ne le font pas, comme
+   `src/test_composition_fenetre.py` l. 143.
+2. **Défaut de HEC-RAS 7.0.2 ou du contrôleur COM ?** Deux cas du 13/11, tous deux en 7.0.2
+   par le contrôleur : reference lines vidées (SUHI_ARAN, contourné par la 0.9.38) et débit
+   aberrant en fin de calcul (Ard_aval ARD07, PR 30). Méthode pour trancher : même plan en
+   7.0.2 par le contrôleur, par `Ras.exe -c` sur une copie où ce plan est seul, par
+   l'interface, et en 7.0.1.
+
 ## 16 novembre 2026 (version) : 0.9.38, reference lines vidées du .hdf en cours de calage (poussée directement sur `main`)
 
 Demandée par Cédric (« tu peux push », directement sur `main`). Cas réel du 13/11/2026 :

@@ -3870,6 +3870,39 @@ dates fictives au 1er janvier.
 6. POINTS OUVERTS
 ================================================================================
 
+  - DEUX POINTS A TRAITER (inscrits le 16/11/2026, demande de l'utilisateur).
+    a. LES FILETS ECHOUENT SOUS WINDOWS PAR LE SEPARATEUR DE CHEMIN. La
+       suite pytest rend 213 echecs sous Windows (212 dans la PR 30), les
+       memes avant et apres la 0.9.38. Les references figees ecrivent
+       « <TMP>/ », Windows rend « <TMP>\ ». Aucun ne dit un defaut du
+       calcul, mais ils cachent tout echec nouveau : un correctif ne se juge
+       plus que par « memes echecs qu'avant ».
+       A NE PAS REFIGER AVEC « \ » : la CI (Linux) deviendrait rouge a son
+       tour. Normaliser le separateur la ou le filet remplace le dossier
+       temporaire, comme test_composition_fenetre.py le fait deja (l. 143,
+       .replace("\\", "/")) : test_controle_donnees, test_pont_lecture,
+       test_pont_caler, test_noyau_classeur. Puis rejouer la suite sous
+       Windows et sous la CI. Toute reference refigee se relit avec
+       tools/comparer_references.py --strict : aucun nombre ne change.
+    b. DEFAUT DE HEC-RAS 7.0.2 OU DU CONTROLEUR COM ? Deux defauts vus le
+       13/11/2026, tous deux sous 7.0.2, plan lance par le controleur
+       (0.9.32) :
+         - SUHI_ARAN : le .g01.hdf est reecrit sans aucun point de reference
+           line, apres un terrain reecrit hors chaine. Contourne par la
+           0.9.38 (section 1).
+         - Ard_aval, ARD07 : a la derniere sortie, 386 032 m3/s sur la
+           condition limite, soit le volume entier de l'apport en un pas de
+           2 s ; bilan de masse +27,52 % pour un calcul sain. PR 30
+           (ouverte, non fusionnee) : bilan refait depuis les debits.
+       Depuis la 0.9.32, aucun calcul 7.0.2 ne passe plus par « Ras.exe -c » :
+       les journaux ne peuvent pas departager. Methode : rejouer le meme
+       plan sur une copie, en 7.0.2, (1) par le controleur, (2) par
+       « Ras.exe -c » sur une copie ou ce plan est le SEUL du projet (-c
+       calcule alors ce plan seul), (3) par l'interface de HEC-RAS ; et en
+       7.0.1 par compute_plan. Un defaut qui suit le controleur vient de
+       lui ; un defaut qui suit 7.0.2 vient de HEC-RAS. Le premier cas
+       demande aussi un terrain reecrit entre deux calculs.
+
   - DEFAUTS RELEVES PENDANT LE REMANIEMENT DU 10/11/2026.
     CORRIGES LE 11/11/2026, chacun sur sa branche et dans sa PR (9 a 13,
     et 15 pour le re-cadencage), reunis et rejoues ensemble sur
