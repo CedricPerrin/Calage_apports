@@ -3898,14 +3898,21 @@ dates fictives au 1er janvier.
            condition limite, soit le volume entier de l'apport en un pas de
            2 s ; bilan de masse +27,52 % pour un calcul sain. PR 30
            (ouverte, non fusionnee) : bilan refait depuis les debits.
-       Depuis la 0.9.32, aucun calcul 7.0.2 ne passe plus par « Ras.exe -c » :
-       les journaux ne peuvent pas departager. Methode : rejouer le meme
-       plan sur une copie, en 7.0.2, (1) par le controleur, (2) par
-       « Ras.exe -c » sur une copie ou ce plan est le SEUL du projet (-c
-       calcule alors ce plan seul), (3) par l'interface de HEC-RAS ; et en
-       7.0.1 par compute_plan. Un defaut qui suit le controleur vient de
-       lui ; un defaut qui suit 7.0.2 vient de HEC-RAS. Le premier cas
-       demande aussi un terrain reecrit entre deux calculs.
+       ESSAI DU 16/11/2026 SUR LE PREMIER CAS (copies de CETTE_TEST1, 2.2-Cas_test,
+       .prj reduit a p02 ; base HEC-RAS, 08_constats_mesures.md) : en 7.0.2
+       par le controleur, en 7.0.2 par « Ras.exe -c », en 7.0.1 par
+       « Ras.exe -c », la date du terrain changee fait refaire les tables 2D
+       (« Associated terrain has been updated ») et LES 3 REFERENCE LINES
+       GARDENT LEURS 7 POINTS, aux trois calculs de chaque mode. Le 27/10, un
+       .g04.hdf d'Ard_aval les avait deja perdues, AVANT le controleur et en
+       7.0.1. CONCLUSION : ni le controleur ni 7.0.2 ne suffisent a vider les
+       reference lines ; la cause est ailleurs (terrain refait dans RAS
+       Mapper, .hdf ecrit par RAS Mapper ouvert, particularite du modele).
+       Non essaye : un terrain refait dans RAS Mapper. La 0.9.38 repare le
+       cas quelle qu'en soit la cause : rien a changer au lancement.
+       LE SECOND CAS (debit aberrant d'ARD07) N'A PAS ETE ESSAYE : le dossier
+       2.2-Cas_test\ARD_Aval est vide, et la relance du 15-16/11 ne l'a pas
+       refait. A rejouer sur une copie d'Ard_aval, plan p19 du 13/11.
 
   - DEFAUTS RELEVES PENDANT LE REMANIEMENT DU 10/11/2026.
     CORRIGES LE 11/11/2026, chacun sur sa branche et dans sa PR (9 a 13,

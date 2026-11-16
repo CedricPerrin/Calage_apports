@@ -13,9 +13,13 @@ bilan de masse refait quand un débit aberrant apparaît à une condition limite
    changée.
 2. **Défaut de HEC-RAS 7.0.2 ou du contrôleur COM ?** Deux cas du 13/11, tous deux en 7.0.2
    par le contrôleur : reference lines vidées (SUHI_ARAN, contourné par la 0.9.38) et débit
-   aberrant en fin de calcul (Ard_aval ARD07, PR 30). Méthode pour trancher : même plan en
-   7.0.2 par le contrôleur, par `Ras.exe -c` sur une copie où ce plan est seul, par
-   l'interface, et en 7.0.1.
+   aberrant en fin de calcul (Ard_aval ARD07, PR 30). **Essai du même jour sur le premier
+   cas**, copies de CETTE_TEST1 (`2.2-Cas_test`) : date du terrain changée, tables 2D
+   refaites, et les reference lines gardent leurs points en 7.0.2 par le contrôleur, en
+   7.0.2 par `Ras.exe -c` et en 7.0.1. Le 27/10, le défaut était déjà apparu avant le
+   contrôleur, en 7.0.1. Ni l'un ni l'autre n'en est donc la cause suffisante ; la 0.9.38
+   le répare quelle qu'en soit la cause. Le second cas n'est pas essayé :
+   `2.2-Cas_test\ARD_Aval` est vide.
 
 ## 16 novembre 2026 (version) : 0.9.38, reference lines vidées du .hdf en cours de calage (poussée directement sur `main`)
 
