@@ -513,7 +513,7 @@ SCENARIOS = {
         cg.Configuration(nb_max_essais=4), suivi="faux"),
     "duree_non_ajustee": lambda: _montage_durees(
         cg.Configuration(nb_max_essais=4, ajuster_duree=False)),
-    "plan_source_non_remplace": lambda: _montage_durees(
+    "plan_source_remplace_meme_non_conforme": lambda: _montage_durees(
         cg.Configuration(nb_max_essais=4, remplacer_plan_source=True)),
     "plan_source_remplace": lambda: _montage(
         _fictif(n=2), n=2,

@@ -233,6 +233,11 @@ class EtatApport:
     series: tuple = ()
     duree_s: float = 0.0
     motif: str = ""
+    # VALIDE SUR L'OBJECTIF DEGRADE (calage.Configuration.degradation_
+    # objectif). Le statut reste « validé » : la reprise et les courbes
+    # traitent l'apport comme cale. C'est ce drapeau qui le met en orange, et
+    # « motif » dit de combien il s'ecarte.
+    degrade: bool = False
     diagnostic: object = None
     historique: list = field(default_factory=list)
     # Series COMPLETES de chaque essai, non sous-echantillonnees : c'est la
@@ -280,6 +285,7 @@ class Suivi:
         # calcul qui tourne d'un calcul mort.
         self.fin = None
         self.conforme = None
+        self.degrade = False
         self.motif_final = ""
         self.nb_calculs = None
         # BILAN DE MASSE DU DERNIER CALCUL, et le seuil au-dela duquel il est
@@ -469,16 +475,21 @@ class Suivi:
                            else None)})
         self._produire()
 
-    def valider_apport(self, i, diagnostic, duree_s=0.0, series=None):
+    def valider_apport(self, i, diagnostic, duree_s=0.0, series=None,
+                       motif_degrade=""):
         """
         L'apport i est valide et fige. C'est ici que le rapport complet est
         reecrit.
 
         series : (temps_cible, debit_cible, temps_calcule, debit_calcule) pour
         produire la figure de comparaison de la section. Facultatif.
+        motif_degrade : non vide quand l'apport n'est retenu que sur
+        l'objectif degrade ; il dit de combien et pourquoi.
         """
         etat = self.etats[i]
         etat.statut = VALIDE
+        etat.degrade = bool(motif_degrade)
+        etat.motif = motif_degrade or ""
         etat.diagnostic = diagnostic
         etat.volume = diagnostic.rapport_volume
         etat.pic = diagnostic.rapport_pic
@@ -502,7 +513,7 @@ class Suivi:
         self._produire()
         return self.rapport()
 
-    def conclure(self, conforme, motif="", nb_calculs=None):
+    def conclure(self, conforme, motif="", nb_calculs=None, degrade=False):
         """
         Verdict final, ecrit dans l'etat machine.
 
@@ -512,6 +523,8 @@ class Suivi:
         quelque chose. C'est ce qui manquait.
         """
         self.conforme = bool(conforme)
+        # Ni conforme ni en echec : mene au bout, sur l'objectif degrade.
+        self.degrade = bool(degrade) and not self.conforme
         self.motif_final = motif or ""
         self.nb_calculs = nb_calculs
         self.fin = datetime.now()
@@ -553,6 +566,7 @@ class Suivi:
             "fin": self.fin.isoformat(timespec="seconds") if self.fin else None,
             "termine": self.fin is not None,
             "conforme": self.conforme,
+            "degrade": self.degrade,
             "motif_final": self.motif_final,
             "nb_calculs": self.nb_calculs,
             "fraction": round(fraction, 4),
@@ -612,6 +626,7 @@ class Suivi:
                     else e.decalage),
                 "duree_s": round(e.duree_s, 1),
                 "motif": e.motif,
+                "degrade": e.degrade,
             } for i, e in enumerate(self.etats)],
         }
 
@@ -792,6 +807,7 @@ class Suivi:
         comptes, fraction = self.avancement()
         ecoule, moyenne, reste = self.temps()
         n = len(self.etats)
+        degrades = sum(1 for e in self.etats if e.degrade)
 
         def duree(secondes):
             return "—" if secondes is None else str(
@@ -803,6 +819,7 @@ class Suivi:
             f"*Actualisé le {datetime.now():%d/%m/%Y à %H:%M:%S}*",
             "",
             f"**{comptes[VALIDE]} apport(s) validé(s) sur {n}**"
+            + (f", dont {degrades} sur l'objectif dégradé" if degrades else "")
             + (f", {comptes[ECHOUE]} en échec" if comptes[ECHOUE] else "")
             + (", 1 en cours" if comptes[EN_COURS] else "")
             + f" — {100 * fraction:.0f} % achevé",
@@ -819,7 +836,8 @@ class Suivi:
         for i, e in enumerate(self.etats):
             marque = {VALIDE: "[x]", ECHOUE: "[!]",
                       EN_COURS: "[~]", EN_ATTENTE: "[ ]"}[e.statut]
-            detail = f"{marque} **{i + 1}. {e.nom_apport} → {e.nom_section}** — {e.statut}"
+            detail = (f"{marque} **{i + 1}. {e.nom_apport} → {e.nom_section}** — "
+                      f"{e.statut}" + (", objectif dégradé" if e.degrade else ""))
             if e.essais:
                 detail += f", {e.essais} essai(s)"
             if not np.isnan(e.volume):
@@ -861,12 +879,17 @@ class Suivi:
         # Panneau 1 : etat de chaque apport
         for yi, e in zip(y, self.etats):
             largeur = max(e.essais, 0.35)
-            ax1.barh(yi, largeur, color=COULEURS[e.statut], height=0.62)
+            # ORANGE pour un apport retenu sur l'objectif degrade, et le mot
+            # avec lui : la couleur ne porte jamais seule le sens.
+            couleur = liv.ALERTE if e.degrade else COULEURS[e.statut]
+            ax1.barh(yi, largeur, color=couleur, height=0.62)
             etiquette = e.statut if e.statut != VALIDE else (
                 f"volume {100 * e.volume:.0f} %  pointe {100 * e.pic:.0f} %"
                 if not np.isnan(e.volume) and not np.isnan(e.pic) else VALIDE)
+            if e.degrade:
+                etiquette += " — objectif dégradé"
             ax1.text(largeur + 0.15, yi, etiquette, va="center", fontsize=8,
-                     color=COULEURS[e.statut])
+                     color=couleur)
         ax1.set_yticks(y)
         ax1.set_yticklabels([f"{i + 1}. {e.nom_apport}"
                              for i, e in enumerate(self.etats)], fontsize=8.5)

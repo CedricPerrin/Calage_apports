@@ -15,6 +15,7 @@ COULEURS_SOMBRES = {
     "#608098": "#BBCAD2", "#526b7a": "#BBCAD2",
     "#9baeb7": "#BBCAD2", "#a03028": "#F29D97",
     "#3e7a5e": "#91CDAA", "#386f55": "#91CDAA",
+    "#96560a": "#F0B45A",
 }
 
 

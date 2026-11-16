@@ -19,7 +19,7 @@ from qgis.PyQt.QtWidgets import (QApplication, QFormLayout, QLayout, QMessageBox
 
 from . import noyau
 from .interface import EtiquetteLexique
-from .widgets import STATUT_REPRIS
+from .widgets import STATUT_DEGRADE, STATUT_REPRIS
 
 
 # UN SEUL BOUTON, SOUS LE PREFIXE (22/09/2026, demande utilisateur) : ecrire
@@ -45,6 +45,10 @@ ISL_ARDOISE_CLAIR = "#526B7A"  # les étapes en attente restent lisibles
 # ne servent QU'A dire si une saisie est fautive ou une etape franchie.
 ISL_ROUGE = "#A03028"
 ISL_VERT = "#386F55"
+# OBJECTIF DEGRADE (16/11/2026) : ni franchi, ni en echec. 5,1:1 sur le fond
+# clair de QGIS ; en theme sombre, interface.COULEURS_SOMBRES le ramene a
+# « #F0B45A ».
+ISL_ORANGE = "#96560A"
 ISL_VERT_SOMBRE = "#33654E"    # survol du bouton de controle, quand il est vert
 
 # Deux registres de texte, et deux seulement, en plus des libelles de champs :
@@ -79,6 +83,7 @@ COULEUR_STATUT = {
     "échoué": ISL_ROUGE,
     "en attente": ISL_ARDOISE_CLAIR,
     STATUT_REPRIS: ISL_ARDOISE,
+    STATUT_DEGRADE: ISL_ORANGE,
 }
 
 

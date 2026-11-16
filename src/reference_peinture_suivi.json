@@ -8376,6 +8376,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.0,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 1,
 "forme_pct": 97.0,
@@ -8389,6 +8390,7 @@ true
 {
 "apport": "A2",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -9038,6 +9040,7 @@ true
 {
 "apport": "A1",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -9618,6 +9621,7 @@ true
 {
 "apport": "A1",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -10198,6 +10202,7 @@ true
 {
 "apport": "A1",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -10778,6 +10783,7 @@ true
 {
 "apport": "A1",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -11358,6 +11364,7 @@ true
 {
 "apport": "A1",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -11985,6 +11992,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.0,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 1,
 "forme_pct": 97.0,
@@ -11998,6 +12006,7 @@ true
 {
 "apport": "A2",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -12665,6 +12674,7 @@ true
 {
 "apport": "A1",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -12678,6 +12688,7 @@ true
 {
 "apport": "A2",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -14400,6 +14411,7 @@ true
 {
 "apport": "Apport_01",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -14413,6 +14425,7 @@ true
 {
 "apport": "Apport_02",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -14426,6 +14439,7 @@ true
 {
 "apport": "Apport_03",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -14439,6 +14453,7 @@ true
 {
 "apport": "Apport_04",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -14452,6 +14467,7 @@ true
 {
 "apport": "Apport_05",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -14465,6 +14481,7 @@ true
 {
 "apport": "Apport_06",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -14478,6 +14495,7 @@ true
 {
 "apport": "Apport_07",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -14491,6 +14509,7 @@ true
 {
 "apport": "Apport_08",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -14504,6 +14523,7 @@ true
 {
 "apport": "Apport_09",
 "decalage_h": -0.75,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 1,
 "forme_pct": 97.0,
@@ -14517,6 +14537,7 @@ true
 {
 "apport": "Apport_10",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -14530,6 +14551,7 @@ true
 {
 "apport": "Apport_11",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -14543,6 +14565,7 @@ true
 {
 "apport": "Apport_12",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -14977,7 +15000,7 @@ false,
 0,
 true,
 0,
-""
+"non convergé"
 ],
 [
 "",
@@ -16049,6 +16072,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -16062,6 +16086,7 @@ true
 {
 "apport": "A2",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -16075,6 +16100,7 @@ true
 {
 "apport": "A3",
 "decalage_h": 0.0,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 3,
 "forme_pct": 97.0,
@@ -17118,6 +17144,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -17131,6 +17158,7 @@ true
 {
 "apport": "A2",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -17144,6 +17172,7 @@ true
 {
 "apport": "A3",
 "decalage_h": 0.0,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 2,
 "forme_pct": 97.0,
@@ -17157,6 +17186,7 @@ true
 {
 "apport": "A4",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -17170,6 +17200,7 @@ true
 {
 "apport": "A5",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -18327,6 +18358,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -18340,6 +18372,7 @@ true
 {
 "apport": "A2",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -18353,6 +18386,7 @@ true
 {
 "apport": "A3",
 "decalage_h": 0.0,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 2,
 "forme_pct": 97.0,
@@ -18366,6 +18400,7 @@ true
 {
 "apport": "A4",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -18379,6 +18414,7 @@ true
 {
 "apport": "A5",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -19536,6 +19572,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -19549,6 +19586,7 @@ true
 {
 "apport": "A2",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -19562,6 +19600,7 @@ true
 {
 "apport": "A3",
 "decalage_h": 0.0,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 2,
 "forme_pct": 97.0,
@@ -19575,6 +19614,7 @@ true
 {
 "apport": "A4",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -19588,6 +19628,7 @@ true
 {
 "apport": "A5",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -20745,6 +20786,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -20758,6 +20800,7 @@ true
 {
 "apport": "A2",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -20771,6 +20814,7 @@ true
 {
 "apport": "A3",
 "decalage_h": 0.0,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 2,
 "forme_pct": 97.0,
@@ -20784,6 +20828,7 @@ true
 {
 "apport": "A4",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -20797,6 +20842,7 @@ true
 {
 "apport": "A5",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -21829,6 +21875,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.0,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 1,
 "forme_pct": 97.0,
@@ -21842,6 +21889,7 @@ true
 {
 "apport": "A2",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -21855,6 +21903,7 @@ true
 {
 "apport": "A3",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -22604,6 +22653,7 @@ true
 {
 "apport": "A1",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -22617,6 +22667,7 @@ true
 {
 "apport": "A2",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -22630,6 +22681,7 @@ true
 {
 "apport": "A3",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -23528,6 +23580,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -23541,6 +23594,7 @@ true
 {
 "apport": "A2",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -23554,6 +23608,7 @@ true
 {
 "apport": "A3",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -24298,6 +24353,7 @@ true
 {
 "apport": "A1",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -24311,6 +24367,7 @@ true
 {
 "apport": "A2",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -24324,6 +24381,7 @@ true
 {
 "apport": "A3",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -25011,6 +25069,7 @@ true
 {
 "apport": "A1",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -27723,6 +27782,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -27736,6 +27796,7 @@ true
 {
 "apport": "A2",
 "decalage_h": 0.0,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 1,
 "forme_pct": 97.0,
@@ -30364,6 +30425,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -30377,6 +30439,7 @@ true
 {
 "apport": "A2",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -31183,6 +31246,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -31196,6 +31260,7 @@ true
 {
 "apport": "A2",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -32442,6 +32507,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -32455,6 +32521,7 @@ true
 {
 "apport": "A2",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -35670,6 +35737,7 @@ true
 {
 "apport": "Apport_Église",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -35683,6 +35751,7 @@ true
 {
 "apport": "Ruisseau d'Œ",
 "decalage_h": 0.0,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 1,
 "forme_pct": 97.0,
@@ -35696,6 +35765,7 @@ true
 {
 "apport": "Bièvre amont",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -36716,6 +36786,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -36729,6 +36800,7 @@ true
 {
 "apport": "A2",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -36742,6 +36814,7 @@ true
 {
 "apport": "A3",
 "decalage_h": 0.0,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 1,
 "forme_pct": 97.0,
@@ -36755,6 +36828,7 @@ true
 {
 "apport": "A4",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -37824,6 +37898,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -37837,6 +37912,7 @@ true
 {
 "apport": "A2",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -37850,6 +37926,7 @@ true
 {
 "apport": "A3",
 "decalage_h": 0.0,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 1,
 "forme_pct": 97.0,
@@ -37863,6 +37940,7 @@ true
 {
 "apport": "A4",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -38932,6 +39010,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -38945,6 +39024,7 @@ true
 {
 "apport": "A2",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -38958,6 +39038,7 @@ true
 {
 "apport": "A3",
 "decalage_h": 0.0,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 1,
 "forme_pct": 97.0,
@@ -38971,6 +39052,7 @@ true
 {
 "apport": "A4",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -40040,6 +40122,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -40053,6 +40136,7 @@ true
 {
 "apport": "A2",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -40066,6 +40150,7 @@ true
 {
 "apport": "A3",
 "decalage_h": 0.0,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 1,
 "forme_pct": 97.0,
@@ -40079,6 +40164,7 @@ true
 {
 "apport": "A4",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -40822,6 +40908,7 @@ true
 {
 "apport": "A1",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -41421,6 +41508,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -41434,6 +41522,7 @@ true
 {
 "apport": "A2",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -42113,6 +42202,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.0,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 1,
 "forme_pct": 97.0,
@@ -42126,6 +42216,7 @@ true
 {
 "apport": "A2",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -43049,6 +43140,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -43062,6 +43154,7 @@ true
 {
 "apport": "A2",
 "decalage_h": 0.0,
+"degrade": false,
 "duree_s": 600.0,
 "essais": 1,
 "forme_pct": 97.0,
@@ -43075,6 +43168,7 @@ true
 {
 "apport": "A3",
 "decalage_h": 0.0,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 1,
 "forme_pct": 97.0,
@@ -43088,6 +43182,7 @@ true
 {
 "apport": "A4",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -43186,7 +43281,7 @@ false,
 0,
 true,
 0,
-""
+"A2 ne converge pas"
 ],
 [
 "1",
@@ -44123,6 +44218,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -44136,6 +44232,7 @@ true
 {
 "apport": "A2",
 "decalage_h": 0.0,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 1,
 "forme_pct": 97.0,
@@ -44149,6 +44246,7 @@ true
 {
 "apport": "A3",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -44162,6 +44260,7 @@ true
 {
 "apport": "A4",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -44260,7 +44359,7 @@ false,
 0,
 true,
 0,
-""
+"x"
 ],
 [
 "1",
@@ -45169,6 +45268,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -45182,6 +45282,7 @@ true
 {
 "apport": "A2",
 "decalage_h": 0.0,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 1,
 "forme_pct": 97.0,
@@ -45195,6 +45296,7 @@ true
 {
 "apport": "A3",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -45208,6 +45310,7 @@ true
 {
 "apport": "A4",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -45306,7 +45409,7 @@ false,
 0,
 true,
 0,
-""
+"x"
 ],
 [
 "1",
@@ -46213,6 +46316,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -46226,6 +46330,7 @@ true
 {
 "apport": "A2",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -47091,6 +47196,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -47104,6 +47210,7 @@ true
 {
 "apport": "A2",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -47969,6 +48076,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -47982,6 +48090,7 @@ true
 {
 "apport": "A2",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -48847,6 +48956,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -48860,6 +48970,7 @@ true
 {
 "apport": "A2",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -49652,6 +49763,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -50387,6 +50499,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -51220,6 +51333,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -51233,6 +51347,7 @@ true
 {
 "apport": "A2",
 "decalage_h": 0.0,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 1,
 "forme_pct": 97.0,
@@ -51246,6 +51361,7 @@ true
 {
 "apport": "A3",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -51344,7 +51460,7 @@ false,
 0,
 true,
 0,
-""
+"A2 non calé"
 ],
 [
 "1",
@@ -52193,6 +52309,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -52206,6 +52323,7 @@ true
 {
 "apport": "A2",
 "decalage_h": 0.0,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 1,
 "forme_pct": 97.0,
@@ -52219,6 +52337,7 @@ true
 {
 "apport": "A3",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -52317,7 +52436,7 @@ false,
 0,
 true,
 0,
-""
+"A2 non calé"
 ],
 [
 "1",
@@ -53166,6 +53285,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -53179,6 +53299,7 @@ true
 {
 "apport": "A2",
 "decalage_h": 0.0,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 1,
 "forme_pct": 97.0,
@@ -53192,6 +53313,7 @@ true
 {
 "apport": "A3",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -53290,7 +53412,7 @@ false,
 0,
 true,
 0,
-""
+"A2 non calé"
 ],
 [
 "1",
@@ -54139,6 +54261,7 @@ true
 {
 "apport": "A1",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -54152,6 +54275,7 @@ true
 {
 "apport": "A2",
 "decalage_h": 0.0,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 1,
 "forme_pct": 97.0,
@@ -54165,6 +54289,7 @@ true
 {
 "apport": "A3",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -54263,7 +54388,7 @@ false,
 0,
 true,
 0,
-""
+"A2 non calé"
 ],
 [
 "1",
@@ -54853,6 +54978,7 @@ true
 {
 "apport": "A1",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -56523,6 +56649,7 @@ true
 {
 "apport": "Affluent_01",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -56536,6 +56663,7 @@ true
 {
 "apport": "Affluent_02",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -56549,6 +56677,7 @@ true
 {
 "apport": "Affluent_03",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -56562,6 +56691,7 @@ true
 {
 "apport": "Affluent_04",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -56575,6 +56705,7 @@ true
 {
 "apport": "Affluent_05",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -56588,6 +56719,7 @@ true
 {
 "apport": "Affluent_06",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -56601,6 +56733,7 @@ true
 {
 "apport": "Affluent_07",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -56614,6 +56747,7 @@ true
 {
 "apport": "Affluent_08",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -56627,6 +56761,7 @@ true
 {
 "apport": "Affluent_09",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -56640,6 +56775,7 @@ true
 {
 "apport": "Affluent_10",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -56653,6 +56789,7 @@ true
 {
 "apport": "Affluent_11",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -56666,6 +56803,7 @@ true
 {
 "apport": "Affluent_12",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -56679,6 +56817,7 @@ true
 {
 "apport": "Affluent_13",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -56692,6 +56831,7 @@ true
 {
 "apport": "Affluent_14",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -56705,6 +56845,7 @@ true
 {
 "apport": "Affluent_15",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -56718,6 +56859,7 @@ true
 {
 "apport": "Affluent_16",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -56731,6 +56873,7 @@ true
 {
 "apport": "Affluent_17",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -56744,6 +56887,7 @@ true
 {
 "apport": "Affluent_18",
 "decalage_h": 0.25,
+"degrade": false,
 "duree_s": 1800.0,
 "essais": 2,
 "forme_pct": 99.1,
@@ -56757,6 +56901,7 @@ true
 {
 "apport": "Affluent_19",
 "decalage_h": 0.0,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 1,
 "forme_pct": 97.0,
@@ -56770,6 +56915,7 @@ true
 {
 "apport": "Affluent_20",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -56783,6 +56929,7 @@ true
 {
 "apport": "Affluent_21",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -56796,6 +56943,7 @@ true
 {
 "apport": "Affluent_22",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -56809,6 +56957,7 @@ true
 {
 "apport": "Affluent_23",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -56822,6 +56971,7 @@ true
 {
 "apport": "Affluent_24",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -56835,6 +56985,7 @@ true
 {
 "apport": "Affluent_25",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -56848,6 +56999,7 @@ true
 {
 "apport": "Affluent_26",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -56861,6 +57013,7 @@ true
 {
 "apport": "Affluent_27",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -56874,6 +57027,7 @@ true
 {
 "apport": "Affluent_28",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -56887,6 +57041,7 @@ true
 {
 "apport": "Affluent_29",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -56900,6 +57055,7 @@ true
 {
 "apport": "Affluent_30",
 "decalage_h": null,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 0,
 "forme_pct": null,
@@ -59307,6 +59463,7 @@ true
 {
 "apport": "Unique",
 "decalage_h": 1.5,
+"degrade": false,
 "duree_s": 0.0,
 "essais": 1,
 "forme_pct": 97.0,

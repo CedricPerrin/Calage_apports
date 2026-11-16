@@ -33,12 +33,24 @@ from .interface import Etiquette as QLabel
 from .interface import TableauTriable
 from .interface import couleur as couleur_theme
 from .socle import (DELAI_PREMIER_ETAT_S, BOUTON_GEOMETRIE, COULEUR_STATUT, ISL_ARDOISE,
-                    ISL_ARDOISE_CLAIR, ISL_ROUGE, ISL_TEAL_SOMBRE, ISL_VERT, ROLE_AIDE,
+                    ISL_ARDOISE_CLAIR, ISL_ORANGE, ISL_ROUGE, ISL_TEAL_SOMBRE, ISL_VERT,
+                    ROLE_AIDE,
                     TOLERANCE_FORME_DEFAUT, TOLERANCE_PIC_DEFAUT, TOLERANCE_VOLUME_DEFAUT,
                     _cle_fichier, courbe_retenue, date_lisible, dire, duree_lisible,
                     formulaire, texte_aide)
-from .widgets import (GLYPHE_STATUT, STATUT_REPRIS, CourbeComparaison, JaugeAtteinte,
-                      RubanApports, compte, nombre)
+from .widgets import (GLYPHE_STATUT, STATUT_DEGRADE, STATUT_REPRIS, CourbeComparaison,
+                      JaugeAtteinte, RubanApports, compte, nombre)
+
+
+def statuts_affiches(apports):
+    """
+    Les apports avec leur statut d'AFFICHAGE : « objectif dégradé » pour un
+    apport que la chaine a valide sur l'objectif degrade (cle « degrade »).
+    L'etat lu n'est pas modifie : la reprise y lit toujours « validé ».
+    """
+    return [dict(a, statut=STATUT_DEGRADE)
+            if a.get("degrade") and a.get("statut") == "validé" else a
+            for a in apports]
 
 
 class PageSuivi(QWidget):
@@ -483,7 +495,10 @@ class PageSuivi(QWidget):
         repris, courbes_reprises = self._apports_repris(dossier, apports)
         self._appliquer_tolerances(etat)
         comptes = etat.get("comptes") or {}
-        self._peindre_avancement(etat, apports, en_cours, repris,
+        # Ruban et tableau montrent le statut d'affichage ; banniere, position
+        # et jauges lisent l'etat tel que la chaine l'ecrit.
+        affiches = statuts_affiches(apports)
+        self._peindre_avancement(etat, affiches, en_cours, repris,
                                  courbes_reprises)
         self._peindre_banniere_etat(etat, apports, en_cours, comptes)
         self._peindre_position(etat, apports, en_cours, comptes)
@@ -492,7 +507,7 @@ class PageSuivi(QWidget):
         self._afficher_bilan_masse(etat.get("bilan_masse"))
 
         self._peindre_temps(etat)
-        self._remplir_table_suivi(repris + apports)
+        self._remplir_table_suivi(repris + affiches)
 
     def _etat_perime(self, etat):
         """L'etat lu est-il celui d'un calage PRECEDENT ? (verdict « a nous / perime »)"""
@@ -660,6 +675,16 @@ class PageSuivi(QWidget):
                     + (f", {compte(etat['nb_calculs'], 'calcul')}"
                        if etat.get("nb_calculs") else "")
                     + ". Les livrables sont dans le dossier de résultats.")
+            elif etat.get("degrade"):
+                # MENE AU BOUT SUR L'OBJECTIF DEGRADE : ni vert ni rouge. Le
+                # plan final existe ; le detail dit quelles sections s'en
+                # ecartent, pour que l'ingenieur decide de les reprendre.
+                degrades = sum(1 for a in apports if a.get("degrade"))
+                self._banniere(
+                    ISL_ORANGE, "Calage terminé — objectif dégradé", glyphe="⚠",
+                    detail=f"{compte(comptes.get('validé', 0), 'apport calé', 'apports calés')}"
+                    f", dont {degrades} sur l'objectif dégradé. "
+                    + (etat.get("motif_final") or ""))
             else:
                 self._banniere(
                     ISL_ROUGE, "Calage terminé — NON conforme", glyphe="✕",
@@ -827,6 +852,9 @@ class PageSuivi(QWidget):
             for colonne, valeur in enumerate(valeurs):
                 cellule = QTableWidgetItem(str(valeur))
                 if colonne == 2:
+                    # Pourquoi l'objectif est degrade, ou l'apport en echec :
+                    # le motif de la chaine, deja dit au journal.
+                    cellule.setToolTip(str(a.get("motif") or ""))
                     # Remappee en theme sombre, comme les widgets peints :
                     # l'ardoise sur le fond Night Mapping rendait 2,3:1.
                     cellule.setForeground(couleur_theme(

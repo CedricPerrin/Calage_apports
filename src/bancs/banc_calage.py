@@ -187,8 +187,11 @@ controler("l'etat final est titre « avec_apports », pas du nom du dernier "
           modele.etapes[-1] == ETAPE_AVEC_APPORTS, modele.etapes[-1])
 
 # RECALAGE D'UN PLAN VALIDE QUI GARDE SON NOM (10/11/2026). Poser le titre
-# final efface le plan valide : on ne le fait que sur un calage CONFORME.
-# Le verdict est force a « non conforme » pour le second passage.
+# final efface le plan valide. DES QUE TOUS LES APPORTS SONT RETENUS
+# (16/11/2026, decision utilisateur ; sur un calage CONFORME seulement
+# jusque-la) : le second passage, au verdict force a « non conforme », pose
+# donc le titre lui aussi. Le calage ARRETE sur un apport, qui ne le pose
+# pas, est eprouve par src/test_objectif_degrade.py.
 _vraie_verification = _verifier_globalement
 
 def _recaler(conforme):
@@ -208,9 +211,9 @@ def _recaler(conforme):
 
 controler("plan source a remplacer : calage conforme, le titre final est "
           "pose", _recaler(True) == ETAPE_AVEC_APPORTS)
-controler("plan source a remplacer : calage NON conforme, le plan garde "
-          "son titre d'etape", _recaler(False) == etape_apport(apports[-1]),
-          _recaler(False))
+controler("plan source a remplacer : calage mene au bout mais NON conforme, "
+          "le titre final est pose aussi",
+          _recaler(False) == ETAPE_AVEC_APPORTS, _recaler(False))
 
 # --- PREFIXE DE SCENARIO -----------------------------------------------
 print("\n--- PREFIXE DE SCENARIO ---")

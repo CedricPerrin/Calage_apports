@@ -198,9 +198,9 @@ def titre_etape(nom, prefixe=""):
 
     LE PLAN FINAL PORTE LE PREFIXE SEUL. Il perd le suffixe qui l'empechait de
     rencontrer un plan de l'ingenieur : le plugin demande confirmation avant
-    d'en remplacer un. Le plan SOURCE de ce nom n'est remplace que sur un
-    calage conforme (Configuration.remplacer_plan_source, 10/11/2026) ; sans
-    cet accord, le pont le refuse.
+    d'en remplacer un. Le plan SOURCE de ce nom est remplace des que tous
+    les apports sont retenus (accord donne au lancement, « Remplacer_plan_
+    source » ; regle du 16/11/2026) ; sans cet accord, le pont le refuse.
 
     COPIE dans calage_apports/plugin.py (_titre_etape), qui ne peut pas
     importer la chaine : changer l'une, c'est changer l'autre.
@@ -390,6 +390,16 @@ class Configuration:
     # Correlation minimale APRES recalage temporel : c'est la forme, sans la
     # dynamique, qu'on exige de reproduire.
     r_min: float = 0.97
+    # OBJECTIF DEGRADE D'UN CRAN (16/11/2026, demande utilisateur : « si
+    # l'objectif n'est pas atteint, continuer en degradant de 5 % l'objectif
+    # sur le volume et / ou la forme et mettre l'apport en orange »). Quand la
+    # recherche d'un apport s'arrete sans concordance, l'essai retenu est
+    # rejuge avec le volume admis a tolerance_volume + ce cran et la forme a
+    # r_min - ce cran. LA POINTE GARDE SA TOLERANCE : c'est elle qui fait
+    # l'alea. Tenu : l'apport est retenu « degrade » et le calage continue.
+    # Sinon : arret, comme avant. UN SEUL CRAN (decision utilisateur) : l'ecart
+    # accepte reste borne et connu. 0 = jamais de degradation.
+    degradation_objectif: float = 0.05
     # AJUSTER LA DUREE SIMULEE A CE QUE CHAQUE APPORT DEMANDE.
     #
     # La fenetre de jugement dit jusqu'ou l'evenement de CET apport est
@@ -424,8 +434,12 @@ class Configuration:
     prefixe_etape: str = ""
     # RECALAGE D'UN PLAN VALIDE QUI GARDE SON NOM (10/11/2026). Le plan source
     # porte deja le titre final et l'ingenieur a accepte, au lancement, de le
-    # voir remplace. Le plan final ne prend alors ce titre que si le calage
-    # est CONFORME : sinon le plan valide reste seul a le porter, intact.
+    # voir remplace. DES QUE TOUS LES APPORTS SONT RETENUS (16/11/2026,
+    # decision utilisateur ; « conforme » seulement jusque-la) : le plan final
+    # prend ce titre, le plan source est supprime. Un calage arrete sur un
+    # apport le laisse intact. caler() ne lit plus ce champ — il conclut tout
+    # calage mene au bout ; c'est le pilote qui sait quel plan il a le droit
+    # de remplacer (PiloteHecRas.plan_a_remplacer).
     remplacer_plan_source: bool = False
 
     # ------------------------------------------------------------------
@@ -463,6 +477,10 @@ class ResultatApport:
     nom_section: str
     valide: bool
     facteur: float
+    # RETENU SUR L'OBJECTIF DEGRADE (Configuration.degradation_objectif) :
+    # valide, donc le calage continue, mais hors des tolerances demandees —
+    # « motif » dit alors de combien et pourquoi. L'orange du suivi.
+    degrade: bool = False
     diagnostic: object = None
     essais: int = 0
     duree_s: float = 0.0
@@ -500,6 +518,9 @@ class ResultatCalage:
     duree_s: float = 0.0
     nb_calculs: int = 0
     conforme: bool = False
+    # NI CONFORME NI EN ECHEC : a la verification finale, aucune section hors
+    # de l'objectif degrade, et une au moins hors de l'objectif demande.
+    objectif_degrade: bool = False
     motif: str = ""
     # ALERTES QUI NE VISENT AUCUN APPORT EN PARTICULIER mais le calage entier.
     # Diagnostic.alertes est par apport ; il n'y avait aucun canal pour ce qui
@@ -1017,6 +1038,23 @@ def concordance(diag, config):
             and diag.r >= config.r_min)
 
 
+def concordance_degradee(diag, config):
+    """
+    L'objectif DEGRADE D'UN CRAN est-il tenu ? Volume et forme relaches de
+    Configuration.degradation_objectif, POINTE INCHANGEE.
+
+    Ne se substitue jamais a concordance() : la recherche vise toujours
+    l'objectif demande, et ce test ne juge que l'essai RETENU, une fois la
+    recherche arretee. Une forme non calculable (r = NaN) echoue d'elle-meme.
+    """
+    cran = config.degradation_objectif
+    return bool(
+        cran > 0
+        and abs(diag.rapport_volume - 1.0) <= config.tolerance_volume + cran
+        and abs(diag.rapport_pic - 1.0) <= config.tolerance_pic
+        and diag.r >= config.r_min - cran)
+
+
 # ---------------------------------------------------------------------------
 # Boucle principale
 # ---------------------------------------------------------------------------
@@ -1055,8 +1093,13 @@ class _EtatApport:
     debut_apport: float = None      # horloge, a l'entree de la recherche
     # « poursuivre » tant que la recherche court, puis « converge » ou
     # « arret » ; le motif dit pourquoi elle s'est arretee.
+    # « degrade » : objectif degrade tenu, voir _degrader_objectif.
     issue: str = "poursuivre"
     motif: str = ""
+    # LA RECHERCHE S'EST ARRETEE SUR L'OBJECTIF, et non sur un calcul rejete,
+    # une section illisible ou une cible hors d'atteinte : seul cas ou
+    # l'objectif degrade peut etre essaye.
+    objectif_manque: bool = False
     courant: object = None          # hydrogramme d'apport de l'essai en cours
     volume_initial: float = 0.0
     essais: int = 0
@@ -1180,6 +1223,7 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
         # --- boucle d'essais, puis retour au meilleur d'entre eux ---------
         _essayer_apport(modele, etat, config, suivi, resultat, dire)
         _restituer_meilleur(modele, etat, dire)
+        _degrader_objectif(modele, etat, config, suivi, resultat, dire)
 
         # --- verdict de l'apport : un echec arrete la sequence ------------
         valide = _retenir_apport(etat, config, suivi, resultat)
@@ -1224,18 +1268,17 @@ def caler(modele, apports, sections, cibles, config=None, suivi=None,
         # n'est retitre si la sequence s'est arretee en chemin : on n'entre
         # dans ce bloc que si tous les apports sont valides.
         #
-        # UNE EXCEPTION : le plan source porte deja ce titre et doit etre
-        # remplace (config.remplacer_plan_source). Conclure l'efface avec ses
-        # resultats ; on ne le fait donc que sur un calage CONFORME.
-        if config.remplacer_plan_source and not resultat.conforme:
-            dire(f"    Calage non conforme : le plan valide « "
-                 f"{titre_etape(ETAPE_AVEC_APPORTS, config.prefixe_etape)} » "
-                 f"n'est pas remplace. Ce recalage reste dans le plan de sa "
-                 f"derniere etape.")
-        else:
-            _conclure(modele,
-                      titre_etape(ETAPE_AVEC_APPORTS, config.prefixe_etape),
-                      dire)
+        # LE PLAN SOURCE QUI PORTE DEJA CE TITRE EST REMPLACE ICI AUSSI
+        # (16/11/2026, decision utilisateur : « des que tout est cale »,
+        # apports verts ou orange). Du 10/11 au 16/11 il ne l'etait que sur un
+        # calage CONFORME : un calage mene au bout mais non conforme a la
+        # verification laissait le plan valide en place et le recalage sous
+        # un titre d'etape, a renommer a la main. Seul un calage ARRETE sur
+        # un apport — qui n'entre pas dans ce bloc — laisse le plan source
+        # intact.
+        _conclure(modele,
+                  titre_etape(ETAPE_AVEC_APPORTS, config.prefixe_etape),
+                  dire)
 
     # --- coherence du decalage le long de l'axe : A LA FIN, SUR LES Dt RETENUS
     # Quel que soit le verdict : un calage arrete en chemin a quand meme ses
@@ -1708,6 +1751,7 @@ def _essayer_apport(modele, etat, config, suivi, resultat, dire):
         # Deux essais consecutifs qui s'eloignent : insister ne fera
         # qu'empirer. On s'arrete et on retient le meilleur.
         if etat.degradations >= 2:
+            etat.objectif_manque = True
             etat.issue, etat.motif = "arret", (
                 f"la recherche s'eloigne de la concordance depuis "
                 f"l'essai {etat.meilleur['essai']} : le modele repond de "
@@ -1716,6 +1760,7 @@ def _essayer_apport(modele, etat, config, suivi, resultat, dire):
             break
 
         if etat.essais >= config.nb_max_essais:
+            etat.objectif_manque = True
             etat.issue = "arret"
             _motiver_essais_epuises(etat, config)
             break
@@ -1733,6 +1778,7 @@ def _essayer_apport(modele, etat, config, suivi, resultat, dire):
         dire(f"      correction au pic "
              f"{float(np.max(etat.courant - precedent)):+.1f} m3/s")
         if float(np.max(np.abs(etat.courant - precedent))) <= 1e-6:
+            etat.objectif_manque = True
             etat.issue, etat.motif = "arret", (
                 f"la correction n'a plus d'effet alors que la "
                 f"concordance n'est pas atteinte (volume "
@@ -1821,17 +1867,86 @@ def _restituer_meilleur(modele, etat, dire):
              f"{100 * etat.diag.rapport_pic:.1f} %)")
 
 
+def _degrader_objectif(modele, etat, config, suivi, resultat, dire):
+    """
+    Quand la recherche s'est arretee sur l'objectif, rejuge l'essai retenu
+    sur l'objectif DEGRADE D'UN CRAN (concordance_degradee). Tenu : l'issue
+    devient « degrade », et caler() continue. Sinon l'etat ne change pas.
+
+    APPELE APRES _restituer_meilleur : c'est l'essai EN PLACE qui est juge.
+
+    UN RECALCUL QUAND L'ESSAI RETENU N'EST PAS LE DERNIER CALCULE. Le modele
+    porte alors l'hydrogramme du meilleur essai et les RESULTATS du dernier.
+    Or l'apport suivant lit son residuel dans ces resultats, et la
+    verification finale relit le dernier calcul : sans recalcul, ils
+    jugeraient un apport qui n'est plus en place. Avant ce cran, un apport
+    remis a un essai anterieur arretait toujours le calage, et la question
+    ne se posait pas. Le recalcul est juge comme tout calcul : rejete, ou
+    hors de l'objectif degrade, l'apport reste en echec.
+    """
+    if not (etat.objectif_manque and etat.diag is not None
+            and concordance_degradee(etat.diag, config)):
+        return
+    if etat.essai_en_place != etat.essais:
+        dire(f"    objectif degrade tenu par l'essai {etat.essai_en_place} : "
+             f"recalcul de cet essai, pour que les resultats en place soient "
+             f"les siens")
+        calcul = modele.calculer()
+        resultat.nb_calculs += 1
+        _noter_bilan(suivi, calcul, config)
+        acceptable, motif_qualite = qualite_acceptable(calcul, config)
+        if not acceptable:
+            etat.motif += (f" Le recalcul de l'essai {etat.essai_en_place}, "
+                           f"qui tenait l'objectif degrade, est rejete : "
+                           f"{motif_qualite}")
+            return
+        etat.temps_calcule, etat.debit_calcule = modele.lire_section(
+            etat.section)
+        etat.diag = diagnostiquer(etat.temps_cible, etat.debit_cible,
+                                  etat.temps_calcule, etat.debit_calcule,
+                                  tolerance_volume=config.tolerance_volume,
+                                  tolerance_pic=config.tolerance_pic,
+                                  r_min=config.r_min,
+                                  fenetre=etat.bornes_fenetre,
+                                  part_apport=etat.part_apport,
+                                  decalage_fenetre_h=etat.decalage_zero)
+        if not concordance_degradee(etat.diag, config):
+            etat.motif += (f" Le recalcul de l'essai {etat.essai_en_place} "
+                           f"ne tient plus l'objectif degrade.")
+            return
+    etat.issue = "degrade"
+    # « AVERTISSEMENT » : le mot auquel l'etape Suivi reconnait ce qui merite
+    # l'ecran (MARQUEURS_ALERTE).
+    dire(f"    AVERTISSEMENT : OBJECTIF DEGRADE pour {etat.apport} — volume "
+         f"{100 * etat.diag.rapport_volume:.1f} %, pointe "
+         f"{100 * etat.diag.rapport_pic:.1f} %, forme "
+         f"{100 * etat.diag.r:.1f} % ; admis en degrade : "
+         f"{_objectif_degrade_en_mots(config)}. L'apport est retenu et le "
+         f"calage continue.")
+
+
+def _objectif_degrade_en_mots(config):
+    """« volume a 10 % pres, forme des 92 %, pointe inchangee »."""
+    cran = config.degradation_objectif
+    return (f"volume a {100 * (config.tolerance_volume + cran):g} % pres, "
+            f"forme des {100 * (config.r_min - cran):g} %, pointe inchangee")
+
+
 def _retenir_apport(etat, config, suivi, resultat):
     """
     Clot la recherche d'un apport : prononce sa validite, complete le motif
-    d'un echec, inscrit le ResultatApport dans resultat et previent le suivi.
+    d'un echec ou d'un objectif degrade, inscrit le ResultatApport dans
+    resultat et previent le suivi.
 
-    Rend True si l'apport est valide. Sinon etat.motif dit pourquoi, et c'est
-    a caler() d'arreter la sequence.
+    Rend True si l'apport est valide — objectif tenu, ou objectif degrade
+    tenu. Sinon etat.motif dit pourquoi, et c'est a caler() d'arreter la
+    sequence.
     """
     duree_apport = time.time() - etat.debut_apport
-    valide = etat.issue == "converge"
-    if not valide and not etat.motif:
+    degrade = etat.issue == "degrade"
+    atteint = etat.issue == "converge"
+    valide = atteint or degrade
+    if not atteint and not etat.motif:
         etat.motif = "concordance volume / pointe / forme non atteinte"
 
     # LE CLIQUET EST LA PREMIERE CAUSE A CITER QUAND IL JOUE.
@@ -1843,7 +1958,7 @@ def _retenir_apport(etat, config, suivi, resultat):
     # Un motif qui designe la mauvaise cause envoie corriger la mauvaise
     # chose — ici le maillage ou le pas de calcul, quand ce sont les
     # apports amont ou la cible qu'il faut reprendre.
-    if (not valide and etat.cliquet > 1.0 + config.tolerance_volume
+    if (not atteint and etat.cliquet > 1.0 + config.tolerance_volume
             and etat.diag is not None
             and etat.diag.rapport_volume > 1.0 + config.tolerance_volume):
         etat.motif += (
@@ -1855,14 +1970,19 @@ def _retenir_apport(etat, config, suivi, resultat):
             f"apports amont deja cales, ou la cible, avant de "
             f"mettre en cause la reponse du modele.")
 
+    if degrade:
+        etat.motif = (f"objectif degrade ({_objectif_degrade_en_mots(config)})"
+                      f" : {etat.motif}")
+
     resultat.apports.append(ResultatApport(
         nom_apport=etat.apport, nom_section=etat.section, valide=valide,
+        degrade=degrade,
         # Le facteur decrit l'essai RETENU. Apres un retour au meilleur
         # essai, prendre le dernier de l'historique decrirait un apport
         # qui n'est plus en place.
         facteur=_facteur_retenu(etat.historique_rapport, etat.essai_en_place),
         diagnostic=etat.diag, essais=etat.essais,
-        duree_s=duree_apport, motif="" if valide else etat.motif,
+        duree_s=duree_apport, motif="" if atteint else etat.motif,
         historique=etat.historique_rapport,
         fenetre_principale=etat.bornes_fenetre,
         part_apport=etat.part_apport,
@@ -1874,7 +1994,8 @@ def _retenir_apport(etat, config, suivi, resultat):
                   if valide and etat.diag is not None else None)
         if valide:
             _sans_interrompre(suivi.valider_apport, etat.i, etat.diag,
-                              duree_apport, series)
+                              duree_apport, series,
+                              etat.motif if degrade else "")
         else:
             _sans_interrompre(suivi.echouer_apport, etat.i, etat.motif,
                               etat.diag, duree_apport)
@@ -1928,8 +2049,15 @@ def _verifier_globalement(modele, sections, cibles, config, resultat, dire):
         resultat.series_finales.append((t_c, q_c, t_s, q_s))
         dire(f"    {section:24s} volume {100 * d.rapport_volume:5.1f} %  "
              f"pointe {100 * d.rapport_pic:5.1f} %  "
-             f"{'conforme' if d.converge else 'NON CONFORME'}")
+             + ("conforme" if d.converge
+                else "OBJECTIF DEGRADE" if _degrade_final(d, config)
+                else "NON CONFORME"))
     resultat.conforme = all(d.converge for d in resultat.diagnostics_finaux)
+    degradees = [s for s, d in zip(sections, resultat.diagnostics_finaux)
+                 if _degrade_final(d, config)]
+    resultat.objectif_degrade = bool(degradees) and all(
+        d.converge or _degrade_final(d, config)
+        for d in resultat.diagnostics_finaux)
     if not resultat.conforme:
         # LE MOTIF DIT CE QUI A ECHOUE, ET OU. Il annoncait autrefois une
         # « derive » quelle que soit la cause : sur un calage dont tous les
@@ -1939,8 +2067,22 @@ def _verifier_globalement(modele, sections, cibles, config, resultat, dire):
                                            resultat.diagnostics_finaux)
                     if d.alertes_bloquantes]
         derivees = [s for s, d in zip(sections, resultat.diagnostics_finaux)
-                    if not d.converge and not d.alertes_bloquantes]
+                    if not d.converge and not d.alertes_bloquantes
+                    and s not in degradees]
         causes = []
+        if degradees:
+            # UNE SECTION ORANGE DONT L'APPORT ETAIT VERT A SON CALAGE a
+            # derive depuis : le dire, sinon on la croirait retenue telle
+            # quelle, et la passe sequentielle a relancer ne serait pas dite.
+            par_derive = [s for s, a in zip(sections, resultat.apports)
+                          if s in degradees and not a.degrade]
+            causes.append(
+                f"objectif degrade sur {degradees} : hors de l'objectif "
+                f"demande, dans l'objectif degrade "
+                f"({_objectif_degrade_en_mots(config)})"
+                + (f" ; {par_derive} par derive a la verification globale, "
+                   f"l'apport ayant tenu l'objectif demande a son calage"
+                   if par_derive else ""))
         if derivees:
             causes.append(
                 f"derive a la verification globale sur {derivees} : "
@@ -1950,6 +2092,15 @@ def _verifier_globalement(modele, sections, cibles, config, resultat, dire):
             causes.append(f"« {section} » : "
                           + " ; ".join(d.alertes_bloquantes))
         resultat.motif = ". ".join(causes) + "."
+
+
+def _degrade_final(diag, config):
+    """
+    A la verification finale, la section est-elle « orange » : hors de
+    l'objectif demande, dans l'objectif degrade, comparaison valide ?
+    """
+    return (not diag.converge and not diag.alertes_bloquantes
+            and concordance_degradee(diag, config))
 
 
 def _signaler_coherence_amont(modele, sections_amont, cibles_amont,

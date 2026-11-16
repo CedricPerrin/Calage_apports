@@ -1,5 +1,46 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 16 novembre 2026 (version) : 0.9.39, objectif dégradé, plan de référence remplacé dès que tout est calé
+
+Deux demandes de Cédric du 16/11. Décisions prises le même jour, une question à la fois :
+1. **Objectif dégradé.** Quand la recherche d'un apport s'arrête sur l'objectif, son essai
+   retenu est rejugé avec le volume à tolérance + 5 points et la forme à 97 − 5 = 92 %, pointe
+   inchangée. Tenu : apport retenu, orange, le calage continue. Sinon : arrêt en rouge (un seul
+   cran, « Arrêt, en rouge »).
+2. **Plan de référence qui garde son nom.** Constat de Cédric : « plan non remplacé ». Le code
+   ne le remplaçait que sur un calage conforme. Décision : remplacé dès que tous les apports
+   sont retenus, verts ou orange ; un arrêt sur un apport le laisse intact.
+
+**Ce qui a motivé le cran** : `[SUH]Q100`, douze apports, arrêté sur le douzième après
+43 heures (09-12/11), sans plan final. **Ce qui a motivé le remplacement** : les journaux ne
+montrent aucun essai sous le nom du plan de référence ; l'ingénieur calait sous un préfixe
+provisoire (« [ARD]Q100V2 »), puis renommait à la main (p26 « [ARD]Q100 », le 16/11 à 09 h 39).
+La page d'aide disait encore « le lancement est refusé », et la mention sous le préfixe était
+une alerte rouge.
+
+**Dans les sources** : `src/calage.py` (`degradation_objectif`, `concordance_degradee`,
+`_degrader_objectif` avec un recalcul si l'essai retenu n'est pas le dernier calculé, trois
+verdicts à la vérification finale, `_conclure` pour tout calage mené au bout), `src/suivi.py`
+(clé `degrade`, le statut reste « validé »), `src/pont_hecras.py` (`objectif_degrade`,
+`apports_degrades`, messages), fenêtre (`STATUT_DEGRADE`, `ISL_ORANGE`, bannière orange, motif
+en infobulle, mention du préfixe, question du lancement, aide, infobulle du volume).
+
+**Essais.** `src/test_objectif_degrade.py` (23) et `src/test_suivi_degrade.py` (6, QGIS hors
+écran), ajoutés à la CI. Suite hors QGIS et tests QGIS un fichier à la fois, sous Windows :
+voir le commit. Banc QGIS : 487 contrôles, aucun échec. Références : `reference_journal_caler`
+et `reference_pont_caler` refigées sous Windows et relues par nom de champ contre une base
+refigée sur le code d'origine du même poste (un scénario sur 57, sept cas sur 98, tous du plan
+source) ; `reference_peinture_suivi` non refaite, 165 lignes reportées par script. Le filet de
+la peinture du Suivi passe aussi sous Windows (58 échecs avant, séparateur de chemin).
+
+**Limites.** Aucun calage HEC-RAS réel n'a encore joué le cran ni le remplacement. L'élagage
+et le ménage restent réservés au calage conforme. Les livrables disent « NON VALIDÉ » pour une
+section orange. La relecture des références par nom de champ est un script jetable, pas
+`tools/comparer_references.py`, qui compte un champ ajouté comme autant de nombres changés.
+
+**Pour reprendre.** Faire tourner un calage réel sous le nom du plan de référence. Décider si
+un apport orange doit se lire autrement que « NON VALIDÉ » dans les livrables.
+
 ## 16 novembre 2026 (suite) : deux points à traiter, inscrits au `STATUT.txt` § 6
 
 Demandés par Cédric, après relecture de `main` (0.9.38) et des PR ouvertes (PR 30 seule :

@@ -1186,6 +1186,26 @@ def _canon(v):
     return json.dumps(v, sort_keys=True, ensure_ascii=False)
 
 
+def _separateur_portable(v):
+    """
+    Le separateur de chemin ramene a « / » dans ce qui est compare partout.
+
+    Le dossier surveille est un chemin RELATIF, que la page affiche tel que
+    le systeme l'ecrit : « calage/suivi » sur le poste de reference,
+    « calage\\suivi » sous Windows. Sans cela 56 scenarios echouaient sous
+    Windows sur ce seul caractere (16/11/2026). Sans effet hors de Windows.
+    """
+    if os.sep != "\\":
+        return v
+    if isinstance(v, str):
+        return v.replace("\\", "/")
+    if isinstance(v, list):
+        return [_separateur_portable(x) for x in v]
+    if isinstance(v, dict):
+        return {c: _separateur_portable(x) for c, x in v.items()}
+    return v
+
+
 @pytest.mark.parametrize("cle", _cles(), ids=_id)
 def test_peinture_figee(banc, cle):
     genre, nom, theme, points = cle
@@ -1197,7 +1217,7 @@ def test_peinture_figee(banc, cle):
         "Deux peintures du meme scenario different :\n"
         + _diff([p for p, _ in premier], [p for p, _ in second]))
     identifiant = _id(cle)
-    portable = [p for p, _ in premier]
+    portable = _separateur_portable([p for p, _ in premier])
     poste = [q for _, q in premier]
     if REGENERER:
         _ETAT["nouvelle"][identifiant] = {"portable": portable, "poste": poste}
@@ -1232,6 +1252,7 @@ def test_page_neuve(banc, theme, points):
         _ETAT["neuves"][cle] = neuve
         return
     attendu = _reference()["pages_neuves"][cle]
+    neuve = _separateur_portable(neuve)
     assert _canon(neuve) == _canon(attendu), _diff(attendu, neuve)
 
 

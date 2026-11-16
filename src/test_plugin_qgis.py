@@ -3268,22 +3268,29 @@ verifier("plan final : la question du plan source a « Annuler » pour defaut, e
          and _boite_source.bouton_defaut.role == _RolesBouton.RejectRole
          and _boite_source.bouton_echappement is _boite_source.bouton_defaut
          and [b.text() for b in _boite_source.boutons]
-         == ["Remplacer si le calage est conforme", "Annuler"],
+         == ["Remplacer à la fin du calage", "Annuler"],
          str([b.text() for b in _boite_source.boutons]) if _boite_source
          else "aucune boite")
 verifier("plan final : elle nomme le plan de reference, et dit ce qui est supprime",
          _boite_source is not None
          and "Remplacer le plan de référence p01 « Q100 »" in _boite_source.texte
          and "travaille sur une copie" in _boite_source.texte
+         # DES QUE TOUT EST CALE, objectif tenu ou degrade (16/11/2026) ; un
+         # arret sur un apport laisse le plan intact.
+         and "Si tous les apports sont calés" in _boite_source.texte
          and "p01 et ses résultats sont supprimés" in _boite_source.texte
-         and "p01 reste intact" in _boite_source.texte,
+         and "Si le calage s'arrête sur un apport" in _boite_source.texte
+         and "reste intact" in _boite_source.texte,
          re.sub("<[^>]+>", " ", _boite_source.texte)[:140] if _boite_source else "")
 _recap_dlg._dire_titres_prefixe()
 verifier("plan final : la ligne sous le prefixe dit que le plan de reference sera remplace",
-         "Nom déjà pris par le plan de référence p01" in _recap_dlg.label_titres_prefixe.text()
-         and "sera remplacé si le calage est conforme" in _recap_dlg.label_titres_prefixe.text()
-         and "Le lancement le redemandera" in _recap_dlg.label_titres_prefixe.text()
+         "Même nom que le plan de référence p01" in _recap_dlg.label_titres_prefixe.text()
+         and "qui le remplacera dès que tous les apports seront calés"
+         in _recap_dlg.label_titres_prefixe.text()
+         and "Le lancement demandera confirmation" in _recap_dlg.label_titres_prefixe.text()
          and "refusé" not in _recap_dlg.label_titres_prefixe.text()
+         # PLUS EN ROUGE (16/11/2026) : le rouge se lisait comme un refus.
+         and mod_plugin.ISL_ROUGE not in _recap_dlg.label_titres_prefixe.text()
          # ET LES AUTRES PLANS DU NOM RESTENT ANNONCES : le lancement posera
          # les deux questions.
          and "le plan p07 sera" in _recap_dlg.label_titres_prefixe.text(),

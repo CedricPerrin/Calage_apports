@@ -54,6 +54,9 @@ jobs:
       # Filets de la vague 3 (10/11/2026) : les deux fonctions de classeur du noyau (64 cas)
       # et commande_caler du pont (98 cas, pilote et caler() doublés).
       - run: python -m pytest src/test_noyau_classeur.py src/test_pont_caler.py -q
+      # Objectif dégradé d'un cran, et plan de référence remplacé dès que tout est calé
+      # (16/11/2026) : ce que la chaîne DOIT faire, sur le modèle fictif.
+      - run: python -m pytest src/test_objectif_degrade.py -q
       # Ce que l'import des hydrogrammes DOIT faire quand la source est plus courte ou trouée
       # (correctif du 11/11/2026 : la queue de l'ancien hydrogramme restait dessous).
       - run: python -m pytest src/test_import_hydrogrammes.py -q
@@ -128,6 +131,8 @@ jobs:
         run: python3 -m pytest src/test_peinture_suivi.py -v --junitxml=artifacts/peinture-suivi.xml
       - name: Alertes du suivi (désaccord de dossier, état illisible)
         run: python3 -m pytest src/test_alertes_suivi.py -v --junitxml=artifacts/alertes-suivi.xml
+      - name: Objectif dégradé à l'étape Suivi (orange, glyphe, bannière)
+        run: python3 -m pytest src/test_suivi_degrade.py -v --junitxml=artifacts/suivi-degrade.xml
       - name: Raccord de la fenêtre aux refus de composition de noyau.py
         run: python3 -m pytest src/test_composition_fenetre.py -v --junitxml=artifacts/composition-fenetre.xml
       - name: Filet du lancement au bord de noyau.py

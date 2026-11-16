@@ -22,6 +22,53 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+VERSION 0.9.39 — 16 NOVEMBRE 2026, POUSSEE DIRECTEMENT SUR main. DEUX DEMANDES
+DE L'UTILISATEUR DU 16/11, decisions prises le meme jour, une a la fois.
+  1. OBJECTIF DEGRADE D'UN CRAN (regle en 2.4). Un calage de douze apports
+     s'arretait sur le douzieme apres 43 heures, sans plan final
+     ([SUH]Q100, 09-12/11/2026). Desormais, quand la recherche d'un apport
+     s'arrete sur l'objectif, son essai retenu est rejuge avec 5 points de
+     plus sur le volume et 5 de moins sur la forme, pointe inchangee. Tenu :
+     l'apport est retenu, ORANGE au suivi, et le calage continue. Sinon :
+     arret, comme avant.
+       calage.py : Configuration.degradation_objectif (0,05 ; 0 = jamais),
+       concordance_degradee(), _degrader_objectif() — avec UN RECALCUL quand
+       l'essai retenu n'est pas le dernier calcule —, ResultatApport.degrade,
+       ResultatCalage.objectif_degrade, trois verdicts a la verification
+       finale (conforme / OBJECTIF DEGRADE / NON CONFORME).
+       suivi.py : cle « degrade » par apport et au verdict ; le statut reste
+       « validé », la reprise tient l'apport pour cale.
+       Fenetre : statut d'affichage « objectif dégradé » (widgets.STATUT_
+       DEGRADE), glyphe « ⚠ », socle.ISL_ORANGE (5,1:1 sur le fond clair),
+       banniere « Calage terminé — objectif dégradé », motif en infobulle de
+       la ligne.
+       NON FAIT, ET DIT : l'elagage et le menage restent reserves au calage
+       CONFORME (les plans d'etape servent a reprendre l'apport orange) ; les
+       livrables disent toujours « NON VALIDÉ » pour une section hors de
+       l'objectif demande, orange comprise.
+  2. LE PLAN DE REFERENCE QUI GARDE SON NOM EST REMPLACE DES QUE TOUS LES
+     APPORTS SONT RETENUS (regle en 2.5). Constat de l'utilisateur : « plan
+     non remplace ». Il ne l'etait que sur un calage CONFORME ; un calage
+     mene au bout mais non conforme laissait le recalage sous un titre
+     d'etape. caler() conclut desormais tout calage mene au bout. Sous le
+     prefixe, la mention n'est plus une alerte rouge en tete (elle se lisait
+     comme un refus : l'ingenieur prenait un prefixe provisoire, puis
+     renommait le plan a la main) ; la page d'aide disait encore « le
+     lancement est refuse ».
+  ESSAIS : src/test_objectif_degrade.py (23, modele fictif) et
+  src/test_suivi_degrade.py (6, QGIS hors ecran). References refigees SOUS
+  WINDOWS et relues par nom de champ contre une base refigee sur le code
+  d'origine du meme poste : hors des champs ajoutes, seuls changent le
+  scenario du plan source (reference_journal_caler.json, 1 sur 57) et le
+  message du plan source (reference_pont_caler.json, 7 cas sur 98).
+  reference_peinture_suivi.json n'est PAS refaite (poste Linux de la CI) :
+  les 165 lignes que le changement ajoute y sont reportees par script, images
+  inchangees. Banc QGIS : 487 controles, aucun echec.
+  LE FILET DE LA PEINTURE DU SUIVI PASSE AUSSI SOUS WINDOWS (58 echecs avant,
+  separateur de chemin du dossier surveille ; point a de la section 6).
+  PAS ENCORE SUR UN CALAGE HEC-RAS REEL : ni le cran, ni le remplacement.
+  calage_apports_0.9.39.zip construit sur le poste qui porte « .affaires ».
+
 VERSION 0.9.38 — 16 NOVEMBRE 2026, POUSSEE DIRECTEMENT SUR main (a la demande
 de l'utilisateur, sans PR). Reference lines videes du .gXX.hdf EN COURS de
 calage : constate le 13/11/2026 sur un modele reel (SUHI_ARAN, HEC-RAS 7.0.2).
@@ -2242,6 +2289,29 @@ tolerances ont ete declarees NON CONFORMES apres 26 h de calcul (section
      etre loin ;
   5. LA CORRECTION N'A PLUS D'EFFET (variation < 1e-6) sans concordance.
 
+L'OBJECTIF DEGRADE D'UN CRAN (16/11/2026, decision utilisateur). Apres un
+arret 3, 4 ou 5 — ceux qui portent sur l'OBJECTIF —, l'essai RETENU (le
+meilleur, remis en place) est rejuge par calage.concordance_degradee :
+    volume  : tolerance + 5 points  (10 % par defaut)
+    forme   : r_min - 5 points      (92 % par defaut)
+    pointe  : INCHANGEE (2 % par defaut) — c'est elle qui fait l'alea.
+  TENU : l'apport est retenu « degrade », le calage continue, et le journal le
+  dit par une ligne « AVERTISSEMENT : OBJECTIF DEGRADE ». SINON : arret de la
+  sequence, comme avant. UN SEUL CRAN : l'ecart accepte reste borne et connu.
+  NE SE DEGRADENT PAS : l'arret 2 (aucun essai), un calcul rejete pour sa
+  qualite numerique, une section illisible. Ce n'est pas l'objectif qui
+  manque alors.
+  UN RECALCUL QUAND L'ESSAI RETENU N'EST PAS LE DERNIER CALCULE : le modele
+  porte l'hydrogramme du meilleur essai et les RESULTATS du dernier, or
+  l'apport suivant lit son residuel dans ces resultats et la verification
+  finale relit le dernier calcul. Un calcul de plus, juge comme les autres.
+  LA RECHERCHE NE VISE JAMAIS L'OBJECTIF DEGRADE : elle va au bout de ses
+  essais sur l'objectif demande ; le cran ne juge qu'apres.
+  A LA VERIFICATION FINALE, trois verdicts par section — conforme, OBJECTIF
+  DEGRADE, NON CONFORME — sur le diagnostic final. « conforme » reste strict ;
+  ResultatCalage.objectif_degrade dit « aucune section rouge, une orange au
+  moins ».
+
 LE VOLUME PLANCHER — LE CLIQUET — EST ANNONCE AU MEME MOMENT, mais il ALERTE
 au lieu d'arreter. Depuis le 01/09 au soir, calage.cliquet_volume chiffre, sur
 la fenetre jugee et des l'iteration 0 :
@@ -2286,11 +2356,14 @@ de scenario » du plugin a cote de « Premier apport ») :
   LE PLAN FINAL PORTE LE PREFIXE SEUL, il peut donc rencontrer un plan existant.
   Plan source de ce nom : DEPUIS LE 10/11/2026 (0.9.31, demande utilisateur :
   recaler un plan valide qui garde son nom), le plugin demande au lancement
-  s'il faut le remplacer (« Remplacer_plan_source = oui »). Il n'est remplace
-  que si le calage est CONFORME — conclure() n'est appele que dans ce cas — et
-  part alors avec ses resultats et sa couche du .rasmap ; sinon il reste intact
-  et le recalage garde son titre d'etape. Sans cet accord (ligne de commande),
-  le pont refuse comme avant. Remplace le refus du 02/11/2026.
+  s'il faut le remplacer (« Remplacer_plan_source = oui »). DEPUIS LE
+  16/11/2026 (0.9.39, decision utilisateur) IL EST REMPLACE DES QUE TOUS LES
+  APPORTS SONT RETENUS, objectif tenu ou degrade — conclure() est appele pour
+  tout calage mene au bout — et part alors avec ses resultats et sa couche du
+  .rasmap. Du 10/11 au 16/11 il ne l'etait que sur un calage CONFORME. Un
+  calage ARRETE sur un apport le laisse intact, et le recalage garde ses
+  titres d'etape. Sans cet accord (ligne de commande), le pont refuse comme
+  avant. Remplace le refus du 02/11/2026.
   Autre plan de ce nom : le plugin demande confirmation, la ligne de commande
   avertit au journal, et ce plan est remplace a la fin du calage.
   L'ELAGAGE COMPARE A LA LISTE EXACTE DES TITRES : un test sur le debut du titre
@@ -3888,6 +3961,10 @@ dates fictives au 1er janvier.
            BlockingIOError sous Linux, OSError (« unable to lock file »)
            sous Windows : le filet les tient pour le meme cas.
        Apres : 1002 reussis, 0 echec, 1 saute, sous Windows (Python 3.13).
+       LE FILET QGIS DE LA PEINTURE DU SUIVI (test_peinture_suivi.py),
+       qui n'est pas dans cette suite, echouait de meme sous Windows : 58
+       echecs, le dossier surveille s'affichant « calage\suivi ». Corrige le
+       meme jour avec la 0.9.39 (_separateur_portable) : 90 reussis.
     b. DEFAUT DE HEC-RAS 7.0.2 OU DU CONTROLEUR COM ? Deux defauts vus le
        13/11/2026, tous deux sous 7.0.2, plan lance par le controleur
        (0.9.32) :

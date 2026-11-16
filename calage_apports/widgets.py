@@ -22,6 +22,11 @@ from . import registre
 # Il est pose par l'affichage (_suivi_precedent) a partir du suivi
 # archive ; suivi.py ne connait que les quatre autres.
 STATUT_REPRIS = "repris"
+# UN SIXIEME, POSE LUI AUSSI PAR L'AFFICHAGE (16/11/2026) : un apport que la
+# chaine a « validé » sur l'objectif DEGRADE (cle « degrade » de l'etat). Dans
+# l'etat du suivi il reste « validé » — la reprise le tient pour cale ; a
+# l'ecran il porte ce nom, l'orange et son propre glyphe.
+STATUT_DEGRADE = "objectif dégradé"
 
 # LA COULEUR NE PORTE JAMAIS SEULE LE SENS. Une part notable de la population
 # distingue mal le rouge du vert ; un statut lisible uniquement a sa teinte
@@ -38,6 +43,8 @@ GLYPHE_STATUT = {
     # celui d'avant. Inventer un sixieme signe pour « cale ailleurs »
     # demanderait de l'apprendre.
     STATUT_REPRIS: "✔",
+    # NI « ✔ » NI « ✕ » : retenu, mais hors de l'objectif demande.
+    STATUT_DEGRADE: "⚠",
 }
 
 
@@ -80,6 +87,9 @@ TEINTE_STATUT = {
     "échoué": registre.ALERTE,
     "en attente": registre.NEUTRE_FONCE,
     STATUT_REPRIS: registre.NEUTRE_FONCE,
+    # L'ocre d'alerte, comme l'echec : le registre n'a pas d'autre teinte
+    # d'alerte. Le glyphe les separe (« ⚠ » contre « ✕ »).
+    STATUT_DEGRADE: registre.ALERTE,
 }
 # OPACITE DU FOND D'UN SEGMENT ACHEVE : une teinte claire sous une encre
 # foncee. Blanc sur l'accent plein ne rendait que 3,9:1, sous les 4,5:1 d'un
@@ -199,7 +209,7 @@ class RubanApports(QWidget):
             # remplissage qui porte l'information, la couleur ne fait que la
             # confirmer.
             acheve = statut in ("validé", "échoué", "en cours",
-                                STATUT_REPRIS)
+                                STATUT_REPRIS, STATUT_DEGRADE)
             if acheve:
                 fond = QColor(teinte)
                 fond.setAlpha(OPACITE_SEGMENT.get(statut, OPACITE_SEGMENT_DEFAUT))

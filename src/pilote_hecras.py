@@ -1334,7 +1334,7 @@ def _regrouper_lignes_invalides(lignes):
     """
     Regroupe les « Reference line X is not a valid polyline. » en UNE ligne.
     Sans cela, seules les deux dernieres survivaient aux quatre lignes
-    retenues : le 13/11/2026 le journal disait « SUH08, SUH09 » quand HEC-RAS
+    retenues : le 13/11/2026 le journal n'en nommait que deux quand HEC-RAS
     en refusait sept.
     """
     motif = re.compile(r"^Reference line (.+?) is not a valid polyline\.?$")

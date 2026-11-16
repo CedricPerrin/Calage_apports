@@ -953,6 +953,13 @@ exigences, satisfaites <b>en même temps</b> :</p>
 <li><b>Forme</b> — concordance d'au moins 97&nbsp;%, <i>après</i> recalage
 temporel.</li>
 </ul>
+<p><b>Objectif dégradé.</b> Quand la recherche d'un apport s'arrête sans tenir
+ces trois exigences, son meilleur essai est rejugé avec 5&nbsp;points de plus
+sur le volume et 5&nbsp;points de moins sur la forme — ±10&nbsp;% et
+92&nbsp;% avec les valeurs par défaut. La pointe garde sa tolérance. Si cet
+objectif dégradé est tenu, l'apport est retenu, marqué <b>⚠ en orange</b> dans
+le Suivi, et le calage continue ; sinon le calage s'arrête sur cet apport,
+comme avant.</p>
 <p>Les deux premières tolérances se règlent dans <b>Paramètres</b> ; à défaut
 elles valent 5&nbsp;% sur le volume et 2&nbsp;% sur la pointe. Une bande large
 n'est pas neutre : un essai peut s'y arrêter alors que la méthode irait plus
@@ -1036,9 +1043,14 @@ ne peuvent pas partager la même bibliothèque HDF5.</li>
 final <tt>Riviere-Q100</tt>, qui porte le préfixe seul. Un titre compte au plus
 32 caractères, préfixe compris : l'étape Paramètres montre le plus long à la
 frappe.</p>
-<p><b>Le plan source n'est jamais touché.</b> S'il porte déjà le nom du préfixe,
-le lancement est refusé. Si un autre plan porte ce nom, le lancement demande
-confirmation : ce plan et ses résultats seront remplacés à la fin du calage.</p>
+<p><b>Recaler un plan qui garde son nom.</b> Donnez pour préfixe le nom du
+plan de référence : le lancement demande confirmation, puis le calage
+travaille sur une copie. Dès que tous les apports sont calés — objectif tenu
+ou dégradé —, la copie prend ce nom, et le plan de référence est supprimé
+avec ses résultats. Si le calage s'arrête sur un apport, le plan de référence
+reste intact. Si un autre plan porte ce nom, le lancement demande
+confirmation de la même façon : ce plan et ses résultats seront remplacés à
+la fin du calage.</p>
 <p><b>Le plan final n'est pas un clone</b> : c'est le plan de la dernière
 étape, retitré. Il porte donc tous les apports calés <i>et</i> ses résultats
 de calcul — un clone n'emporterait pas son <tt>.hdf</tt> et serait muet dans
@@ -3263,7 +3275,11 @@ class DialogueParametrage(QDialog):
             "Écart admis sur le volume, en pourcentage de la cible, jugé sur "
             "la fenêtre du hydrogramme PRINCIPAL uniquement (une mini-crue "
             "avant/après l'événement calé n'entre pas dans ce calcul). "
-            "5 % est la valeur du guide.")
+            "5 % est la valeur du guide.\n\n"
+            "Objectif dégradé : si la recherche d'un apport s'arrête sans "
+            "tenir l'objectif, son meilleur essai est rejugé avec 5 points de "
+            "plus sur le volume et 5 de moins sur la forme, pointe "
+            "inchangée. Tenu, l'apport passe en orange et le calage continue.")
         f2.addRow("Écart de &volume admis :", self._avec_temoin(
             self.spin_tol_volume, "Tolerance_volume_pct"))
 
@@ -3473,11 +3489,15 @@ class DialogueParametrage(QDialog):
                 "calcule. Écrivez le préfixe sans accent.")
         source, autres = self._plans_au_titre_final(self.info_projet)
         if source:
-            # Plus un refus depuis le 10/11/2026 : le lancement pose la question.
-            phrases.insert(0, (
-                f"<b style='color:{ISL_ROUGE}'>⚠ Nom déjà pris par le plan de "
-                f"référence p{source}.</b> Il sera remplacé si le calage est "
-                "conforme. Le lancement le redemandera."))
+            # Plus un refus depuis le 10/11/2026 : le lancement pose la
+            # question. PLUS EN ROUGE NI EN TETE depuis le 16/11/2026 : le
+            # rouge se lisait comme un refus, et l'ingenieur changeait de
+            # prefixe puis renommait le plan a la main.
+            phrases.append(
+                f"<b>Même nom que le plan de référence p{source} :</b> le "
+                "calage travaillera sur une copie, qui le remplacera dès que "
+                "tous les apports seront calés. Le lancement demandera "
+                "confirmation.")
         if autres:
             phrases.append(
                 f"<b>⚠ Nom déjà pris :</b> le plan p{', p'.join(autres)} sera "
@@ -5003,9 +5023,10 @@ class DialogueParametrage(QDialog):
 
         LE PLAN DE REFERENCE : question (10/11/2026, decision utilisateur ; un
         refus jusque-la), pour recaler un plan valide qui garde son nom. Le
-        calage travaille sur une copie : conforme, elle prend ce nom, et le
-        plan de reference est supprime avec ses resultats ; sinon il reste
-        intact. L'accord est retenu dans _remplacer_plan_source, remis a
+        calage travaille sur une copie : des que tous les apports sont cales
+        (16/11/2026 ; « conforme » jusque-la), elle prend ce nom, et le plan
+        de reference est supprime avec ses resultats ; arrete sur un apport,
+        il reste intact. L'accord est retenu dans _remplacer_plan_source, remis a
         False a chaque appel, et le lancement l'ecrit dans le classeur sous
         « Remplacer_plan_source ».
 
@@ -5032,13 +5053,15 @@ class DialogueParametrage(QDialog):
                     f"<b>Remplacer le plan de référence p{source} « "
                     f"{html.escape(final)} » à la fin du calage ?</b><br><br>"
                     "Le calage travaille sur une copie.<br>"
-                    "<b>Si le calage est conforme</b> : la copie prend ce nom ; "
+                    "<b>Si tous les apports sont calés</b> (objectif tenu ou "
+                    "dégradé) : la copie prend ce nom ; "
                     f"p{source} et ses résultats sont supprimés ; le plan final "
                     "porte un nouveau numéro.<br>"
-                    f"<b>Sinon</b> : p{source} reste intact.<br><br>"
+                    f"<b>Si le calage s'arrête sur un apport</b> : p{source} "
+                    "reste intact.<br><br>"
                     "Pour garder les deux plans, annulez, puis changez le "
                     "préfixe.",
-                    oui="Remplacer si le calage est conforme", non="Annuler")
+                    oui="Remplacer à la fin du calage", non="Annuler")
             if not accepte:
                 dire(self.label_lancement, "Lancement annulé.")
                 return False

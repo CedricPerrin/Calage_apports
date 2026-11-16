@@ -1777,7 +1777,9 @@ def _accord_plan_final(pilote, valeurs, prefixe_etape, plan_reference,
     # Identifier, donc le meme dossier sous RAS Mapper.
     #   LE PLAN SOURCE n'est remplace que si l'ingenieur l'a accepte au
     # lancement (« Remplacer_plan_source = oui », recalage d'un plan valide
-    # qui garde son nom, 10/11/2026), et seulement sur un calage conforme.
+    # qui garde son nom, 10/11/2026). Il l'est des que tous les apports sont
+    # retenus, objectif tenu ou degrade (16/11/2026 ; « conforme » seulement
+    # jusque-la) ; un calage arrete sur un apport le laisse intact.
     # Sans ce oui, on refuse avant le premier calcul.
     #   TOUT AUTRE PLAN de ce nom est remplace a la fin du calage : le plugin
     # a demande confirmation, la ligne de commande ne le peut pas et le dit
@@ -1797,8 +1799,9 @@ def _accord_plan_final(pilote, valeurs, prefixe_etape, plan_reference,
     if remplacer_source:
         pilote.plan_a_remplacer = plan_source
         print(f"AVERTISSEMENT : le plan source p{plan_source} « {titre_final} » "
-              f"sera remplace par le plan final si le calage est conforme. "
-              f"Sinon il reste intact.", flush=True)
+              f"sera remplace par le plan final des que tous les apports "
+              f"seront cales. Si le calage s'arrete sur un apport, il reste "
+              f"intact.", flush=True)
     autres = [n for n in homonymes if n != plan_source]
     if autres:
         print(f"AVERTISSEMENT : le plan final remplacera a la fin du calage "
@@ -1897,7 +1900,8 @@ def _consigner_verdict(suivi, resultat):
     # Consigne aussi si l'assemblage du rapport echoue ensuite : le calage,
     # lui, est bien termine.
     try:
-        suivi.conclure(resultat.conforme, resultat.motif, resultat.nb_calculs)
+        suivi.conclure(resultat.conforme, resultat.motif, resultat.nb_calculs,
+                       degrade=resultat.objectif_degrade)
     except Exception as e:                                  # noqa: BLE001
         print(f"AVERTISSEMENT : verdict non consigne au suivi : {e}",
               flush=True)
@@ -1970,7 +1974,9 @@ def _ranger_plans(pilote, resultat, prefixe_etape, tous_apports, elaguer):
         # La case etait cochee : dire pourquoi rien n'est retire, sinon
         # l'utilisateur croit l'option cassee (modele reel, 28/09/2026).
         print("AVERTISSEMENT : elagage non fait — le calage n'est pas "
-              "conforme, et ses plans d'etape sont ce qui permet de le "
+              "conforme"
+              + (" (objectif degrade)" if resultat.objectif_degrade else "")
+              + ", et ses plans d'etape sont ce qui permet de le "
               "reprendre.", flush=True)
     return menage, elagues
 
@@ -2154,6 +2160,9 @@ def commande_caler(args):
 
     return repondre(
         ok=True, conforme=resultat.conforme, motif=resultat.motif,
+        # MENE AU BOUT SUR L'OBJECTIF DEGRADE : ni conforme ni en echec.
+        objectif_degrade=resultat.objectif_degrade,
+        apports_degrades=[a.nom_apport for a in resultat.apports if a.degrade],
         duree_s=round(resultat.duree_s, 1), nb_calculs=resultat.nb_calculs,
         apports_valides=sum(a.valide for a in resultat.apports),
         apports_total=len(apports),

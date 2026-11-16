@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont l'étape « Suivi » montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.9.38
+version=0.9.39
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,17 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.9.38 — Reference lines vidées du .hdf en cours de calage
+changelog=0.9.39 — Objectif dégradé : quand la recherche d'un apport
+    s'arrête sans tenir l'objectif, son meilleur essai est rejugé avec
+    5 points de plus sur le volume et 5 de moins sur la forme, pointe
+    inchangée. Tenu, l'apport est retenu, marqué « objectif dégradé » en
+    orange dans le Suivi, et le calage continue ; sinon le calage
+    s'arrête sur cet apport, comme avant. Recaler un plan qui garde son
+    nom : le plan de référence est remplacé dès que tous les apports
+    sont calés, et non plus sur un calage conforme seulement ; un calage
+    arrêté sur un apport le laisse intact. Sous le préfixe, la mention
+    du plan de référence de même nom n'est plus une alerte rouge.
+    0.9.38 — Reference lines vidées du .hdf en cours de calage
     (HEC-RAS 7.0.2, 13/11/2026 : terrain réécrit pendant le calage, tables
     2D refaites, « Polyline Points » vide, étape suivante arrêtée sur « not
     a valid polyline »). Avant et après chaque calcul, un .gXX.hdf sans
