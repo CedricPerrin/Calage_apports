@@ -2307,6 +2307,10 @@ meilleur, remis en place) est rejuge par calage.concordance_degradee :
   finale relit le dernier calcul. Un calcul de plus, juge comme les autres.
   LA RECHERCHE NE VISE JAMAIS L'OBJECTIF DEGRADE : elle va au bout de ses
   essais sur l'objectif demande ; le cran ne juge qu'apres.
+  CONFIRME LE 18/11/2026 (« on reste sur un essai degrade qu'apres les 6
+  essais ») : le retour de lsso du 12/11 demandait de relacher la forme
+  « apres 2 ou 3 essais ». Ne pas arreter la recherche des qu'un essai tient
+  le cran.
   A LA VERIFICATION FINALE, trois verdicts par section — conforme, OBJECTIF
   DEGRADE, NON CONFORME — sur le diagnostic final. « conforme » reste strict ;
   ResultatCalage.objectif_degrade dit « aucune section rouge, une orange au
