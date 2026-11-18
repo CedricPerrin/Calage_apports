@@ -3180,6 +3180,37 @@ _cliquer_defauts(_def, mod_plugin.ONGLET_MODELE)
 verifier("defauts : et le bouton y remet la fenetre du plan",
          _def.edit_sim_fin.text() == "14OCT2014,04:00" and not _allumees(_def),
          f"{_def.edit_sim_fin.text()!r} {_allumees(_def)}")
+# L'OBJECTIF DEGRADE, DIT A L'ECRAN ET REFUSABLE (18/11/2026, demande
+# utilisateur) : la ligne suit le nombre d'essais et les ecarts admis.
+_ligne_deg = _def.label_degradation.text
+verifier("objectif degrade : case cochee a l'ouverture, la ligne dit apres combien d'essais et de combien",
+         _def.case_degrader.isChecked() and _def.case_degrader.text()
+         == "Accepter un objectif dégradé"
+         and _ligne_deg().startswith("Après 6 essais sans tenir l’objectif")
+         and "volume à ±10 %" in _ligne_deg() and "92 %" in _ligne_deg()
+         and "(±2 %)" in _ligne_deg() and "orange" in _ligne_deg()
+         and _def._reglages_de_lancement()["degrader_objectif"] is True,
+         _ligne_deg())
+_def.spin_nb_max_essais.setValue(8)
+_def.spin_tol_volume.setValue(5.5)
+verifier("objectif degrade : la ligne suit le maximum d'essais et l'ecart de volume",
+         _ligne_deg().startswith("Après 8 essais") and "±10,5 %" in _ligne_deg(),
+         _ligne_deg())
+_cliquer_defauts(_def, mod_plugin.ONGLET_OBJECTIFS)
+_def.case_degrader.setChecked(False)
+verifier("objectif degrade : decochee, la ligne dit l'arret en rouge, la marque s'allume, le lancement ecrit non",
+         _ligne_deg() == "Après 6 essais sans tenir l’objectif, le calage "
+         "s’arrête sur l’apport, en rouge."
+         and _allumees(_def) == ["Degrader_objectif"]
+         and _texte_marque(_def, "Degrader_objectif") == "! défaut : oui"
+         and _def._reglages_de_lancement()["degrader_objectif"] is False
+         and _def._valeurs_de_la_fenetre()["Degrader_objectif"] == "non"
+         and not _def._ecarts_avec_le_paquet(),
+         f"{_ligne_deg()!r} {_allumees(_def)}")
+_cliquer_defauts(_def, mod_plugin.ONGLET_OBJECTIFS)
+verifier("objectif degrade : le bouton de l'etape Parametres la recoche",
+         _def.case_degrader.isChecked() and not _allumees(_def),
+         str(_allumees(_def)))
 _def.close()
 _def.deleteLater()
 
@@ -4150,10 +4181,11 @@ def _eprouver_petite_fenetre(points):
             fenetre.edit_sous_dossier_suivi.setText("s")
             fenetre.case_coeurs.setChecked(True)
             fenetre.case_elaguer.setChecked(True)
+            fenetre.case_degrader.setChecked(False)
             # La case des cœurs ne change rien sur un poste sans suggestion :
             # sa marque n'est pas comptee.
             for index, attendues in ((mod_plugin.ONGLET_MODELE, 8),
-                                     (mod_plugin.ONGLET_OBJECTIFS, 6),
+                                     (mod_plugin.ONGLET_OBJECTIFS, 7),
                                      (mod_plugin.ONGLET_LANCER, 1)):
                 fenetre.onglets.setCurrentIndex(index)
                 QApplication.processEvents()

@@ -4,7 +4,7 @@ qgisMinimumVersion=3.34
 supportsQt6=True
 description=Préparation, contrôle et lancement du calage séquentiel d'apports amont sur hydrogrammes cibles aval, pour les modèles 2D HEC-RAS.
 about=Une fenêtre unique conduit tout le paramétrage : choix du modèle HEC-RAS et affichage de ses sections, injections et maillage ; écriture dans la géométrie des objets dessinés dans QGIS, avec l'hydrogramme correspondant dans le fichier Unsteady Flow ; axe hydraulique et calcul des PK ; dossiers de sortie ; puis lancement du calage en arrière-plan, dont l'étape « Suivi » montre l'avancement apport par apport — un calage dure des heures. Les incohérences d'implantation sont signalées SUR LA CARTE, à l'endroit où elles se trouvent. Le pilotage HEC-RAS passe exclusivement par ras-commander, exécuté hors du processus QGIS (h5py et QGIS ne cohabitent pas). Aucune règle de contrôle n'est écrite dans le plugin : il appelle celles de la chaîne de calage, de sorte qu'une règle corrigée à un seul endroit vaut pour les deux voies d'accès.
-version=0.9.39
+version=0.9.40
 author=ISL Ingénierie
 email=cedric.perrin@gmail.com
 
@@ -25,7 +25,12 @@ tags=hecras,hydraulique,hydrologie,calage,hydrogramme,2D,crue
 
 license=GPL-2.0-or-later
 
-changelog=0.9.39 — Objectif dégradé : quand la recherche d'un apport
+changelog=0.9.40 — Étape Paramètres : une case « Accepter un objectif
+    dégradé », cochée par défaut, et une ligne qui dit après combien
+    d'essais l'objectif se dégrade et de combien (volume, forme,
+    pointe). Décochée, un apport qui ne tient pas l'objectif arrête le
+    calage, en rouge. Le choix part au classeur sous Degrader_objectif.
+    0.9.39 — Objectif dégradé : quand la recherche d'un apport
     s'arrête sans tenir l'objectif, son meilleur essai est rejugé avec
     5 points de plus sur le volume et 5 de moins sur la forme, pointe
     inchangée. Tenu, l'apport est retenu, marqué « objectif dégradé » en

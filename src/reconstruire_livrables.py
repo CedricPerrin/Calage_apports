@@ -199,7 +199,10 @@ def main():
     config = Configuration(
         nb_max_essais=int(nombre("Nb_max_iterations_par_apport", 6)),
         tolerance_volume=nombre("Tolerance_volume_pct", 5.0) / 100.0,
-        tolerance_pic=nombre("Tolerance_pic_pct", 2.0) / 100.0)
+        tolerance_pic=nombre("Tolerance_pic_pct", 2.0) / 100.0,
+        degradation_objectif=(
+            0.0 if str(valeurs.get("Degrader_objectif") or "").strip().lower()
+            == "non" else Configuration.degradation_objectif))
 
     apports, sections, cibles, manquantes = _cibles_depuis_classeur(template)
     if manquantes:

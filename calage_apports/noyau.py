@@ -1586,6 +1586,8 @@ DEFAUTS_PARAMETRES = {
     "Tolerance_pic_pct": 2.0,
     "Bilan_masse_max_pct": 5.0,
     "Nb_max_iterations_par_apport": 6,
+    # « non » : pas d'objectif degrade, un apport manque arrete le calage.
+    "Degrader_objectif": "oui",
     "Sous_dossier_resultats": "resultats_finaux",
     "Sous_dossier_suivi": "suivi",
     # 0 = les plans gardent les cœurs qu'ils demandent.
@@ -1735,6 +1737,9 @@ def _parametres_du_classeur(chemins_shp, parametres):
         # DU LANCEMENT : la question posee au depart l'ecrit, jamais la
         # composition.
         "Remplacer_plan_source": "non",
+        # Objectif degrade d'un cran accepte (« oui ») ou refuse (« non ») :
+        # case de l'etape Parametres, ecrite au lancement.
+        "Degrader_objectif": DEFAUTS_PARAMETRES["Degrader_objectif"],
         # Cœurs demandes a HEC-RAS pour chaque calcul, ecrits par
         # ras-commander dans le plan d'etape avant son calcul. 0 = le plan
         # garde ce qu'il demande. Reglage DU LANCEMENT : la case de l'etape
@@ -3087,10 +3092,12 @@ def ecrire_reglages_de_lancement(chemin_classeur, reglages):
         (24/09/2026).
       - LE REMPLACEMENT DU PLAN SOURCE : l'accord donne a la question du
         lancement, et lui seul.
+      - L'OBJECTIF DEGRADE, accepte ou refuse a l'etape Parametres.
 
     reglages : premier_apport, prefixe_scenario, tolerance_volume_pct,
         tolerance_pic_pct, bilan_masse_max_pct, nb_max_iterations,
-        coeurs_par_calcul, elaguer_etapes, remplacer_plan_source.
+        degrader_objectif, coeurs_par_calcul, elaguer_etapes,
+        remplacer_plan_source.
     """
     def oui_non(valeur):
         return "oui" if valeur else "non"
@@ -3102,6 +3109,7 @@ def ecrire_reglages_de_lancement(chemin_classeur, reglages):
             ("Tolerance_pic_pct", reglages["tolerance_pic_pct"]),
             ("Bilan_masse_max_pct", reglages["bilan_masse_max_pct"]),
             ("Nb_max_iterations_par_apport", reglages["nb_max_iterations"]),
+            ("Degrader_objectif", oui_non(reglages["degrader_objectif"])),
             ("Coeurs_par_calcul", reglages["coeurs_par_calcul"]),
             ("Elaguer_plans_etape", oui_non(reglages["elaguer_etapes"])),
             ("Remplacer_plan_source",

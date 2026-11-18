@@ -22,6 +22,24 @@ qu'ils ont appris.
 1. ETAT COURANT
 ================================================================================
 
+VERSION 0.9.40 — 18 NOVEMBRE 2026, POUSSEE DIRECTEMENT SUR main. DEMANDE DE
+L'UTILISATEUR DU 18/11 : « rajouter une ligne dans les parametres pour indiquer a
+l'utilisateur que ca sera degrade apres (et dire de combien et laisser l'option de
+refuser cette degradation) ».
+  Etape Parametres, groupe « Precision du calage », sous-titre « Objectif non
+  atteint » : le maximum d'essais, puis la case « Accepter un objectif degrade »
+  (cochee par defaut, marque « ! défaut : oui » quand elle est decochee) et une
+  ligne qui suit les reglages : « Apres 6 essais sans tenir l'objectif, le
+  meilleur essai est rejuge : volume a ±10 %, forme d'au moins 92 %, pointe
+  inchangee (±2 %). [...] ». Decochee : « le calage s'arrete sur l'apport, en
+  rouge ». Le paragraphe de l'infobulle du volume est retire (il est a l'ecran).
+  Cle du classeur « Degrader_objectif » (oui / non ; vide = oui), ecrite AU
+  LANCEMENT comme l'elagage (noyau.ecrire_reglages_de_lancement) ; pont_hecras
+  et reconstruire_livrables la lisent : « non » = degradation_objectif 0.
+  LA REGLE NE CHANGE PAS (2.4) : arret anticipe compris, decision du 18/11.
+  Le cran (5 points) et la forme (92 %) sont ecrits en dur dans la phrase du
+  plugin, qui n'importe pas la chaine : a changer avec calage.Configuration.
+
 VERSION 0.9.39 — 16 NOVEMBRE 2026, POUSSEE DIRECTEMENT SUR main. DEUX DEMANDES
 DE L'UTILISATEUR DU 16/11, decisions prises le meme jour, une a la fois.
   1. OBJECTIF DEGRADE D'UN CRAN (regle en 2.4). Un calage de douze apports
@@ -2307,10 +2325,12 @@ meilleur, remis en place) est rejuge par calage.concordance_degradee :
   finale relit le dernier calcul. Un calcul de plus, juge comme les autres.
   LA RECHERCHE NE VISE JAMAIS L'OBJECTIF DEGRADE : elle va au bout de ses
   essais sur l'objectif demande ; le cran ne juge qu'apres.
-  CONFIRME LE 18/11/2026 (« on reste sur un essai degrade qu'apres les 6
-  essais ») : le retour de lsso du 12/11 demandait de relacher la forme
-  « apres 2 ou 3 essais ». Ne pas arreter la recherche des qu'un essai tient
-  le cran.
+  CONFIRME LE 18/11/2026 (« ca degrade apres le nombre d'essais demandes ») :
+  le retour de lsso du 12/11 demandait de relacher la forme « apres 2 ou 3
+  essais ». Ne pas arreter la recherche des qu'un essai tient le cran. Un
+  arret anticipe (arrets 3 et 5) se degrade aussi (« Degrader aussi »).
+  REFUSABLE depuis la 0.9.40 : « Degrader_objectif = non » (case de l'etape
+  Parametres) met le cran a 0, et l'apport manque arrete le calage.
   A LA VERIFICATION FINALE, trois verdicts par section — conforme, OBJECTIF
   DEGRADE, NON CONFORME — sur le diagnostic final. « conforme » reste strict ;
   ResultatCalage.objectif_degrade dit « aucune section rouge, une orange au

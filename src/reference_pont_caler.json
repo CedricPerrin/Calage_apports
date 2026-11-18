@@ -5769,6 +5769,412 @@
     "plan_a_remplacer": null
    }
   },
+  "parametre/Degrader_objectif_non": {
+   "code": 0,
+   "exception": null,
+   "reponse": {
+    "ok": true,
+    "conforme": true,
+    "motif": "",
+    "objectif_degrade": false,
+    "apports_degrades": [],
+    "duree_s": 3600.0,
+    "nb_calculs": 9,
+    "apports_valides": 3,
+    "apports_total": 3,
+    "dossier_suivi": "<TMP>/suivi",
+    "plan_conserve": "p09",
+    "objets_retires": [
+     "Essai.p05",
+     "Essai.u05"
+    ],
+    "dossier_resultats": "<TMP>/resultats_finaux",
+    "alertes_chaine": [
+     "alerte d'ensemble"
+    ]
+   },
+   "journal": [
+    "<HORODATE> AVERTISSEMENT : cible « C1 » : pas de temps 60 min → converti en 6 min",
+    "<HORODATE> AVERTISSEMENT : cible « C2 » : pas de temps 60 min → converti en 6 min",
+    "<HORODATE> AVERTISSEMENT : cible « C3 » : pas de temps 60 min → converti en 6 min",
+    "Calage : 3 apport(s), plan de reference p01",
+    "Interpreteur : <PYTHON>",
+    "HEC-RAS : 6.6",
+    "<HORODATE>    (ligne de caler, par le journal recu)",
+    "   profil en long de synthese : axe hydraulique absent, figure non produite",
+    "Menage : 2 reliquat(s) de preparation retire(s) — Essai.p05, Essai.u05",
+    "Plans conserves : sans_apport, Apport_A1, avec_apports"
+   ],
+   "stderr": [],
+   "appels": [
+    [
+     "symbole_decimal"
+    ],
+    [
+     "PiloteHecRas",
+     {
+      "dossier_projet": "<TMP>/projet",
+      "nom_projet": "Essai",
+      "plan_reference": "p01",
+      "version": "6.6",
+      "nom_zone_2d": "Zone2D",
+      "geometrie_override": null,
+      "unsteady_override": null,
+      "nom_clone_geometrie": null,
+      "fenetre_simulation": null,
+      "pas_travail_h": 0.09999999999999987,
+      "apports_a_caler": [
+       "A1",
+       "A2",
+       "A3"
+      ],
+      "plan_fenetre_pleine": null,
+      "coeurs": null
+     }
+    ],
+    [
+     "plans_par_titre",
+     [
+      "<TMP>/projet",
+      "Essai",
+      "avec_apports"
+     ],
+     []
+    ],
+    [
+     "Suivi",
+     "<TMP>/suivi",
+     [
+      "A1",
+      "A2",
+      "A3"
+     ],
+     [
+      "S1",
+      "S2",
+      "S3"
+     ],
+     {
+      "titre": "Calage des apports — Essai",
+      "tolerances": {
+       "volume": 0.05,
+       "pic": 0.02,
+       "forme": 0.030000000000000027
+      }
+     }
+    ],
+    [
+     "_appliquer_pentes",
+     [],
+     null
+    ],
+    [
+     "caler",
+     {
+      "modele_est_le_pilote": true,
+      "apports": [
+       "A1",
+       "A2",
+       "A3"
+      ],
+      "sections": [
+       "S1",
+       "S2",
+       "S3"
+      ],
+      "cibles": [
+       {
+        "n": 111,
+        "t0": 0.0,
+        "tf": 11.0,
+        "qmax": 10.0,
+        "somme_q": 396.1
+       },
+       {
+        "n": 111,
+        "t0": 0.0,
+        "tf": 11.0,
+        "qmax": 20.0,
+        "somme_q": 792.2
+       },
+       {
+        "n": 111,
+        "t0": 0.0,
+        "tf": 11.0,
+        "qmax": 30.0,
+        "somme_q": 1188.3
+       }
+      ],
+      "config_type": "Configuration",
+      "config": {
+       "nb_max_essais": 6,
+       "bilan_masse_max_pct": 5.0,
+       "tolerance_volume": 0.05,
+       "tolerance_pic": 0.02,
+       "r_min": 0.97,
+       "degradation_objectif": 0.0,
+       "ajuster_duree": true,
+       "marge_duree_h": 2.0,
+       "controle_amont": true,
+       "prefixe_etape": "",
+       "remplacer_plan_source": false,
+       "fenetre_active": null,
+       "fenetre_seuil_bas": 0.005,
+       "fenetre_seuil_haut": 0.99,
+       "fenetre_t0_h": null,
+       "fenetre_tf_h": null,
+       "fenetre_marge_h": 1.0
+      },
+      "suivi_est_le_suivi": true,
+      "journal": "_dire_horodate",
+      "etape_reference": "sans_apport",
+      "autres": {},
+      "pilote_pentes": {},
+      "pilote_plan_a_remplacer": null
+     }
+    ],
+    [
+     "suivi.conclure",
+     [
+      true,
+      "",
+      9
+     ],
+     {
+      "degrade": false
+     }
+    ],
+    [
+     "_profil_pour_livrables",
+     [],
+     null
+    ],
+    [
+     "produire_livrables_finaux",
+     {
+      "resultat_est_le_resultat": true,
+      "modele_est_le_pilote": true,
+      "dossier_sortie": "<TMP>/resultats_finaux",
+      "kwargs": {
+       "profil": null,
+       "pk_sections": null,
+       "pk_apports": null
+      }
+     }
+    ],
+    [
+     "pilote.nettoyer_reliquats"
+    ]
+   ],
+   "fichiers_produits": [],
+   "pilote_final": {
+    "pentes": {},
+    "plan_a_remplacer": null
+   }
+  },
+  "parametre/Degrader_objectif_oui": {
+   "code": 0,
+   "exception": null,
+   "reponse": {
+    "ok": true,
+    "conforme": true,
+    "motif": "",
+    "objectif_degrade": false,
+    "apports_degrades": [],
+    "duree_s": 3600.0,
+    "nb_calculs": 9,
+    "apports_valides": 3,
+    "apports_total": 3,
+    "dossier_suivi": "<TMP>/suivi",
+    "plan_conserve": "p09",
+    "objets_retires": [
+     "Essai.p05",
+     "Essai.u05"
+    ],
+    "dossier_resultats": "<TMP>/resultats_finaux",
+    "alertes_chaine": [
+     "alerte d'ensemble"
+    ]
+   },
+   "journal": [
+    "<HORODATE> AVERTISSEMENT : cible « C1 » : pas de temps 60 min → converti en 6 min",
+    "<HORODATE> AVERTISSEMENT : cible « C2 » : pas de temps 60 min → converti en 6 min",
+    "<HORODATE> AVERTISSEMENT : cible « C3 » : pas de temps 60 min → converti en 6 min",
+    "Calage : 3 apport(s), plan de reference p01",
+    "Interpreteur : <PYTHON>",
+    "HEC-RAS : 6.6",
+    "<HORODATE>    (ligne de caler, par le journal recu)",
+    "   profil en long de synthese : axe hydraulique absent, figure non produite",
+    "Menage : 2 reliquat(s) de preparation retire(s) — Essai.p05, Essai.u05",
+    "Plans conserves : sans_apport, Apport_A1, avec_apports"
+   ],
+   "stderr": [],
+   "appels": [
+    [
+     "symbole_decimal"
+    ],
+    [
+     "PiloteHecRas",
+     {
+      "dossier_projet": "<TMP>/projet",
+      "nom_projet": "Essai",
+      "plan_reference": "p01",
+      "version": "6.6",
+      "nom_zone_2d": "Zone2D",
+      "geometrie_override": null,
+      "unsteady_override": null,
+      "nom_clone_geometrie": null,
+      "fenetre_simulation": null,
+      "pas_travail_h": 0.09999999999999987,
+      "apports_a_caler": [
+       "A1",
+       "A2",
+       "A3"
+      ],
+      "plan_fenetre_pleine": null,
+      "coeurs": null
+     }
+    ],
+    [
+     "plans_par_titre",
+     [
+      "<TMP>/projet",
+      "Essai",
+      "avec_apports"
+     ],
+     []
+    ],
+    [
+     "Suivi",
+     "<TMP>/suivi",
+     [
+      "A1",
+      "A2",
+      "A3"
+     ],
+     [
+      "S1",
+      "S2",
+      "S3"
+     ],
+     {
+      "titre": "Calage des apports — Essai",
+      "tolerances": {
+       "volume": 0.05,
+       "pic": 0.02,
+       "forme": 0.030000000000000027
+      }
+     }
+    ],
+    [
+     "_appliquer_pentes",
+     [],
+     null
+    ],
+    [
+     "caler",
+     {
+      "modele_est_le_pilote": true,
+      "apports": [
+       "A1",
+       "A2",
+       "A3"
+      ],
+      "sections": [
+       "S1",
+       "S2",
+       "S3"
+      ],
+      "cibles": [
+       {
+        "n": 111,
+        "t0": 0.0,
+        "tf": 11.0,
+        "qmax": 10.0,
+        "somme_q": 396.1
+       },
+       {
+        "n": 111,
+        "t0": 0.0,
+        "tf": 11.0,
+        "qmax": 20.0,
+        "somme_q": 792.2
+       },
+       {
+        "n": 111,
+        "t0": 0.0,
+        "tf": 11.0,
+        "qmax": 30.0,
+        "somme_q": 1188.3
+       }
+      ],
+      "config_type": "Configuration",
+      "config": {
+       "nb_max_essais": 6,
+       "bilan_masse_max_pct": 5.0,
+       "tolerance_volume": 0.05,
+       "tolerance_pic": 0.02,
+       "r_min": 0.97,
+       "degradation_objectif": 0.05,
+       "ajuster_duree": true,
+       "marge_duree_h": 2.0,
+       "controle_amont": true,
+       "prefixe_etape": "",
+       "remplacer_plan_source": false,
+       "fenetre_active": null,
+       "fenetre_seuil_bas": 0.005,
+       "fenetre_seuil_haut": 0.99,
+       "fenetre_t0_h": null,
+       "fenetre_tf_h": null,
+       "fenetre_marge_h": 1.0
+      },
+      "suivi_est_le_suivi": true,
+      "journal": "_dire_horodate",
+      "etape_reference": "sans_apport",
+      "autres": {},
+      "pilote_pentes": {},
+      "pilote_plan_a_remplacer": null
+     }
+    ],
+    [
+     "suivi.conclure",
+     [
+      true,
+      "",
+      9
+     ],
+     {
+      "degrade": false
+     }
+    ],
+    [
+     "_profil_pour_livrables",
+     [],
+     null
+    ],
+    [
+     "produire_livrables_finaux",
+     {
+      "resultat_est_le_resultat": true,
+      "modele_est_le_pilote": true,
+      "dossier_sortie": "<TMP>/resultats_finaux",
+      "kwargs": {
+       "profil": null,
+       "pk_sections": null,
+       "pk_apports": null
+      }
+     }
+    ],
+    [
+     "pilote.nettoyer_reliquats"
+    ]
+   ],
+   "fichiers_produits": [],
+   "pilote_final": {
+    "pentes": {},
+    "plan_a_remplacer": null
+   }
+  },
   "parametre/Dossier_sortie": {
    "code": 0,
    "exception": null,

@@ -14,7 +14,7 @@ extension installée depuis le dépôt.
 Ajustement séquentiel d'apports amont sur des hydrogrammes cibles aval, pour
 les modèles 2D HEC-RAS — chaîne Python + plugin QGIS. Projet ISL Ingénierie.
 
-Version des sources du plugin : **0.9.39**. La
+Version des sources du plugin : **0.9.40**. La
 [note d’ergonomie du 11 septembre 2026](docs/ergonomie_2026-09-11.md)
 décrit le parcours, les choix d’interface et les points de recette.
 
@@ -285,6 +285,8 @@ changement de comportement : la fenêtre lit ses widgets et affiche, `noyau.py`
 décide — composition et lancement s'éprouvent désormais sans QGIS
 ([docs/decoupage_dialogue.md](docs/decoupage_dialogue.md), § 9). Non essayée sur
 un calcul HEC-RAS réel ni sous Windows.
+
+La **0.9.40** (18 novembre 2026) rend l'objectif dégradé visible et refusable, à la demande de l'utilisateur. À l'étape *Paramètres*, sous « Maximum d'essais par apport », une case **Accepter un objectif dégradé**, cochée par défaut, et une ligne qui dit après combien d'essais l'objectif se dégrade et de combien : volume à la tolérance + 5 points, forme d'au moins 92 %, pointe inchangée. La ligne suit les réglages. Décochée, un apport qui ne tient pas l'objectif arrête le calage, en rouge. Le choix part au classeur au lancement, sous `Degrader_objectif` (oui / non ; vide = oui). La règle elle-même ne change pas : le cran ne juge qu'après le nombre d'essais demandé, ou plus tôt si la recherche ne progresse plus.
 
 La **0.9.39** (16 novembre 2026) apporte deux demandes de l'utilisateur. **Objectif dégradé** : quand la recherche d'un apport s'arrête sans tenir l'objectif, son meilleur essai est rejugé avec 5 points de plus sur le volume et 5 de moins sur la forme (±10 % et 92 % par défaut), pointe inchangée. Tenu, l'apport est retenu, marqué « ⚠ objectif dégradé » en orange dans le Suivi, et le calage continue ; sinon le calage s'arrête sur cet apport, comme avant. Un seul cran, pour que l'écart accepté reste borné. **Recaler un plan qui garde son nom** : le plan de référence est remplacé par le plan calé dès que tous les apports sont retenus — il ne l'était que sur un calage conforme, et un calage mené au bout mais non conforme laissait le recalage sous un titre d'étape, à renommer à la main. Un calage arrêté sur un apport laisse le plan de référence intact. Éprouvé sur le modèle fictif et sous QGIS hors écran ; pas encore sur un calage HEC-RAS réel.
 

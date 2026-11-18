@@ -454,6 +454,9 @@ cas("parametre/fenetre_complete",
                   Intervalle_mapping="30MIN"))
 cas("parametre/Fenetre_active_oui", params=params(Fenetre_active="oui"))
 cas("parametre/Fenetre_active_bizarre", params=params(Fenetre_active="peut-etre"))
+# Case « Accepter un objectif degrade » decochee (18/11/2026) : aucun cran.
+cas("parametre/Degrader_objectif_non", params=params(Degrader_objectif="non"))
+cas("parametre/Degrader_objectif_oui", params=params(Degrader_objectif="oui"))
 cas("parametre/nombres_illisibles",
     params=params(Nb_max_iterations_par_apport="six", Tolerance_volume_pct=None,
                   Tolerance_pic_pct="", Fenetre_t0_h="x",

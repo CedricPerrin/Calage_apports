@@ -1828,6 +1828,11 @@ def _configuration(valeurs, prefixe_etape, remplacer_source):
         # DEJA EN POURCENTAGE des deux cotes — pas de « / 100 » ici : c'est
         # une erreur de conservation du solveur, pas un rapport a la cible.
         bilan_masse_max_pct=nombre("Bilan_masse_max_pct", 5.0),
+        # OBJECTIF DEGRADE REFUSE (« Degrader_objectif = non », case de
+        # l'etape Parametres, 18/11/2026) : aucun cran. Vide = accepte.
+        degradation_objectif=(
+            0.0 if _oui_non_ou_defaut(texte("Degrader_objectif")) is False
+            else Configuration.degradation_objectif),
         # FENETRE DE JUGEMENT. Les deux seuils sont donnes en POURCENTAGE du
         # volume cumule du deficit. La methodologie les declare explicitement
         # « a confirmer sur les premiers cas d'application » : ils doivent

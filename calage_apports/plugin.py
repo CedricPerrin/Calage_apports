@@ -953,13 +953,16 @@ exigences, satisfaites <b>en même temps</b> :</p>
 <li><b>Forme</b> — concordance d'au moins 97&nbsp;%, <i>après</i> recalage
 temporel.</li>
 </ul>
-<p><b>Objectif dégradé.</b> Quand la recherche d'un apport s'arrête sans tenir
-ces trois exigences, son meilleur essai est rejugé avec 5&nbsp;points de plus
+<p><b>Objectif dégradé.</b> Quand un apport ne tient pas ces trois exigences
+après le nombre d'essais demandé (ou plus tôt, si la recherche ne progresse
+plus), son meilleur essai est rejugé avec 5&nbsp;points de plus
 sur le volume et 5&nbsp;points de moins sur la forme — ±10&nbsp;% et
 92&nbsp;% avec les valeurs par défaut. La pointe garde sa tolérance. Si cet
 objectif dégradé est tenu, l'apport est retenu, marqué <b>⚠ en orange</b> dans
 le Suivi, et le calage continue ; sinon le calage s'arrête sur cet apport,
-comme avant.</p>
+comme avant. Dans <b>Paramètres</b>, la case <i>Accepter un objectif
+dégradé</i> le refuse : décochée, un apport qui ne tient pas l'objectif
+arrête le calage.</p>
 <p>Les deux premières tolérances se règlent dans <b>Paramètres</b> ; à défaut
 elles valent 5&nbsp;% sur le volume et 2&nbsp;% sur la pointe. Une bande large
 n'est pas neutre : un essai peut s'y arrêter alors que la méthode irait plus
@@ -2295,8 +2298,10 @@ class DialogueParametrage(QDialog):
             "Tolerance_pic_pct": self.spin_tol_pic.value(),
             "Bilan_masse_max_pct": self.spin_bilan_masse.value(),
             "Nb_max_iterations_par_apport": self.spin_nb_max_essais.value(),
-            # Les deux reglages du lancement : lus par _maj_defauts, jamais
+            # Les trois reglages du lancement : lus par _maj_defauts, jamais
             # compares au paquet (ils n'y partent qu'au lancement).
+            "Degrader_objectif":
+                "oui" if self.case_degrader.isChecked() else "non",
             "Coeurs_par_calcul": self._coeurs_demandes(),
             "Elaguer_plans_etape":
                 "oui" if self.case_elaguer.isChecked() else "non",
@@ -3275,11 +3280,7 @@ class DialogueParametrage(QDialog):
             "Écart admis sur le volume, en pourcentage de la cible, jugé sur "
             "la fenêtre du hydrogramme PRINCIPAL uniquement (une mini-crue "
             "avant/après l'événement calé n'entre pas dans ce calcul). "
-            "5 % est la valeur du guide.\n\n"
-            "Objectif dégradé : si la recherche d'un apport s'arrête sans "
-            "tenir l'objectif, son meilleur essai est rejugé avec 5 points de "
-            "plus sur le volume et 5 de moins sur la forme, pointe "
-            "inchangée. Tenu, l'apport passe en orange et le calage continue.")
+            "5 % est la valeur du guide.")
         f2.addRow("Écart de &volume admis :", self._avec_temoin(
             self.spin_tol_volume, "Tolerance_volume_pct"))
 
@@ -3334,8 +3335,28 @@ class DialogueParametrage(QDialog):
         self.spin_nb_max_essais.setToolTip(
             "Garde-fou de dernier recours, non le mode d'arrêt normal : la "
             "concordance s'obtient en trois à quatre essais.")
+        f2.addRow(QLabel("<b>Objectif non atteint</b>"))
         f2.addRow("Maximum d’&essais par apport :", self._avec_temoin(
             self.spin_nb_max_essais, "Nb_max_iterations_par_apport"))
+        # L'OBJECTIF DEGRADE, DIT A L'ECRAN ET REFUSABLE (18/11/2026, demande
+        # utilisateur : « rajouter une ligne dans les paramètres pour indiquer
+        # à l'utilisateur que ça sera dégradé après (et dire de combien et
+        # laisser l'option de refuser cette dégradation) »). Il n'etait dit
+        # que dans une infobulle et dans l'aide. Ecrit AU LANCEMENT, comme
+        # l'elagage : pas de temoin, rien a recomposer.
+        self.case_degrader = QCheckBox("Accepter un objectif dégradé")
+        self.case_degrader.setChecked(
+            noyau.DEFAUTS_PARAMETRES["Degrader_objectif"] == "oui")
+        self.case_degrader.setToolTip(
+            "La recherche s'arrête avant le dernier essai si elle ne "
+            "progresse plus ; le même rejugement s'applique alors.\n\n"
+            "Décochée : un apport qui ne tient pas l'objectif arrête le "
+            "calage, en rouge.")
+        f2.addRow(self.case_degrader)
+        f2.addRow(self._marque_defaut(self.case_degrader, "Degrader_objectif"))
+        self.label_degradation = texte_aide("")
+        f2.addRow(self.label_degradation)
+        self.case_degrader.toggled.connect(self._maj_resume)
         # LES QUATRE REGLAGES DE PRECISION N'ETAIENT RELIES A RIEN : les
         # changer apres une composition laissait l'ecran et le paquet dire
         # deux choses differentes, en silence. Ils reveillent desormais le
@@ -3343,12 +3364,39 @@ class DialogueParametrage(QDialog):
         for _spin in (self.spin_tol_volume, self.spin_tol_pic,
                       self.spin_bilan_masse, self.spin_nb_max_essais):
             _spin.valueChanged.connect(self._maj_resume)
+        for _champ in (self.spin_tol_volume, self.spin_tol_pic,
+                       self.spin_nb_max_essais):
+            _champ.valueChanged.connect(self._dire_degradation)
+        self.case_degrader.toggled.connect(self._dire_degradation)
+        self._dire_degradation()
 
         # L'HYPOTHESE SUR LA PENTE etait dite ici ; elle est desormais dite a
         # l'onglet 4, dans le groupe « Classeur » — c'est la qu'on ouvre le
         # fichier ou elle se lit et se corrige, et une consigne loin de son
         # objet ne se suit pas.
         return groupe_param
+
+    def _dire_degradation(self, *_):
+        """
+        Ce qui arrive a un apport qui ne tient pas l'objectif, en chiffres.
+        Le cran (5 points) et la forme (97 %, 92 % degradee) sont ceux de
+        calage.Configuration : le plugin n'importe pas la chaine.
+        """
+        essais = self.spin_nb_max_essais.value()
+        if not self.case_degrader.isChecked():
+            self.label_degradation.setText(
+                f"Après {essais} essais sans tenir l’objectif, le calage "
+                "s’arrête sur l’apport, en rouge.")
+            return
+
+        def pct(valeur):
+            return format(valeur, "g").replace(".", ",")
+        self.label_degradation.setText(
+            f"Après {essais} essais sans tenir l’objectif, le meilleur essai "
+            f"est rejugé : volume à ±{pct(self.spin_tol_volume.value() + 5)} %, "
+            f"forme d’au moins 92 %, pointe inchangée "
+            f"(±{pct(self.spin_tol_pic.value())} %). Tenu : l’apport passe en "
+            "orange et le calage continue. Sinon : arrêt en rouge.")
 
     def _champ_prefixe_scenario(self):
         """
@@ -5105,6 +5153,7 @@ class DialogueParametrage(QDialog):
             tolerance_pic_pct=self.spin_tol_pic.value(),
             bilan_masse_max_pct=self.spin_bilan_masse.value(),
             nb_max_iterations=self.spin_nb_max_essais.value(),
+            degrader_objectif=self.case_degrader.isChecked(),
             # 0 = plan inchange ; sinon la suggestion du poste, cochee.
             coeurs_par_calcul=self._coeurs_demandes(),
             elaguer_etapes=self.case_elaguer.isChecked(),

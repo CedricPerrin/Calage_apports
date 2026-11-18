@@ -1,5 +1,23 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 18 novembre 2026 (version) : 0.9.40, l'objectif dégradé dit à l'écran et refusable
+
+Deux retours de lsso dans `M:\ISL-SO\13-PIO\3 - Outils\Retour`, tous deux sur la 0.9.32 :
+- 12/11, « modification du % de précision recherché sur le coefficient de forme après 2 ou
+  3 essais » : refusé par Cédric le 18/11, le cran reste jugé après le nombre d'essais
+  demandé (arrêt anticipé compris). Inscrit dans `STATUT.txt` § 2.4 (`ab5287d`).
+- 16/11, préfixe identique « non autorisé » : la 0.9.32 l'autorisait déjà, mais l'alerte
+  rouge se lisait comme un refus ; corrigé par la 0.9.39. Les postes de lsso (ISL0186,
+  ISLCALCW06) sont encore en 0.9.32.
+
+Demande de Cédric du 18/11 : dire à l'étape Paramètres que l'objectif sera dégradé, de
+combien, et pouvoir le refuser. Fait : case « Accepter un objectif dégradé » (cochée par
+défaut) sous « Maximum d'essais par apport », ligne qui suit le nombre d'essais et les deux
+écarts, clé `Degrader_objectif` écrite au lancement, lue par `pont_hecras._configuration`
+et `reconstruire_livrables`. Essais : `test_lancement_noyau`, deux cas de `test_pont_caler`
+(références refigées par ajout seulement), `reference_noyau_classeur` (clé ajoutée),
+quatre contrôles de `test_plugin_qgis`. Non vérifié : la fenêtre à l'écran, un calage réel.
+
 ## 16 novembre 2026 (version) : 0.9.39, objectif dégradé, plan de référence remplacé dès que tout est calé
 
 Deux demandes de Cédric du 16/11. Décisions prises le même jour, une question à la fois :

@@ -25,13 +25,13 @@ import noyau  # noqa: E402
 REGLAGES = dict(premier_apport="A2", prefixe_scenario="R-Q100",
                 tolerance_volume_pct=5.0, tolerance_pic_pct=2.0,
                 bilan_masse_max_pct=5.0, nb_max_iterations=6,
-                coeurs_par_calcul=0, elaguer_etapes=False,
+                degrader_objectif=True, coeurs_par_calcul=0, elaguer_etapes=False,
                 remplacer_plan_source=False)
 
 ECRITS = [("Premier_apport", "A2"), ("Prefixe_scenario", "R-Q100"),
           ("Tolerance_volume_pct", 5.0), ("Tolerance_pic_pct", 2.0),
           ("Bilan_masse_max_pct", 5.0), ("Nb_max_iterations_par_apport", 6),
-          ("Coeurs_par_calcul", 0), ("Elaguer_plans_etape", "non"),
+          ("Degrader_objectif", "oui"), ("Coeurs_par_calcul", 0), ("Elaguer_plans_etape", "non"),
           ("Remplacer_plan_source", "non")]
 
 
@@ -71,7 +71,7 @@ class _Poste:
 
 # --- ce qui s'ecrit, et dans quel ordre ----------------------------------------
 
-def test_un_lancement_possible_ecrit_les_neuf_reglages_et_ne_refuse_rien(
+def test_un_lancement_possible_ecrit_les_dix_reglages_et_ne_refuse_rien(
         monkeypatch):
     poste = _Poste(monkeypatch)
 
@@ -87,8 +87,10 @@ def test_une_case_cochee_s_ecrit_oui(monkeypatch, coche, ecrit):
     poste = _Poste(monkeypatch)
 
     noyau.ecrire_reglages_de_lancement("donnees.xlsx", dict(
-        REGLAGES, elaguer_etapes=coche, remplacer_plan_source=coche))
+        REGLAGES, elaguer_etapes=coche, remplacer_plan_source=coche,
+        degrader_objectif=coche))
 
+    assert dict(poste.ecrits)["Degrader_objectif"] == ecrit
     assert dict(poste.ecrits)["Elaguer_plans_etape"] == ecrit
     assert dict(poste.ecrits)["Remplacer_plan_source"] == ecrit
 

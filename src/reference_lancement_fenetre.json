@@ -130,6 +130,15 @@
     "appel": "ecrire_parametre",
     "arguments": [
      "D:/calage/sortie/donnees.xlsx",
+     "Degrader_objectif",
+     "oui"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
      "Coeurs_par_calcul",
      0
     ],
@@ -426,6 +435,15 @@
     "appel": "ecrire_parametre",
     "arguments": [
      "D:/calage/sortie/donnees.xlsx",
+     "Degrader_objectif",
+     "oui"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
      "Coeurs_par_calcul",
      0
     ],
@@ -568,6 +586,15 @@
      "D:/calage/sortie/donnees.xlsx",
      "Nb_max_iterations_par_apport",
      6
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Degrader_objectif",
+     "oui"
     ],
     "nommes": {}
    },
@@ -732,6 +759,15 @@
     "appel": "ecrire_parametre",
     "arguments": [
      "D:/calage/sortie/donnees.xlsx",
+     "Degrader_objectif",
+     "oui"
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
      "Coeurs_par_calcul",
      0
     ],
@@ -881,6 +917,15 @@
      "D:/calage/sortie/donnees.xlsx",
      "Nb_max_iterations_par_apport",
      6
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Degrader_objectif",
+     "oui"
     ],
     "nommes": {}
    },
@@ -1088,6 +1133,15 @@
      "D:/calage/sortie/donnees.xlsx",
      "Nb_max_iterations_par_apport",
      6
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Degrader_objectif",
+     "oui"
     ],
     "nommes": {}
    },
@@ -1338,6 +1392,15 @@
      "D:/calage/sortie/donnees.xlsx",
      "Nb_max_iterations_par_apport",
      6
+    ],
+    "nommes": {}
+   },
+   {
+    "appel": "ecrire_parametre",
+    "arguments": [
+     "D:/calage/sortie/donnees.xlsx",
+     "Degrader_objectif",
+     "oui"
     ],
     "nommes": {}
    },
