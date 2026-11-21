@@ -56,3 +56,18 @@ def test_a_egale_distance_du_milieu_le_pk_ne_depend_pas_du_sens_de_dessin():
     r = geo.calculer_pk(lignes, AXE, pk_origine=50.0, sens="aval_amont")
     assert r["pk_m"].tolist() == [250.0, 250.0]          # 1000 - 800 + 50
 
+
+def test_l_ex_aequo_est_une_tolerance_pas_une_marche_d_arrondi():
+    # Jambe droite allongee de e : le milieu glisse de e/2 vers x = 800, qui devient le
+    # croisement le plus proche, de e/2 environ.
+    def pk(e):
+        u = LineString([(200, -10), (200, 10), (800, 10), (800, -10 - e)])
+        lignes = pd.DataFrame({"nom": ["U"], "geometry": [u]})
+        return geo.calculer_pk(lignes, AXE)["pk_m"].tolist()
+
+    # A moins d'un millimetre du plus proche : ex aequo, le plus petit PK, quel que soit e
+    # (un arrondi a 3 decimales rendait 800 pour e = 0,0004 et 200 pour e = 0,0002).
+    assert pk(0.0002) == pk(0.0004) == pk(0.001) == [200.0]
+    # Au-dela du millimetre, le croisement le plus proche l'emporte.
+    assert pk(0.01) == [800.0]
+

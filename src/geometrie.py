@@ -150,10 +150,13 @@ def calculer_pk(gdf_lignes, axe, pk_origine=0.0, sens="amont_aval"):
             points = [m if m.geom_type == "Point" else m.representative_point()
                       for m in morceaux]
             milieu = g.interpolate(0.5, normalized=True)
-            # A EGALE DISTANCE (au millimetre), le plus petit PK : sans cela le
-            # PK d'une section en U dependait de son sens de dessin.
-            point = min(points, key=lambda p: (round(p.distance(milieu), 3),
-                                               pk_de(axe.project(p))))
+            # A EGALE DISTANCE, le plus petit PK : sans cela le PK d'une section
+            # en U dependait de son sens de dessin. « Egale » = a moins d'un
+            # millimetre du plus proche (une tolerance, pas un arrondi : un
+            # arrondi departage ou non selon le cote de la marche).
+            ecarts = [p.distance(milieu) for p in points]
+            proches = [p for p, e in zip(points, ecarts) if e <= min(ecarts) + 1e-3]
+            point = min(proches, key=lambda p: pk_de(axe.project(p)))
             croise.append(True)
             distance.append(0.0)
             nombre.append(len(points))
