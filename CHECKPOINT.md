@@ -15,7 +15,8 @@ Décisions de Cédric du 21/11/2026, appliquées en son absence (week-end, branc
   coupe l'axe N fois » avec les PK possibles (`controle_donnees._signaler_croisements`,
   AVERTISSEMENT : le calage n'est pas bloqué). Test : `src/test_pk_croisements.py`. Non vérifié :
   `controler_geometrie` de bout en bout (geopandas absent), le sens `aval_amont` sur un modèle réel.
-- Hypothèses de mise en œuvre, **à valider** : l'alerte des croisements est un AVERTISSEMENT (la
+- Hypothèses de mise en œuvre, **validées par Cédric le 21/11/2026, une par une** : l'alerte des
+  croisements est un AVERTISSEMENT (la
   décision dit que le calage n'est pas bloqué) ; quand la lecture du bilan échoue, l'état « non lu »
   remplace le bilan précédent du suivi, et une lecture réussie le rétablit ; `calculer_pk` gagne
   deux colonnes (`nb_croisements`, `pk_croisements`), qui peuvent apparaître dans la couche
