@@ -19,7 +19,8 @@ Décisions de Cédric du 21/11/2026, appliquées en son absence (week-end, branc
   décision dit que le calage n'est pas bloqué) ; quand la lecture du bilan échoue, l'état « non lu »
   remplace le bilan précédent du suivi, et une lecture réussie le rétablit ; `calculer_pk` gagne
   deux colonnes (`nb_croisements`, `pk_croisements`), qui peuvent apparaître dans la couche
-  d'affichage des PK.
+  d'affichage des PK ; deux croisements à égale distance du milieu (au millimètre) : le plus
+  petit PK, pour que le PK ne dépende pas du sens de dessin de la section (relecture du 21/11).
 
 ## 18 novembre 2026 (version) : 0.9.40, l'objectif dégradé dit à l'écran et refusable
 

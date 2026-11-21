@@ -44,3 +44,15 @@ def test_le_controle_signale_la_section_sans_bloquer(monkeypatch):
     niveau, message = anomalies[0]
     assert niveau == cd.AVERTISSEMENT
     assert "S1" in message and "3 fois" in message and "200" in message
+
+
+def test_a_egale_distance_du_milieu_le_pk_ne_depend_pas_du_sens_de_dessin():
+    # Section en U : croise l'axe en x = 200 et x = 800, a egale distance de son milieu.
+    u = LineString([(200, -10), (200, 10), (800, 10), (800, -10)])
+    envers = LineString(list(u.coords)[::-1])
+    lignes = pd.DataFrame({"nom": ["U", "U a l'envers"], "geometry": [u, envers]})
+    r = geo.calculer_pk(lignes, AXE, pk_origine=50.0)
+    assert r["pk_m"].tolist() == [250.0, 250.0]          # le plus petit des deux PK
+    r = geo.calculer_pk(lignes, AXE, pk_origine=50.0, sens="aval_amont")
+    assert r["pk_m"].tolist() == [250.0, 250.0]          # 1000 - 800 + 50
+
