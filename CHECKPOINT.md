@@ -3,7 +3,7 @@
 ## 21 novembre 2026 (correctifs, sans montée de version) : bilan de masse non lu, PK d'une section qui coupe l'axe plusieurs fois
 
 Décisions de Cédric du 21/11/2026, appliquées en son absence (week-end, branche
-`claude/eager-davinci-vu7lcq`, non poussée) :
+`claude/eager-davinci-vu7lcq`, poussée, non fusionnée) :
 - **D3, « Accepter, mais le dire »** : quand la lecture du bilan de masse échoue (exception),
   l'essai reste accepté comme avant ; `ResultatCalcul.bilan_non_lu` porte la cause, le journal
   et le suivi (clé `non_lu` de `bilan_masse`, ligne rouge de la page de suivi) disent « bilan de
@@ -15,6 +15,11 @@ Décisions de Cédric du 21/11/2026, appliquées en son absence (week-end, branc
   coupe l'axe N fois » avec les PK possibles (`controle_donnees._signaler_croisements`,
   AVERTISSEMENT : le calage n'est pas bloqué). Test : `src/test_pk_croisements.py`. Non vérifié :
   `controler_geometrie` de bout en bout (geopandas absent), le sens `aval_amont` sur un modèle réel.
+- Hypothèses de mise en œuvre, **à valider** : l'alerte des croisements est un AVERTISSEMENT (la
+  décision dit que le calage n'est pas bloqué) ; quand la lecture du bilan échoue, l'état « non lu »
+  remplace le bilan précédent du suivi, et une lecture réussie le rétablit ; `calculer_pk` gagne
+  deux colonnes (`nb_croisements`, `pk_croisements`), qui peuvent apparaître dans la couche
+  d'affichage des PK.
 
 ## 18 novembre 2026 (version) : 0.9.40, l'objectif dégradé dit à l'écran et refusable
 
