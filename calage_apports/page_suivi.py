@@ -10,6 +10,7 @@ _rafraichir_suivi, qui journalise sous NOM_PLUGIN.
 
 import os
 from datetime import datetime, timedelta
+from html import escape
 from pathlib import Path
 
 from qgis.core import Qgis
@@ -820,6 +821,11 @@ class PageSuivi(QWidget):
         """
         if not isinstance(bilan, dict):
             self.label_bilan_masse.setText("")
+            return
+        if bilan.get("non_lu"):
+            self.label_bilan_masse.setText(
+                f"<b style='color:{ISL_ROUGE}'>Bilan de masse non lu : essai "
+                f"non contrôlé</b> ({escape(str(bilan['non_lu']))})")
             return
         try:
             pct = float(bilan["pct"])

@@ -243,6 +243,9 @@ class ResultatCalcul:
     bilan_masse_pct: float = float("nan")
     courant_max: float = float("nan")
     message: str = ""
+    # Cause de l'echec de la LECTURE du bilan de masse (exception), vide sinon.
+    # L'essai reste accepte, mais il est dit non controle (D3, 21/11/2026).
+    bilan_non_lu: str = ""
 
 
 class Modele:
@@ -1341,7 +1344,7 @@ def _calculer_reference(modele, apports, sections, cibles, config, suivi,
     while True:
         calcul = modele.calculer()
         resultat.nb_calculs += 1
-        _noter_bilan(suivi, calcul, config)
+        _noter_bilan(suivi, calcul, config, dire)
         acceptable, motif_qualite = qualite_acceptable(calcul, config)
         if not acceptable:
             resultat.motif = (
@@ -1672,7 +1675,7 @@ def _essayer_apport(modele, etat, config, suivi, resultat, dire):
         modele.appliquer_facteur(etat.apport, 1.0)
         calcul = modele.calculer()
         resultat.nb_calculs += 1
-        _noter_bilan(suivi, calcul, config)
+        _noter_bilan(suivi, calcul, config, dire)
         acceptable, motif_qualite = qualite_acceptable(calcul, config)
 
         if not acceptable:
@@ -1893,7 +1896,7 @@ def _degrader_objectif(modele, etat, config, suivi, resultat, dire):
              f"les siens")
         calcul = modele.calculer()
         resultat.nb_calculs += 1
-        _noter_bilan(suivi, calcul, config)
+        _noter_bilan(suivi, calcul, config, dire)
         acceptable, motif_qualite = qualite_acceptable(calcul, config)
         if not acceptable:
             etat.motif += (f" Le recalcul de l'essai {etat.essai_en_place}, "
@@ -2480,7 +2483,7 @@ def _calendrier_durees(cibles, residuels, config, dire):
     return calendrier
 
 
-def _noter_bilan(suivi, calcul, config):
+def _noter_bilan(suivi, calcul, config, dire=None):
     """
     Transmet au suivi le bilan de masse du calcul qui vient de tourner.
 
@@ -2489,6 +2492,15 @@ def _noter_bilan(suivi, calcul, config):
     numerique » n'expose son chiffre que dans le journal texte, que
     l'utilisateur du plugin n'ouvre pas.
     """
+    # LECTURE ECHOUEE : l'essai est accepte, mais NON CONTROLE, et on le dit.
+    if calcul.bilan_non_lu:
+        if dire is not None:
+            _sans_interrompre(
+                dire, f"    bilan de masse non lu : essai non contrôlé "
+                      f"({calcul.bilan_non_lu})")
+        if suivi is not None:
+            _sans_interrompre(suivi.noter_bilan_non_lu, calcul.bilan_non_lu,
+                              config.bilan_masse_max_pct)
     if suivi is None:
         return
     _sans_interrompre(suivi.noter_bilan_masse, calcul.bilan_masse_pct,

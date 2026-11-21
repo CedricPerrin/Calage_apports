@@ -1,5 +1,15 @@
 # CHECKPOINT — Calage des apports (ISL Ingénierie)
 
+## 21 novembre 2026 (correctifs, sans montée de version) : bilan de masse non lu, PK d'une section qui coupe l'axe plusieurs fois
+
+Décisions de Cédric du 21/11/2026, appliquées en son absence (week-end, branche
+`claude/eager-davinci-vu7lcq`, non poussée) :
+- **D3, « Accepter, mais le dire »** : quand la lecture du bilan de masse échoue (exception),
+  l'essai reste accepté comme avant ; `ResultatCalcul.bilan_non_lu` porte la cause, le journal
+  et le suivi (clé `non_lu` de `bilan_masse`, ligne rouge de la page de suivi) disent « bilan de
+  masse non lu : essai non contrôlé » avec elle. Rien ne change pour un NaN sans erreur ni pour
+  un bilan lu. Test : `src/test_bilan_non_lu.py`. Non vérifié : la page de suivi à l'écran.
+
 ## 18 novembre 2026 (version) : 0.9.40, l'objectif dégradé dit à l'écran et refusable
 
 Deux retours de lsso dans `M:\ISL-SO\13-PIO\3 - Outils\Retour`, tous deux sur la 0.9.32 :

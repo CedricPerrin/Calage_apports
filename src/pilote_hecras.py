@@ -3548,15 +3548,17 @@ class PiloteHecRas(Modele):
             return ResultatCalcul(reussi=False, duree_s=duree,
                                   message=ecriture)
 
-        bilan = float("nan")
+        bilan, non_lu = float("nan"), ""
         try:
             comptes = HdfResultsPlan.get_volume_accounting(self.hdf_resultats)
             bilan = bilan_masse_depuis_comptes(comptes)
-        except Exception:
-            pass
+        except Exception as e:
+            # ACCEPTE MAIS DIT (decision du 21/11/2026) : l'essai n'est pas
+            # rejete, la boucle et le suivi savent qu'il n'est pas controle.
+            non_lu = f"{type(e).__name__}: {e}"
 
         return ResultatCalcul(reussi=True, duree_s=duree,
-                              bilan_masse_pct=bilan)
+                              bilan_masse_pct=bilan, bilan_non_lu=non_lu)
 
     def lire_section(self, nom_section):
         """

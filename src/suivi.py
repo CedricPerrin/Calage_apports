@@ -326,6 +326,20 @@ class Suivi:
 
     # --- evenements --------------------------------------------------------
 
+    def noter_bilan_non_lu(self, cause, seuil_pct):
+        """
+        La lecture du bilan de masse a echoue : l'essai est accepte mais non
+        controle, et l'etat machine le dit (cle « non_lu », cause lue).
+        Decision du 21/11/2026. Le bilan precedent est remplace : il ne vaut
+        pas pour ce calcul.
+        """
+        self.bilan_masse = {"pct": None, "seuil_pct": float(seuil_pct),
+                            "non_lu": str(cause)}
+        try:
+            self._ecrire_etat()
+        except Exception as e:                              # noqa: BLE001
+            self._consigner("état machine (bilan de masse non lu)", e)
+
     def noter_bilan_masse(self, pct, seuil_pct):
         """
         Bilan de masse du calcul qui vient de tourner, et son seuil de rejet.
