@@ -126,29 +126,50 @@ def calculer_pk(gdf_lignes, axe, pk_origine=0.0, sens="amont_aval"):
     sens : "amont_aval" si l'axe est dessine de l'amont vers l'aval (cas
            normal, PK croissants vers l'aval), "aval_amont" pour inverser.
 
-    Retourne le GeoDataFrame enrichi des colonnes 'pk_m', 'croise_axe' et
-    'distance_axe_m' (ecart entre la ligne et l'axe, nul si elles se croisent).
+    Une ligne qui coupe l'axe plusieurs fois prend le PK du croisement le plus
+    proche de son milieu.
+
+    Retourne le GeoDataFrame enrichi des colonnes 'pk_m', 'croise_axe',
+    'distance_axe_m' (ecart entre la ligne et l'axe, nul si elles se croisent),
+    'nb_croisements' et 'pk_croisements' (PK de chaque croisement, texte).
     """
     longueur = axe.length
-    pk, croise, distance = [], [], []
+    pk, croise, distance, nombre, possibles = [], [], [], [], []
+
+    def pk_de(s):
+        return longueur - s if sens == "aval_amont" else s
 
     for g in gdf_lignes.geometry:
         inter = g.intersection(axe)
         if not inter.is_empty:
-            point = inter if inter.geom_type == "Point" else inter.representative_point()
+            # UNE SECTION PEUT COUPER L'AXE PLUSIEURS FOIS (meandre) : le PK
+            # retenu est celui du croisement le plus proche du MILIEU de la
+            # section (decision du 21/11/2026), et tous sont gardes pour
+            # que le controle les dise.
+            morceaux = list(getattr(inter, "geoms", [inter]))
+            points = [m if m.geom_type == "Point" else m.representative_point()
+                      for m in morceaux]
+            milieu = g.interpolate(0.5, normalized=True)
+            point = min(points, key=lambda p: p.distance(milieu))
             croise.append(True)
             distance.append(0.0)
+            nombre.append(len(points))
+            possibles.append(sorted(pk_de(axe.project(p)) for p in points))
         else:
             point = g.centroid
             croise.append(False)
             distance.append(float(g.distance(axe)))
-        s = axe.project(point)
-        pk.append(longueur - s if sens == "aval_amont" else s)
+            nombre.append(0)
+            possibles.append([])
+        pk.append(pk_de(axe.project(point)))
 
     resultat = gdf_lignes.copy()
     resultat["pk_m"] = np.asarray(pk) + pk_origine
     resultat["croise_axe"] = croise
     resultat["distance_axe_m"] = np.round(distance, 2)
+    resultat["nb_croisements"] = nombre
+    resultat["pk_croisements"] = [
+        " ; ".join(f"{v + pk_origine:.0f}" for v in vs) for vs in possibles]
     return resultat
 
 

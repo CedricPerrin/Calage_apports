@@ -9,6 +9,12 @@ Décisions de Cédric du 21/11/2026, appliquées en son absence (week-end, branc
   et le suivi (clé `non_lu` de `bilan_masse`, ligne rouge de la page de suivi) disent « bilan de
   masse non lu : essai non contrôlé » avec elle. Rien ne change pour un NaN sans erreur ni pour
   un bilan lu. Test : `src/test_bilan_non_lu.py`. Non vérifié : la page de suivi à l'écran.
+- **C2 avec D4, « PK du croisement central, avec alerte »** : une section qui coupe l'axe
+  plusieurs fois prend le PK du croisement le plus proche de son milieu (`geometrie.calculer_pk`,
+  colonnes `nb_croisements` et `pk_croisements`) ; le contrôle des données dit « la section X
+  coupe l'axe N fois » avec les PK possibles (`controle_donnees._signaler_croisements`,
+  AVERTISSEMENT : le calage n'est pas bloqué). Test : `src/test_pk_croisements.py`. Non vérifié :
+  `controler_geometrie` de bout en bout (geopandas absent), le sens `aval_amont` sur un modèle réel.
 
 ## 18 novembre 2026 (version) : 0.9.40, l'objectif dégradé dit à l'écran et refusable
 

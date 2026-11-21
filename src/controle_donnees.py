@@ -600,6 +600,17 @@ def _tableau_pk(noms_sections, noms_apports, pk_sec, pk_app):
     return tableau
 
 
+def _signaler_croisements(g_sec):
+    """Une section qui coupe l'axe plusieurs fois est signalee, pas refusee."""
+    return [(AVERTISSEMENT,
+             f"la section {nom} coupe l'axe {n} fois (PK possibles : {pks} m) ; "
+             f"le PK retenu est celui du croisement le plus proche de son "
+             f"milieu : {round(pk, 1)} m")
+            for nom, n, pks, pk in zip(g_sec["nom"], g_sec["nb_croisements"],
+                                       g_sec["pk_croisements"], g_sec["pk_m"])
+            if n > 1]
+
+
 def controler_geometrie(chemin_template):
     """
     Controle de la chaine SIG : shapefiles, PK, et coherence entre la
@@ -711,6 +722,7 @@ def controler_geometrie(chemin_template):
     pk_sec = dict(zip(g_sec["nom"], g_sec["pk_m"]))
     pk_app = dict(zip(g_app["nom"], g_app["pk_m"]))
 
+    anomalies += _signaler_croisements(g_sec)
     anomalies += geo.verifier_ordre(noms_sections, pk_sec)
     anomalies += geo.verifier_position_apports(
         list(zip(noms_apports, noms_sections)), pk_app, pk_sec)
