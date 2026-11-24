@@ -1617,9 +1617,9 @@ def bilan_masse_recalcule(chemin_hdf, facteur=FACTEUR_ECHANTILLON_ABERRANT):
     Bilan de masse REFAIT a partir des series de debit aux conditions
     limites, et echantillons aberrants qu'il a fallu ecarter pour le faire.
 
-    POURQUOI. Le 13/11/2026 (Ard_aval, apport ARD07, essai 2), HEC-RAS 7.0.2
+    POURQUOI. Le 13/11/2026 (modele d'affaire, un apport, essai 2), HEC-RAS 7.0.2
     a rendu « Error Percent » = +27,52 % sur un calcul SAIN. A la toute
-    derniere sortie (30,6 h), la serie de la condition limite ARD07 valait
+    derniere sortie (30,6 h), la serie de la condition limite de l'apport valait
     386 032 m3/s — le volume entier de l'apport (772 000 m3) rapporte a un
     pas de 2 s — quand l'hydrogramme injecte plafonne a 44,8 m3/s. HEC-RAS a
     compte ce volume une seconde fois en SORTIE : « Cum Outflow » 2 424 milliers
