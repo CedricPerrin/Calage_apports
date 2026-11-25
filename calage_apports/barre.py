@@ -59,10 +59,12 @@ class TexteEntier(QObject):
         texte.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         texte.installEventFilter(self)
         mise_en_page = texte.document().documentLayout()
-        mise_en_page.documentSizeChanged.connect(self.ajuster)
+        # Une fermeture, pas la méthode liée : reliée par self.ajuster, la hauteur ne
+        # suivait plus la largeur dans le dock de Plemmyra (test rouge, 25/11/2026).
+        mise_en_page.documentSizeChanged.connect(lambda *_taille: self.ajuster())
         self.ajuster()
 
-    def ajuster(self, *_taille: object) -> None:
+    def ajuster(self) -> None:
         """Hauteur du texte : celle de son document, marges comprises. Slot : il ne
         lève jamais."""
         try:
