@@ -76,7 +76,7 @@ from qgis.PyQt.QtWidgets import (
     QWidget,
 )
 
-from . import cpn, lexique, materiel, noyau, retour
+from . import barre, cpn, lexique, materiel, noyau, retour
 from . import registre  # noqa: F401  (ré-exporté : le banc lit mod_plugin.registre)
 from .bande import Bande
 from .installation import installation_en_cours
@@ -1337,6 +1337,8 @@ class DialogueParametrage(QDialog):
         self.barre_messages.setSizePolicy(
             QSizePolicy.Policy.Ignored,
             self.barre_messages.sizePolicy().verticalPolicy())
+        # Message entier : QGIS fige son texte à 1,75 em (recette CPN, P4).
+        barre.suivre(self.barre_messages)
         self.barre_messages.setObjectName("barreMessages")
         self.barre_messages.hide()          # pushMessage() la fait apparaitre
         agencement.addWidget(self.barre_messages)
