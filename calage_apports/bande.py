@@ -45,15 +45,15 @@ class Bande(QListWidget):
     @property
     def hauteur_complete(self) -> int:
         """Hauteur de toutes les étapes avec leur nom, cadre compris, en px."""
-        return sum(self._hauteurs()) + 2 * self.frameWidth()
+        return sum(self._hauteurs(self._textes[0])) + 2 * self.frameWidth()
 
-    def _hauteurs(self) -> list[int]:
-        """Hauteur de chaque entrée avec son nom : ses lignes, plus 0,4 ligne. Un intitulé de
+    def _hauteurs(self, textes: list[str]) -> list[int]:
+        """Hauteur de chaque entrée de ``textes`` : ses lignes, plus 0,4 ligne. Un intitulé de
         groupe compte ses lignes dans :func:`police_intitule`, plus haute de 15 % : comptées dans
         la petite police, quatre lignes débordaient de leur case (Hyétos 0.6.0, 28/10/2026)."""
         pas = QFontMetricsF(police_intitule(self.font())).lineSpacing()
         hauteurs = []
-        for rang, texte in enumerate(self._textes[0]):
+        for rang, texte in enumerate(textes):
             lignes = texte.count("\n") + 1
             element = self.item(rang)
             if element is not None and not element.flags() & Qt.ItemFlag.ItemIsSelectable:
@@ -68,16 +68,20 @@ class Bande(QListWidget):
         self.ajuster(evenement.size().height())
 
     def ajuster(self, hauteur: int) -> None:
-        """Numéro et nom si ``hauteur`` (px, cadre compris) les contient, numéro seul sinon."""
+        """Numéro et nom si ``hauteur`` (px, cadre compris) les contient, numéro seul sinon. Un
+        intitulé de groupe garde la hauteur de ses lignes : réduit à 1,4 ligne, « Analyse / de la /
+        station » chevauchait les numéros voisins (recette CPN du 24/11/2026, P5)."""
         complete = hauteur >= self.hauteur_complete
         if complete == self._complete:
             return
         self._complete = complete
-        hauteurs = self._hauteurs()
+        textes = self._textes[0 if complete else 1]
+        hauteurs = self._hauteurs(textes)
         for rang in range(self.count()):
             element = self.item(rang)
-            element.setText(self._textes[0 if complete else 1][rang])
-            haut = hauteurs[rang] if complete else self.hauteur_courte
+            element.setText(textes[rang])
+            groupe = not element.flags() & Qt.ItemFlag.ItemIsSelectable
+            haut = hauteurs[rang] if complete or groupe else self.hauteur_courte
             element.setSizeHint(QSize(self._largeur, haut))
 
 
